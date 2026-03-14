@@ -3,6 +3,8 @@ import cors from 'cors';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { initializeDatabase } from './db/database.js';
+import { playersRouter } from './routes/players.js';
+import { savesRouter } from './routes/saves.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -16,6 +18,10 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// API routes
+app.use('/api/players', playersRouter);
+app.use('/api/saves', savesRouter);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
