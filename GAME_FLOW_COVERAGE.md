@@ -105,7 +105,7 @@
 
 ## Content Coverage
 
-### Random Events (240 total)
+### Random Events (250 total)
 
 | Week Range | Event Count | Categories |
 |------------|-------------|------------|
@@ -113,6 +113,7 @@
 | Weeks 2-4 | 75 events | Early challenges |
 | Weeks 5-8 | 85 events | Mid-game complexity |
 | Weeks 9-12 | 68 events | Late-game crises |
+| KRITIS-only | 10 events | NIS2 audits, chain reactions |
 
 #### Event Categories Distribution
 | Category | Count | Description |
@@ -125,6 +126,20 @@
 | Politics | 6 | Office politics |
 | Team | 5 | Team dynamics |
 | Budget | 4 | Financial decisions |
+
+#### KRITIS Mode Special Events (10 total)
+| Event | Type | Description |
+|-------|------|-------------|
+| NIS2 Audit Announcement | Compliance | BSI announces upcoming audit |
+| Documentation Crisis | Compliance | Discover missing documentation |
+| NIS2 Audit Day | Compliance | The actual audit with choices |
+| NIS2 Audit Result | Compliance | Pass/fail based on prior choices |
+| Cooling Failure | Chain Reaction | Server room overheating |
+| Server Damage | Chain Reaction | Follows cooling failure |
+| Power Fluctuation | Chain Reaction | USV warning, unstable power |
+| Power Outage | Chain Reaction | Total blackout |
+| Coordinated Attack | Chain Reaction | APT-style multi-vector attack |
+| Ransomware Spread | Chain Reaction | Spreading encryption |
 
 ### Scenarios (179 total across 5 packs)
 
@@ -279,21 +294,21 @@
 
 ### Implemented
 - All 6 game modes with distinct configurations
-- 240 random events across all weeks
+- 250 random events across all weeks (including KRITIS-specific)
 - 179 scenarios across 5 content packs
 - Full adventure mode with 12 chapters
 - 12 sidequests with story effects
 - Dialogue unlock system
 - NPC behavior changes
 - Multiple endings
+- KRITIS mode NIS2 audits (4 events: announcement → documentation → audit day → result)
+- KRITIS mode chain reactions (6 events: cooling/power failures cascading into crises)
 
 ### Partially Implemented
-- KRITIS mode mentions "NIS2-Audits und Kettenreaktionen" but these are thematic, not special mechanics
 - Arcade combo system exists but visual feedback could be enhanced
 
 ### Future Expansion Points
 - More content packs
 - Additional sidequests
-- Extended KRITIS-specific events (audits, chain reactions)
 - Achievement system
 - Unlockable content based on endings
