@@ -13,8 +13,8 @@ export function Terminal({ context, onSolved, onCancel }: TerminalProps) {
   const { terminalRef, hintsRemaining, showHint } = useTerminal({
     context,
     onSolved,
-    onPartialSolution: (feedback) => {
-      console.log('Partial solution:', feedback);
+    onPartialSolution: (_feedback) => {
+      // TODO: Display partial solution feedback to user
     },
   });
 
@@ -33,17 +33,18 @@ export function Terminal({ context, onSolved, onCancel }: TerminalProps) {
 
       {/* Footer */}
       <div className="p-2 border-t border-terminal-border bg-terminal-bg-secondary flex justify-between text-sm">
-        <span>
+        <span className="flex gap-4">
+          <span className="text-terminal-green-muted">[Tab] Autovervollständigung</span>
           <button
             onClick={showHint}
             disabled={hintsRemaining === 0}
             className={hintsRemaining > 0 ? 'hover:underline' : 'text-terminal-green-muted'}
           >
-            [T] Tipp anzeigen ({hintsRemaining} übrig)
+            [H] Hinweis ({hintsRemaining} übrig)
           </button>
         </span>
         <span className="text-terminal-green-muted">
-          [?] Befehlsreferenz
+          [ESC] Abbrechen
         </span>
       </div>
     </div>

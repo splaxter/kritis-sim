@@ -16,8 +16,8 @@ export function getAvailableScenarios(
   const modeMaxDifficulty = config.difficulty.maxScenarioDifficulty;
 
   return scenarios.filter((scenario) => {
-    // Check if already completed (by ID in completedEvents)
-    if (state.completedEvents.includes(scenario.id)) {
+    // Check if already completed
+    if ((state.completedScenarios || []).includes(scenario.id)) {
       return false;
     }
 

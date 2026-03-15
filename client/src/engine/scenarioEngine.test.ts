@@ -35,6 +35,7 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     },
     activeEvents: [],
     completedEvents: [],
+    completedScenarios: [],
     flags: {},
     unlockedCommands: [],
     terminalHistory: [],
@@ -136,7 +137,7 @@ describe('scenarioEngine', () => {
         createTestScenario({ id: 'SC-3', difficulty: 1 }),
       ];
       const state = createTestState({
-        completedEvents: ['SC-1', 'SC-3'],
+        completedScenarios: ['SC-1', 'SC-3'],
       });
 
       const available = getAvailableScenarios(scenarios, state);
@@ -151,7 +152,7 @@ describe('scenarioEngine', () => {
         createTestScenario({ id: 'SC-2', difficulty: 1 }),
       ];
       const state = createTestState({
-        completedEvents: ['SC-1', 'SC-2'],
+        completedScenarios: ['SC-1', 'SC-2'],
       });
 
       const available = getAvailableScenarios(scenarios, state);

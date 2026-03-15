@@ -60,6 +60,7 @@ export const GameStateSchema = z.object({
   // Game tracking
   activeEvents: z.array(z.string()),
   completedEvents: z.array(z.string()),
+  completedScenarios: z.array(z.string()),
   flags: z.record(z.string(), z.boolean()),
   unlockedCommands: z.array(z.string()),
   terminalHistory: z.array(z.string()),

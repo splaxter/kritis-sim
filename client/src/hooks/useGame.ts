@@ -41,6 +41,7 @@ interface UseGameReturn {
   openScenarioTerminal: (choice: ScenarioChoice) => void;
   closeTerminal: (solved: boolean) => void;
   continueGame: () => void;
+  skipToNextDay: () => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -199,7 +200,7 @@ export function useGame(): UseGameReturn {
 
       // Mark scenario as completed
       if (currentScenario) {
-        newState.completedEvents = [...prev.completedEvents, currentScenario.id];
+        newState.completedScenarios = [...(prev.completedScenarios || []), currentScenario.id];
       }
 
       // Handle triggered events
@@ -260,7 +261,7 @@ export function useGame(): UseGameReturn {
         const newState = applyEffects(prev, effects);
 
         if (currentScenario) {
-          newState.completedEvents = [...prev.completedEvents, currentScenario.id];
+          newState.completedScenarios = [...(prev.completedScenarios || []), currentScenario.id];
         }
 
         if (pendingScenarioTerminalChoice.triggersEvent) {
@@ -306,6 +307,19 @@ export function useGame(): UseGameReturn {
     }
   }, [phase]);
 
+  // Skip to next day without showing result screen (used when no content available)
+  const skipToNextDay = useCallback(() => {
+    setState((prev) => {
+      const newState = advanceDay(prev);
+      const gameOver = checkGameOver(newState);
+      if (gameOver.isOver) {
+        setGameOverReason(gameOver.reason || null);
+        setPhase('gameover');
+      }
+      return newState;
+    });
+  }, []);
+
   return {
     state,
     phase,
@@ -325,5 +339,6 @@ export function useGame(): UseGameReturn {
     openScenarioTerminal,
     closeTerminal,
     continueGame,
+    skipToNextDay,
   };
 }

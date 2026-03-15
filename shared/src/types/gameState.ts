@@ -20,6 +20,7 @@ export interface GameState {
   compliance: number;
   activeEvents: string[];
   completedEvents: string[];
+  completedScenarios: string[];
   flags: Record<string, boolean>;
   unlockedCommands: string[];
   terminalHistory: string[];
@@ -60,6 +61,7 @@ export const DEFAULT_GAME_STATE: Omit<GameState, 'seed' | 'runNumber'> = {
   compliance: 50,
   activeEvents: [],
   completedEvents: [],
+  completedScenarios: [],
   flags: {},
   unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
   terminalHistory: [],

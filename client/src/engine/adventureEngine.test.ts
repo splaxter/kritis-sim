@@ -47,6 +47,7 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     flags: {},
     activeEvents: [],
     completedEvents: [],
+    completedScenarios: [],
     unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
     terminalHistory: [],
     isAdventureMode: true,

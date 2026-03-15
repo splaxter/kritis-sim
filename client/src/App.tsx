@@ -9,6 +9,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { SaveLoadModal } from './components/SaveLoadModal';
 import { GameModeSelectModal } from './components/GameModeSelectModal';
 import { useSaveLoad } from './hooks/useSaveLoad';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
 import { getNextStoryContent } from './engine/adventureEngine';
 import { adventureStoryEvents } from './content/adventure/story-events';
@@ -49,39 +50,13 @@ function App() {
   }, [game]);
 
   // Keyboard shortcuts for save/load
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger in input fields
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return;
-      }
-
-      // ESC to close modal
-      if (e.key === 'Escape' && saveLoadModal.show) {
-        setSaveLoadModal({ ...saveLoadModal, show: false });
-        return;
-      }
-
-      // Only allow save/load during gameplay
-      if (game.phase !== 'playing' && game.phase !== 'result') return;
-
-      // S for save (Ctrl+S or just S)
-      if (e.key === 's' || e.key === 'S') {
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault();
-        }
-        setSaveLoadModal({ show: true, mode: 'save' });
-      }
-
-      // L for load
-      if (e.key === 'l' || e.key === 'L') {
-        setSaveLoadModal({ show: true, mode: 'load' });
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, saveLoadModal]);
+  useKeyboardShortcuts({
+    onSave: useCallback(() => setSaveLoadModal({ show: true, mode: 'save' }), []),
+    onLoad: useCallback(() => setSaveLoadModal({ show: true, mode: 'load' }), []),
+    onEscape: useCallback(() => setSaveLoadModal(prev => ({ ...prev, show: false })), []),
+    isEnabled: game.phase === 'playing' || game.phase === 'result',
+    isModalOpen: saveLoadModal.show,
+  });
 
   // Select next content (event or scenario) when needed
   useEffect(() => {
@@ -98,6 +73,10 @@ function App() {
           } else if ('steps' in result.content) {
             game.setScenario(result.content as Scenario);
           }
+        } else {
+          // No adventure content available - advance to next day
+          console.warn('No adventure content available, advancing to next day');
+          game.skipToNextDay();
         }
         return;
       }
@@ -120,7 +99,13 @@ function App() {
       const nextEvent = selectNextEvent(allEvents, game.state, game.state.seed);
       if (nextEvent) {
         game.setEvent(nextEvent);
+        return;
       }
+
+      // No content available - advance to next day to prevent infinite loop
+      // This can happen if all events/scenarios have been completed for this week
+      console.warn('No content available for this day, advancing to next day');
+      game.skipToNextDay();
     }
   }, [game.phase, game.currentEvent, game.currentScenario, game.state, allScenarios]);
 
