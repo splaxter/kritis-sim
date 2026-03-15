@@ -117,7 +117,7 @@ Was machst du?`,
     ],
     terminalContext: {
       type: 'windows',
-      hostname: 'AWRM-PC-042',
+      hostname: 'WARM-PC-042',
       username: 'admin',
       currentPath: 'C:\\>',
       commands: [
