@@ -11,7 +11,8 @@ export type EventCategory =
   | 'crisis'
   | 'team'
   | 'personal'
-  | 'absurd';
+  | 'absurd'
+  | 'story';
 
 export interface EventEffects {
   skills?: Partial<Skills>;

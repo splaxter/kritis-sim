@@ -1,4 +1,6 @@
 import { Skills } from './skills';
+import { GameModeId } from './gameMode';
+import { AdventureState } from './adventure';
 
 export interface Relationships {
   chef: number;
@@ -23,6 +25,14 @@ export interface GameState {
   terminalHistory: string[];
   seed: string;
   runNumber: number;
+  gameMode: GameModeId;
+  // Arcade mode specific
+  arcadeScore?: number;
+  comboMultiplier?: number;
+  comboStreak?: number;
+  // Adventure mode specific
+  isAdventureMode: boolean;
+  adventureState?: AdventureState;
 }
 
 export const DEFAULT_RELATIONSHIPS: Relationships = {
@@ -53,4 +63,6 @@ export const DEFAULT_GAME_STATE: Omit<GameState, 'seed' | 'runNumber'> = {
   flags: {},
   unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
   terminalHistory: [],
+  gameMode: 'intermediate',
+  isAdventureMode: false,
 };

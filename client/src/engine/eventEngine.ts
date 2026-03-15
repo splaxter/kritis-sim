@@ -1,4 +1,5 @@
 import { GameEvent, GameState, EventChoice, Skills } from '@kritis/shared';
+import { isDialogueUnlocked, hasAbility } from './adventureEngine';
 
 export function getAvailableEvents(
   events: GameEvent[],
@@ -59,8 +60,9 @@ export function selectNextEvent(
   const available = getAvailableEvents(events, state);
   if (available.length === 0) return null;
 
-  // Simple seeded random selection
-  const hash = simpleHash(seed + state.currentWeek + state.currentDay);
+  // Include completed events count so selection varies as you progress through a day
+  const hashInput = seed + state.currentWeek + state.currentDay + state.completedEvents.length;
+  const hash = simpleHash(hashInput);
   const index = hash % available.length;
   return available[index];
 }
@@ -70,8 +72,41 @@ export function getVisibleChoices(
   state: GameState
 ): EventChoice[] {
   return event.choices.filter((choice) => {
-    if (choice.hidden) return false;
+    // Check if this is a sidequest-unlocked choice (marked with unlocks array)
+    if (choice.unlocks && choice.unlocks.length > 0) {
+      // This choice requires specific unlocks - check if any are met
+      const hasRequiredUnlock = choice.unlocks.some(unlock => {
+        // Check if it's a dialogue unlock from sidequest
+        if (isDialogueUnlocked(state, event.id, choice.id)) {
+          return true;
+        }
+        // Check if it's an ability requirement
+        if (hasAbility(state, unlock)) {
+          return true;
+        }
+        // Check if it's a flag
+        if (state.flags[unlock]) {
+          return true;
+        }
+        return false;
+      });
 
+      if (!hasRequiredUnlock) {
+        return false;
+      }
+    }
+
+    // Standard hidden check
+    if (choice.hidden) {
+      // Hidden choices can be revealed by sidequest dialogue unlocks
+      if (state.isAdventureMode && isDialogueUnlocked(state, event.id, choice.id)) {
+        // Choice is unlocked by sidequest - show it
+      } else {
+        return false;
+      }
+    }
+
+    // Check skill requirements
     if (choice.requires) {
       const skillValue = state.skills[choice.requires.skill];
       return skillValue >= choice.requires.threshold;
