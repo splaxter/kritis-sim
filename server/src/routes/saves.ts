@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { dbHelpers } from '../db/database.js';
 import { v4 as uuid } from 'uuid';
+import { validateGameState } from '../validation/gameStateSchema.js';
 
 export const savesRouter = Router();
 
@@ -77,9 +78,14 @@ savesRouter.get('/:playerId/:slot', (req: Request, res: Response) => {
     if (save.game_state) {
       try {
         gameState = JSON.parse(save.game_state);
-      } catch {
-        console.error('Failed to parse game_state for save:', save.id);
-        gameState = null;
+      } catch (parseError) {
+        console.error('Failed to parse game_state for save:', save.id, parseError);
+        res.status(500).json({
+          error: 'Save data is corrupted',
+          details: 'The saved game state could not be parsed. The save file may be damaged.',
+          saveId: save.id,
+        });
+        return;
       }
     }
 
@@ -116,6 +122,17 @@ savesRouter.put('/:playerId/:slot', (req: Request, res: Response) => {
 
     if (!gameState || typeof gameState !== 'object') {
       res.status(400).json({ error: 'gameState object is required' });
+      return;
+    }
+
+    // Validate gameState structure
+    const validation = validateGameState(gameState);
+    if (!validation.success) {
+      res.status(400).json({
+        error: 'Invalid game state structure',
+        message: validation.error,
+        details: validation.details,
+      });
       return;
     }
 

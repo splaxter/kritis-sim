@@ -535,7 +535,7 @@ export function getNpcBehaviorState(state: GameState, npcId: string): string | n
 export function getSidequestRewards(sidequestId: string): {
   flags: string[];
   skills: Partial<import('@kritis/shared').Skills>;
-  relationships: Record<string, number>;
+  relationships: Partial<import('@kritis/shared').Relationships>;
   stressReduction: number;
   budgetBonus: number;
 } | null {

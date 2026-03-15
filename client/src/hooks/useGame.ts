@@ -142,7 +142,7 @@ export function useGame(): UseGameReturn {
 
               // Apply relationship rewards
               if (Object.keys(rewards.relationships).length > 0) {
-                const relEffects: EventEffects = { relationships: rewards.relationships as any };
+                const relEffects: EventEffects = { relationships: rewards.relationships };
                 newState = applyEffects(newState, relEffects);
               }
 
@@ -168,8 +168,8 @@ export function useGame(): UseGameReturn {
         }
 
         // Update character memory based on relationship changes
-        if (choice.effects.relationships) {
-          let advState = newState.adventureState!;
+        if (choice.effects.relationships && newState.adventureState) {
+          let advState = newState.adventureState;
           for (const [npcId, change] of Object.entries(choice.effects.relationships)) {
             if (change !== undefined && change !== 0) {
               advState = updateCharacterMemory(

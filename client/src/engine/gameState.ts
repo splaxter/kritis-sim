@@ -115,10 +115,17 @@ export function applyEffects(state: GameState, effects: EventEffects): GameState
 export function advanceDay(state: GameState): GameState {
   const newDay = state.currentDay + 1;
   if (newDay > 5) {
+    // Weekend - advance to next week and apply stress decay
+    const config = getGameModeConfig(state.gameMode);
+    const baseStressDecay = 5; // Base stress reduction per weekend
+    const stressDecay = Math.round(baseStressDecay * config.difficulty.stressDecayRate);
+    const newStress = Math.max(0, state.stress - stressDecay);
+
     return {
       ...state,
       currentDay: 1,
       currentWeek: state.currentWeek + 1,
+      stress: newStress,
     };
   }
   return { ...state, currentDay: newDay };
