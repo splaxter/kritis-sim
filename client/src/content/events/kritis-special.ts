@@ -156,21 +156,21 @@ Die nächsten 4 Stunden werden interessant.`,
     id: 'evt_nis2_audit_result',
     title: 'Audit-Ergebnis',
     category: 'compliance',
-    weekRange: [7, 12],
+    weekRange: [7, 24],
     probability: 1.0,
     requires: {
       events: ['evt_nis2_audit_day'],
     },
     description: `Der offizielle Bericht des BSI ist da. Du öffnest die PDF mit zitternden Händen.
 
-${`Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`}`,
+Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`,
     involvedCharacters: ['chef'],
     tags: ['kritis', 'nis2', 'result'],
     choices: [
       {
         id: 'good_result',
         text: '[Wenn Audit bestanden] "Wir haben bestanden!"',
-        requires: { skill: 'security', threshold: 40 },
+        unlocks: ['audit_passed'],
         effects: { compliance: 15, relationships: { chef: 20 }, budget: 5000 },
         resultText: '"Konformität bestätigt. Empfehlungen im Anhang." Chef Bernd umarmt dich fast. Der Kämmerer bewilligt Sicherheitsbudget.',
         setsFlags: ['nis2_compliant'],
@@ -179,6 +179,7 @@ ${`Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`}`,
       {
         id: 'mixed_result',
         text: '[Wenn Nachaudit] "Auflagen, aber machbar."',
+        unlocks: ['audit_conditional'],
         effects: { compliance: 5, stress: 10 },
         resultText: '12 Punkte müssen verbessert werden. 6 Monate Zeit. Das wird eng, aber schaffbar.',
         setsFlags: ['nis2_conditional'],
@@ -186,6 +187,7 @@ ${`Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`}`,
       {
         id: 'bad_result',
         text: '[Wenn durchgefallen] "Das... das ist nicht gut."',
+        unlocks: ['audit_failed'],
         effects: { compliance: -20, relationships: { chef: -10 }, budget: -10000 },
         resultText: 'Bußgeld: 50.000€. Nachaudit in 3 Monaten. Chef Bernd spricht nicht mehr mit dir.',
         setsFlags: ['nis2_failed', 'bussgeld_erhalten'],
@@ -345,7 +347,7 @@ Das ist jetzt eine echte Krise.`,
       {
         id: 'generator_start',
         text: '[Wenn vorbereitet] Generator starten!',
-        requires: { skill: 'troubleshooting', threshold: 30 },
+        unlocks: ['generator_ready'],
         effects: { relationships: { chef: 20 }, skills: { troubleshooting: 5 } },
         resultText: 'Du rennst in den Keller. Der Generator springt an. Nach 5 Minuten sind die kritischen Systeme wieder online.',
         setsFlags: ['blackout_mitigated'],
@@ -456,13 +458,3 @@ Alle 10 Minuten wird ein weiterer Rechner verschlüsselt. Du musst das stoppen.`
     ],
   },
 ];
-
-// Helper to check if KRITIS mode
-export function isKritisMode(gameMode: string): boolean {
-  return gameMode === 'kritis';
-}
-
-// Get KRITIS events that should be added to the event pool
-export function getKritisEvents(): GameEvent[] {
-  return kritisSpecialEvents;
-}
