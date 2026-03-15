@@ -23,3 +23,26 @@ export interface ContentManifest {
   packs: ContentPack[];
   loadOrder: string[];
 }
+
+// Extended manifest for content packs with metadata
+export interface ContentPackManifest {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  author: string;
+  tags: string[];
+  contentTypes: ContentType[];
+  difficulty: {
+    min: number;
+    max: number;
+    average: number;
+  };
+  categories: string[];
+  requirements?: {
+    minWeek?: number;
+    maxWeek?: number;
+    suggestedSkills?: Record<string, number>;
+  };
+  educationalFocus: string[];
+}

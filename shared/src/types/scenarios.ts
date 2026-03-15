@@ -1,6 +1,8 @@
 // Scenario System - Rich interactive scenarios with multiple outcomes
 // Scenarios are more detailed than Events, with BSI references and real-world lessons
 
+import { TerminalContext } from './terminal';
+
 export type ScenarioOutcome =
   | 'PERFECT'
   | 'PERFECT_ALTERNATIVE'
@@ -30,6 +32,7 @@ export interface ScenarioChoice {
   lesson: string;
   triggersEvent?: string;
   followupEvent?: string;
+  terminalCommand?: boolean; // If true, opens terminal for this choice
   requiresSkill?: {
     skill: string;
     threshold: number;
@@ -48,6 +51,7 @@ export interface Scenario {
   bsiReference?: string;
   involvedNpcs?: string[]; // NPC IDs involved in this scenario
   tags?: string[];
+  terminalContext?: TerminalContext; // Terminal challenge for this scenario
 }
 
 export interface ScenarioPack {

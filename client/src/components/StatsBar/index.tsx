@@ -1,4 +1,4 @@
-import { GameState } from '@kritis/shared';
+import { GameState, getGameModeConfig } from '@kritis/shared';
 import { SkillBar } from './SkillBar';
 import { RelationshipBar } from './RelationshipBar';
 
@@ -26,6 +26,9 @@ const RELATIONSHIP_LABELS: Record<string, { name: string; color: string }> = {
 };
 
 export function StatsBar({ state }: StatsBarProps) {
+  const modeConfig = getGameModeConfig(state.gameMode);
+  const totalWeeks = modeConfig.gameLength.totalWeeks;
+
   const stressColor = state.stress > 80
     ? 'text-terminal-danger'
     : state.stress > 50
@@ -36,10 +39,26 @@ export function StatsBar({ state }: StatsBarProps) {
     <div className="border border-terminal-border p-4">
       {/* Header */}
       <div className="flex justify-between items-center mb-4 pb-2 border-b border-terminal-border">
-        <span className="text-lg">KRITIS ADMIN SIMULATOR</span>
-        <span className="text-terminal-green-dim">
-          Woche {state.currentWeek} | {DAYS[state.currentDay]}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-lg">KRITIS ADMIN SIMULATOR</span>
+          <span className="text-terminal-green-dim text-sm border border-terminal-border px-2 py-0.5">
+            {modeConfig.icon} {modeConfig.name}
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Arcade score display */}
+          {state.gameMode === 'arcade' && state.arcadeScore !== undefined && (
+            <span className="text-terminal-info">
+              Score: {state.arcadeScore.toLocaleString('de-DE')}
+              {state.comboMultiplier && state.comboMultiplier > 1 && (
+                <span className="text-terminal-warning ml-1">x{state.comboMultiplier}</span>
+              )}
+            </span>
+          )}
+          <span className="text-terminal-green-dim">
+            Woche {state.currentWeek}/{totalWeeks} | {DAYS[state.currentDay]}
+          </span>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-6">

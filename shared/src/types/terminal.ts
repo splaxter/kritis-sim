@@ -22,6 +22,22 @@ export interface TerminalSolution {
   effects: EventEffects;
 }
 
+export interface VFSOverlay {
+  files?: { path: string; content: string }[];
+  directories?: string[];
+}
+
+/** Template identifiers for VFS configuration */
+export type VFSTemplateId =
+  | 'linux-webserver'
+  | 'linux-database'
+  | 'linux-mail'
+  | 'linux-firewall'
+  | 'windows-dc'
+  | 'windows-fileserver'
+  | 'scada'
+  | 'monitoring';
+
 export interface TerminalContext {
   type: TerminalType;
   hostname: string;
@@ -30,4 +46,10 @@ export interface TerminalContext {
   commands: TerminalCommand[];
   solutions: TerminalSolution[];
   hints: string[];
+  /** Optional VFS overlay for scenario-specific files */
+  vfsOverlay?: VFSOverlay;
+  /** Optional environment variables */
+  env?: Record<string, string>;
+  /** Template IDs to apply to the VFS */
+  templateIds?: VFSTemplateId[];
 }
