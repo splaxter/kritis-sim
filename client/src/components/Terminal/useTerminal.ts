@@ -372,13 +372,21 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
 
         case '\t': // Tab - autocomplete
           {
+            // Prevent default tab behavior (focus change)
             // Get completions from shell engine
             const shellCompletions = shellRef.current?.complete(line, cursorPos) || [];
 
-            // Also get scenario command completions
-            const scenarioMatches = availableCommands.filter(cmd =>
-              cmd.toLowerCase().startsWith(line.toLowerCase())
-            );
+            // Also get scenario command completions - match partial commands
+            const tokens = line.split(/\s+/);
+            const lastToken = tokens[tokens.length - 1] || '';
+            const isFirstToken = tokens.length <= 1 && !line.includes(' ');
+
+            // For first token, match against command starts; for later tokens, use path/arg completion
+            const scenarioMatches = isFirstToken
+              ? availableCommands.filter(cmd =>
+                  cmd.toLowerCase().startsWith(line.toLowerCase().trim())
+                )
+              : [];
 
             // Combine and deduplicate completions
             const allCompletions = new Map<string, Completion>();
@@ -405,24 +413,23 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
             if (completions.length === 1) {
               // Single match - complete it
               const completion = completions[0];
-              // Find what to add
-              const tokens = line.split(/\s+/);
-              const lastToken = tokens[tokens.length - 1];
+              // Find what to add based on the last token
               const toAdd = completion.value.slice(lastToken.length);
 
               // Add space after completion if it's a command/directory
               const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
 
-              // Insert at cursor position
-              line = line.slice(0, cursorPos) + toAdd + suffix + line.slice(cursorPos);
-              cursorPos += toAdd.length + suffix.length;
-              setCurrentLine(line);
-              term.write(toAdd + suffix);
+              if (toAdd.length > 0 || suffix.length > 0) {
+                // Insert at cursor position
+                line = line.slice(0, cursorPos) + toAdd + suffix + line.slice(cursorPos);
+                cursorPos += toAdd.length + suffix.length;
+                setCurrentLine(line);
+                term.write(toAdd + suffix);
+              }
+              // If nothing to add, the completion is already complete
             } else if (completions.length > 1) {
               // Multiple matches - find common prefix
               const values = completions.map(c => c.value);
-              const tokens = line.split(/\s+/);
-              const lastToken = tokens[tokens.length - 1];
 
               // Find common prefix
               let commonPrefix = values[0] || '';
@@ -477,6 +484,9 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
               term.writeln('\x1b[36mVerfügbare Befehle: help, ls, cd, cat, grep, ...\x1b[0m');
               term.writeln('\x1b[36mSzenario-Befehle: ' + availableCommands.slice(0, 3).join(', ') + (availableCommands.length > 3 ? ', ...' : '') + '\x1b[0m');
               term.write(prompt);
+            } else {
+              // No completions found for current input - show visual feedback
+              term.write('\x07'); // Bell character (visual bell in most terminals)
             }
           }
           break;
@@ -525,8 +535,24 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
     const handleResize = () => fitAddon.fit();
     window.addEventListener('resize', handleResize);
 
+    // Prevent browser default Tab behavior (focus change) when terminal is focused
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+      }
+    };
+
+    // Attach to the terminal container element
+    const container = terminalRef.current;
+    if (container) {
+      container.addEventListener('keydown', handleKeyDown);
+    }
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      if (container) {
+        container.removeEventListener('keydown', handleKeyDown);
+      }
       term.dispose();
     };
   }, [context, shell]); // Depend on context and shell
