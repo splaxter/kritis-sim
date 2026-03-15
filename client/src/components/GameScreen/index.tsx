@@ -73,6 +73,7 @@ export function GameScreen({
             context={terminalContext}
             onSolved={onTerminalSolved}
             onCancel={onTerminalCancel}
+            gameMode={state.gameMode}
           />
         </div>
       </div>

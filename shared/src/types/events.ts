@@ -1,6 +1,7 @@
 import { Skills, SkillCheck } from './skills';
 import { Relationships } from './gameState';
 import { TerminalContext } from './terminal';
+import { GameModeId } from './gameMode';
 
 export type EventCategory =
   | 'support'
@@ -48,6 +49,7 @@ export interface GameEvent {
     skills?: Partial<Skills>;
     relationships?: Partial<Relationships>;
   };
+  requiredModes?: GameModeId[];
   category: EventCategory;
   title: string;
   description: string;

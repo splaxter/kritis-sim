@@ -1,21 +1,23 @@
 // client/src/components/Terminal/index.tsx
 import '@xterm/xterm/css/xterm.css';
-import { TerminalContext, Skills } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
 import { useTerminal } from './useTerminal';
 
 interface TerminalProps {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>) => void;
   onCancel: () => void;
+  gameMode?: GameModeId;
 }
 
-export function Terminal({ context, onSolved, onCancel }: TerminalProps) {
+export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate' }: TerminalProps) {
   const { terminalRef, hintsRemaining, showHint } = useTerminal({
     context,
     onSolved,
     onPartialSolution: (_feedback) => {
       // TODO: Display partial solution feedback to user
     },
+    gameMode,
   });
 
   return (

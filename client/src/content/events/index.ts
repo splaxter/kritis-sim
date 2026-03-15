@@ -4,6 +4,7 @@ import { week2to4Events } from './week2-4';
 import { week5to8Events } from './week5-8';
 import { week9to12Events } from './week9-12';
 import { kritisSpecialEvents } from './kritis-special';
+import { tutorialEvents } from './tutorials';
 
 export const allEvents: GameEvent[] = [
   ...week1Events,
@@ -11,6 +12,7 @@ export const allEvents: GameEvent[] = [
   ...week5to8Events,
   ...week9to12Events,
   ...kritisSpecialEvents,
+  ...tutorialEvents,
 ];
 
 export function getEventById(id: string): GameEvent | undefined {

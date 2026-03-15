@@ -2,16 +2,18 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TerminalContext, Skills } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
 import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds } from '../../engine/shell';
 
 interface UseTerminalOptions {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>) => void;
   onPartialSolution: (feedback: string) => void;
+  gameMode?: GameModeId;
 }
 
-export function useTerminal({ context, onSolved, onPartialSolution }: UseTerminalOptions) {
+export function useTerminal({ context, onSolved, onPartialSolution, gameMode = 'intermediate' }: UseTerminalOptions) {
+  const isBeginnerMode = gameMode === 'beginner';
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -117,7 +119,40 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
     term.writeln(`Connected to ${context.hostname}`);
     term.writeln('\x1b[90mTipp: Tab für Autovervollständigung, ↑/↓ für History, H für Hinweise\x1b[0m');
     term.writeln('');
+
+    // In beginner mode, auto-show the first hint
+    if (isBeginnerMode && context.hints.length > 0) {
+      term.writeln(`\x1b[33m💡 ${context.hints[0]}\x1b[0m`);
+      term.writeln('');
+      setHintsUsed(1);
+    }
+
     term.write(prompt);
+
+    // Idle timer for beginner mode suggestions
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    const IDLE_TIMEOUT = 8000; // 8 seconds
+
+    const showIdleSuggestion = () => {
+      if (!isBeginnerMode) return;
+      const currentHintIndex = hintsUsedRef.current;
+      if (currentHintIndex < context.hints.length) {
+        term.writeln('');
+        term.writeln(`\x1b[33m💡 ${context.hints[currentHintIndex]}\x1b[0m`);
+        term.write(getTermPrompt());
+        setHintsUsed(prev => prev + 1);
+      }
+    };
+
+    const resetIdleTimer = () => {
+      if (idleTimer) clearTimeout(idleTimer);
+      if (isBeginnerMode) {
+        idleTimer = setTimeout(showIdleSuggestion, IDLE_TIMEOUT);
+      }
+    };
+
+    // Start initial idle timer
+    resetIdleTimer();
 
     let line = '';
     let cursorPos = 0;
@@ -154,6 +189,9 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
     };
 
     term.onData((data) => {
+      // Reset idle timer on any input
+      resetIdleTimer();
+
       // Handle escape sequences (arrow keys, etc.)
       if (data.startsWith('\x1b[')) {
         const seq = data.slice(2);
@@ -302,6 +340,18 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
                 // Show output or error
                 if (result.error) {
                   term.writeln(`\x1b[31m${result.error}\x1b[0m`);
+                  // In beginner mode, add helpful tips for common errors
+                  if (isBeginnerMode) {
+                    if (result.error.includes('command not found') || result.error.includes('not recognized')) {
+                      term.writeln('\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m');
+                    } else if (result.error.includes('No such file') || result.error.includes('cannot find')) {
+                      term.writeln('\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m');
+                    } else if (result.error.includes('Permission denied')) {
+                      term.writeln('\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m');
+                    } else if (result.error.includes('not a directory')) {
+                      term.writeln('\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m');
+                    }
+                  }
                 } else if (result.output) {
                   term.writeln(result.output);
                 }
@@ -567,9 +617,10 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
       if (container) {
         container.removeEventListener('keydown', handleKeyDown);
       }
+      if (idleTimer) clearTimeout(idleTimer);
       term.dispose();
     };
-  }, [context, shell]); // Depend on context and shell
+  }, [context, shell, isBeginnerMode]); // Depend on context, shell, and game mode
 
   return {
     terminalRef,

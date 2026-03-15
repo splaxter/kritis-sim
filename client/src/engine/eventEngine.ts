@@ -21,6 +21,13 @@ export function getAvailableEvents(
       return false;
     }
 
+    // Check mode requirements (e.g., tutorial events only in beginner mode)
+    if (event.requiredModes && event.requiredModes.length > 0) {
+      if (!event.requiredModes.includes(state.gameMode)) {
+        return false;
+      }
+    }
+
     // Check prerequisites
     if (event.requires) {
       if (event.requires.events) {
