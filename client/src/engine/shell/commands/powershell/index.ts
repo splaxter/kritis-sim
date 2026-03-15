@@ -84,17 +84,18 @@ export const getChildItemCommand: ShellCommand = {
       '',
       `    Directory: ${resolved}`,
       '',
-      'Mode                 LastWriteTime         Length Name',
-      '----                 -------------         ------ ----',
+      'Mode   LastWriteTime       Length  Name',
+      '----   -------------       ------  ----',
     ];
 
     for (const entry of entries) {
       const mode = entry.type === 'directory' ? 'd----' : '-a---';
       const date = entry.modified.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
       const time = entry.modified.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      const dateTime = `${date} ${time}`.padEnd(18);
       const size = entry.type === 'directory' ? '' : entry.size.toString();
 
-      lines.push(`${mode}         ${date}   ${time}   ${size.padStart(10)} ${entry.name}`);
+      lines.push(`${mode}  ${dateTime}  ${size.padStart(6)}  ${entry.name}`);
     }
 
     return { output: lines.join('\n'), exitCode: 0 };

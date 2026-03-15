@@ -123,6 +123,12 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
     let cursorPos = 0;
     let savedLine = ''; // For history navigation
 
+    // Tab completion state for cycling
+    let tabCompletions: Completion[] = [];
+    let tabIndex = -1;
+    let tabOriginalLine = '';
+    let tabOriginalCursorPos = 0;
+
     // Get all available command patterns for scenario-specific autocomplete
     const availableCommands = context.commands.map(cmd => cmd.pattern);
 
@@ -211,6 +217,9 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
 
       switch (data) {
         case '\r': // Enter
+          // Reset tab completion state
+          tabCompletions = [];
+          tabIndex = -1;
           term.writeln('');
           if (line.trim()) {
             const trimmed = line.trim();
@@ -307,6 +316,9 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
           break;
 
         case '\u007F': // Backspace
+          // Reset tab completion state
+          tabCompletions = [];
+          tabIndex = -1;
           if (cursorPos > 0) {
             line = line.slice(0, cursorPos - 1) + line.slice(cursorPos);
             cursorPos--;
@@ -370,9 +382,30 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
           }
           break;
 
-        case '\t': // Tab - autocomplete
+        case '\t': // Tab - autocomplete with cycling
           {
-            // Prevent default tab behavior (focus change)
+            // Check if we're continuing a tab cycle (tabIndex >= 0 means we're in cycle mode)
+            if (tabCompletions.length > 1 && tabIndex >= 0) {
+              // Continue cycling through completions
+              tabIndex = (tabIndex + 1) % tabCompletions.length;
+              const completion = tabCompletions[tabIndex];
+              const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
+
+              // Calculate the prefix to keep (everything before the last token in original line)
+              const originalTokens = tabOriginalLine.split(/\s+/);
+              const originalLastToken = originalTokens[originalTokens.length - 1] || '';
+              const lastTokenStart = tabOriginalLine.length - originalLastToken.length;
+              const newLine = tabOriginalLine.slice(0, lastTokenStart) + completion.value + suffix;
+
+              rewriteLine(newLine);
+
+              // Update cycle indicator
+              term.write(`\x1b[s`); // Save cursor
+              term.write(`\r\n\x1b[K\x1b[90m[${tabIndex + 1}/${tabCompletions.length}] Tab to cycle, Enter to confirm\x1b[0m`);
+              term.write(`\x1b[u`); // Restore cursor
+              return;
+            }
+
             // Get completions from shell engine
             const shellCompletions = shellRef.current?.complete(line, cursorPos) || [];
 
@@ -426,67 +459,45 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
                 setCurrentLine(line);
                 term.write(toAdd + suffix);
               }
-              // If nothing to add, the completion is already complete
+              // Reset tab state
+              tabCompletions = [];
+              tabIndex = -1;
             } else if (completions.length > 1) {
-              // Multiple matches - find common prefix
-              const values = completions.map(c => c.value);
+              // Multiple matches - set up cycling
+              tabCompletions = completions;
+              tabOriginalLine = line;
+              tabOriginalCursorPos = cursorPos;
+              tabIndex = 0;
 
-              // Find common prefix
-              let commonPrefix = values[0] || '';
-              for (const val of values) {
-                let i = 0;
-                while (i < commonPrefix.length && i < val.length && commonPrefix[i] === val[i]) {
-                  i++;
-                }
-                commonPrefix = commonPrefix.slice(0, i);
-              }
+              // Apply first completion
+              const completion = completions[0];
+              const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
 
-              // If common prefix extends current input, complete to it
-              if (commonPrefix.length > lastToken.length) {
-                const toAdd = commonPrefix.slice(lastToken.length);
-                line = line.slice(0, cursorPos) + toAdd + line.slice(cursorPos);
-                cursorPos += toAdd.length;
-                setCurrentLine(line);
-                term.write(toAdd);
-              } else {
-                // Show all matches
-                term.writeln('');
+              // Calculate the prefix to keep (everything before the last token)
+              const lastTokenStart = line.length - lastToken.length;
+              const newLine = line.slice(0, lastTokenStart) + completion.value + suffix;
 
-                // Group by type for better display
-                const byType: Record<string, Completion[]> = {};
-                for (const comp of completions) {
-                  const type = comp.type || 'other';
-                  if (!byType[type]) byType[type] = [];
-                  byType[type].push(comp);
-                }
+              rewriteLine(newLine);
 
-                // Display completions
-                for (const [type, comps] of Object.entries(byType)) {
-                  const displayStr = comps.map(c => {
-                    if (type === 'directory') {
-                      return `\x1b[34m${c.display}/\x1b[0m`;
-                    } else if (type === 'file') {
-                      return c.display;
-                    } else if (type === 'command') {
-                      return `\x1b[32m${c.display}\x1b[0m`;
-                    }
-                    return c.display;
-                  }).join('  ');
-                  term.writeln(displayStr);
-                }
-
-                term.write(prompt + line);
-                term.write('\x1b[' + (prompt.length + cursorPos + 1) + 'G');
-              }
+              // Show count indicator
+              term.write(`\x1b[s`); // Save cursor
+              term.write(`\r\n\x1b[90m[${tabIndex + 1}/${completions.length}] Tab to cycle\x1b[0m`);
+              term.write(`\x1b[u`); // Restore cursor
             } else if (line.length === 0) {
               // Empty line - show help message
               term.writeln('');
               term.writeln('\x1b[36mVerfügbare Befehle: help, ls, cd, cat, grep, ...\x1b[0m');
               term.writeln('\x1b[36mSzenario-Befehle: ' + availableCommands.slice(0, 3).join(', ') + (availableCommands.length > 3 ? ', ...' : '') + '\x1b[0m');
               term.write(prompt);
+              // Reset tab state
+              tabCompletions = [];
+              tabIndex = -1;
             } else {
               // No completions found for current input - show visual feedback
               term.write('\x07'); // Bell character (visual bell in most terminals)
+              // Reset tab state
+              tabCompletions = [];
+              tabIndex = -1;
             }
           }
           break;
@@ -518,6 +529,9 @@ export function useTerminal({ context, onSolved, onPartialSolution }: UseTermina
 
         default:
           if (data >= ' ') {
+            // Reset tab completion state on any regular input
+            tabCompletions = [];
+            tabIndex = -1;
             // Insert character at cursor position
             line = line.slice(0, cursorPos) + data + line.slice(cursorPos);
             cursorPos++;
