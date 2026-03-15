@@ -6,16 +6,26 @@ import { NpcPack, ScenarioPack, VendorNpc, Scenario, NpcContact } from '@kritis/
 
 // Import all content packs
 import amseItPack from './amse-it';
+import telekomPack from './telekom';
+import cloud365Pack from './cloud365';
+import internalPack from './internal';
+import kritisInfraPack from './kritis-infra';
 
 // Registry of all loaded packs
 export const npcPacks: NpcPack[] = [
   amseItPack.npcPack,
-  // Add new NPC packs here as they're created
+  telekomPack.npcPack,
+  cloud365Pack.npcPack,
+  internalPack.npcPack,
+  kritisInfraPack.npcPack,
 ];
 
 export const scenarioPacks: ScenarioPack[] = [
   amseItPack.scenarioPack,
-  // Add new scenario packs here
+  telekomPack.scenarioPack,
+  cloud365Pack.scenarioPack,
+  internalPack.scenarioPack,
+  kritisInfraPack.scenarioPack,
 ];
 
 // Helper functions for content access

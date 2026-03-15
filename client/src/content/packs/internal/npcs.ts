@@ -1,0 +1,235 @@
+// Internal NPCs - AWRM Organization Characters
+import { VendorNpc, NpcContact, RelationshipSystem, GameplayMechanics } from '@kritis/shared';
+
+export const chefContact: NpcContact = {
+  id: 'INTERN-CHEF',
+  name: 'Thomas Bergmann',
+  role: 'IT-Leiter / Dein direkter Vorgesetzter',
+  age: 48,
+  personality: `Technisch kompetenter Oldschool-ITler, der die KRITIS-Welt noch von der Großrechner-Zeit kennt. Delegiert gerne, steht aber hinter seinen Leuten wenn es hart auf hart kommt. Hat politisches Gespür und weiß wie man den GF managed. Kann ungeduldig werden wenn technische Erklärungen zu lang sind. Sein Motto: 'Lösungen statt Probleme präsentieren.' Erwartet Eigeninitiative, hasst Überraschungen. Am Freitagnachmittag ist er mental schon im Wochenende.`,
+  appearancePrompt: `Character portrait, cartoon game style. A German IT manager in his late 40s. Receding hairline, reading glasses perched on his head (never on his face). Wearing a slightly wrinkled button-down shirt, no tie. Coffee mug with 'IT-Leiter - weil Superheld keine offizielle Stellenbezeichnung ist' visible. His desk has both a modern laptop AND an old keyboard he refuses to give up. Calm, tired eyes that have seen every IT disaster imaginable. Bold outlines, flat cartoon style, chest-up portrait.`,
+  catchphrases: [
+    'Ich brauch das bis Montag auf meinem Tisch.',
+    'Was ist der aktuelle Stand?',
+    'Haben wir das dokumentiert?',
+    'Kürzer bitte, ich hab gleich noch einen Termin.',
+    'Das hätte ich gerne früher gewusst.',
+    'Mach mir nen Vorschlag, ich entscheide.',
+    'Das Budget ist dieses Jahr schwierig, aber wir finden einen Weg.',
+    'Ich rede mal mit dem Krause, aber versprich dir nicht zu viel.',
+    'Gut gemacht. Nächstes Thema.',
+    'Freitag 16 Uhr? Kann das nicht Montag warten?',
+    'Die Fachabteilung hat sich wieder beschwert. Was ist da los?',
+    'Ich vertraue dir da, aber halt mich auf dem Laufenden.',
+  ],
+  dialogueBarks: [
+    '*schaut auf die Uhr* Ja, weiter?',
+    'Das eskaliere ich nicht. Das klärst du direkt.',
+    '*seufzt* Schon wieder die Kämmerer...',
+    'Der GF will einen Statusbericht. Bis wann kannst du mir was geben?',
+    'Ich war selbst mal in deiner Position. Das wird.',
+    '*Kaffeetasse in der Hand* Also, was brennt?',
+    'Lass mich raten - AMSE hat wieder Mist gebaut?',
+    'Die Hoffmann ruft gleich an, mach dich auf was gefasst.',
+  ],
+};
+
+export const gfContact: NpcContact = {
+  id: 'INTERN-GF',
+  name: 'Dr. Heinrich Krause',
+  role: 'Geschäftsführer AWRM',
+  age: 58,
+  personality: `Klassischer Verwaltungsmensch mit technischem Grundverständnis, aber ohne Detailwissen. Denkt in Haushaltsjahren und politischen Zyklen. Für ihn ist IT ein Kostenfaktor, kein strategischer Enabler. Wird aber hellhörig wenn es um KRITIS-Compliance und Haftungsrisiken geht. Hat Angst vor negativer Presse. Sein Hauptinteresse: Wie stelle ich das dem Aufsichtsrat dar? Ist eigentlich fair, aber lebt in einer anderen Realität als die IT.`,
+  appearancePrompt: `Character portrait, cartoon game style. A German executive in his late 50s, distinguished gray hair, wire-rimmed glasses. Wearing an expensive but conservative dark suit with subtle pinstripes. Behind him, framed certificates and a photo with local politicians. His desk is pristine with only a fountain pen and leather folder visible. Looks at you like he's evaluating a budget proposal. Has a 'Dr.' nameplate prominently displayed. Bold outlines, flat cartoon style, chest-up portrait.`,
+  catchphrases: [
+    'Was bedeutet das für den Haushalt?',
+    'Können wir das dem Aufsichtsrat so präsentieren?',
+    'Die Presse darf davon nichts erfahren.',
+    'NIS2? Das ist doch dieses neue EU-Ding?',
+    'Ich brauche eine Executive Summary, maximal eine Seite.',
+    'Haben wir das mit dem Datenschutzbeauftragten abgestimmt?',
+    'Was machen andere Entsorgungsbetriebe in der Situation?',
+    'Das Budget ist beschlossen, da gibt es keinen Spielraum mehr.',
+    'Ich verlasse mich da auf Herrn Bergmann.',
+  ],
+  dialogueBarks: [
+    '*blättert in Unterlagen* Ja bitte, kurz und knapp.',
+    'Das verstehe ich technisch nicht, aber ist das ein Risiko?',
+    'Der Bürgermeister hat letzte Woche gefragt...',
+    'Frau Hoffmann hat da Bedenken geäußert.',
+    '*Blick auf die Uhr* Ich hab in 10 Minuten den nächsten Termin.',
+    'Können wir das im nächsten Haushaltsjahr berücksichtigen?',
+    'Ich möchte nicht, dass das in der Zeitung landet.',
+    'Was ist die absolute Minimalversion?',
+  ],
+};
+
+export const kaemmererContact: NpcContact = {
+  id: 'INTERN-KAEMMERER',
+  name: 'Petra Hoffmann',
+  role: 'Kämmerin / Leiterin Finanzen',
+  age: 52,
+  personality: `Streng, zahlenorientiert, hält jeden Euro dreimal um. Sieht IT als notwendiges Übel und kostspieliges Fass ohne Boden. Hat kein Verständnis für 'wir brauchen neue Hardware alle 5 Jahre' - ihr Taschenrechner funktioniert schließlich seit 1995. Kann aber überzeugt werden wenn man ihr Risiken in Euro beziffert. Ihr Nightmare: ungeplante Ausgaben. Ihre Superkraft: findet jede versteckte Kostenstelle.`,
+  appearancePrompt: `Character portrait, cartoon game style. A German finance controller in her early 50s. Sharp features, glasses on a chain around her neck, hair in a practical bun. Wearing a no-nonsense gray blazer. Surrounded by binders, spreadsheets, and a large calculator she prefers over Excel. Post-it notes with budget deadlines everywhere. Looking at you like you're about to ask for money (which you probably are). Bold outlines, flat cartoon style, chest-up portrait.`,
+  catchphrases: [
+    'Das war nicht im Budget eingeplant.',
+    'Haben Sie einen Kostenvoranschlag? Drei wären besser.',
+    'Im letzten Jahr haben wir dafür weniger ausgegeben.',
+    'Können wir das nicht ins nächste Haushaltsjahr schieben?',
+    'Die IT-Kosten sind schon wieder um 12% gestiegen.',
+    'Warum brauchen Sie SCHON WIEDER neue Hardware?',
+    'Ich brauche das schriftlich mit Unterschrift vom IT-Leiter.',
+    'Das Geld ist nicht da. Ende der Diskussion.',
+    'Zeigen Sie mir den ROI.',
+    'Was kostet uns das, wenn wir es NICHT machen?',
+  ],
+  dialogueBarks: [
+    '*schaut über die Lesebrille* Was kostet das?',
+    'Der Haushaltsplan ist bereits beschlossen.',
+    '*seufzt* Schon wieder IT...',
+    'Haben Sie das mit Herrn Bergmann abgesprochen?',
+    'Ich habe hier eine Rechnung von... AMSE? Wer ist das?',
+    'Dieses Cloud-Ding ist doch nur teurer auf Dauer.',
+    'Früher ging das auch ohne diese teuren Lizenzen.',
+    'Ich spreche mal mit Dr. Krause darüber.',
+  ],
+};
+
+export const fachabteilungContact: NpcContact = {
+  id: 'INTERN-FACHABT',
+  name: 'Sabine Müller',
+  role: 'Abteilungsleiterin Disposition / Vertreterin Fachabteilung',
+  age: 45,
+  personality: `Praktikerin durch und durch. Für sie zählt nur: Funktioniert die Müllabfuhr morgen oder nicht? Hat wenig Verständnis für IT-Komplexität - 'Das soll einfach laufen.' Wird schnell emotional wenn ihre Leute nicht arbeiten können. Ihre Abteilung ist der Kern des Betriebs und das lässt sie jeden spüren. Kann aber eine Verbündete sein wenn man ihr zeigt, dass IT ihr Leben leichter macht.`,
+  appearancePrompt: `Character portrait, cartoon game style. A German department head in her mid-40s. Practical short haircut, no-nonsense expression. Wearing a company fleece jacket over business casual. Behind her, a large route planning map and schedules. Has a walkie-talkie and her phone both on the desk - she's always reachable. Looks like she just came from checking on the vehicle fleet. Bold outlines, flat cartoon style, chest-up portrait.`,
+  catchphrases: [
+    'Meine Leute können nicht arbeiten!',
+    'Wann geht das System wieder?',
+    'Das war FRÜHER alles einfacher.',
+    'Ich verstehe nicht, warum das so kompliziert sein muss.',
+    'Können Sie nicht einfach...?',
+    'Die Fahrzeuge müssen um 6 Uhr raus, egal was mit der IT ist.',
+    'Ich hab keine Zeit für Schulungen, wir haben Tagesgeschäft.',
+    'Mein altes Programm hat besser funktioniert.',
+    'Wer hat sich DAS denn ausgedacht?',
+    'Ich brauch das JETZT, nicht nächste Woche.',
+    'Der Support reagiert zu langsam.',
+    'Können Sie mal vorbeikommen? Am Telefon verstehe ich das nicht.',
+  ],
+  dialogueBarks: [
+    '*ruft an* Hier geht gar nichts mehr!',
+    'Die Fahrer beschweren sich über die neue App.',
+    '*steht plötzlich im Büro* Ich brauch mal kurz Hilfe.',
+    'Können Sie das nicht einfach so machen wie vorher?',
+    'Mein Passwort funktioniert SCHON WIEDER nicht.',
+    'Wieso muss ich mich für alles neu anmelden?',
+    '*genervt* Ist das Update wirklich nötig? Gerade jetzt?',
+    'Der Neue kann sich nicht einloggen. Dringend!',
+  ],
+};
+
+export const kollegenContact: NpcContact = {
+  id: 'INTERN-KOLLEGEN',
+  name: 'Das IT-Team',
+  role: 'IT-Abteilung Kollegen',
+  age: 35,
+  personality: `Eine Mischung aus drei Charakteren: Michael (55, kurz vor der Rente, macht nur noch Dienst nach Vorschrift, kennt aber die Legacy-Systeme wie kein anderer), Lisa (28, motiviert und modern, will alles in die Cloud, manchmal zu schnell), und Jürgen (42, solider Allrounder, Familienvater, macht keine Überstunden mehr seit dem Burnout vor 3 Jahren). Zusammen funktionieren sie, aber Bereitschaftsplanung und Urlaubsvertretung sind immer ein Drama.`,
+  appearancePrompt: `Character portrait, cartoon game style. A composite image showing three IT colleagues at their shared office space. Left: Michael, older man with gray beard, reading newspaper during lunch break, legacy terminal in background. Center: Lisa, young woman with modern haircut, multiple monitors showing cloud dashboards, energy drink on desk. Right: Jürgen, tired-looking middle-aged man, family photos on desk, leaving exactly at 5pm. Shared whiteboard with on-call schedule visible, some slots have question marks. Bold outlines, flat cartoon style, group portrait.`,
+  catchphrases: [
+    '*Michael* Das haben wir schon immer so gemacht.',
+    '*Lisa* Warum nutzen wir nicht einfach...?',
+    '*Jürgen* Ich kann nächste Woche nicht, Kinder haben Ferien.',
+    '*Michael* Das steht irgendwo in der alten Dokumentation...',
+    '*Lisa* Ich hab da was auf GitHub gefunden!',
+    '*Jürgen* Bereitschaft? Nicht schon wieder ich.',
+    '*Michael* Noch 23 Monate bis zur Rente.',
+    '*Lisa* Wir sollten das automatisieren!',
+    '*Jürgen* Ich muss um 17 Uhr weg, Kita schließt.',
+    '*Team* Wer macht Weihnachts-Bereitschaft?',
+    '*Michael* Das neue System kenne ich nicht.',
+    '*Lisa* Das Legacy-System ist ein Sicherheitsrisiko!',
+  ],
+  dialogueBarks: [
+    '*Michael telefoniert mit einem Fachabteilungs-User über AS/400*',
+    '*Lisa pushed Code in den Test-Branch*',
+    '*Jürgen schaut auf die Uhr - 16:55*',
+    '*Team steht am Kaffeeautomaten und lästert über AMSE*',
+    '*Michael erklärt zum 100. Mal das Altsystem*',
+    '*Lisa hat einen Udemy-Kurs fertig*',
+    '*Jürgen lehnt höflich aber bestimmt Überstunden ab*',
+    '*Stille Spannung wegen Bereitschaftsplan*',
+  ],
+};
+
+export const relationshipSystem: RelationshipSystem = {
+  description: 'Interne Beziehungen entwickeln sich über Zeit durch Entscheidungen, Liefertreue und Kommunikation. Jeder NPC hat eigene Prioritäten.',
+  businessLevels: [
+    { level: 1, name: 'Unter Beobachtung', threshold: 0 },
+    { level: 2, name: 'Bewährungsprobe', threshold: 75 },
+    { level: 3, name: 'Akzeptiert', threshold: 175 },
+    { level: 4, name: 'Vertrauensperson', threshold: 350 },
+    { level: 5, name: 'Unverzichtbar', threshold: 600 },
+  ],
+  technicalTrustLevels: [
+    { level: 1, name: 'Hinterfragt alles', threshold: 0 },
+    { level: 2, name: 'Skeptisch aber offen', threshold: 100 },
+    { level: 3, name: 'Respektiert Expertise', threshold: 250 },
+    { level: 4, name: 'Vertraut blind', threshold: 450 },
+  ],
+  specialEvents: {
+    'chef_level_1': 'Der Chef micromanaged dich. Jede Entscheidung braucht Genehmigung.',
+    'chef_level_4': 'Der Chef verteidigt dich in Meetings und gibt dir Freiraum.',
+    'kaemmerer_level_3': 'Die Kämmerin genehmigt IT-Budgets ohne großes Drama.',
+    'kaemmerer_level_1_event': 'Die Kämmerin blockiert dein Budget mit Verweis auf fehlende Begründung.',
+    'gf_level_4': 'Der GF erwähnt dich positiv in der Aufsichtsratssitzung.',
+    'fachabt_level_1_event': 'Fachabteilung beschwert sich offiziell beim GF über die IT.',
+    'kollegen_level_1_event': 'Teammeeting eskaliert, Michael droht mit Krankschreibung.',
+  },
+};
+
+export const companyQuirks: string[] = [
+  'Jede Entscheidung über 5.000 Euro braucht drei Unterschriften',
+  'Der Flurfunk ist schneller als jedes Ticketsystem',
+  'Montags ist immer Jour Fixe beim Chef - auch wenn niemand was zu sagen hat',
+  'Die Kantine schließt um 13:30, egal ob du im Notfall steckst',
+  'Freitags ab 14 Uhr erreichst du niemanden mehr',
+  'Das ERP-System wurde 2004 eingeführt und seitdem gefürchtet',
+  'Urlaubsplanung startet im November - wer zu spät kommt, kriegt August',
+  'Es gibt einen inoffiziellen Parkplatz-Krieg zwischen IT und Disposition',
+  'Der GF hat seinen eigenen Drucker, den niemand anfassen darf',
+  'Weihnachtsfeier-Organisation ist gefürchteter als jedes IT-Projekt',
+];
+
+export const internalVendor: VendorNpc = {
+  id: 'NPC-INTERNAL',
+  companyName: 'AWRM - Abfallwirtschaft Rhein-Main',
+  companyType: 'Interne Organisation / Arbeitgeber',
+  contract: 'Unbefristeter Arbeitsvertrag als IT-Administrator',
+  sla: {
+    responseTime: 'Sofort (Chef), Gleicher Tag (GF), Nach Terminvereinbarung (Kämmerer)',
+    actualResponseTime: 'Variiert stark je nach politischer Wetterlage und Tagesform',
+  },
+  contacts: [chefContact, gfContact, kaemmererContact, fachabteilungContact, kollegenContact],
+  companyQuirks,
+  relationshipSystem,
+  metaLesson: `Die wichtigste Lektion für interne IT: Du bist nicht nur Techniker, du bist Übersetzer zwischen verschiedenen Welten. Der GF denkt in Risiken und Politik, die Kämmerin in Euro, die Fachabteilung in 'funktioniert/funktioniert nicht', und deine Kollegen in Work-Life-Balance. Dein Job ist es, technische Notwendigkeiten so zu kommunizieren, dass jeder sie in seiner Sprache versteht. Wer das beherrscht, überlebt - wer nur Technik kann, wird frustriert.`,
+};
+
+export const gameplayMechanics: GameplayMechanics = {
+  vendorScoreTracking: {
+    description: 'Das Spiel trackt alle internen Interaktionen und berechnet Reputation pro NPC. Bei niedriger Reputation werden Events ausgelöst.',
+    metrics: [
+      'Anzahl gehaltener Versprechen vs. gebrochener',
+      'Reaktionszeit auf Anfragen',
+      'Qualität der Kommunikation (Proaktiv vs. Reaktiv)',
+      'Teamstimmung und Bereitschafts-Fairness',
+      'Budget-Compliance und Kostenkontrolle',
+    ],
+  },
+  trustButVerifyMechanic: {
+    description: 'Interne NPCs reagieren auf dein Verhalten. Zu viel Eigeninitiative ohne Abstimmung verärgert den Chef. Zu wenig zeigt keine Führungsqualität. Balance ist alles.',
+    baseErrorRate: 0.2,
+    errorRateDecreasesWith: 'klare Kommunikation, Dokumentation, Einhalten von Zusagen',
+    errorRateIncreasesWith: 'Überraschungen, mangelnde Abstimmung, überzogene Budgets',
+  },
+};
