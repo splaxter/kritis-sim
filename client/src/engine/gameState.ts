@@ -47,6 +47,10 @@ export function createInitialState(seed?: string, mode: GameModeId = 'intermedia
       isAdventureMode: true,
       adventureState: createInitialAdventureState(),
     } : {}),
+    // Initialize KRITIS mode flag for special events
+    ...(mode === 'kritis' ? {
+      flags: { kritis_mode: true },
+    } : {}),
   };
 }
 
