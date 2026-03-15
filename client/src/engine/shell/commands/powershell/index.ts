@@ -266,8 +266,16 @@ export const newItemCommand: ShellCommand = {
       }
     }
 
+    const now = new Date();
+    const dateStr = `${(now.getMonth()+1).toString().padStart(2,'0')}/${now.getDate().toString().padStart(2,'0')}/${now.getFullYear()} ${now.toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit', hour12:true})}`;
     return {
-      output: `\n    Directory: ${ctx.vfs.dirname(path)}\n\nMode                 LastWriteTime         Length Name\n----                 -------------         ------ ----\n${itemType === 'directory' ? 'd----' : '-a---'}         ${new Date().toLocaleDateString()}                0 ${ctx.vfs.basename(path)}\n`,
+      output: `
+    Directory: ${ctx.vfs.dirname(path)}
+
+Mode   LastWriteTime       Length  Name
+----   -------------       ------  ----
+${itemType === 'directory' ? 'd----' : '-a---'}  ${dateStr.padEnd(18)}       0  ${ctx.vfs.basename(path)}
+`,
       exitCode: 0,
     };
   },
@@ -440,16 +448,16 @@ export const testConnectionCommand: ShellCommand = {
 
     const lines = [
       '',
-      '   Destination: ' + host,
+      'Destination: ' + host,
       '',
-      'Ping Source           Address                   Latency BufferSize Status',
-      '                                                   (ms)        (B)',
-      '---- ------           -------                   ------- ---------- ------',
+      'Ping  Source         Address        Latency(ms)  Status',
+      '----  ------         -------        -----------  ------',
     ];
 
+    const addr = host.match(/^\d/) ? host : '10.0.0.100';
     for (let i = 0; i < count; i++) {
       const latency = Math.floor(Math.random() * 30) + 5;
-      lines.push(`   ${i + 1} WORKSTATION01    ${host.match(/^\d/) ? host : '10.0.0.100'}                     ${latency.toString().padStart(3)}         32 Success`);
+      lines.push(`${(i + 1).toString().padStart(4)}  ${'WORKSTATION01'.padEnd(13)}  ${addr.padEnd(13)}  ${latency.toString().padStart(11)}  Success`);
     }
 
     return { output: lines.join('\n'), exitCode: 0 };
@@ -521,12 +529,11 @@ export const getDnsClientServerAddressCommand: ShellCommand = {
   execute(_args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
     const lines = [
       '',
-      'InterfaceAlias               Interface Address ServerAddresses',
-      '                             Index     Family',
-      '--------------               --------- ------- ---------------',
-      'Ethernet                            12 IPv4    {8.8.8.8, 8.8.4.4}',
-      'Ethernet                            12 IPv6    {2001:4860:4860::8888}',
-      'Loopback Pseudo-Interface 1          1 IPv4    {}',
+      'InterfaceAlias                Index  Family  ServerAddresses',
+      '--------------                -----  ------  ---------------',
+      'Ethernet                         12  IPv4    {8.8.8.8, 8.8.4.4}',
+      'Ethernet                         12  IPv6    {2001:4860:4860::8888}',
+      'Loopback Pseudo-Interface 1       1  IPv4    {}',
       '',
     ];
 
@@ -638,13 +645,16 @@ export const getProcessCommand: ShellCommand = {
 
     const lines = [
       '',
-      'Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName',
-      '-------  ------    -----      -----     ------     --  -- -----------',
+      'Handles  NPM(K)  PM(K)   WS(K)   CPU(s)    Id  ProcessName',
+      '-------  ------  -----   -----   ------    --  -----------',
     ];
 
     for (const p of filtered) {
+      const handles = Math.floor(Math.random() * 500 + 100);
+      const npm = Math.floor(Math.random() * 30 + 5);
+      const pm = Math.floor(p.mem * 1024);
       lines.push(
-        `    ${Math.floor(Math.random() * 500 + 100).toString().padStart(4)}      ${Math.floor(Math.random() * 30 + 5).toString().padStart(2)}    ${Math.floor(p.mem * 1024).toString().padStart(6)}     ${p.ws.toString().padStart(6)}      ${p.cpu.toFixed(2).padStart(5)}   ${p.pid.toString().padStart(4)}   1 ${p.name}`
+        `${handles.toString().padStart(7)}  ${npm.toString().padStart(6)}  ${pm.toString().padStart(5)}  ${p.ws.toString().padStart(6)}  ${p.cpu.toFixed(2).padStart(7)}  ${p.pid.toString().padStart(4)}  ${p.name}`
       );
     }
 
