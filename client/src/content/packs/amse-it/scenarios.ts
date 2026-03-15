@@ -7,7 +7,7 @@ export const amseScenarios: Scenario[] = [
     title: 'Die Firewall-Regel die nicht existiert',
     category: 'vendor_management',
     difficulty: 2,
-    flavorText: 'Du richtest einen neuen Dienst ein der Port 8443 von intern nach extern braucht. Du fragst Marco bei AMSE, ob er die Firewall-Regel anlegen kann. Marco antwortet nach 2 Stunden: \'Ist erledigt, Regel ist drin.\' Du testest — Port ist immer noch zu.',
+    flavorText: 'Du richtest einen neuen Dienst ein der Port 8443 von intern nach extern braucht. Du fragst Marco bei AMSE, ob er die Firewall-Regel anlegen kann. Marco antwortet nach 2 Stunden: \'Ist erledigt, Regel ist drin.\' Du testest — Port ist immer noch zu.\n\n📍 System: Dein Admin-PC (WARM-PC-ADMIN)\n🎯 Aufgabe: Teste die Verbindung zu "ziel-server.warm.local" auf Port 8443',
     urgency: 'medium',
     choices: [
       {
@@ -113,7 +113,7 @@ Verbindung konnte nicht hergestellt werden.
     title: 'VPN funktioniert nicht — \'Liegt nicht an der Firewall\'',
     category: 'vendor_management',
     difficulty: 3,
-    flavorText: '5 Mitarbeiter im Homeoffice melden: VPN trennt sich alle 30 Minuten und reconnected. Du fragst Marco. Antwort: \'VPN-Konfiguration ist korrekt, das liegt am Provider der Mitarbeiter oder an deren Heimnetzwerken.\'',
+    flavorText: '5 Mitarbeiter im Homeoffice melden: VPN trennt sich alle 30 Minuten und reconnected. Du fragst Marco. Antwort: \'VPN-Konfiguration ist korrekt, das liegt am Provider der Mitarbeiter oder an deren Heimnetzwerken.\'\n\n📍 System: Log-Server (warm-log-srv) unter /var/log\n🎯 Aufgabe: Analysiere die VPN/IPsec-Logs um die Ursache zu finden',
     urgency: 'high',
     choices: [
       {
@@ -277,7 +277,7 @@ Mar 14 10:00:04 fw01 pluto[1234]: "homeoffice-vpn" #4525: initiating Quick Mode
     title: 'Die kopierte Firewall-Regel vom anderen Kunden',
     category: 'security_incident',
     difficulty: 4,
-    flavorText: 'Du prüfst routinemäßig die Firewall-Regeln und findest eine Regel die dir nicht bekannt vorkommt: \'Allow ANY → ANY von IP 10.42.0.0/16\'. Euer Netzwerk ist 10.10.0.0/16. Das 10.42er Netz gehört euch nicht.',
+    flavorText: 'Du prüfst routinemäßig die Firewall-Regeln und findest eine Regel die dir nicht bekannt vorkommt: \'Allow ANY → ANY von IP 10.42.0.0/16\'. Euer Netzwerk ist 10.10.0.0/16. Das 10.42er Netz gehört euch nicht.\n\n📍 System: Firewall-Management (warm-fw-mgmt)\n🎯 Aufgabe: Prüfe die Firewall-Regeln und finde heraus wem das 10.42.0.0/16 Netz gehört',
     urgency: 'high',
     choices: [
       {
@@ -394,7 +394,7 @@ Address:  10.10.1.10
     title: 'SLA-Realitätscheck — Der \'kritische\' Ausfall',
     category: 'vendor_management',
     difficulty: 3,
-    flavorText: 'Montagmorgen, 8:02 Uhr. Die Internet-Verbindung ist komplett weg. 120 Mitarbeiter betroffen. Marco nach 25 Minuten Warteschleife: \'Ach, bei euch auch? Ich hab hier 3 andere Kunden mit dem gleichen Problem.\'',
+    flavorText: 'Montagmorgen, 8:02 Uhr. Die Internet-Verbindung ist komplett weg. 120 Mitarbeiter betroffen. Marco nach 25 Minuten Warteschleife: \'Ach, bei euch auch? Ich hab hier 3 andere Kunden mit dem gleichen Problem.\'\n\n📍 System: Dein Admin-PC (WARM-PC-ADMIN)\n🎯 Aufgabe: Diagnostiziere ob es ein Leitungs- oder DNS-Problem ist',
     urgency: 'critical',
     choices: [
       {
@@ -556,7 +556,7 @@ Address:  10.10.1.10
     title: 'Die Dokumentation die es nicht gibt',
     category: 'vendor_management',
     difficulty: 3,
-    flavorText: 'NIS2-Audit steht an. Du fragst Marco nach Firewall-Dokumentation: Regelwerk, Netzplan, VPN-Topologie. Marco: \'Klar, schick ich morgen.\' 2 Wochen später: nichts.',
+    flavorText: 'NIS2-Audit steht an. Du fragst Marco nach Firewall-Dokumentation: Regelwerk, Netzplan, VPN-Topologie. Marco: \'Klar, schick ich morgen.\' 2 Wochen später: nichts.\n\n📍 System: Firewall-Management (warm-fw-mgmt)\n🎯 Aufgabe: Exportiere die Firewall-Konfiguration selbst für die Dokumentation',
     urgency: 'medium',
     choices: [
       {
@@ -680,7 +680,7 @@ backup-rz          10.30.40.1      DOWN      -
     title: 'AMSE-Techniker hat offene Session — seit 47 Tagen',
     category: 'security_incident',
     difficulty: 3,
-    flavorText: 'Bei einer Routine-Prüfung siehst du: \'Letzte Admin-Anmeldung: admin_amse — Aktiv seit 47 Tagen.\' Marco hat eine Session offen gelassen. 47 Tage. Von einer unbekannten IP.',
+    flavorText: 'Bei einer Routine-Prüfung siehst du: \'Letzte Admin-Anmeldung: admin_amse — Aktiv seit 47 Tagen.\' Marco hat eine Session offen gelassen. 47 Tage. Von einer unbekannten IP.\n\n📍 System: Firewall-Management (warm-fw-mgmt)\n🎯 Aufgabe: Prüfe die aktiven Sessions und finde heraus wem die IP 85.214.47.123 gehört',
     urgency: 'high',
     choices: [
       {
