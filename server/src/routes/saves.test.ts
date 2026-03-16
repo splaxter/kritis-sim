@@ -54,7 +54,7 @@ const sampleGameState = {
   gameMode: 'intermediate' as const,
   unlockedCommands: ['help', 'ls', 'cd', 'pwd', 'grep'],
   terminalHistory: [],
-  isAdventureMode: false,
+  isStoryMode: false,
 };
 
 describe('Saves API', () => {

@@ -35,7 +35,7 @@ export const NPC_PROMPTS = {
   // -------------------------------------------------------------------------
   chef: {
     id: 'chef',
-    name: 'Thomas Bergmann',
+    name: 'Bert Bergmann',
     role: 'IT-Leiter',
     prompt: `${STYLE_PREFIX.portrait}
 
@@ -59,7 +59,7 @@ Mood: professional exhaustion, cautious optimism`,
   gf: {
     id: 'gf',
     name: 'Dr. Heinrich Krause',
-    role: 'Geschäftsführer AWRM',
+    role: 'Geschäftsführer WARM',
     prompt: `${STYLE_PREFIX.portrait}
 
 A German executive in his early 60s. Distinguished grey hair, expensive but conservative suit, subtle tie with municipal crest pin. Tall, imposing presence. Reading glasses on a chain around his neck. Has the air of someone who came up through the ranks - not born into management. Expression: authoritative but not unkind. Background hint of wood-paneled office.

@@ -38,8 +38,8 @@ export const adventureSidequests: SidequestDefinition[] = [
 
   {
     id: 'sq_thomas_secret',
-    title: 'Thomas\' Mining-Geheimnis',
-    description: 'Thomas verhält sich seltsam. Nachts leuchten LEDs in seinem Büro. Was macht er da?',
+    title: 'Bjorg\' Mining-Geheimnis',
+    description: 'Bjorg verhält sich seltsam. Nachts leuchten LEDs in seinem Büro. Was macht er da?',
     triggerCondition: {
       relationships: [{ npc: 'kollegen', minLevel: 30 }],
       minChapter: 'ch03_first_crisis',
@@ -257,7 +257,7 @@ export const adventureSidequests: SidequestDefinition[] = [
   {
     id: 'sq_haunted_printer',
     title: 'Der Druckergeist',
-    description: 'Der Drucker im 3. Stock druckt nachts von selbst. Rechnungen. Für eine Firma die es nicht gibt. Thomas behauptet, der Drucker sei verflucht.',
+    description: 'Der Drucker im 3. Stock druckt nachts von selbst. Rechnungen. Für eine Firma die es nicht gibt. Bjorg behauptet, der Drucker sei verflucht.',
     triggerCondition: {
       minChapter: 'ch03_first_crisis',
       maxChapter: 'ch08_calm_before',

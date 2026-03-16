@@ -1,28 +1,19 @@
 /**
  * Save/Load Hook
- * Manages game save and load operations via API
+ * Manages game save and load operations via localStorage
  */
 
 import { useState, useCallback } from 'react';
 import { GameState } from '@kritis/shared';
 
-const API_BASE = '/api';
+const STORAGE_KEY = 'kritis_saves';
+const MAX_SLOTS = 5;
 
 interface SaveSlot {
   id: string;
   slot: number;
   current_week: number | null;
   stress: number | null;
-  updated_at: string;
-}
-
-interface SaveData {
-  id: string;
-  player_id: string;
-  slot: number;
-  current_week: number | null;
-  stress: number | null;
-  created_at: string;
   updated_at: string;
   gameState: GameState | null;
 }
@@ -38,6 +29,30 @@ interface UseSaveLoadReturn {
   clearError: () => void;
 }
 
+function getStorageKey(playerId: string): string {
+  return `${STORAGE_KEY}_${playerId}`;
+}
+
+function getSavesFromStorage(playerId: string): SaveSlot[] {
+  try {
+    const data = localStorage.getItem(getStorageKey(playerId));
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (e) {
+    console.error('Failed to load saves from localStorage:', e);
+  }
+  return [];
+}
+
+function saveSavesToStorage(playerId: string, saves: SaveSlot[]): void {
+  try {
+    localStorage.setItem(getStorageKey(playerId), JSON.stringify(saves));
+  } catch (e) {
+    console.error('Failed to save to localStorage:', e);
+  }
+}
+
 export function useSaveLoad(): UseSaveLoadReturn {
   const [saves, setSaves] = useState<SaveSlot[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,11 +62,7 @@ export function useSaveLoad(): UseSaveLoadReturn {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/saves/${playerId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch saves');
-      }
-      const data = await response.json();
+      const data = getSavesFromStorage(playerId);
       setSaves(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -66,25 +77,39 @@ export function useSaveLoad(): UseSaveLoadReturn {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE}/saves/${playerId}/${slot}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ gameState }),
-        });
-        if (!response.ok) {
-          throw new Error('Failed to save game');
+        const currentSaves = getSavesFromStorage(playerId);
+
+        const newSave: SaveSlot = {
+          id: `${playerId}-${slot}`,
+          slot,
+          current_week: gameState.currentWeek,
+          stress: gameState.stress,
+          updated_at: new Date().toISOString(),
+          gameState,
+        };
+
+        // Find existing slot or add new
+        const existingIndex = currentSaves.findIndex(s => s.slot === slot);
+        if (existingIndex >= 0) {
+          currentSaves[existingIndex] = newSave;
+        } else {
+          currentSaves.push(newSave);
         }
-        // Refresh saves list
-        await fetchSaves(playerId);
+
+        // Sort by slot number
+        currentSaves.sort((a, b) => a.slot - b.slot);
+
+        saveSavesToStorage(playerId, currentSaves);
+        setSaves(currentSaves);
         return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Speichern fehlgeschlagen');
         return false;
       } finally {
         setLoading(false);
       }
     },
-    [fetchSaves]
+    []
   );
 
   const loadGame = useCallback(
@@ -92,14 +117,15 @@ export function useSaveLoad(): UseSaveLoadReturn {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE}/saves/${playerId}/${slot}`);
-        if (!response.ok) {
-          throw new Error('Failed to load save');
+        const currentSaves = getSavesFromStorage(playerId);
+        const save = currentSaves.find(s => s.slot === slot);
+        if (!save || !save.gameState) {
+          setError('Spielstand nicht gefunden');
+          return null;
         }
-        const data: SaveData = await response.json();
-        return data.gameState;
+        return save.gameState;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Laden fehlgeschlagen');
         return null;
       } finally {
         setLoading(false);
@@ -113,23 +139,19 @@ export function useSaveLoad(): UseSaveLoadReturn {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetch(`${API_BASE}/saves/${playerId}/${slot}`, {
-          method: 'DELETE',
-        });
-        if (!response.ok && response.status !== 204) {
-          throw new Error('Failed to delete save');
-        }
-        // Refresh saves list
-        await fetchSaves(playerId);
+        const currentSaves = getSavesFromStorage(playerId);
+        const filtered = currentSaves.filter(s => s.slot !== slot);
+        saveSavesToStorage(playerId, filtered);
+        setSaves(filtered);
         return true;
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Löschen fehlgeschlagen');
         return false;
       } finally {
         setLoading(false);
       }
     },
-    [fetchSaves]
+    []
   );
 
   const clearError = useCallback(() => {

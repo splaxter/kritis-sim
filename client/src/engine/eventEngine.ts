@@ -1,11 +1,27 @@
-import { GameEvent, GameState, EventChoice, Skills } from '@kritis/shared';
+import { GameEvent, GameState, EventChoice, Skills, getGameModeConfig } from '@kritis/shared';
 import { isDialogueUnlocked, hasAbility } from './adventureEngine';
+import { getActivatedChainEvents } from './chainEngine';
 
 export function getAvailableEvents(
   events: GameEvent[],
   state: GameState
 ): GameEvent[] {
+  const modeConfig = getGameModeConfig(state.gameMode);
+  const cliOnly = modeConfig.features.cliOnly;
+
   return events.filter((event) => {
+    // CLI-only mode (learning): only show events with terminal context AND requiredModes
+    if (cliOnly) {
+      // Must have terminal context
+      if (!event.terminalContext) {
+        return false;
+      }
+      // Must be explicitly designed for learning mode
+      if (!event.requiredModes || !event.requiredModes.includes('learning')) {
+        return false;
+      }
+    }
+
     // Check week range
     if (state.currentWeek < event.weekRange[0] || state.currentWeek > event.weekRange[1]) {
       return false;
@@ -64,6 +80,14 @@ export function selectNextEvent(
   state: GameState,
   seed: string
 ): GameEvent | null {
+  // PRIORITY 1: Activated chain events (consequences from past decisions)
+  const chainEvents = getActivatedChainEvents(state, events);
+  if (chainEvents.length > 0) {
+    // Return the highest priority chain event
+    return chainEvents[0];
+  }
+
+  // PRIORITY 2: Regular event selection (existing logic)
   const available = getAvailableEvents(events, state);
   if (available.length === 0) return null;
 
@@ -106,7 +130,7 @@ export function getVisibleChoices(
     // Standard hidden check
     if (choice.hidden) {
       // Hidden choices can be revealed by sidequest dialogue unlocks
-      if (state.isAdventureMode && isDialogueUnlocked(state, event.id, choice.id)) {
+      if (state.isStoryMode && isDialogueUnlocked(state, event.id, choice.id)) {
         // Choice is unlocked by sidequest - show it
       } else {
         return false;

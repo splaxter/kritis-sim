@@ -13,7 +13,7 @@ interface UseTerminalOptions {
 }
 
 export function useTerminal({ context, onSolved, onPartialSolution, gameMode = 'intermediate' }: UseTerminalOptions) {
-  const isBeginnerMode = gameMode === 'beginner';
+  const isBeginnerMode = gameMode === 'beginner' || gameMode === 'learning';
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
@@ -21,6 +21,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
   const [currentLine, setCurrentLine] = useState('');
   const [hintsUsed, setHintsUsed] = useState(0);
   const [commandsUsed, setCommandsUsed] = useState<string[]>([]);
+  const [teachedCommands, setTeachedCommands] = useState<Set<string>>(new Set());
 
   // Use refs to store latest values without triggering re-renders
   const hintsUsedRef = useRef(hintsUsed);
@@ -44,6 +45,30 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       templates,
     });
   }, [context.type, context.hostname, context.username, context.currentPath, context.vfsOverlay, context.env, context.templateIds]);
+
+  // Track teached commands ref for solution checking
+  const teachedCommandsRef = useRef(teachedCommands);
+  useEffect(() => {
+    teachedCommandsRef.current = teachedCommands;
+  }, [teachedCommands]);
+
+  // Check if any solution condition is met
+  const checkSolutions = useCallback((newTeachedCommands: Set<string>) => {
+    if (!context.solutions || context.solutions.length === 0) return null;
+
+    for (const solution of context.solutions) {
+      if (solution.allRequired) {
+        // All commands must be learned - exact match required
+        const allMet = solution.commands.every(cmd => newTeachedCommands.has(cmd));
+        if (allMet) return solution;
+      } else {
+        // Any command matches
+        const anyMet = solution.commands.some(cmd => newTeachedCommands.has(cmd));
+        if (anyMet) return solution;
+      }
+    }
+    return null;
+  }, [context.solutions]);
 
   // Keep refs up to date
   useEffect(() => {
@@ -120,8 +145,8 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     term.writeln('\x1b[90mTipp: Tab für Autovervollständigung, ↑/↓ für History, H für Hinweise\x1b[0m');
     term.writeln('');
 
-    // In beginner mode, auto-show the first hint
-    if (isBeginnerMode && context.hints.length > 0) {
+    // Auto-show first hint only in beginner mode (not learning mode)
+    if (gameMode === 'beginner' && context.hints.length > 0) {
       term.writeln(`\x1b[33m💡 ${context.hints[0]}\x1b[0m`);
       term.writeln('');
       setHintsUsed(1);
@@ -129,12 +154,15 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
 
     term.write(prompt);
 
+    // Auto-focus terminal so user can start typing immediately
+    term.focus();
+
     // Idle timer for beginner mode suggestions
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     const IDLE_TIMEOUT = 8000; // 8 seconds
 
     const showIdleSuggestion = () => {
-      if (!isBeginnerMode) return;
+      if (gameMode !== 'beginner') return;  // Only auto-hint in beginner mode
       const currentHintIndex = hintsUsedRef.current;
       if (currentHintIndex < context.hints.length) {
         term.writeln('');
@@ -146,7 +174,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
 
     const resetIdleTimer = () => {
       if (idleTimer) clearTimeout(idleTimer);
-      if (isBeginnerMode) {
+      if (gameMode === 'beginner') {  // Only idle hints in beginner mode
         idleTimer = setTimeout(showIdleSuggestion, IDLE_TIMEOUT);
       }
     };
@@ -282,9 +310,28 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 const output = cmd.output;
                 scenarioMatch = true;
 
+                // Track executed commands for solution checking
+                // Store both the pattern and teachesCommand for flexible matching
+                const newTeached = new Set(teachedCommandsRef.current);
+                newTeached.add(cmd.pattern);  // Store the full pattern
+                if (cmd.teachesCommand) {
+                  newTeached.add(cmd.teachesCommand);  // Also store short form
+                }
+                setTeachedCommands(newTeached);
+                teachedCommandsRef.current = newTeached;
+
+                // Also execute the command in shell engine for cd/navigation
+                // This ensures the prompt path updates correctly
+                if (trimmed.startsWith('cd ') || trimmed === 'cd') {
+                  shellRef.current?.execute(trimmed);
+                }
+
                 if (cmd.isSolution) {
-                  // Show output first
-                  term.writeln(output);
+                  // Show output first - split by newlines for proper rendering
+                  const outLines = output.split('\n');
+                  for (const outLine of outLines) {
+                    term.writeln(outLine);
+                  }
                   term.writeln('');
 
                   // Show realistic exit code
@@ -304,7 +351,10 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 }
 
                 if (cmd.isPartialSolution) {
-                  term.writeln(output);
+                  const partialLines = output.split('\n');
+                  for (const partialLine of partialLines) {
+                    term.writeln(partialLine);
+                  }
                   term.writeln('');
                   term.writeln('\x1b[33m[Exit code 1 - Teilweise erfolgreich]\x1b[0m');
                   onPartialSolutionRef.current(
@@ -319,7 +369,25 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 }
 
                 // Non-solution scenario command - show output
-                term.writeln(output);
+                // Convert \n to \r\n for proper terminal rendering
+                const lines = output.split('\n');
+                for (const line of lines) {
+                  term.writeln(line);
+                }
+
+                // Check if all solution requirements are now met
+                const solution = checkSolutions(teachedCommandsRef.current);
+                if (solution) {
+                  term.writeln('');
+                  term.writeln('\x1b[32m╔════════════════════════════════════════╗\x1b[0m');
+                  term.writeln('\x1b[32m║  ✓ ' + (solution.resultText || 'Aufgabe gelöst!').slice(0, 35).padEnd(35) + ' ║\x1b[0m');
+                  term.writeln('\x1b[32m╚════════════════════════════════════════╝\x1b[0m');
+                  term.writeln('');
+                  term.writeln('\x1b[90mWeiter in 2 Sekunden...\x1b[0m');
+                  setTimeout(() => onSolvedRef.current(solution.skillGain || {}), 2000);
+                  return;
+                }
+
                 line = '';
                 cursorPos = 0;
                 setCurrentLine('');
@@ -353,7 +421,11 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                     }
                   }
                 } else if (result.output) {
-                  term.writeln(result.output);
+                  // Split by newlines for proper terminal rendering
+                  const shellLines = result.output.split('\n');
+                  for (const shellLine of shellLines) {
+                    term.writeln(shellLine);
+                  }
                 }
               }
             }

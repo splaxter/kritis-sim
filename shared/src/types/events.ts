@@ -13,7 +13,16 @@ export type EventCategory =
   | 'team'
   | 'personal'
   | 'absurd'
-  | 'story';
+  | 'story'
+  | 'training';
+
+export interface ChainTrigger {
+  targetEventId: string;
+  condition?: string;           // JS expression evaluated with choice context
+  delayWeeks: number;           // 0 = immediate, 1-4 = delayed
+  probability?: number;         // 0-1, default 1.0
+  description?: string;         // For debugging/content authoring
+}
 
 export interface EventEffects {
   skills?: Partial<Skills>;
@@ -36,6 +45,9 @@ export interface EventChoice {
   triggersEvent?: string;
   setsFlags?: string[];
   unlocks?: string[];
+  // Chain system: per-choice triggers (override event-level)
+  chainTriggers?: ChainTrigger[];
+  choiceTags?: string[];           // Tags for this specific choice
 }
 
 export interface GameEvent {
@@ -53,8 +65,15 @@ export interface GameEvent {
   category: EventCategory;
   title: string;
   description: string;
+  image?: string; // Path to event illustration (e.g., "/images/events/evt_example.webp")
   involvedCharacters: string[];
   choices: EventChoice[];
   terminalContext?: TerminalContext;
   tags: string[];
+  // Chain system
+  chainTriggers?: ChainTrigger[];  // Triggers defined at event level
+  chainPriority?: number;          // Higher = selected first (default 0)
+  isChainEvent?: boolean;          // Marks as consequence event
+  // Mentor mode
+  mentorNote?: string;             // Educational context for mentor mode
 }

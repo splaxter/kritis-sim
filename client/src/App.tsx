@@ -5,14 +5,19 @@ import { allEvents } from './content/events';
 import { selectNextEvent } from './engine/eventEngine';
 import { selectNextScenario } from './engine/scenarioEngine';
 import { getAllScenarios } from './content/packs';
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { SaveLoadModal } from './components/SaveLoadModal';
-import { GameModeSelectModal } from './components/GameModeSelectModal';
+import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
 import { getNextStoryContent } from './engine/adventureEngine';
 import { adventureStoryEvents } from './content/adventure/story-events';
+import { IntroScreen } from './components/IntroScreen';
+import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
+import { StoryBackground } from './components/StoryBackground';
+
+// Lazy load modals - only needed when user opens them
+const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
+const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
 
 // Get or create player ID from localStorage
 function getPlayerId(): string {
@@ -23,22 +28,30 @@ function getPlayerId(): string {
   return newId;
 }
 
-function App() {
+function AppContent() {
   const game = useGame();
   const [playerId] = useState(getPlayerId);
+  const [showIntro, setShowIntro] = useState(true);
   const [saveLoadModal, setSaveLoadModal] = useState<{ show: boolean; mode: 'save' | 'load' }>({
     show: false,
     mode: 'save',
   });
   const [showModeSelect, setShowModeSelect] = useState(false);
+  const [menuIndex, setMenuIndex] = useState(0);
   const { loadGame } = useSaveLoad();
   const [characters] = useState({
-    chef: 'Bernd',
+    chef: 'Bert',
     gf: 'Dr. Müller',
     kaemmerer: 'Herr Schmidt',
     athos: 'Frau Weber',
-    kollege: 'Thomas',
+    kollege: 'Bjorg',
   });
+  const { setStoryMode } = useStoryBackground();
+
+  // Sync story mode state with context
+  useEffect(() => {
+    setStoryMode(game.state.isStoryMode);
+  }, [game.state.isStoryMode, setStoryMode]);
 
   // Get all available scenarios
   const allScenarios = useMemo(() => getAllScenarios(), []);
@@ -62,7 +75,7 @@ function App() {
   useEffect(() => {
     if (game.phase === 'playing' && !game.currentEvent && !game.currentScenario) {
       // Adventure mode: use story-driven content selection
-      if (game.state.isAdventureMode && game.state.adventureState) {
+      if (game.state.isStoryMode && game.state.storyState) {
         const combinedEvents = [...allEvents, ...adventureStoryEvents];
         const result = getNextStoryContent(game.state, combinedEvents, allScenarios);
 
@@ -81,17 +94,24 @@ function App() {
         return;
       }
 
+      // Check if we're in CLI-only mode (learning mode)
+      const modeConfig = getGameModeConfig(game.state.gameMode);
+      const cliOnly = modeConfig.features.cliOnly === true;
+
       // Standard mode: probabilistic content selection
       // Use scenarios ~30% of the time after week 1, increasing with progression
-      const scenarioChance = Math.min(0.5, 0.1 + (game.state.currentWeek - 1) * 0.05);
-      const hash = simpleHash(game.state.seed + game.state.currentWeek + game.state.currentDay + game.state.completedEvents.length);
-      const useScenario = (hash % 100) < (scenarioChance * 100);
+      // Skip scenarios entirely in CLI-only mode
+      if (!cliOnly) {
+        const scenarioChance = Math.min(0.5, 0.1 + (game.state.currentWeek - 1) * 0.05);
+        const hash = simpleHash(game.state.seed + game.state.currentWeek + game.state.currentDay + game.state.completedEvents.length);
+        const useScenario = (hash % 100) < (scenarioChance * 100);
 
-      if (useScenario && allScenarios.length > 0) {
-        const nextScenario = selectNextScenario(allScenarios, game.state, game.state.seed);
-        if (nextScenario) {
-          game.setScenario(nextScenario);
-          return;
+        if (useScenario && allScenarios.length > 0) {
+          const nextScenario = selectNextScenario(allScenarios, game.state, game.state.seed);
+          if (nextScenario) {
+            game.setScenario(nextScenario);
+            return;
+          }
         }
       }
 
@@ -125,6 +145,35 @@ function App() {
     game.startNewGame(undefined, mode);
   }, [game]);
 
+  // Main menu keyboard navigation
+  const menuItems = ['new', 'load'] as const;
+
+  useEffect(() => {
+    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMenuIndex(prev => (prev + 1) % menuItems.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (menuItems[menuIndex] === 'new') {
+          setShowModeSelect(true);
+        } else {
+          setSaveLoadModal({ show: true, mode: 'load' });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro]);
+
+  // Show intro screen on first load
+  if (showIntro) {
+    return <IntroScreen onEnter={() => setShowIntro(false)} />;
+  }
+
   if (game.phase === 'menu') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -140,36 +189,54 @@ function App() {
 
           <button
             onClick={() => setShowModeSelect(true)}
-            className="w-full p-4 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-lg mb-2"
+            onMouseEnter={() => setMenuIndex(0)}
+            className={`w-full p-4 border transition-colors text-lg mb-2 ${
+              menuIndex === 0
+                ? 'border-terminal-green bg-terminal-bg-highlight'
+                : 'border-terminal-border hover:border-terminal-green'
+            }`}
           >
-            [ NEUES SPIEL STARTEN ]
+            {menuIndex === 0 ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
           </button>
           <button
             onClick={() => setSaveLoadModal({ show: true, mode: 'load' })}
-            className="w-full p-3 border border-terminal-border hover:border-terminal-info hover:bg-terminal-bg-highlight transition-colors text-terminal-green-dim"
+            onMouseEnter={() => setMenuIndex(1)}
+            className={`w-full p-3 border transition-colors ${
+              menuIndex === 1
+                ? 'border-terminal-info bg-terminal-bg-highlight text-terminal-green'
+                : 'border-terminal-border text-terminal-green-dim hover:border-terminal-info'
+            }`}
           >
-            [ SPIEL LADEN ]
+            {menuIndex === 1 ? '> ' : '  '}[ SPIEL LADEN ]
           </button>
+
+          <div className="text-terminal-green-dim text-xs mt-4">
+            [↑↓] Navigieren  [Enter] Auswählen
+          </div>
         </div>
 
         {/* Game Mode Selection Modal */}
-        {showModeSelect && (
-          <GameModeSelectModal
-            onSelect={handleModeSelect}
-            onClose={() => setShowModeSelect(false)}
-          />
-        )}
+        <Suspense fallback={null}>
+          {showModeSelect && (
+            <GameModeSelectModal
+              onSelect={handleModeSelect}
+              onClose={() => setShowModeSelect(false)}
+            />
+          )}
+        </Suspense>
 
         {/* Save/Load Modal */}
-        {saveLoadModal.show && (
-          <SaveLoadModal
-            mode={saveLoadModal.mode}
-            playerId={playerId}
-            currentState={game.state}
-            onLoad={handleLoadGame}
-            onClose={() => setSaveLoadModal({ ...saveLoadModal, show: false })}
-          />
-        )}
+        <Suspense fallback={null}>
+          {saveLoadModal.show && (
+            <SaveLoadModal
+              mode={saveLoadModal.mode}
+              playerId={playerId}
+              currentState={game.state}
+              onLoad={handleLoadGame}
+              onClose={() => setSaveLoadModal({ ...saveLoadModal, show: false })}
+            />
+          )}
+        </Suspense>
       </div>
     );
   }
@@ -216,18 +283,23 @@ function App() {
         </div>
 
         {/* Game Mode Selection Modal */}
-        {showModeSelect && (
-          <GameModeSelectModal
-            onSelect={handleModeSelect}
-            onClose={() => setShowModeSelect(false)}
-          />
-        )}
+        <Suspense fallback={null}>
+          {showModeSelect && (
+            <GameModeSelectModal
+              onSelect={handleModeSelect}
+              onClose={() => setShowModeSelect(false)}
+            />
+          )}
+        </Suspense>
       </div>
     );
   }
 
   return (
     <>
+      {/* Persistent story mode background */}
+      <StoryBackground />
+
       <GameScreen
         state={game.state}
         phase={game.phase}
@@ -259,16 +331,27 @@ function App() {
       />
 
       {/* Save/Load Modal */}
-      {saveLoadModal.show && (
-        <SaveLoadModal
-          mode={saveLoadModal.mode}
-          playerId={playerId}
-          currentState={game.state}
-          onLoad={handleLoadGame}
-          onClose={() => setSaveLoadModal({ ...saveLoadModal, show: false })}
-        />
-      )}
+      <Suspense fallback={null}>
+        {saveLoadModal.show && (
+          <SaveLoadModal
+            mode={saveLoadModal.mode}
+            playerId={playerId}
+            currentState={game.state}
+            onLoad={handleLoadGame}
+            onClose={() => setSaveLoadModal({ ...saveLoadModal, show: false })}
+          />
+        )}
+      </Suspense>
     </>
+  );
+}
+
+// Main App wrapper with providers
+function App() {
+  return (
+    <StoryBackgroundProvider>
+      <AppContent />
+    </StoryBackgroundProvider>
   );
 }
 

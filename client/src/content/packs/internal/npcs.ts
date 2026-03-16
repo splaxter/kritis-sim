@@ -1,9 +1,9 @@
-// Internal NPCs - AWRM Organization Characters
+// Internal NPCs - WARM Organization Characters
 import { VendorNpc, NpcContact, RelationshipSystem, GameplayMechanics } from '@kritis/shared';
 
 export const chefContact: NpcContact = {
   id: 'INTERN-CHEF',
-  name: 'Thomas Bergmann',
+  name: 'Bert Bergmann',
   role: 'IT-Leiter / Dein direkter Vorgesetzter',
   age: 48,
   personality: `Technisch kompetenter Oldschool-ITler, der die KRITIS-Welt noch von der Großrechner-Zeit kennt. Delegiert gerne, steht aber hinter seinen Leuten wenn es hart auf hart kommt. Hat politisches Gespür und weiß wie man den GF managed. Kann ungeduldig werden wenn technische Erklärungen zu lang sind. Sein Motto: 'Lösungen statt Probleme präsentieren.' Erwartet Eigeninitiative, hasst Überraschungen. Am Freitagnachmittag ist er mental schon im Wochenende.`,
@@ -37,7 +37,7 @@ export const chefContact: NpcContact = {
 export const gfContact: NpcContact = {
   id: 'INTERN-GF',
   name: 'Dr. Heinrich Krause',
-  role: 'Geschäftsführer AWRM',
+  role: 'Geschäftsführer WARM',
   age: 58,
   personality: `Klassischer Verwaltungsmensch mit technischem Grundverständnis, aber ohne Detailwissen. Denkt in Haushaltsjahren und politischen Zyklen. Für ihn ist IT ein Kostenfaktor, kein strategischer Enabler. Wird aber hellhörig wenn es um KRITIS-Compliance und Haftungsrisiken geht. Hat Angst vor negativer Presse. Sein Hauptinteresse: Wie stelle ich das dem Aufsichtsrat dar? Ist eigentlich fair, aber lebt in einer anderen Realität als die IT.`,
   appearancePrompt: `Character portrait, cartoon game style. A German executive in his late 50s, distinguished gray hair, wire-rimmed glasses. Wearing an expensive but conservative dark suit with subtle pinstripes. Behind him, framed certificates and a photo with local politicians. His desk is pristine with only a fountain pen and leather folder visible. Looks at you like he's evaluating a budget proposal. Has a 'Dr.' nameplate prominently displayed. Bold outlines, flat cartoon style, chest-up portrait.`,
@@ -202,7 +202,7 @@ export const companyQuirks: string[] = [
 
 export const internalVendor: VendorNpc = {
   id: 'NPC-INTERNAL',
-  companyName: 'AWRM - Abfallwirtschaft Rhein-Main',
+  companyName: 'WARM - Abfallwirtschaft Rhein-Main',
   companyType: 'Interne Organisation / Arbeitgeber',
   contract: 'Unbefristeter Arbeitsvertrag als IT-Administrator',
   sla: {

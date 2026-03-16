@@ -94,7 +94,7 @@ export function createShellFromContext(context: {
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
-  return createShell({
+  const shell = createShell({
     type: shellType,
     user: context.username,
     hostname: context.hostname,
@@ -103,6 +103,17 @@ export function createShellFromContext(context: {
     directories: context.vfsOverlay?.directories,
     templates: context.templates,
   });
+
+  // Set the initial working directory
+  const vfs = shell.getVfs();
+  if (context.currentPath) {
+    // Ensure the directory exists
+    vfs.addDirectory(context.currentPath);
+    // Navigate to it
+    vfs.setCurrentPath(context.currentPath);
+  }
+
+  return shell;
 }
 
 // Re-export filesystem creators

@@ -14,6 +14,11 @@ import {
   getSidequestRewards,
   updateCharacterMemory,
 } from '../engine/adventureEngine';
+import {
+  recordDecision,
+  scheduleChainEvents,
+  cleanupPendingEvent,
+} from '../engine/chainEngine';
 
 export type GamePhase = 'menu' | 'playing' | 'terminal' | 'result' | 'gameover';
 export type ContentType = 'event' | 'scenario';
@@ -61,7 +66,7 @@ export function useGame(): UseGameReturn {
 
   const [gameOverReason, setGameOverReason] = useState<string | null>(null);
 
-  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'intermediate') => {
+  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'beginner') => {
     setState(createInitialState(seed, mode));
     setPhase('playing');
     setContentType('event');
@@ -105,6 +110,18 @@ export function useGame(): UseGameReturn {
     setState((prev) => {
       let newState = applyEffects(prev, choice.effects);
 
+      // Chain system: Record the decision
+      if (currentEvent) {
+        const choiceIndex = currentEvent.choices.indexOf(choice);
+        newState = recordDecision(newState, currentEvent, choice, choiceIndex);
+
+        // Chain system: Schedule any consequence events
+        newState = scheduleChainEvents(newState, currentEvent, choice);
+
+        // Chain system: Clean up if this was a chain event
+        newState = cleanupPendingEvent(newState, currentEvent.id);
+      }
+
       // Set flags from choice
       if (choice.setsFlags) {
         const flags = { ...newState.flags };
@@ -120,18 +137,18 @@ export function useGame(): UseGameReturn {
       }
 
       // Adventure mode: handle story progression and sidequests
-      if (prev.isAdventureMode && prev.adventureState && currentEvent) {
+      if (prev.isStoryMode && prev.storyState && currentEvent) {
         // Check if this is a sidequest event
         const sidequest = findSidequestByEvent(currentEvent.id);
 
         if (sidequest) {
           // Advance sidequest progress
           const updatedAdvState = advanceSidequest(prev, sidequest.id);
-          newState.adventureState = updatedAdvState;
+          newState.storyState = updatedAdvState;
 
           // Check if sidequest just completed
           if (updatedAdvState.completedSidequests.includes(sidequest.id) &&
-              !prev.adventureState.completedSidequests.includes(sidequest.id)) {
+              !prev.storyState.completedSidequests.includes(sidequest.id)) {
             // Apply sidequest rewards
             const rewards = getSidequestRewards(sidequest.id);
             if (rewards) {
@@ -165,23 +182,23 @@ export function useGame(): UseGameReturn {
           }
         } else {
           // Regular story beat - advance story
-          newState.adventureState = advanceStoryBeat(prev);
+          newState.storyState = advanceStoryBeat(prev);
         }
 
         // Update character memory based on relationship changes
-        if (choice.effects.relationships && newState.adventureState) {
-          let advState = newState.adventureState;
+        if (choice.effects.relationships && newState.storyState) {
+          let advState = newState.storyState;
           for (const [npcId, change] of Object.entries(choice.effects.relationships)) {
             if (change !== undefined && change !== 0) {
               advState = updateCharacterMemory(
-                { ...newState, adventureState: advState },
+                { ...newState, storyState: advState },
                 npcId,
                 currentEvent.id,
                 change
               );
             }
           }
-          newState.adventureState = advState;
+          newState.storyState = advState;
         }
       }
 
@@ -231,7 +248,19 @@ export function useGame(): UseGameReturn {
     // Handle event terminal choice
     if (solved && pendingTerminalChoice) {
       setState((prev) => {
-        const newState = applyEffects(prev, pendingTerminalChoice.effects);
+        let newState = applyEffects(prev, pendingTerminalChoice.effects);
+
+        // Chain system: Record the decision
+        if (currentEvent) {
+          const choiceIndex = currentEvent.choices.indexOf(pendingTerminalChoice);
+          newState = recordDecision(newState, currentEvent, pendingTerminalChoice, choiceIndex);
+
+          // Chain system: Schedule any consequence events
+          newState = scheduleChainEvents(newState, currentEvent, pendingTerminalChoice);
+
+          // Chain system: Clean up if this was a chain event
+          newState = cleanupPendingEvent(newState, currentEvent.id);
+        }
 
         if (pendingTerminalChoice.setsFlags) {
           const flags = { ...newState.flags };

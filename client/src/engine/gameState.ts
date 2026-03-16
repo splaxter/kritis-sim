@@ -9,7 +9,7 @@ import {
   createInitialAdventureState,
 } from '@kritis/shared';
 
-export function createInitialState(seed?: string, mode: GameModeId = 'intermediate'): GameState {
+export function createInitialState(seed?: string, mode: GameModeId = 'beginner'): GameState {
   const config = getGameModeConfig(mode);
 
   return {
@@ -42,15 +42,20 @@ export function createInitialState(seed?: string, mode: GameModeId = 'intermedia
       comboMultiplier: 1,
       comboStreak: 0,
     } : {}),
-    // Initialize adventure state if adventure mode
-    ...(mode === 'adventure' ? {
-      isAdventureMode: true,
-      adventureState: createInitialAdventureState(),
+    // Initialize story state if story mode
+    ...(mode === 'story' ? {
+      isStoryMode: true,
+      storyState: createInitialAdventureState(),
     } : {}),
     // Initialize KRITIS mode flag for special events
     ...(mode === 'kritis' ? {
       flags: { kritis_mode: true },
     } : {}),
+    // Chain system - always initialize
+    decisions: [],
+    pendingChainEvents: [],
+    // Mentor mode: enabled for beginner, forced for learning
+    mentorModeEnabled: mode === 'beginner' || mode === 'learning',
   };
 }
 

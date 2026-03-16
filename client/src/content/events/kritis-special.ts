@@ -35,7 +35,7 @@ Bitte halten Sie folgende Dokumentation bereit:
 Mit freundlichen Grüßen,
 Bundesamt für Sicherheit in der Informationstechnik"
 
-Chef Bernd steht plötzlich hinter dir. "Was ist ein NIS2?"`,
+Chef Bert steht plötzlich hinter dir. "Was ist ein NIS2?"`,
     involvedCharacters: ['chef'],
     tags: ['kritis', 'nis2', 'audit', 'compliance'],
     choices: [
@@ -43,14 +43,14 @@ Chef Bernd steht plötzlich hinter dir. "Was ist ein NIS2?"`,
         id: 'explain_calmly',
         text: 'Ruhig erklären: "Eine EU-Richtlinie für IT-Sicherheit. Wir müssen uns vorbereiten."',
         effects: { relationships: { chef: 5 }, skills: { softSkills: 3 } },
-        resultText: 'Chef Bernd nickt langsam. "Okay... und sind wir vorbereitet?" Du schluckst.',
+        resultText: 'Chef Bert nickt langsam. "Okay... und sind wir vorbereitet?" Du schluckst.',
         setsFlags: ['nis2_audit_announced', 'chef_informed'],
       },
       {
         id: 'panic',
         text: '"Das ist... das ist nicht gut. Wir haben zwei Wochen."',
         effects: { stress: 15, relationships: { chef: -5 } },
-        resultText: 'Chef Bernd wird blass. "Zwei Wochen?! Für was?!" Die Panik breitet sich aus.',
+        resultText: 'Chef Bert wird blass. "Zwei Wochen?! Für was?!" Die Panik breitet sich aus.',
         setsFlags: ['nis2_audit_announced', 'panic_mode'],
       },
       {
@@ -58,7 +58,7 @@ Chef Bernd steht plötzlich hinter dir. "Was ist ein NIS2?"`,
         text: '"Keine Sorge, ich habe schon angefangen, Dokumentation zu erstellen."',
         requires: { skill: 'security', threshold: 40 },
         effects: { relationships: { chef: 15 }, skills: { security: 3 } },
-        resultText: 'Du zeigst ihm die Ordner, die du schon angelegt hast. "Proaktiv denken", sagst du. Chef Bernd ist beeindruckt.',
+        resultText: 'Du zeigst ihm die Ordner, die du schon angelegt hast. "Proaktiv denken", sagst du. Chef Bert ist beeindruckt.',
         setsFlags: ['nis2_audit_announced', 'proactive_documentation'],
       },
     ],
@@ -80,7 +80,7 @@ Chef Bernd steht plötzlich hinter dir. "Was ist ein NIS2?"`,
 - "Risikomanagement" existiert als leerer Ordner
 - Schulungsnachweise? "Ich glaube, Stefan hatte da mal was..."
 
-Thomas schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."`,
+Bjorg schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."`,
     involvedCharacters: ['kollege'],
     tags: ['kritis', 'nis2', 'documentation'],
     choices: [
@@ -100,7 +100,7 @@ Thomas schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."
       },
       {
         id: 'ask_for_help',
-        text: 'Thomas und die Fachabteilungen um Hilfe bitten',
+        text: 'Bjorg und die Fachabteilungen um Hilfe bitten',
         effects: { relationships: { kollegen: 10, fachabteilung: 5 }, stress: 5 },
         resultText: 'Gemeinsam geht es schneller. Jede Abteilung liefert ihren Teil. Teamwork.',
         setsFlags: ['documentation_teamwork', 'team_prepared'],
@@ -121,7 +121,7 @@ Thomas schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."
 
 "Guten Tag. Wir würden gerne mit Ihrer IT-Sicherheitsinfrastruktur beginnen."
 
-Chef Bernd schwitzt. Thomas hat sich krank gemeldet. Und der Drucker macht wieder seltsame Geräusche.
+Chef Bert schwitzt. Bjorg hat sich krank gemeldet. Und der Drucker macht wieder seltsame Geräusche.
 
 Die nächsten 4 Stunden werden interessant.`,
     involvedCharacters: ['chef'],
@@ -144,9 +144,9 @@ Die nächsten 4 Stunden werden interessant.`,
       },
       {
         id: 'deflect_to_chef',
-        text: 'Chef Bernd die Führung überlassen',
+        text: 'Chef Bert die Führung überlassen',
         effects: { relationships: { chef: -15 }, compliance: -10, stress: 10 },
-        resultText: '"Äh... der Server ist... das Ding da..." Chef Bernd improvisiert. Schlecht. Sehr schlecht.',
+        resultText: '"Äh... der Server ist... das Ding da..." Chef Bert improvisiert. Schlecht. Sehr schlecht.',
         setsFlags: ['audit_failed', 'chef_embarrassed'],
       },
     ],
@@ -172,7 +172,7 @@ Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`,
         text: '[Wenn Audit bestanden] "Wir haben bestanden!"',
         unlocks: ['audit_passed'],
         effects: { compliance: 15, relationships: { chef: 20 }, budget: 5000 },
-        resultText: '"Konformität bestätigt. Empfehlungen im Anhang." Chef Bernd umarmt dich fast. Der Kämmerer bewilligt Sicherheitsbudget.',
+        resultText: '"Konformität bestätigt. Empfehlungen im Anhang." Chef Bert umarmt dich fast. Der Kämmerer bewilligt Sicherheitsbudget.',
         setsFlags: ['nis2_compliant'],
         teachingMoment: 'NIS2-Konformität öffnet Türen - und Budgets.',
       },
@@ -189,7 +189,7 @@ Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`,
         text: '[Wenn durchgefallen] "Das... das ist nicht gut."',
         unlocks: ['audit_failed'],
         effects: { compliance: -20, relationships: { chef: -10 }, budget: -10000 },
-        resultText: 'Bußgeld: 50.000€. Nachaudit in 3 Monaten. Chef Bernd spricht nicht mehr mit dir.',
+        resultText: 'Bußgeld: 50.000€. Nachaudit in 3 Monaten. Chef Bert spricht nicht mehr mit dir.',
         setsFlags: ['nis2_failed', 'bussgeld_erhalten'],
       },
     ],
@@ -275,7 +275,7 @@ Du bist jetzt blind UND ohne Backup. Wenn jetzt noch etwas passiert...`,
       },
       {
         id: 'work_parallel',
-        text: 'Thomas und ich arbeiten parallel an beidem',
+        text: 'Bjorg und ich arbeiten parallel an beidem',
         effects: { relationships: { kollegen: 10 }, stress: 20 },
         resultText: 'Ihr arbeitet die Nacht durch. Am Morgen läuft beides wieder - provisorisch, aber stabil.',
         setsFlags: ['backup_restored_temporary', 'monitoring_restored_temporary', 'team_crisis_handled'],

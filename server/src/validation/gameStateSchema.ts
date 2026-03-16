@@ -76,8 +76,8 @@ export const GameStateSchema = z.object({
   comboStreak: z.number().min(0).optional(),
 
   // Adventure mode specific
-  isAdventureMode: z.boolean(),
-  adventureState: AdventureStateSchema,
+  isStoryMode: z.boolean(),
+  storyState: AdventureStateSchema,
 });
 
 export type ValidatedGameState = z.infer<typeof GameStateSchema>;

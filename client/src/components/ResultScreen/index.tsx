@@ -1,13 +1,17 @@
 // client/src/components/ResultScreen/index.tsx
 import { EventChoice, EventEffects } from '@kritis/shared';
+import { MentorNote } from '../MentorNote';
 
 interface ResultScreenProps {
   choice: EventChoice;
   onContinue: () => void;
   characters?: Record<string, string>;
+  mentorNote?: string;
+  mentorModeEnabled?: boolean;
+  isStoryMode?: boolean;
 }
 
-export function ResultScreen({ choice, onContinue, characters = {} }: ResultScreenProps) {
+export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode }: ResultScreenProps) {
   const replaceCharacterNames = (text: string): string => {
     let result = text;
     for (const [role, name] of Object.entries(characters)) {
@@ -80,6 +84,54 @@ export function ResultScreen({ choice, onContinue, characters = {} }: ResultScre
     return items;
   };
 
+  // Story mode styling
+  if (isStoryMode) {
+    return (
+      <div className="p-5">
+        <div className="text-terminal-success text-lg mb-3 flex items-center gap-2">
+          <span className="text-xl">✓</span> Entscheidung getroffen
+        </div>
+
+        <div className="mb-5 text-gray-200 leading-relaxed">
+          {replaceCharacterNames(choice.resultText)}
+        </div>
+
+        {choice.teachingMoment && (
+          <div className="bg-terminal-info/10 border-l-4 border-terminal-info p-4 mb-5 rounded-r">
+            <div className="text-terminal-info text-sm font-medium mb-1">Lerneffekt</div>
+            <div className="text-gray-300 text-sm">
+              {choice.teachingMoment}
+            </div>
+            {choice.unlocks && choice.unlocks.length > 0 && (
+              <div className="mt-2 text-terminal-success text-sm">
+                Neuer Befehl: {choice.unlocks.join(', ')}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mentorNote && (
+          <MentorNote note={mentorNote} isEnabled={mentorModeEnabled} />
+        )}
+
+        <div className="bg-black/30 rounded p-4 mb-5">
+          <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Auswirkungen</div>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            {renderEffects(choice.effects)}
+          </div>
+        </div>
+
+        <button
+          onClick={onContinue}
+          className="w-full py-3 bg-terminal-green/20 border border-terminal-green rounded hover:bg-terminal-green/30 transition-colors text-center text-white"
+        >
+          Weiter [Enter]
+        </button>
+      </div>
+    );
+  }
+
+  // Standard mode styling
   return (
     <div className="border border-terminal-border p-6">
       <div className="text-terminal-success text-xl mb-4">
@@ -92,7 +144,7 @@ export function ResultScreen({ choice, onContinue, characters = {} }: ResultScre
 
       {choice.teachingMoment && (
         <div className="border border-terminal-info p-4 mb-6">
-          <div className="text-terminal-info mb-2">─ LERNEFFEKT ─</div>
+          <div className="text-terminal-info mb-2">- LERNEFFEKT -</div>
           <div className="text-terminal-green-dim">
             {choice.teachingMoment}
           </div>
@@ -104,8 +156,12 @@ export function ResultScreen({ choice, onContinue, characters = {} }: ResultScre
         </div>
       )}
 
+      {mentorNote && (
+        <MentorNote note={mentorNote} isEnabled={mentorModeEnabled} />
+      )}
+
       <div className="border border-terminal-border p-4 mb-6">
-        <div className="text-terminal-green-dim mb-2">─ AUSWIRKUNGEN ─</div>
+        <div className="text-terminal-green-dim mb-2">- AUSWIRKUNGEN -</div>
         <div className="grid grid-cols-2 gap-2">
           {renderEffects(choice.effects)}
         </div>

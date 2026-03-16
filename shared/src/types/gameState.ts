@@ -10,6 +10,23 @@ export interface Relationships {
   kollegen: number;
 }
 
+export interface DecisionRecord {
+  eventId: string;
+  choiceIndex: number;
+  choiceId: string;
+  week: number;
+  day: number;
+  tags: string[];
+}
+
+export interface PendingChainEvent {
+  eventId: string;
+  availableWeek: number;
+  sourceEventId: string;
+  sourceChoiceId: string;
+  triggeredAt: { week: number; day: number };
+}
+
 export interface GameState {
   currentWeek: number;
   currentDay: number;
@@ -31,9 +48,14 @@ export interface GameState {
   arcadeScore?: number;
   comboMultiplier?: number;
   comboStreak?: number;
-  // Adventure mode specific
-  isAdventureMode: boolean;
-  adventureState?: AdventureState;
+  // Story mode specific
+  isStoryMode: boolean;
+  storyState?: AdventureState;
+  // Chain system
+  decisions: DecisionRecord[];           // All decisions made
+  pendingChainEvents: PendingChainEvent[];  // Scheduled consequences
+  // Mentor mode
+  mentorModeEnabled?: boolean;
 }
 
 export const DEFAULT_RELATIONSHIPS: Relationships = {
@@ -65,6 +87,9 @@ export const DEFAULT_GAME_STATE: Omit<GameState, 'seed' | 'runNumber'> = {
   flags: {},
   unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
   terminalHistory: [],
-  gameMode: 'intermediate',
-  isAdventureMode: false,
+  gameMode: 'beginner',
+  isStoryMode: false,
+  // Chain system
+  decisions: [],
+  pendingChainEvents: [],
 };

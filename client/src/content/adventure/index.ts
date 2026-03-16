@@ -57,14 +57,14 @@ export const ENDINGS = {
 export const STORY_CHARACTERS = [
   {
     id: 'thomas',
-    name: 'Thomas',
+    name: 'Bjorg',
     role: 'Dein Kollege',
     description: 'Der andere IT-Admin. Hat Geheimnisse, aber auch ein gutes Herz.',
     arcPotential: 'Vom Kollegen zum Verbündeten - oder zum Rivalen',
   },
   {
     id: 'chef',
-    name: 'Herr Bernd',
+    name: 'Herr Bert',
     role: 'Dein Chef',
     description: 'Alter Schule. Versteht IT nicht, aber sein Herz ist am rechten Fleck. Meistens.',
     arcPotential: 'Vom Hindernis zum Mentor - oder zum Gegner',

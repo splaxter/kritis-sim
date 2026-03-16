@@ -29,15 +29,15 @@ export function getChapter(chapterId: string): AdventureChapter | undefined {
 }
 
 export function getCurrentChapter(state: GameState): AdventureChapter | undefined {
-  if (!state.adventureState) return undefined;
-  return getChapter(state.adventureState.currentChapter);
+  if (!state.storyState) return undefined;
+  return getChapter(state.storyState.currentChapter);
 }
 
 export function isChapterUnlocked(
   chapter: AdventureChapter,
   state: GameState
 ): boolean {
-  const advState = state.adventureState;
+  const advState = state.storyState;
   if (!advState) return false;
 
   const { unlockConditions } = chapter;
@@ -70,9 +70,9 @@ export function isChapterUnlocked(
 
 export function getCurrentStoryBeat(state: GameState): StoryBeat | undefined {
   const chapter = getCurrentChapter(state);
-  if (!chapter || !state.adventureState) return undefined;
+  if (!chapter || !state.storyState) return undefined;
 
-  return chapter.storyBeats[state.adventureState.currentBeatIndex];
+  return chapter.storyBeats[state.storyState.currentBeatIndex];
 }
 
 export function shouldPlayBeat(beat: StoryBeat, state: GameState): boolean {
@@ -88,7 +88,7 @@ export function getNextStoryContent(
   allEvents: GameEvent[],
   allScenarios: Scenario[]
 ): { content: GameEvent | Scenario | null; type: 'story' | 'sidequest' | 'chapter_complete' } {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return { content: null, type: 'chapter_complete' };
   }
 
@@ -97,7 +97,7 @@ export function getNextStoryContent(
     return { content: null, type: 'chapter_complete' };
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const currentBeat = chapter.storyBeats[advState.currentBeatIndex];
 
   // Check if we have a pending story beat
@@ -171,11 +171,11 @@ function findContent(
 // ============================================
 
 export function advanceStoryBeat(state: GameState): AdventureState {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return createInitialAdventureState();
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const chapter = getCurrentChapter(state);
 
   if (!chapter) {
@@ -207,11 +207,11 @@ export function advanceStoryBeat(state: GameState): AdventureState {
 }
 
 export function advanceSidequest(state: GameState, sidequestId: string): AdventureState {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return createInitialAdventureState();
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const sidequest = adventureSidequests.find(sq => sq.id === sidequestId);
 
   if (!sidequest) return advState;
@@ -249,9 +249,9 @@ export function advanceSidequest(state: GameState, sidequestId: string): Adventu
 // ============================================
 
 export function getAvailableSidequests(state: GameState): SidequestDefinition[] {
-  if (!state.adventureState) return [];
+  if (!state.storyState) return [];
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const chapter = getCurrentChapter(state);
 
   if (!chapter) return [];
@@ -300,13 +300,13 @@ export function checkSidequestTrigger(
   // Check chapter bounds
   if (triggerCondition.minChapter) {
     const chapterIndex = adventureChapters.findIndex(ch => ch.id === triggerCondition.minChapter);
-    const currentIndex = adventureChapters.findIndex(ch => ch.id === state.adventureState?.currentChapter);
+    const currentIndex = adventureChapters.findIndex(ch => ch.id === state.storyState?.currentChapter);
     if (currentIndex < chapterIndex) return false;
   }
 
   if (triggerCondition.maxChapter) {
     const chapterIndex = adventureChapters.findIndex(ch => ch.id === triggerCondition.maxChapter);
-    const currentIndex = adventureChapters.findIndex(ch => ch.id === state.adventureState?.currentChapter);
+    const currentIndex = adventureChapters.findIndex(ch => ch.id === state.storyState?.currentChapter);
     if (currentIndex > chapterIndex) return false;
   }
 
@@ -323,11 +323,11 @@ export function updateCharacterMemory(
   eventId: string,
   trustChange: number
 ): AdventureState {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return createInitialAdventureState();
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const existingMemory = advState.characterMemory[npcId] || {
     npcId,
     interactions: 0,
@@ -370,11 +370,11 @@ export function updateCharacterMemory(
 // ============================================
 
 export function calculateAdventureEnding(state: GameState): EndingType {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return 'neutral';
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
 
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
@@ -392,7 +392,7 @@ export function getEndingStats(state: GameState): {
   charactersHelped: string[];
   storyPath: string;
 } {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return {
       score: 0,
       sidequestsCompleted: 0,
@@ -402,7 +402,7 @@ export function getEndingStats(state: GameState): {
     };
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
 
   const charactersHelped = Object.entries(advState.characterMemory)
     .filter(([_, memory]) => memory.trustLevel >= 50)
@@ -435,9 +435,9 @@ export function isDialogueUnlocked(
   eventId: string,
   optionId: string
 ): boolean {
-  if (!state.adventureState) return false;
+  if (!state.storyState) return false;
 
-  const completedSidequests = state.adventureState.completedSidequests;
+  const completedSidequests = state.storyState.completedSidequests;
 
   for (const sqId of completedSidequests) {
     const sidequest = adventureSidequests.find(sq => sq.id === sqId);
@@ -460,10 +460,10 @@ export function getUnlockedDialogueOptions(
   state: GameState,
   eventId: string
 ): string[] {
-  if (!state.adventureState) return [];
+  if (!state.storyState) return [];
 
   const unlockedOptions: string[] = [];
-  const completedSidequests = state.adventureState.completedSidequests;
+  const completedSidequests = state.storyState.completedSidequests;
 
   for (const sqId of completedSidequests) {
     const sidequest = adventureSidequests.find(sq => sq.id === sqId);
@@ -483,10 +483,10 @@ export function getUnlockedDialogueOptions(
  * Get all abilities granted by completed sidequests
  */
 export function getUnlockedAbilities(state: GameState): string[] {
-  if (!state.adventureState) return [];
+  if (!state.storyState) return [];
 
   const abilities: string[] = [];
-  const completedSidequests = state.adventureState.completedSidequests;
+  const completedSidequests = state.storyState.completedSidequests;
 
   for (const sqId of completedSidequests) {
     const sidequest = adventureSidequests.find(sq => sq.id === sqId);
@@ -509,9 +509,9 @@ export function hasAbility(state: GameState, ability: string): boolean {
  * Get NPC behavior state based on completed sidequests
  */
 export function getNpcBehaviorState(state: GameState, npcId: string): string | null {
-  if (!state.adventureState) return null;
+  if (!state.storyState) return null;
 
-  const completedSidequests = state.adventureState.completedSidequests;
+  const completedSidequests = state.storyState.completedSidequests;
 
   // Check sidequests in reverse order (latest completed takes priority)
   for (let i = completedSidequests.length - 1; i >= 0; i--) {
@@ -577,10 +577,10 @@ export function getAddedStoryBeats(
   state: GameState,
   chapterId: string
 ): StoryBeat[] {
-  if (!state.adventureState) return [];
+  if (!state.storyState) return [];
 
   const addedBeats: StoryBeat[] = [];
-  const completedSidequests = state.adventureState.completedSidequests;
+  const completedSidequests = state.storyState.completedSidequests;
 
   for (const sqId of completedSidequests) {
     const sidequest = adventureSidequests.find(sq => sq.id === sqId);
@@ -601,9 +601,9 @@ export function getAddedStoryBeats(
 // ============================================
 
 export function isAdventureModeComplete(state: GameState): boolean {
-  if (!state.adventureState) return false;
+  if (!state.storyState) return false;
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const finalChapter = adventureChapters[adventureChapters.length - 1];
 
   return advState.completedChapters.includes(finalChapter.id);
@@ -616,7 +616,7 @@ export function getStoryProgress(state: GameState): {
   totalChapters: number;
   percentComplete: number;
 } {
-  if (!state.adventureState) {
+  if (!state.storyState) {
     return {
       currentAct: 1,
       currentChapter: 'ch01_first_day',
@@ -626,7 +626,7 @@ export function getStoryProgress(state: GameState): {
     };
   }
 
-  const advState = state.adventureState;
+  const advState = state.storyState;
   const currentChapter = getCurrentChapter(state);
 
   return {

@@ -3,7 +3,7 @@ import { GameEvent } from '@kritis/shared';
 /**
  * Tutorial Events for Beginner Mode
  * These events only appear in beginner mode and teach basic terminal commands
- * Thomas guides the player through fundamental IT admin tasks
+ * Bjorg guides the player through fundamental IT admin tasks
  */
 
 export const tutorialEvents: GameEvent[] = [
@@ -27,7 +27,7 @@ Er zeigt auf deinen Bildschirm. "Öffne mal das Terminal, dann fangen wir an."`,
     choices: [
       {
         id: 'ready',
-        text: 'Danke Thomas, das ist sehr hilfreich!',
+        text: 'Danke Bjorg, das ist sehr hilfreich!',
         effects: { relationships: { kollegen: 5 }, skills: { linux: 5 } },
         resultText: '{kollege} nickt zufrieden. "Perfekt! Das sind die Grundlagen. Die restlichen Befehle zeig ich dir morgen."',
         terminalCommand: true,
@@ -84,10 +84,10 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
         },
       ],
       hints: [
-        '💡 Thomas: "Okay, fangen wir an. Tippe `pwd` um zu sehen, wo du gerade bist."',
-        '💡 Thomas: "Super! Jetzt `ls` um die Dateien und Ordner hier zu sehen."',
-        '💡 Thomas: "Mit `cd Dokumente` wechselst du in einen Ordner. Probier mal!"',
-        '💡 Thomas: "Und mit `cd ..` gehst du wieder zurück. Einfach, oder?"',
+        '💡 Bjorg: "Okay, fangen wir an. Tippe `pwd` um zu sehen, wo du gerade bist."',
+        '💡 Bjorg: "Super! Jetzt `ls` um die Dateien und Ordner hier zu sehen."',
+        '💡 Bjorg: "Mit `cd Dokumente` wechselst du in einen Ordner. Probier mal!"',
+        '💡 Bjorg: "Und mit `cd ..` gehst du wieder zurück. Einfach, oder?"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -173,10 +173,10 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
         },
       ],
       hints: [
-        '💡 Thomas: "Schau mal in den logs-Ordner. Tippe `ls` um zu sehen was da ist."',
-        '💡 Thomas: "Mit `cat dateiname` zeigst du den Inhalt einer Datei an. Probier `cat system.log`"',
-        '💡 Thomas: "Bei langen Dateien hilft `head -3 datei` für die ersten 3 Zeilen."',
-        '💡 Thomas: "Und `tail -2 datei` zeigt die letzten 2 Zeilen. Super für aktuelle Logs!"',
+        '💡 Bjorg: "Schau mal in den logs-Ordner. Tippe `ls` um zu sehen was da ist."',
+        '💡 Bjorg: "Mit `cat dateiname` zeigst du den Inhalt einer Datei an. Probier `cat system.log`"',
+        '💡 Bjorg: "Bei langen Dateien hilft `head -3 datei` für die ersten 3 Zeilen."',
+        '💡 Bjorg: "Und `tail -2 datei` zeigt die letzten 2 Zeilen. Super für aktuelle Logs!"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -262,10 +262,10 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         },
       ],
       hints: [
-        '💡 Thomas: "Versuch mal `grep ERROR error.log` um nach Fehlern zu suchen."',
-        '💡 Thomas: "Mit `-i` ist die Suche case-insensitive: `grep -i failed auth.log`"',
-        '💡 Thomas: "Mit `-c` zählst du die Treffer: `grep -c ERROR error.log`"',
-        '💡 Thomas: "Und `-r` sucht rekursiv in allen Dateien: `grep -r ERROR .`"',
+        '💡 Bjorg: "Versuch mal `grep ERROR error.log` um nach Fehlern zu suchen."',
+        '💡 Bjorg: "Mit `-i` ist die Suche case-insensitive: `grep -i failed auth.log`"',
+        '💡 Bjorg: "Mit `-c` zählst du die Treffer: `grep -c ERROR error.log`"',
+        '💡 Bjorg: "Und `-r` sucht rekursiv in allen Dateien: `grep -r ERROR .`"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -285,7 +285,7 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
 
 Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch gelesen hast.
 
-"Die Adresse ist mail.warm.local", fügt Thomas hinzu.`,
+"Die Adresse ist mail.warm.local", fügt Bjorg hinzu.`,
     involvedCharacters: ['kollege'],
     choices: [
       {
@@ -358,10 +358,10 @@ Address: 192.168.1.50`,
         },
       ],
       hints: [
-        '💡 Thomas: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
-        '💡 Thomas: "Tipp: Mit `ping -c 3` begrenzt du auf 3 Pakete, sonst läuft es ewig."',
-        '💡 Thomas: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
-        '💡 Thomas: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
+        '💡 Bjorg: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
+        '💡 Bjorg: "Tipp: Mit `ping -c 3` begrenzt du auf 3 Pakete, sonst läuft es ewig."',
+        '💡 Bjorg: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
+        '💡 Bjorg: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux', 'network'],

@@ -9,11 +9,13 @@ import {
 import { GameState, DEFAULT_GAME_STATE, EventEffects } from '@kritis/shared';
 
 // Helper to create a test GameState
+// Uses intermediate mode for consistent 1.0x effect multiplier in tests
 function createGameState(overrides: Partial<GameState> = {}): GameState {
   return {
     ...DEFAULT_GAME_STATE,
     seed: 'TEST-SEED',
     runNumber: 1,
+    gameMode: 'intermediate',  // Use intermediate for 1.0x effects in tests
     ...overrides,
   };
 }
@@ -43,16 +45,17 @@ describe('gameState', () => {
   });
 
   describe('createInitialState', () => {
-    it('creates state with default intermediate mode values', () => {
+    it('creates state with default beginner mode values', () => {
       const state = createInitialState();
 
       expect(state.currentWeek).toBe(1);
       expect(state.currentDay).toBe(1);
-      expect(state.stress).toBe(20);
-      expect(state.budget).toBe(15000);
-      expect(state.compliance).toBe(50);
+      expect(state.stress).toBe(15);
+      expect(state.budget).toBe(20000);
+      expect(state.compliance).toBe(60);
       expect(state.runNumber).toBe(1);
-      expect(state.gameMode).toBe('intermediate');
+      expect(state.gameMode).toBe('beginner');
+      expect(state.mentorModeEnabled).toBe(true);
     });
 
     it('creates state with provided seed', () => {
@@ -142,6 +145,25 @@ describe('gameState', () => {
       expect(state.budget).toBe(10000);
       expect(state.compliance).toBe(45);
       expect(state.flags.kritis_mode).toBe(true);
+    });
+
+    it('creates learning mode with mentor mode forced on', () => {
+      const state = createInitialState(undefined, 'learning');
+
+      expect(state.gameMode).toBe('learning');
+      expect(state.mentorModeEnabled).toBe(true);
+      expect(state.skills.netzwerk).toBe(25);
+      expect(state.stress).toBe(20);
+      expect(state.budget).toBe(15000);
+      expect(state.compliance).toBe(50);
+    });
+
+    it('enables mentor mode for beginner, disables for arcade', () => {
+      const beginnerState = createInitialState(undefined, 'beginner');
+      const arcadeState = createInitialState(undefined, 'arcade');
+
+      expect(beginnerState.mentorModeEnabled).toBe(true);
+      expect(arcadeState.mentorModeEnabled).toBe(false);
     });
   });
 

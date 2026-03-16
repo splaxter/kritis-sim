@@ -39,10 +39,45 @@ export function SaveLoadModal({
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<'save' | 'delete' | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   useEffect(() => {
     fetchSaves(playerId);
   }, [playerId, fetchSaves]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (confirmAction) {
+        if (e.key === 'Escape') {
+          setConfirmAction(null);
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        onClose();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev - 1 + SAVE_SLOTS.length) % SAVE_SLOTS.length);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setHighlightedIndex(prev => (prev + 1) % SAVE_SLOTS.length);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const slot = SAVE_SLOTS[highlightedIndex];
+        if (mode === 'save') {
+          handleSave(slot);
+        } else {
+          const save = getSaveForSlot(slot);
+          if (save) handleLoad(slot);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [confirmAction, highlightedIndex, mode, saves, onClose]);
 
   const handleSave = async (slot: number) => {
     if (!currentState) return;
@@ -171,14 +206,20 @@ export function SaveLoadModal({
             {/* Save slots */}
             {!confirmAction && (
               <div className="space-y-2">
-                {SAVE_SLOTS.map((slot) => {
+                {SAVE_SLOTS.map((slot, index) => {
                   const save = getSaveForSlot(slot);
                   const isEmpty = !save;
+                  const isHighlighted = index === highlightedIndex;
 
                   return (
                     <div
                       key={slot}
-                      className="flex items-center gap-2 border border-terminal-border p-2 hover:border-terminal-info transition-colors"
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      className={`flex items-center gap-2 border p-2 transition-colors cursor-pointer ${
+                        isHighlighted
+                          ? 'border-terminal-info bg-terminal-bg-highlight'
+                          : 'border-terminal-border hover:border-terminal-info'
+                      }`}
                     >
                       {/* Slot number */}
                       <span className="text-terminal-green-muted w-16">
@@ -234,7 +275,10 @@ export function SaveLoadModal({
             )}
 
             {/* Footer */}
-            <div className="flex justify-end pt-2 border-t border-terminal-border">
+            <div className="flex justify-between pt-2 border-t border-terminal-border">
+              <span className="text-terminal-green-dim text-sm">
+                [↑↓] Navigieren  [Enter] {mode === 'save' ? 'Speichern' : 'Laden'}
+              </span>
               <button
                 onClick={onClose}
                 className="px-4 py-1 border border-terminal-border hover:border-terminal-green"

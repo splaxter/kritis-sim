@@ -3,7 +3,7 @@
  * Defines all 5 game modes with their specific settings
  */
 
-import { GameModeConfig, GameModeId } from '../types/gameMode';
+import { GameModeConfig, GameModeId, VISIBLE_MODES } from '../types/gameMode';
 
 export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
   beginner: {
@@ -40,6 +40,44 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
       showHints: true,
       timerEnabled: false,
       comboScoringEnabled: false,
+    },
+  },
+
+  learning: {
+    id: 'learning',
+    name: 'Lernmodus',
+    description: 'CLI-Training: 11 progressive Terminal-Lektionen von Basics bis Incident Response.',
+    icon: '🎓',
+    startingStats: {
+      skills: 15,  // Start lower, learn through practice
+      stress: 10,
+      budget: 15000,
+      compliance: 50,
+    },
+    startingRelationships: {
+      chef: 10,
+      kaemmerer: 0,
+      kollegen: 15,  // Bjorg helps you learn
+    },
+    difficulty: {
+      maxScenarioDifficulty: 4,
+      effectMultiplier: 0.8,  // Forgiving for learning
+      stressDecayRate: 1.5,   // Stress recovers faster
+    },
+    gameLength: {
+      totalWeeks: 12,
+      daysPerWeek: 5,
+    },
+    thresholds: {
+      stressGameOver: 120,    // Very forgiving
+      complianceGameOver: 0,
+      chefRelationshipGameOver: -100,
+    },
+    features: {
+      showHints: true,
+      timerEnabled: false,
+      comboScoringEnabled: false,
+      cliOnly: true,  // Only CLI/terminal events
     },
   },
 
@@ -192,8 +230,8 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
   },
 
-  adventure: {
-    id: 'adventure',
+  story: {
+    id: 'story',
     name: 'Story: Die Probezeit',
     description: 'Ein IT-Krimi in 12 Kapiteln. The Office meets Mr. Robot.',
     icon: '📖',
@@ -237,3 +275,9 @@ export function getGameModeConfig(modeId: GameModeId): GameModeConfig {
 export function getAllGameModes(): GameModeConfig[] {
   return Object.values(GAME_MODES);
 }
+
+export function getVisibleGameModes(): GameModeConfig[] {
+  return VISIBLE_MODES.map(id => GAME_MODES[id]);
+}
+
+export { VISIBLE_MODES };

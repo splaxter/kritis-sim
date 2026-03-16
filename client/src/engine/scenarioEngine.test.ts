@@ -41,8 +41,10 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     terminalHistory: [],
     seed: 'test-seed',
     runNumber: 1,
-    gameMode: 'intermediate',
-    isAdventureMode: false,
+    gameMode: 'intermediate',  // Use intermediate for consistent difficulty thresholds in tests
+    isStoryMode: false,
+    decisions: [],
+    pendingChainEvents: [],
     ...overrides,
   };
 }

@@ -23,7 +23,7 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
   return {
     seed: 'test-seed',
     runNumber: 1,
-    gameMode: 'adventure',
+    gameMode: 'story',
     currentWeek: 2,
     currentDay: 1,
     skills: {
@@ -50,8 +50,10 @@ function createTestState(overrides: Partial<GameState> = {}): GameState {
     completedScenarios: [],
     unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
     terminalHistory: [],
-    isAdventureMode: true,
-    adventureState: createInitialAdventureState(),
+    isStoryMode: true,
+    storyState: createInitialAdventureState(),
+    decisions: [],
+    pendingChainEvents: [],
     ...overrides,
   };
 }
@@ -60,7 +62,7 @@ describe('Sidequest Triggers', () => {
   it('triggers sidequest when relationship threshold is met', () => {
     const state = createTestState({
       relationships: { chef: 0, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 15 },
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch02_settling_in',
       },
@@ -76,7 +78,7 @@ describe('Sidequest Triggers', () => {
   it('does not trigger sidequest when relationship is too low', () => {
     const state = createTestState({
       relationships: { chef: 0, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 5 },
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch02_settling_in',
       },
@@ -91,7 +93,7 @@ describe('Sidequest Triggers', () => {
   it('triggers skill-based sidequest when skill threshold is met', () => {
     const state = createTestState({
       skills: { netzwerk: 40, linux: 45, windows: 30, security: 40, troubleshooting: 45, softSkills: 25 },
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch03_first_crisis',
       },
@@ -106,7 +108,7 @@ describe('Sidequest Triggers', () => {
   it('triggers flag-based sidequest when flag is set', () => {
     const state = createTestState({
       flags: { found_mysterious_note: true },
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch04_the_file',
       },
@@ -121,7 +123,7 @@ describe('Sidequest Triggers', () => {
   it('respects chapter bounds', () => {
     const state = createTestState({
       relationships: { chef: 0, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 15 },
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch01_first_day', // Too early for coffee quest
       },
@@ -137,7 +139,7 @@ describe('Sidequest Triggers', () => {
 describe('Sidequest Progression', () => {
   it('advances sidequest progress', () => {
     const state = createTestState();
-    const initialAdvState = state.adventureState!;
+    const initialAdvState = state.storyState!;
 
     const updatedAdvState = advanceSidequest(state, 'sq_coffee_machine');
 
@@ -147,7 +149,7 @@ describe('Sidequest Progression', () => {
 
   it('completes sidequest after all events', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         activeSidequests: ['sq_coffee_machine'],
         sidequestProgress: { 'sq_coffee_machine': 2 }, // Already at event 3 (0-indexed: 2)
@@ -162,7 +164,7 @@ describe('Sidequest Progression', () => {
 
   it('does not add duplicate active sidequests', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         activeSidequests: ['sq_coffee_machine'],
         sidequestProgress: { 'sq_coffee_machine': 1 },
@@ -193,7 +195,7 @@ describe('Sidequest Rewards', () => {
 describe('Dialogue Unlocks', () => {
   it('unlocks dialogue after completing sidequest', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         completedSidequests: ['sq_coffee_machine'],
       },
@@ -214,7 +216,7 @@ describe('Dialogue Unlocks', () => {
 describe('Granted Abilities', () => {
   it('grants ability after completing sidequest', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         completedSidequests: ['sq_coffee_machine'],
       },
@@ -231,7 +233,7 @@ describe('Granted Abilities', () => {
 
   it('returns all unlocked abilities', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         completedSidequests: ['sq_coffee_machine', 'sq_basement_server'],
       },
@@ -246,7 +248,7 @@ describe('Granted Abilities', () => {
 describe('NPC Behavior Changes', () => {
   it('changes NPC behavior after completing sidequest', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         completedSidequests: ['sq_coffee_machine'],
       },
@@ -267,7 +269,7 @@ describe('NPC Behavior Changes', () => {
 describe('Story Progression', () => {
   it('advances story beat within chapter', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch01_first_day',
         currentBeatIndex: 0,
@@ -282,7 +284,7 @@ describe('Story Progression', () => {
 
   it('advances to next chapter when current chapter complete', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch01_first_day',
         currentBeatIndex: 3, // Last beat (0-indexed, ch01 has 4 beats)
@@ -298,7 +300,7 @@ describe('Story Progression', () => {
 
   it('tracks story progress correctly', () => {
     const state = createTestState({
-      adventureState: {
+      storyState: {
         ...createInitialAdventureState(),
         currentChapter: 'ch03_first_crisis',
         completedChapters: ['ch01_first_day', 'ch02_settling_in'],

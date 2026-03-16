@@ -16,15 +16,16 @@ export const adventureStoryEvents: GameEvent[] = [
     category: 'story',
     weekRange: [1, 1],
     probability: 1,
+    image: '/images/events/evt_erster_arbeitstag.webp',
     description: `Der erste Arbeitstag. Du stehst vor dem Gebäude der Kommunalen Abfallwirtschaft.
 
 Ein graues Bürogebäude aus den 80ern, aber immerhin mit Parkplatz. An der Eingangstür klebt ein handgeschriebener Zettel: "IT-Abteilung: 2. Stock, links, dann rechts, dann fragen."
 
 Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter auf dich.
 
-**Chef Bernd** (graue Haare, Kaffeetasse in der Hand): "Ah, der Neue! Endlich Verstärkung. Der letzte hat uns ja... naja, ziemlich plötzlich verlassen."
+**Chef Bert** (graue Haare, Kaffeetasse in der Hand): "Ah, der Neue! Endlich Verstärkung. Der letzte hat uns ja... naja, ziemlich plötzlich verlassen."
 
-**Thomas** (dein Alter, trägt ein Linux-Shirt): "Hey! Ich bin Thomas. Bin gespannt, ob du länger bleibst als der letzte."`,
+**Bjorg** (dein Alter, trägt ein Linux-Shirt): "Hey! Ich bin Bjorg. Bin gespannt, ob du länger bleibst als der letzte."`,
     involvedCharacters: ['chef', 'kollege'],
     tags: ['story', 'chapter1', 'introduction'],
     choices: [
@@ -32,21 +33,21 @@ Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter
         id: 'formal',
         text: 'Professionell: "Guten Tag! Ich freue mich auf die Zusammenarbeit."',
         effects: { relationships: { chef: 10, kollegen: 0 } },
-        resultText: 'Chef Bernd nickt zufrieden. Thomas verdreht unmerklich die Augen.',
+        resultText: 'Chef Bert nickt zufrieden. Bjorg verdreht unmerklich die Augen.',
         setsFlags: ['first_impression_formal'],
       },
       {
         id: 'casual',
         text: 'Locker: "Hi! Was ist denn mit meinem Vorgänger passiert?"',
         effects: { relationships: { chef: -5, kollegen: 15 } },
-        resultText: 'Thomas grinst. Chef Bernd räuspert sich: "Das... ist eine längere Geschichte. Für später."',
+        resultText: 'Bjorg grinst. Chef Bert räuspert sich: "Das... ist eine längere Geschichte. Für später."',
         setsFlags: ['first_impression_casual', 'asked_about_predecessor'],
       },
       {
         id: 'technical',
         text: 'Nerdiger: "Morgen! Welche Infrastruktur habt ihr hier - Windows oder Linux?"',
         effects: { relationships: { chef: 0, kollegen: 20 } },
-        resultText: 'Thomas\' Augen leuchten auf: "Beides! Das ist ja das Problem!" Chef Bernd seufzt.',
+        resultText: 'Bjorg\' Augen leuchten auf: "Beides! Das ist ja das Problem!" Chef Bert seufzt.',
         setsFlags: ['first_impression_technical'],
       },
     ],
@@ -58,9 +59,10 @@ Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter
     category: 'story',
     weekRange: [1, 1],
     probability: 1,
-    description: `Thomas zeigt dir deinen Schreibtisch. Er steht in einer Ecke, umgeben von Kabeln und leeren Red Bull-Dosen.
+    image: '/images/events/evt_docusnap_einrichtung.webp',
+    description: `Bjorg zeigt dir deinen Schreibtisch. Er steht in einer Ecke, umgeben von Kabeln und leeren Red Bull-Dosen.
 
-"Das war Stefans Platz", sagt Thomas leise. "Er hat's nicht aufgeräumt bevor er... gegangen ist."
+"Das war Stefans Platz", sagt Bjorg leise. "Er hat's nicht aufgeräumt bevor er... gegangen ist."
 
 Du setzt dich und fährst den PC hoch. Windows 10, mindestens 3 Jahre alt. Aber etwas fällt dir auf:
 
@@ -86,7 +88,7 @@ Im Papierkorb liegt ein zerknüllter Zettel. Und auf dem Desktop gibt es einen O
         id: 'clean_up',
         text: 'Erstmal aufräumen - das ist unprofessionell',
         effects: { relationships: { chef: 5 } },
-        resultText: 'Du wirfst alles weg und machst sauber. Chef Bernd lobt dich später dafür. Thomas schaut dich seltsam an.',
+        resultText: 'Du wirfst alles weg und machst sauber. Chef Bert lobt dich später dafür. Bjorg schaut dich seltsam an.',
       },
     ],
   },
@@ -97,6 +99,7 @@ Im Papierkorb liegt ein zerknüllter Zettel. Und auf dem Desktop gibt es einen O
     category: 'story',
     weekRange: [1, 1],
     probability: 1,
+    image: '/images/events/evt_ad_passwort.webp',
     description: `*PING* - Das Ticket-System meldet sich.
 
 **Ticket #4721** - DRINGEND
@@ -105,7 +108,7 @@ Betreff: INTERNET GEHT NICHT!!!!!
 
 "Der Internet ist kaputt!!!! Ich kann keine E-Mails mehr lesen!!! Das ist ein NOTFALL!!!"
 
-Thomas lacht leise: "Willkommen in der IT. Das ist übrigens der gleiche PC, der letzte Woche 'explodiert' ist. Und davor 'gehackt' wurde."
+Bjorg lacht leise: "Willkommen in der IT. Das ist übrigens der gleiche PC, der letzte Woche 'explodiert' ist. Und davor 'gehackt' wurde."
 
 Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bildschirm und tippt trotzdem auf der Tastatur.`,
     involvedCharacters: ['kollege'],
@@ -127,9 +130,9 @@ Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bilds
       },
       {
         id: 'delegate',
-        text: 'Thomas holen - du bist doch noch neu',
+        text: 'Bjorg holen - du bist doch noch neu',
         effects: { relationships: { kollegen: 5 } },
-        resultText: 'Thomas löst es in 3 Sekunden. "Nur Mut", sagt er. "Das war noch das einfache Level."',
+        resultText: 'Bjorg löst es in 3 Sekunden. "Nur Mut", sagt er. "Das war noch das einfache Level."',
         setsFlags: ['first_ticket_delegated'],
       },
     ],
@@ -141,7 +144,8 @@ Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bilds
     category: 'story',
     weekRange: [1, 1],
     probability: 1,
-    description: `Es ist Feierabend. Thomas ist schon gegangen. Du willst gerade herunterfahren, als du etwas bemerkst.
+    // No image - late night mystery scene, no matching visual
+    description: `Es ist Feierabend. Bjorg ist schon gegangen. Du willst gerade herunterfahren, als du etwas bemerkst.
 
 In den Kommentaren eines alten Skripts, das auf dem Desktop lag, steht etwas Seltsames:
 
@@ -175,9 +179,9 @@ Es ist 18:30. Du könntest nach Hause gehen. Oder du könntest um 23:47 die Logs
       },
       {
         id: 'tell_thomas',
-        text: 'Thomas anrufen und ihm davon erzählen',
+        text: 'Bjorg anrufen und ihm davon erzählen',
         effects: { relationships: { kollegen: 10 } },
-        resultText: 'Thomas\' Stimme klingt angespannt: "Zeig mir das morgen. Und... lösch die Nachricht aus dem Browserverlauf, falls du nach Stefans Namen gesucht hast."',
+        resultText: 'Bjorg\' Stimme klingt angespannt: "Zeig mir das morgen. Und... lösch die Nachricht aus dem Browserverlauf, falls du nach Stefans Namen gesucht hast."',
         setsFlags: ['thomas_knows', 'thomas_worried'],
       },
     ],
@@ -193,7 +197,8 @@ Es ist 18:30. Du könntest nach Hause gehen. Oder du könntest um 23:47 die Logs
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
-    description: `Thomas gibt dir eine Tour durch die Systeme. Es ist... chaotisch.
+    image: '/images/events/evt_kabelschrank.webp',
+    description: `Bjorg gibt dir eine Tour durch die Systeme. Es ist... chaotisch.
 
 "Also", sagt er, "wir haben 3 Windows-Server, 2 Linux-Kisten, eine Firewall die keiner versteht, und das hier..." Er zeigt auf einen verstaubten Kasten in der Ecke. "Das ist die SCADA-Anbindung für die Müllverbrennungsanlage."
 
@@ -207,21 +212,21 @@ Du starrst ihn an. "Ihr steuert eine *Müllverbrennungsanlage*?"
         id: 'concerned',
         text: '"Das ist kritische Infrastruktur! Wie kann das so unsicher sein?"',
         effects: { relationships: { kollegen: 5 }, skills: { security: 2 } },
-        resultText: 'Thomas nickt ernst: "Ich weiß. Budget, Zeit, Prioritäten. Der Chef sagt, es läuft doch. Bis es nicht mehr läuft."',
+        resultText: 'Bjorg nickt ernst: "Ich weiß. Budget, Zeit, Prioritäten. Der Chef sagt, es läuft doch. Bis es nicht mehr läuft."',
         setsFlags: ['understands_kritis'],
       },
       {
         id: 'practical',
         text: '"Okay, was ist die dringendste Baustelle?"',
         effects: { skills: { troubleshooting: 3 } },
-        resultText: '"Alles", sagt Thomas. "Aber fang mit dem Backup an. Das hat seit 3 Monaten keiner geprüft."',
+        resultText: '"Alles", sagt Bjorg. "Aber fang mit dem Backup an. Das hat seit 3 Monaten keiner geprüft."',
         setsFlags: ['prioritized_backup'],
       },
       {
         id: 'ignore',
         text: '"Naja, bisher ist ja nichts passiert, oder?"',
         effects: { relationships: { kollegen: -10 } },
-        resultText: 'Thomas\' Gesichtsausdruck wird kühl. "Noch nicht", sagt er leise. "Noch nicht."',
+        resultText: 'Bjorg\' Gesichtsausdruck wird kühl. "Noch nicht", sagt er leise. "Noch nicht."',
         setsFlags: ['downplayed_risk'],
       },
     ],
@@ -233,11 +238,12 @@ Du starrst ihn an. "Ihr steuert eine *Müllverbrennungsanlage*?"
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
+    // No image - IoT coffee machine scene, no matching visual
     description: `Im Pausenraum steht eine verchromte Kaffeemaschine. Sie sieht teuer aus. Und sie macht seltsame Geräusche.
 
 "Die spinnt seit Wochen", erklärt Frau Weber aus der Personalabteilung. "Manchmal macht sie Kaffee ohne dass jemand drückt. Letzte Woche hat sie um Mitternacht 47 Tassen Espresso gemacht."
 
-Thomas flüstert dir zu: "Die ist mit dem Netzwerk verbunden. Für die Statistik, angeblich. Stefan hat behauptet, sie wäre ein Sicherheitsrisiko."
+Bjorg flüstert dir zu: "Die ist mit dem Netzwerk verbunden. Für die Statistik, angeblich. Stefan hat behauptet, sie wäre ein Sicherheitsrisiko."
 
 Frau Weber schaut dich hoffnungsvoll an: "Sie sind doch von der IT. Können Sie das fixen?"`,
     involvedCharacters: ['kollege'],
@@ -258,26 +264,27 @@ Frau Weber schaut dich hoffnungsvoll an: "Sie sind doch von der IT. Können Sie 
       },
       {
         id: 'delegate',
-        text: 'Thomas fragen ob er sich drum kümmern kann',
+        text: 'Bjorg fragen ob er sich drum kümmern kann',
         effects: { relationships: { kollegen: -5 } },
-        resultText: 'Thomas seufzt. "Stefan hat auch immer delegiert. Schau\'s dir wenigstens mal an."',
+        resultText: 'Bjorg seufzt. "Stefan hat auch immer delegiert. Schau\'s dir wenigstens mal an."',
       },
     ],
   },
 
   {
     id: 'adv_thomas_warning',
-    title: 'Thomas\' Warnung',
+    title: 'Bjorg\' Warnung',
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
-    description: `Thomas bittet dich nach Feierabend auf ein Bier. Er wirkt nervös.
+    // No image - bar conversation scene, no matching visual
+    description: `Bjorg bittet dich nach Feierabend auf ein Bier. Er wirkt nervös.
 
 "Okay, ich sag's dir jetzt, weil ich glaube, du bist anders als die anderen", beginnt er. "Stefan war nicht verrückt. Er hat was gefunden. Etwas im Netzwerk, das nicht da sein sollte."
 
 Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
 
-"Er hat mir das geschickt, bevor er gegangen ist. Hat gesagt, ich soll niemandem vertrauen. Auch nicht dem Chef." Thomas schluckt. "Dann war er weg. Von einem Tag auf den anderen."`,
+"Er hat mir das geschickt, bevor er gegangen ist. Hat gesagt, ich soll niemandem vertrauen. Auch nicht dem Chef." Bjorg schluckt. "Dann war er weg. Von einem Tag auf den anderen."`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter2', 'revelation'],
     choices: [
@@ -285,21 +292,21 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
         id: 'believe',
         text: '"Zeig mir alles. Ich glaube dir."',
         effects: { relationships: { kollegen: 20 } },
-        resultText: 'Thomas atmet aus. "Endlich jemand. Okay, pass auf..." Er beginnt zu erklären. Es ist komplizierter als du dachtest.',
+        resultText: 'Bjorg atmet aus. "Endlich jemand. Okay, pass auf..." Er beginnt zu erklären. Es ist komplizierter als du dachtest.',
         setsFlags: ['thomas_ally', 'knows_stefans_findings'],
       },
       {
         id: 'skeptical',
         text: '"Das klingt nach Paranoia. Bist du sicher?"',
         effects: { relationships: { kollegen: -5 } },
-        resultText: 'Thomas\' Gesicht verschließt sich. "Vergiss es. War dumm von mir." Er zahlt und geht.',
+        resultText: 'Bjorg\' Gesicht verschließt sich. "Vergiss es. War dumm von mir." Er zahlt und geht.',
         setsFlags: ['doubted_thomas'],
       },
       {
         id: 'careful',
         text: '"Lass uns vorsichtig sein. Wer weiß noch davon?"',
         effects: { relationships: { kollegen: 15 }, skills: { security: 2 } },
-        resultText: '"Nur wir", sagt Thomas. "Und Stefan, wo auch immer er ist." Er schaut sich um. "Lass uns woanders reden."',
+        resultText: '"Nur wir", sagt Bjorg. "Und Stefan, wo auch immer er ist." Er schaut sich um. "Lass uns woanders reden."',
         setsFlags: ['careful_approach', 'thomas_partner'],
       },
     ],
@@ -311,7 +318,8 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
-    description: `Du hast Thomas' Hinweise befolgt und die Logs der letzten Wochen analysiert. Was du findest, ist... beunruhigend.
+    image: '/images/events/evt_docusnap_einrichtung.webp',
+    description: `Du hast Bjorg' Hinweise befolgt und die Logs der letzten Wochen analysiert. Was du findest, ist... beunruhigend.
 
 Jede Nacht, zwischen 02:00 und 04:00:
 - Kleine Datenpakete werden nach außen gesendet
@@ -320,7 +328,7 @@ Jede Nacht, zwischen 02:00 und 04:00:
 
 Das ist kein Bug. Das ist ein Muster. Jemand sammelt Daten. Systematisch.
 
-Thomas steht hinter dir. "Stefan hat das auch gefunden", flüstert er. "Drei Tage später war er weg."`,
+Bjorg steht hinter dir. "Stefan hat das auch gefunden", flüstert er. "Drei Tage später war er weg."`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter2', 'security'],
     choices: [
@@ -342,7 +350,7 @@ Thomas steht hinter dir. "Stefan hat das auch gefunden", flüstert er. "Drei Tag
         id: 'tell_chef',
         text: 'Sofort den Chef informieren',
         effects: { relationships: { chef: 5 } },
-        resultText: 'Chef Bernd hört zu, nickt, und sagt: "Das ist bestimmt ein Fehlalarm. Unsere IT ist sicher." Du bist nicht überzeugt.',
+        resultText: 'Chef Bert hört zu, nickt, und sagt: "Das ist bestimmt ein Fehlalarm. Unsere IT ist sicher." Du bist nicht überzeugt.',
         setsFlags: ['warned_chef', 'chef_dismissed'],
       },
     ],
@@ -358,13 +366,14 @@ Thomas steht hinter dir. "Stefan hat das auch gefunden", flüstert er. "Drei Tag
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
+    image: '/images/events/evt_ad_passwort.webp',
     description: `"DER DRUCKER DRUCKT WIEDER VON SELBST!"
 
 Die Panik-Mail kommt von der 3. Etage. Als du dort ankommst, sieht es aus wie in einem Papierhagel. Hunderte von Seiten. Alle mit dem gleichen Inhalt:
 
 Eine Rechnung. Für "Beratungsdienstleistungen". An eine Firma namens "GHOST LLC". Betrag: 0,00 Euro.
 
-Thomas steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er leise. "Stefan hatte Recht. Sie werden dreister."`,
+Bjorg steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er leise. "Stefan hatte Recht. Sie werden dreister."`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter3', 'incident'],
     choices: [
@@ -386,7 +395,7 @@ Thomas steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er le
         id: 'play_dumb',
         text: 'So tun als wäre es ein Papierstau',
         effects: { stress: 5 },
-        resultText: 'Du sammelst die Blätter ein und sagst "Papierstau". Aber Thomas schaut dich an, als wärst du verrückt geworden.',
+        resultText: 'Du sammelst die Blätter ein und sagst "Papierstau". Aber Bjorg schaut dich an, als wärst du verrückt geworden.',
         setsFlags: ['ignored_warning_sign'],
       },
     ],
@@ -398,9 +407,9 @@ Thomas steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er le
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
-    description: `Chef Bernd stürmt ins IT-Büro. "DIE PRÄSENTATION! Der Bürgermeister kommt in 30 MINUTEN und PowerPoint stürzt ab!"
+    description: `Chef Bert stürmt ins IT-Büro. "DIE PRÄSENTATION! Der Bürgermeister kommt in 30 MINUTEN und PowerPoint stürzt ab!"
 
-Thomas verdreht die Augen. Du gehst mit runter ins Chefbüro.
+Bjorg verdreht die Augen. Du gehst mit runter ins Chefbüro.
 
 Das Problem: Eine 150 MB PowerPoint-Datei mit 200 eingebetteten Excel-Tabellen. Sein Laptop hat 4 GB RAM und kämpft ums Überleben.
 
@@ -485,9 +494,9 @@ Das war kein Script-Kiddie. Das war jemand mit Admin-Zugang.`,
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
-    description: `Es ist 23:00. Thomas und du sitzt noch im Büro. Kaffee ist leer, Pizza ist kalt.
+    description: `Es ist 23:00. Bjorg und du sitzt noch im Büro. Kaffee ist leer, Pizza ist kalt.
 
-"Was haben wir?", fragt Thomas.
+"Was haben wir?", fragt Bjorg.
 
 Du zählst auf:
 - Mysteriöse Prozesse die Daten exfiltrieren
@@ -496,7 +505,7 @@ Du zählst auf:
 - Ein Chef der nichts hören will
 - Und ein Datum: In zwei Wochen soll irgendwas passieren
 
-Thomas reibt sich die Augen. "Wir sollten zum BSI gehen", sagt er. "Das ist zu groß für uns."
+Bjorg reibt sich die Augen. "Wir sollten zum BSI gehen", sagt er. "Das ist zu groß für uns."
 
 Aber dann fällt dir ein: Wenn jemand Admin-Zugang hat, kann er auch mitlesen. Jede Mail. Jeder Chat. Jede Datei.
 
@@ -508,7 +517,7 @@ Ihr seid nicht allein in diesem Netzwerk.`,
         id: 'go_offline',
         text: 'Ab jetzt nur noch offline kommunizieren',
         effects: { skills: { security: 3 } },
-        resultText: '"Burner Phones", sagt Thomas. "Wie im Film." Ihr lacht, aber keiner findet es lustig.',
+        resultText: '"Burner Phones", sagt Bjorg. "Wie im Film." Ihr lacht, aber keiner findet es lustig.',
         setsFlags: ['went_offline', 'paranoid_but_smart'],
       },
       {
@@ -540,7 +549,7 @@ Ihr seid nicht allein in diesem Netzwerk.`,
     probability: 1,
     description: `Im Keller findest du ihn: Stefans alten Rechner. Er wurde nie abgeholt, nur abgestellt und vergessen.
 
-Thomas steht Wache oben. "Beeil dich", sagt er über Funk. "Der Chef macht um 14 Uhr seine Runde."
+Bjorg steht Wache oben. "Beeil dich", sagt er über Funk. "Der Chef macht um 14 Uhr seine Runde."
 
 Der PC startet. Windows 7. Kein Passwort. Auf dem Desktop: Ordner über Ordner, alle verschlüsselt. Und eine Datei namens "NICHT_ÖFFNEN.zip".
 
@@ -578,13 +587,14 @@ Ironischerweise ist sie nicht passwortgeschützt.`,
     category: 'story',
     weekRange: [4, 4],
     probability: 1,
+    image: '/images/events/evt_lizenzfrage.webp',
     description: `Die wichtigsten Dateien sind verschlüsselt. AES-256. Ohne Passwort kommst du nicht rein.
 
 Stefan hat aber einen Hinweis hinterlassen - typisch für einen Paranoiden:
 
 "Das Passwort ist, wo ich jeden Tag hingegangen bin, wenn ich die Wahrheit brauchte."
 
-Thomas runzelt die Stirn. "Das könnte alles sein. Die Kantine? Das Klo? Der Raucherbereich?"
+Bjorg runzelt die Stirn. "Das könnte alles sein. Die Kantine? Das Klo? Der Raucherbereich?"
 
 Du überlegst. Stefan war kein Raucher. Aber er war oft... wo?`,
     involvedCharacters: ['kollege'],
@@ -606,9 +616,9 @@ Du überlegst. Stefan war kein Raucher. Aber er war oft... wo?`,
       },
       {
         id: 'ask_thomas',
-        text: '"Thomas, du kanntest Stefan. Wo ist er immer hin?"',
+        text: '"Bjorg, du kanntest Stefan. Wo ist er immer hin?"',
         effects: { relationships: { kollegen: 5 } },
-        resultText: '"Zum Rauchen auf\'s Dach", sagt Thomas. "Obwohl er gar nicht raucht." Du versuchst "DACHTERASSE". RICHTIG!',
+        resultText: '"Zum Rauchen auf\'s Dach", sagt Bjorg. "Obwohl er gar nicht raucht." Du versuchst "DACHTERASSE". RICHTIG!',
         setsFlags: ['found_password', 'thomas_helped'],
       },
     ],
@@ -639,14 +649,14 @@ Jemand in dieser Firma arbeitet für die Angreifer. Jemand mit Admin-Zugang. Jem
         id: 'confront',
         text: 'Den Verdächtigen konfrontieren (du hast eine Idee wer)',
         effects: { relationships: { chef: -20 }, stress: 15 },
-        resultText: 'Du gehst zu Chef Bernd. "Wir müssen reden." Sein Gesichtsausdruck verrät nichts. Aber seine Hände zittern.',
+        resultText: 'Du gehst zu Chef Bert. "Wir müssen reden." Sein Gesichtsausdruck verrät nichts. Aber seine Hände zittern.',
         setsFlags: ['confronted_suspect', 'showed_hand'],
       },
       {
         id: 'gather_more',
         text: 'Noch mehr Beweise sammeln bevor du handelst',
         effects: { skills: { security: 5 } },
-        resultText: 'Du kopierst alles dreifach. Eine Kopie für dich, eine für Thomas, eine für das BSI. Sicher ist sicher.',
+        resultText: 'Du kopierst alles dreifach. Eine Kopie für dich, eine für Bjorg, eine für das BSI. Sicher ist sicher.',
         setsFlags: ['secured_evidence', 'careful_approach'],
       },
       {
@@ -688,14 +698,14 @@ PS: Der Schlüssel zum Keller-Server ist hinter dem Feuerlöscher."`,
         id: 'scared',
         text: 'Das ist zu groß. Das ist viel zu groß.',
         effects: { stress: 20 },
-        resultText: 'Du sitzt da und starrst auf den Bildschirm. Thomas legt dir eine Hand auf die Schulter. "Wir schaffen das", sagt er. Du bist dir nicht sicher.',
+        resultText: 'Du sitzt da und starrst auf den Bildschirm. Bjorg legt dir eine Hand auf die Schulter. "Wir schaffen das", sagt er. Du bist dir nicht sicher.',
         setsFlags: ['overwhelmed'],
       },
       {
         id: 'determined',
         text: 'Dann müssen wir sie aufhalten. Wir haben zwei Wochen.',
         effects: { skills: { security: 3, softSkills: 3 } },
-        resultText: '"Plan?", fragt Thomas. "Wir brauchen einen Plan." Ihr fangt an zu schreiben. Es wird eine lange Nacht.',
+        resultText: '"Plan?", fragt Bjorg. "Wir brauchen einen Plan." Ihr fangt an zu schreiben. Es wird eine lange Nacht.',
         setsFlags: ['determined', 'making_plan'],
       },
       {
@@ -716,11 +726,11 @@ PS: Der Schlüssel zum Keller-Server ist hinter dem Feuerlöscher."`,
     probability: 1,
     description: `Ohne Passwort kommst du nicht an Stefans Dateien. Sie sind verschlüsselt, und nach 3 Versuchen löschen sie sich.
 
-Thomas seufzt. "Stefan war immer paranoid. Aber vielleicht hatte er Recht."
+Bjorg seufzt. "Stefan war immer paranoid. Aber vielleicht hatte er Recht."
 
 Ihr steht wieder am Anfang. Die Hinweise, die ihr habt, sind vage. Die Nacht-Logs, die mysteriösen Prozesse, das komische Gefühl.
 
-"Wir müssen woanders suchen", sagt Thomas. "Stefan hat bestimmt noch mehr hinterlassen."`,
+"Wir müssen woanders suchen", sagt Bjorg. "Stefan hat bestimmt noch mehr hinterlassen."`,
     involvedCharacters: [],
     tags: ['story', 'chapter4', 'alternate'],
     choices: [
@@ -764,7 +774,7 @@ Der Drucker der nachts druckt. Die Kaffeemaschine die mit China redet. Die Mail-
 
 Es ist wie ein Uhrwerk. Regelmäßig. Präzise. Und es wird lauter.
 
-Thomas zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
+Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
 
 "Sie testen", sagt er. "Überall."`,
     involvedCharacters: [],
@@ -822,7 +832,7 @@ Alle schauen dich an.`,
       },
       {
         id: 'delegate',
-        text: '"Thomas, du koordinierst. Chef, Sie informieren den Bürgermeister."',
+        text: '"Bjorg, du koordinierst. Chef, Sie informieren den Bürgermeister."',
         effects: { relationships: { kollegen: 5, chef: 10 } },
         resultText: 'Jeder hat seine Aufgabe. Das Team funktioniert wieder. Auch wenn die Situation ernst ist.',
         setsFlags: ['delegated_well'],
@@ -932,7 +942,7 @@ Der Drucker der nachts druckt. Die Kaffeemaschine die mit China redet. Die Mail-
 
 Es ist wie ein Uhrwerk. Regelmäßig. Präzise. Und es wird lauter.
 
-Thomas zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
+Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
 
 "Sie testen", sagt er. "Überall."`,
     involvedCharacters: [],
@@ -982,9 +992,9 @@ Und jetzt, während alle Systeme verschlüsselt sind, hast du ein Backup das nie
     choices: [
       {
         id: 'reveal_backup',
-        text: '"Thomas, ich habe da was im Keller..."',
+        text: '"Bjorg, ich habe da was im Keller..."',
         effects: { relationships: { kollegen: 25, chef: 15 }, stress: -20 },
-        resultText: 'Thomas\' Augen werden groß. "Du... du hast Stefans Server gefunden? Und er läuft?" Er umarmt dich. Tatsächlich umarmt er dich. "Du Genie!"',
+        resultText: 'Bjorg\' Augen werden groß. "Du... du hast Stefans Server gefunden? Und er läuft?" Er umarmt dich. Tatsächlich umarmt er dich. "Du Genie!"',
         setsFlags: ['revealed_secret_backup', 'hero_moment'],
         teachingMoment: 'Offline-Backups sind die letzte Verteidigung gegen Ransomware.',
       },
@@ -1017,7 +1027,7 @@ Alle Bildschirme sind rot. Auf jedem steht die gleiche Nachricht:
   Tick. Tock.
 ========================================
 
-Das Telefon klingelt. Es ist Thomas. "Es ist soweit", sagt er. "Und es ist nicht nur bei uns."`,
+Das Telefon klingelt. Es ist Bjorg. "Es ist soweit", sagt er. "Und es ist nicht nur bei uns."`,
     involvedCharacters: [],
     tags: ['story', 'chapter9', 'act3', 'crisis'],
     choices: [
@@ -1039,7 +1049,7 @@ Das Telefon klingelt. Es ist Thomas. "Es ist soweit", sagt er. "Und es ist nicht
         id: 'laugh',
         text: 'Lachen. Ihr habt das Backup im Keller.',
         effects: { stress: -10 },
-        resultText: '"Thomas", sagst du. "Hol den Schlüssel für den Keller." Er versteht sofort. Ihr habt einen Plan.',
+        resultText: '"Bjorg", sagst du. "Hol den Schlüssel für den Keller." Er versteht sofort. Ihr habt einen Plan.',
         setsFlags: ['ready', 'has_secret_weapon'],
       },
     ],
@@ -1053,7 +1063,7 @@ Das Telefon klingelt. Es ist Thomas. "Es ist soweit", sagt er. "Und es ist nicht
     probability: 1,
     description: `72 Stunden später.
 
-Du sitzt im Konferenzraum. Der Chef ist da. Der Bürgermeister. Das BSI. Und Thomas, der aussieht als hätte er seit drei Tagen nicht geschlafen. (Hat er auch nicht.)
+Du sitzt im Konferenzraum. Der Chef ist da. Der Bürgermeister. Das BSI. Und Bjorg, der aussieht als hätte er seit drei Tagen nicht geschlafen. (Hat er auch nicht.)
 
 Die Müllabfuhr läuft wieder. Die Systeme sind wiederhergestellt. Die Angreifer... sind nicht gefasst, aber ihre Infrastruktur ist zerstört.
 
@@ -1068,7 +1078,7 @@ Deine Probezeit ist offiziell beendet.`,
         text: '(Wenn alles gut lief)',
         requires: { skill: 'security', threshold: 50 },
         effects: {},
-        resultText: '"Sie bekommen einen unbefristeten Vertrag", sagt der Chef. "Und eine Gehaltserhöhung." Thomas grinst. Ihr habt es geschafft.',
+        resultText: '"Sie bekommen einen unbefristeten Vertrag", sagt der Chef. "Und eine Gehaltserhöhung." Bjorg grinst. Ihr habt es geschafft.',
         setsFlags: ['ending_good'],
       },
       {
