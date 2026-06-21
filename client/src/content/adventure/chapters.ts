@@ -196,7 +196,7 @@ export const adventureChapters: AdventureChapter[] = [
         id: 'beat04',
         eventId: 'adv_thomas_helps',
         isOptional: false,
-        branchCondition: 'thomas_is_ally',
+        branchCondition: 'thomas_ally',
         alternateEventId: 'adv_alone_in_crisis',
       },
     ],

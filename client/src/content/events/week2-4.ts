@@ -253,7 +253,6 @@ Pruefungstermin: In 4 Wochen"
         },
         resultText:
           'Du oeffnest das Asset-Management-System. Die letzte Aktualisierung war... vor 3 Jahren. Die Haelfte der Eintraege stimmt nicht mehr.',
-        triggersEvent: 'evt_license_cleanup',
       },
       {
         id: 'powershell_audit',

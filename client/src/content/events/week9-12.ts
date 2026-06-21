@@ -59,6 +59,19 @@ Du bist sofort hellwach. Das könnte ein echter Sicherheitsvorfall sein - oder e
         teachingMoment: 'KRITIS-Betreiber haben Meldepflicht bei IT-Sicherheitsvorfällen. 72 Stunden Frist beachten!',
         setsFlags: ['bsi_notified'],
       },
+      {
+        id: 'contain_with_help',
+        text: 'Auf Nummer sicher: Server vom Dienstleister isolieren lassen und {chef} sofort einbinden',
+        effects: {
+          skills: { security: 3, softSkills: 2 },
+          stress: 12,
+          relationships: { chef: 8 },
+          compliance: 5,
+        },
+        resultText: 'Du rufst den Dienstleister an, lässt das Segment trennen und hältst {chef} eng auf dem Laufenden. Nicht elegant, aber der mögliche Angreifer ist erstmal ausgesperrt.',
+        choiceTags: ['cautious', 'escalate'],
+        teachingMoment: 'Auch ohne tiefes Security-Wissen ist „isolieren und Hilfe holen" eine solide Erstreaktion. Lieber kontrolliert eskalieren als zögern.',
+      },
     ],
     tags: ['security', 'kritis', 'incident', 'critical'],
   },
@@ -482,6 +495,18 @@ Die Kollegen schauen dich erwartungsvoll an. {chef} hat die Stoppuhr gestartet.
           relationships: { chef: -10, kollegen: -5 }
         },
         resultText: 'Die Übung zeigt Lücken. {chef} seufzt. "Wir müssen den Notfallplan nochmal durchgehen. Alle zusammen."',
+      },
+      {
+        id: 'calm_checklist',
+        text: 'Ruhig bleiben: Notfallordner holen und die ersten drei Schritte laut durchgehen',
+        effects: {
+          skills: { troubleshooting: 4, softSkills: 2 },
+          relationships: { chef: 6, kollegen: 4 },
+          stress: 5,
+        },
+        resultText: 'Du greifst zum Notfallordner und liest ruhig die ersten Schritte vor: Lage erfassen, Meldekette, Prioritäten. Kein Heldenstück, aber {chef} sieht: Du verlierst nicht den Kopf.',
+        choiceTags: ['solid', 'methodical'],
+        teachingMoment: 'In der Krise sind Ruhe und ein gelesener Notfallplan mehr wert als Spezialwissen. Struktur schlägt Aktionismus.',
       },
     ],
     tags: ['crisis', 'training', 'notfall'],

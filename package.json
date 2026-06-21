@@ -13,6 +13,7 @@
     "build": "npm run build -w shared && npm run build -w client && npm run build -w server",
     "start": "npm run start -w server",
     "test": "npm run build -w shared && vitest run",
+    "test:client": "npm run build -w shared && vitest run --root client --config vitest.config.ts",
     "test:watch": "npm run build -w shared && vitest",
     "test:coverage": "npm run build -w shared && vitest run --coverage",
     "test:e2e": "npm run build && playwright test",

@@ -1,6 +1,6 @@
 // client/src/components/GameScreen/index.tsx
 import { useEffect, lazy, Suspense } from 'react';
-import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice } from '@kritis/shared';
+import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
 import { ResultScreen } from '../ResultScreen';
@@ -10,6 +10,8 @@ import { GamePhase, ContentType } from '../../hooks/useGame';
 
 // Lazy load Terminal - only needed when entering terminal mode
 const Terminal = lazy(() => import('../Terminal').then(m => ({ default: m.Terminal })));
+// Lazy load Windows GUI level - pulls in Fluent UI, only needed for GUI levels
+const WindowsLevel = lazy(() => import('../WindowsLevel').then(m => ({ default: m.WindowsLevel })));
 
 interface GameScreenProps {
   state: GameState;
@@ -23,7 +25,7 @@ interface GameScreenProps {
   onChoice: (choice: EventChoice) => void;
   onScenarioChoice: (choice: ScenarioChoice) => void;
   onContinue: () => void;
-  onTerminalSolved: () => void;
+  onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[]) => void;
   onTerminalCancel: () => void;
   onSave?: () => void;
   onLoad?: () => void;
@@ -63,29 +65,50 @@ export function GameScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [phase, onContinue, onTerminalCancel]);
 
-  // Get terminal context from either event or scenario
+  // Get terminal / GUI context from either event or scenario
   const terminalContext = currentEvent?.terminalContext || currentScenario?.terminalContext;
+  const guiContext = currentEvent?.guiContext || currentScenario?.guiContext;
 
-  if (phase === 'terminal' && terminalContext) {
+  // Extract lesson number for learning mode (from event id like "learn_01_awakening")
+  const getLessonNumber = (): number => {
+    if (!currentEvent?.id?.startsWith('learn_')) return 1;
+    const match = currentEvent.id.match(/learn_(\d+)/);
+    return match ? parseInt(match[1], 10) : 1;
+  };
+  const currentLessonNumber = getLessonNumber();
+
+  if (phase === 'terminal' && (terminalContext || guiContext)) {
     return (
       <div className="min-h-screen p-4 flex flex-col relative z-10">
         <div className="mb-4">
-          <StatsBar state={state} />
+          <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
         </div>
         <div className="flex-1">
           <Suspense
             fallback={
               <div className="border border-terminal-border p-4 text-center">
-                <div className="text-terminal-green animate-pulse">Terminal wird geladen...</div>
+                <div className="text-terminal-green animate-pulse">Wird geladen...</div>
               </div>
             }
           >
-            <Terminal
-              context={terminalContext}
-              onSolved={onTerminalSolved}
-              onCancel={onTerminalCancel}
-              gameMode={state.gameMode}
-            />
+            {guiContext ? (
+              <WindowsLevel
+                context={guiContext}
+                onSolved={onTerminalSolved}
+                onCancel={onTerminalCancel}
+                gameMode={state.gameMode}
+                briefingOverride={
+                  guiContext.briefingVariants?.find((v) => state.flags[v.flag])?.briefing
+                }
+              />
+            ) : (
+              <Terminal
+                context={terminalContext!}
+                onSolved={onTerminalSolved}
+                onCancel={onTerminalCancel}
+                gameMode={state.gameMode}
+              />
+            )}
           </Suspense>
         </div>
       </div>
@@ -193,7 +216,7 @@ export function GameScreen({
   return (
     <div className="min-h-screen p-4 flex flex-col">
       <div className="mb-4">
-        <StatsBar state={state} />
+        <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
       </div>
 
       <div className="flex-1">

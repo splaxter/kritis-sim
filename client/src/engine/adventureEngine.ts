@@ -150,6 +150,48 @@ export function getNextStoryContent(
   return { content: null, type: 'story' };
 }
 
+/**
+ * True when the player has run out of AUTHORED story content: the current
+ * chapter's next beat references an event/scenario that doesn't exist yet
+ * (i.e. we've advanced into a chapter that hasn't been written). This is the
+ * trigger for the act-break "Fortsetzung folgt" ending instead of letting the
+ * day-loop skip to a false victory. Derived, not hardcoded — the boundary moves
+ * automatically when more chapters are authored.
+ */
+export function isAtAuthoredStoryEnd(
+  state: GameState,
+  events: GameEvent[],
+  scenarios: Scenario[]
+): boolean {
+  if (!state.storyState) return false;
+  const chapter = getCurrentChapter(state);
+  if (!chapter) return false; // no current chapter = past the whole campaign (real completion)
+  // The whole chapter must be authored before we play ANY of it — otherwise a
+  // partially-written chapter (e.g. beat 1 exists, beat 2 doesn't) would let the
+  // player play a fragment and then hit the act-break mid-chapter. A chapter is
+  // unauthored if any beat references content that exists on neither its primary
+  // nor its alternate path. Checked on chapter entry, before serving content.
+  return chapter.storyBeats.some((beat) => {
+    const primary = findContent(beat.eventId, events, scenarios);
+    const alt = beat.alternateEventId ? findContent(beat.alternateEventId, events, scenarios) : null;
+    return !primary && !alt;
+  });
+}
+
+/**
+ * The act the player just COMPLETED (the act of the most recently completed
+ * chapter). Used to title/select the act-break copy. At an act-break the current
+ * chapter is the unauthored one we just entered, so the last completed chapter
+ * is the boundary's predecessor. Falls back to 2 (the only act that can break
+ * today) if there's no completed chapter yet.
+ */
+export function getLastCompletedAct(state: GameState): number {
+  const completed = state.storyState?.completedChapters ?? [];
+  const lastId = completed[completed.length - 1];
+  const chapter = lastId ? getChapter(lastId) : undefined;
+  return chapter?.act ?? 2;
+}
+
 function findContent(
   id: string,
   events: GameEvent[],

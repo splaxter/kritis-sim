@@ -47,6 +47,8 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
 
   // Keyboard navigation
   useEffect(() => {
+    if (visibleChoices.length === 0) return; // null-safety: nothing to drive
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const num = parseInt(e.key);
       if (num >= 1 && num <= visibleChoices.length) {
@@ -62,7 +64,8 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
         setSelectedIndex(prev => (prev + 1) % visibleChoices.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        onChoice(visibleChoices[selectedIndex]);
+        const choice = visibleChoices[selectedIndex];
+        if (choice) onChoice(choice);
       }
     };
 
@@ -81,6 +84,130 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
       result = result.replace(new RegExp(`\\{${role}\\}`, 'g'), name);
     }
     return result;
+  };
+
+  // ── Card kinds ──────────────────────────────────────────────────────────
+  // Classify how this event's actions should read:
+  //  • hands-on  → a single terminal/GUI task → one prominent "Aufgabe starten" CTA
+  //  • flavor    → a single non-decision click → interstitial "Weiter"
+  //  • decision  → a real multi-option choice → the numbered list (default)
+  // Consequence/result framing only applies when there is exactly one visible
+  // action. Multi-choice chain events remain real decisions.
+  const isSingleVisibleChoice = visibleChoices.length === 1;
+  const isChainResult = !!event.isChainEvent && isSingleVisibleChoice;
+  const handsOnChoice = visibleChoices.find((c) => c.terminalCommand || c.guiCommand);
+  const cardKind: 'hands-on' | 'flavor' | 'decision' =
+    isSingleVisibleChoice && handsOnChoice
+      ? 'hands-on'
+      : isSingleVisibleChoice
+        ? 'flavor'
+        : 'decision';
+
+  // Renders the action area for a layout variant. Returns the numbered list for
+  // 'decision', a single CTA for 'hands-on'/'flavor', and a safe fallback when
+  // there are no visible choices.
+  const renderActions = (variant: 'story' | 'standard') => {
+    if (visibleChoices.length === 0) {
+      return (
+        <div className="text-terminal-green-muted text-sm italic">
+          Keine verfügbaren Optionen.
+        </div>
+      );
+    }
+
+    if (cardKind !== 'decision') {
+      const choice = visibleChoices[0];
+      const isGui = !!choice.guiCommand;
+      const label =
+        cardKind === 'hands-on'
+          ? isGui
+            ? '🗔 Aufgabe starten'
+            : '▶ Aufgabe starten'
+          : 'Weiter ▶';
+      const cta =
+        variant === 'story'
+          ? 'w-full text-center px-4 py-3 rounded bg-terminal-green/20 border border-terminal-green text-white hover:bg-terminal-green/30 transition-colors font-semibold'
+          : 'w-full text-center p-3 border border-terminal-green hover:bg-terminal-bg-highlight text-terminal-green font-semibold';
+      return (
+        <button
+          ref={(el) => { buttonRefs.current[0] = el; }}
+          onClick={() => onChoice(choice)}
+          className={cta}
+        >
+          {label}
+        </button>
+      );
+    }
+
+    // 'decision' — numbered list of real options.
+    return visibleChoices.map((choice, index) => {
+      const isRecommended =
+        choice.requires &&
+        state.skills[choice.requires.skill] >= choice.requires.threshold + 20;
+      const isSelected = index === selectedIndex;
+
+      if (variant === 'story') {
+        return (
+          <button
+            key={choice.id}
+            ref={(el) => { buttonRefs.current[index] = el; }}
+            onClick={() => onChoice(choice)}
+            onMouseEnter={() => setSelectedIndex(index)}
+            className={`w-full text-left px-4 py-3 rounded border-l-4 transition-all duration-150 flex justify-between items-start gap-3 ${
+              isSelected
+                ? 'bg-terminal-green/20 border-l-terminal-green text-white'
+                : 'bg-black/40 border-l-transparent hover:bg-terminal-green/10 hover:border-l-terminal-green/50 text-gray-300'
+            }`}
+          >
+            <span className="flex-1">
+              <span className={`inline-block w-6 ${isSelected ? 'text-terminal-green' : 'text-terminal-green/50'}`}>
+                {index + 1}.
+              </span>
+              {choice.terminalCommand && <span className="text-terminal-info mr-1">&gt;</span>}
+              {choice.guiCommand && <span className="text-terminal-info mr-1">🗔</span>}
+              {replaceCharacterNames(choice.text)}
+            </span>
+            {isRecommended && (
+              <span className="text-terminal-success text-xs mt-1 shrink-0">[EMPFOHLEN]</span>
+            )}
+          </button>
+        );
+      }
+
+      return (
+        <button
+          key={choice.id}
+          ref={(el) => { buttonRefs.current[index] = el; }}
+          onClick={() => onChoice(choice)}
+          onMouseEnter={() => setSelectedIndex(index)}
+          className={`w-full text-left p-2 border transition-colors flex justify-between items-center ${
+            isSelected
+              ? 'bg-terminal-bg-highlight border-terminal-green text-terminal-green'
+              : 'border-terminal-border hover:bg-terminal-bg-highlight hover:border-terminal-green'
+          } ${arcade?.enabled && arcade.progress <= 0.25 ? 'hover:border-red-500' : ''}`}
+        >
+          <span>
+            <span className={isSelected ? 'text-terminal-green' : 'text-terminal-green-dim'}>[{index + 1}]</span>{' '}
+            {choice.terminalCommand && <span className="text-terminal-info">&gt; </span>}
+            {choice.guiCommand && <span className="text-terminal-info">🗔 </span>}
+            {replaceCharacterNames(choice.text)}
+          </span>
+          {isRecommended && (
+            <span className="text-terminal-success text-sm">[EMPFOHLEN]</span>
+          )}
+        </button>
+      );
+    });
+  };
+
+  const cardKindBanner = (className: string) => {
+    if (isChainResult) {
+      return <div className={className}>⟳ Folge deiner Entscheidung</div>;
+    }
+    if (cardKind === 'flavor') {
+      return <div className={className}>- Zwischenfall -</div>;
+    }
+    return null;
   };
 
   const getTimerBarColor = () => {
@@ -123,41 +250,13 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
 
             {/* Choices */}
             <div className="px-5 pb-4 space-y-2">
-              {visibleChoices.map((choice, index) => {
-                const isRecommended = choice.requires &&
-                  state.skills[choice.requires.skill] >= choice.requires.threshold + 20;
-                const isSelected = index === selectedIndex;
-
-                return (
-                  <button
-                    key={choice.id}
-                    ref={el => { buttonRefs.current[index] = el; }}
-                    onClick={() => onChoice(choice)}
-                    onMouseEnter={() => setSelectedIndex(index)}
-                    className={`w-full text-left px-4 py-3 rounded border-l-4 transition-all duration-150 flex justify-between items-start gap-3 ${
-                      isSelected
-                        ? 'bg-terminal-green/20 border-l-terminal-green text-white'
-                        : 'bg-black/40 border-l-transparent hover:bg-terminal-green/10 hover:border-l-terminal-green/50 text-gray-300'
-                    }`}
-                  >
-                    <span className="flex-1">
-                      <span className={`inline-block w-6 ${isSelected ? 'text-terminal-green' : 'text-terminal-green/50'}`}>
-                        {index + 1}.
-                      </span>
-                      {choice.terminalCommand && <span className="text-terminal-info mr-1">&gt;</span>}
-                      {replaceCharacterNames(choice.text)}
-                    </span>
-                    {isRecommended && (
-                      <span className="text-terminal-success text-xs mt-1 shrink-0">[EMPFOHLEN]</span>
-                    )}
-                  </button>
-                );
-              })}
+              {cardKindBanner('text-terminal-info/80 text-xs uppercase tracking-widest mb-1')}
+              {renderActions('story')}
             </div>
 
             {/* Footer hints */}
             <div className="px-5 py-2 border-t border-terminal-green/10 bg-black/30 text-xs text-terminal-green/40 flex justify-between">
-              <span>[1-{visibleChoices.length}] Direkt   [Enter] Auswahl</span>
+              <span>{cardKind === 'decision' ? `[1-${visibleChoices.length}] Direkt   [Enter] Auswahl` : '[Enter] Weiter'}</span>
               <span>[S] Speichern</span>
             </div>
           </div>
@@ -225,42 +324,17 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
         {replaceCharacterNames(event.description)}
       </div>
 
-      <div className="space-y-2">
-        {visibleChoices.map((choice, index) => {
-          const isRecommended = choice.requires &&
-            state.skills[choice.requires.skill] >= choice.requires.threshold + 20;
-          const isSelected = index === selectedIndex;
+      {cardKindBanner('text-terminal-info text-xs uppercase tracking-widest mb-2')}
 
-          return (
-            <button
-              key={choice.id}
-              ref={el => { buttonRefs.current[index] = el; }}
-              onClick={() => onChoice(choice)}
-              onMouseEnter={() => setSelectedIndex(index)}
-              className={`w-full text-left p-2 border transition-colors flex justify-between items-center ${
-                isSelected
-                  ? 'bg-terminal-bg-highlight border-terminal-green text-terminal-green'
-                  : 'border-terminal-border hover:bg-terminal-bg-highlight hover:border-terminal-green'
-              } ${arcade?.enabled && arcade.progress <= 0.25 ? 'hover:border-red-500' : ''}`}
-            >
-              <span>
-                <span className={isSelected ? 'text-terminal-green' : 'text-terminal-green-dim'}>[{index + 1}]</span>{' '}
-                {choice.terminalCommand && <span className="text-terminal-info">&gt; </span>}
-                {replaceCharacterNames(choice.text)}
-              </span>
-              {isRecommended && (
-                <span className="text-terminal-success text-sm">[EMPFOHLEN]</span>
-              )}
-            </button>
-          );
-        })}
+      <div className="space-y-2">
+        {renderActions('standard')}
       </div>
 
       <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted">
         {arcade?.enabled ? (
           <span>[1-{visibleChoices.length}] Schnell auswahlen!</span>
         ) : (
-          <span>[1-{visibleChoices.length}] / [Enter] Auswahlen   [S] Speichern</span>
+          <span>{cardKind === 'decision' ? `[1-${visibleChoices.length}] / [Enter] Auswahlen   [S] Speichern` : '[Enter] Weiter   [S] Speichern'}</span>
         )}
       </div>
     </div>

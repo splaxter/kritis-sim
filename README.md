@@ -4,14 +4,16 @@ A text-based IT administration simulation game where you play as a sysadmin at a
 
 ## Game Modes
 
+The mode selection screen currently exposes four modes:
+
 | Mode | Description |
 |------|-------------|
 | **Einsteiger** | For beginners - helpful hints and forgiving values |
-| **Standard** | Classic experience - balanced challenge |
-| **Schwer** | For pros - stricter consequences |
-| **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
-| **Arcade** | Fast fun - 8 weeks, 30-second timer, combo scoring |
+| **Lernmodus** | CLI training - 11 progressive terminal lessons from basics to incident response |
 | **Story: Die Probezeit** | Linear narrative with sidequests and multiple endings |
+| **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
+
+Additional modes (`Standard`, `Schwer`, `Arcade`) still exist in code as hidden/legacy configurations, but are not shown in the current mode selection screen.
 
 ## Adventure Mode: "Die Probezeit"
 
@@ -21,7 +23,7 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 
 ### Features
 - **12 chapters** across 3 acts with branching story beats
-- **15+ sidequests** that unlock dialogue options and change NPC behavior
+- **12 sidequests** that unlock dialogue options and change NPC behavior
 - **Character memory** - NPCs remember your choices
 - **3 endings** based on relationships, completed sidequests, and key decisions
 
@@ -104,7 +106,9 @@ The game supports extensible content packs for scenarios:
 
 - **KRITIS Infrastructure** - Critical infrastructure scenarios
 - **AMSE IT** - Vendor management scenarios
-- *More coming soon...*
+- **Cloud365** - Microsoft 365 and Azure scenarios
+- **Telekom Business** - WAN provider and SLA scenarios
+- **Internal Organization** - office politics, budget, team, and compliance scenarios
 
 ## Contributing
 

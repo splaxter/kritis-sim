@@ -152,8 +152,8 @@ describe('gameState', () => {
 
       expect(state.gameMode).toBe('learning');
       expect(state.mentorModeEnabled).toBe(true);
-      expect(state.skills.netzwerk).toBe(25);
-      expect(state.stress).toBe(20);
+      expect(state.skills.netzwerk).toBe(15); // Learning starts lower, learn through practice
+      expect(state.stress).toBe(10); // Low stress for learning
       expect(state.budget).toBe(15000);
       expect(state.compliance).toBe(50);
     });

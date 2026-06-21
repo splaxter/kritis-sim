@@ -8,6 +8,9 @@ export type GameModeId = 'beginner' | 'learning' | 'story' | 'kritis' | 'interme
 // Modes visible in the selection screen
 export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'kritis'];
 
+// Steered default for newcomers — pre-selected and badged in the mode picker.
+export const RECOMMENDED_MODE_ID: GameModeId = 'beginner';
+
 export interface GameModeStartingStats {
   skills: number;
   stress: number;

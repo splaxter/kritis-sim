@@ -1,5 +1,6 @@
 // client/src/components/IntroScreen/index.tsx
 import { useState, useEffect } from 'react';
+import { LegalPages } from '../LegalPages';
 
 interface IntroScreenProps {
   onEnter: () => void;
@@ -8,6 +9,7 @@ interface IntroScreenProps {
 export function IntroScreen({ onEnter }: IntroScreenProps) {
   const [fadeIn, setFadeIn] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
 
   useEffect(() => {
     // Fade in the image
@@ -23,6 +25,8 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
 
   // Handle click or key press to enter
   useEffect(() => {
+    if (legalPage) return; // Don't handle keys when legal modal is open
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Enter' || e.key === ' ') {
         onEnter();
@@ -31,12 +35,33 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onEnter]);
+  }, [onEnter, legalPage]);
+
+  // Handle ESC to close legal modal
+  useEffect(() => {
+    if (!legalPage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLegalPage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [legalPage]);
+
+  // Handle click on main area (not footer links)
+  const handleMainClick = (e: React.MouseEvent) => {
+    // Don't trigger if clicking on footer links
+    if ((e.target as HTMLElement).closest('.legal-footer')) return;
+    onEnter();
+  };
 
   return (
     <div
       className="fixed inset-0 bg-black cursor-pointer"
-      onClick={onEnter}
+      onClick={handleMainClick}
     >
       {/* Background image */}
       <div
@@ -89,6 +114,37 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
             'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.3) 2px, rgba(0,0,0,0.3) 4px)',
         }}
       />
+
+      {/* Legal footer */}
+      <div className="legal-footer absolute bottom-4 left-0 right-0 flex justify-center gap-4 text-xs text-white/40">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setLegalPage('impressum');
+          }}
+          className="hover:text-white/70 underline"
+        >
+          Impressum
+        </button>
+        <span>|</span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setLegalPage('datenschutz');
+          }}
+          className="hover:text-white/70 underline"
+        >
+          Datenschutz
+        </button>
+      </div>
+
+      {/* Legal pages modal */}
+      {legalPage && (
+        <LegalPages
+          initialPage={legalPage}
+          onClose={() => setLegalPage(null)}
+        />
+      )}
     </div>
   );
 }

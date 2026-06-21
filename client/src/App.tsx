@@ -9,15 +9,27 @@ import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
-import { getNextStoryContent } from './engine/adventureEngine';
+import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct } from './engine/adventureEngine';
+import { getActBreakBody } from './content/adventure/actBreaks';
 import { adventureStoryEvents } from './content/adventure/story-events';
 import { IntroScreen } from './components/IntroScreen';
+// Statically imported (not lazy): IntroScreen already pulls LegalPages into the
+// eager bundle, so a dynamic import here only produces a Vite "both statically
+// and dynamically imported" warning without any split benefit.
+import { LegalPages } from './components/LegalPages';
 import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
 import { StoryBackground } from './components/StoryBackground';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
 const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
+// ⚠️ DEV-ONLY preview harness — NOT for production. Lets us eyeball GUI levels at
+// ?preview=<id> without fighting RNG/game-state. The import() lives inside the
+// import.meta.env.DEV ternary so the chunk is fully eliminated from prod builds.
+// Safe to delete (this line + the guarded block below + DevGuiPreview.tsx).
+const DevGuiPreview = import.meta.env.DEV
+  ? lazy(() => import('./components/WindowsLevel/DevGuiPreview').then(m => ({ default: m.DevGuiPreview })))
+  : null;
 
 // Get or create player ID from localStorage
 function getPlayerId(): string {
@@ -38,6 +50,7 @@ function AppContent() {
   });
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [menuIndex, setMenuIndex] = useState(0);
+  const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
   const [characters] = useState({
     chef: 'Bert',
@@ -77,6 +90,15 @@ function AppContent() {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
         const combinedEvents = [...allEvents, ...adventureStoryEvents];
+
+        // Entered a chapter that isn't fully authored → act-break "Fortsetzung
+        // folgt" ending, BEFORE serving any of its (possibly partial) content and
+        // instead of empty day-skips to a false victory.
+        if (isAtAuthoredStoryEnd(game.state, combinedEvents, allScenarios)) {
+          game.endStoryAct();
+          return;
+        }
+
         const result = getNextStoryContent(game.state, combinedEvents, allScenarios);
 
         if (result.content) {
@@ -149,7 +171,7 @@ function AppContent() {
   const menuItems = ['new', 'load'] as const;
 
   useEffect(() => {
-    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro) return;
+    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
@@ -167,7 +189,33 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro]);
+  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage]);
+
+  // ESC to close legal modal
+  useEffect(() => {
+    if (!legalPage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLegalPage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [legalPage]);
+
+  // ⚠️ DEV-ONLY: GUI level preview harness (?preview=<id>). Not shipped to prod.
+  if (import.meta.env.DEV && DevGuiPreview) {
+    const previewId = new URLSearchParams(window.location.search).get('preview');
+    if (previewId) {
+      return (
+        <Suspense fallback={<div className="p-8 text-terminal-green">Preview wird geladen…</div>}>
+          <DevGuiPreview previewId={previewId} />
+        </Suspense>
+      );
+    }
+  }
 
   // Show intro screen on first load
   if (showIntro) {
@@ -213,7 +261,34 @@ function AppContent() {
           <div className="text-terminal-green-dim text-xs mt-4">
             [↑↓] Navigieren  [Enter] Auswählen
           </div>
+
+          {/* Legal footer */}
+          <div className="mt-6 pt-4 border-t border-terminal-border flex justify-center gap-4 text-xs text-terminal-green-muted">
+            <button
+              onClick={() => setLegalPage('impressum')}
+              className="hover:text-terminal-green underline"
+            >
+              Impressum
+            </button>
+            <span>|</span>
+            <button
+              onClick={() => setLegalPage('datenschutz')}
+              className="hover:text-terminal-green underline"
+            >
+              Datenschutz
+            </button>
+          </div>
         </div>
+
+        {/* Legal Pages Modal */}
+        <Suspense fallback={null}>
+          {legalPage && (
+            <LegalPages
+              initialPage={legalPage}
+              onClose={() => setLegalPage(null)}
+            />
+          )}
+        </Suspense>
 
         {/* Game Mode Selection Modal */}
         <Suspense fallback={null}>
@@ -237,6 +312,44 @@ function AppContent() {
             />
           )}
         </Suspense>
+      </div>
+    );
+  }
+
+  if (game.phase === 'storyEnding') {
+    const completedAct = getLastCompletedAct(game.state);
+    const body = getActBreakBody(completedAct);
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">
+          <div className="text-center text-terminal-green text-xl font-bold mb-6 tracking-widest">
+            AKT {completedAct} — ENDE
+          </div>
+          <div className="text-terminal-green-dim leading-relaxed space-y-4 text-[15px]">
+            {body.map((p, i) => (
+              <p
+                key={i}
+                className={
+                  p.tagline
+                    ? 'text-center text-terminal-green tracking-widest py-2 whitespace-pre-line'
+                    : p.emphasis
+                      ? 'text-terminal-green font-semibold whitespace-pre-line'
+                      : p.note
+                        ? 'text-sm text-terminal-green-muted whitespace-pre-line'
+                        : 'whitespace-pre-line'
+                }
+              >
+                {p.text}
+              </p>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowModeSelect(true)}
+            className="w-full mt-8 p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
+          >
+            [ ZURÜCK ZUM MENÜ ]
+          </button>
+        </div>
       </div>
     );
   }
@@ -310,21 +423,25 @@ function AppContent() {
         lastScenarioChoice={game.lastScenarioChoice}
         characters={characters}
         onChoice={(choice) => {
-          if (choice.terminalCommand && game.currentEvent?.terminalContext) {
+          const opensTerminal = choice.terminalCommand && game.currentEvent?.terminalContext;
+          const opensGui = choice.guiCommand && game.currentEvent?.guiContext;
+          if (opensTerminal || opensGui) {
             game.openTerminal(choice);
           } else {
             game.makeChoice(choice);
           }
         }}
         onScenarioChoice={(choice) => {
-          if (choice.terminalCommand && game.currentScenario?.terminalContext) {
+          const opensTerminal = choice.terminalCommand && game.currentScenario?.terminalContext;
+          const opensGui = choice.guiCommand && game.currentScenario?.guiContext;
+          if (opensTerminal || opensGui) {
             game.openScenarioTerminal(choice);
           } else {
             game.makeScenarioChoice(choice);
           }
         }}
         onContinue={game.continueGame}
-        onTerminalSolved={() => game.closeTerminal(true)}
+        onTerminalSolved={(skillGain, setsFlags) => game.closeTerminal(true, skillGain, setsFlags)}
         onTerminalCancel={() => game.closeTerminal(false)}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}

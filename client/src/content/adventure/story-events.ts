@@ -762,44 +762,586 @@ Ihr steht wieder am Anfang. Die Hinweise, die ihr habt, sind vage. Die Nacht-Log
   // ACT 2 & 3 KEY EVENTS
   // ============================================
 
+  // ─── Kapitel 5: Zufälle gibt es nicht ───
   {
-    id: 'adv_pattern_recognition',
-    title: 'Das Muster',
+    id: 'adv_thomas_confession',
+    title: 'Bjorgs Geständnis',
     category: 'story',
     weekRange: [5, 5],
     probability: 1,
-    description: `Du siehst es jetzt überall. Das Muster. Die kleinen Anomalien, die niemand bemerkt hat.
+    description: `Bjorg schließt die Bürotür. Zum ersten Mal seit Wochen sieht er dir direkt in die Augen.
 
-Der Drucker der nachts druckt. Die Kaffeemaschine die mit China redet. Die Mail-Accounts die sich selbst ändern.
+"Ich muss dir was sagen. Und du wirst sauer sein." Er legt einen USB-Stick auf den Tisch. "Stefan hat mir nicht nur ein paar Screenshots geschickt. Er hat mir ALLES geschickt. Sein ganzes Dossier. Vor Wochen."
 
-Es ist wie ein Uhrwerk. Regelmäßig. Präzise. Und es wird lauter.
+Er schluckt. "Ich hatte Angst. Nach dem, was mit ihm passiert ist... ich hab's einfach liegen lassen und gehofft, es löst sich von selbst."
 
-Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
+Er schiebt dir den Stick zu. "Da drauf ist alles. Und das Schlimmste: Stefan war sich sicher, dass jemand hier im Haus mitspielt. Ein Insider. Und sein Countdown — der läuft in Tagen ab, nicht Wochen."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter5', 'act2', 'revelation'],
+    choices: [
+      {
+        id: 'take_dossier',
+        text: '"Gib her. Ab jetzt machen wir das zusammen — keine Geheimnisse mehr."',
+        effects: { relationships: { kollegen: 15 }, skills: { security: 3 } },
+        resultText: 'Bjorg nickt, sichtlich erleichtert. Ihr öffnet das Dossier gemeinsam. Es ist erschreckend vollständig — und erschreckend nah dran.',
+        setsFlags: ['has_stefan_dossier', 'knows_attack_imminent'],
+      },
+      {
+        id: 'angry_hid',
+        text: '"Du hast das WOCHENLANG zurückgehalten? Während wir im Dunkeln getappt sind?!"',
+        effects: { relationships: { kollegen: -10 }, stress: 10 },
+        resultText: 'Bjorg zuckt zusammen. "Du hast ja recht. Es tut mir leid." Die Anspannung bleibt — aber das Dossier ist endlich da, und das zählt jetzt mehr.',
+        setsFlags: ['has_stefan_dossier', 'knows_attack_imminent'],
+      },
+      {
+        id: 'who_insider',
+        text: '"Ein Insider. Denk nach, Bjorg — wer hatte Zugriff, als Stefan verschwand?"',
+        effects: { skills: { security: 5 } },
+        resultText: 'Bjorg wird blass. "Ich... ich will da niemanden vorschnell verdächtigen." Aber die Frage steht jetzt im Raum. Und ihr werdet sie beantworten müssen.',
+        setsFlags: ['has_stefan_dossier', 'knows_attack_imminent', 'suspects_insider'],
+        teachingMoment: 'Insider-Bedrohungen sind besonders gefährlich, weil legitime Zugänge missbraucht werden. Wer Zugriff hatte, ist die erste Frage jeder Untersuchung.',
+      },
+    ],
+  },
+  {
+    id: 'adv_news_report',
+    title: 'Eilmeldung',
+    category: 'story',
+    weekRange: [5, 5],
+    probability: 1,
+    description: `Im Pausenraum läuft der Nachrichtensender. Du bleibst stehen.
 
-"Sie testen", sagt er. "Überall."`,
+"...die Stadtwerke im Nachbarkreis. Seit heute Morgen sind tausende Haushalte ohne sauberes Trinkwasser. Die Behörden sprechen von einem 'technischen Defekt', doch nach Informationen unserer Redaktion deutet vieles auf einen gezielten Cyberangriff hin..."
+
+Du erkennst es sofort. Das Muster. Dieselbe Handschrift wie in deinen Logs. Es ist keine Theorie mehr. Es passiert. Und es kommt näher.`,
     involvedCharacters: [],
     tags: ['story', 'chapter5', 'act2'],
     choices: [
       {
-        id: 'connect_dots',
-        text: 'Die Verbindungen dokumentieren',
+        id: 'correlate',
+        text: 'Die Meldung mit deiner Timeline und den C2-Indikatoren abgleichen',
         effects: { skills: { security: 5 } },
-        resultText: 'Du erstellst eine Timeline. Alle Angriffe folgen dem gleichen Muster. Der gleiche Code. Die gleiche Signatur.',
-        setsFlags: ['sees_pattern', 'has_timeline'],
+        resultText: 'Die Zeitstempel, die Signatur, die IP-Bereiche — alles passt. Du hast jetzt einen unabhängigen Beleg für dasselbe Muster. Das ist mehr als ein Bauchgefühl.',
+        setsFlags: ['confirmed_pattern', 'sees_full_scope'],
+        teachingMoment: 'Öffentliche Vorfälle mit eigenen Beobachtungen zu korrelieren (Threat Intelligence) verwandelt einen Verdacht in einen belastbaren Befund.',
       },
       {
-        id: 'warn_others',
-        text: 'Die anderen KRITIS-Betreiber warnen',
-        effects: { relationships: { fachabteilung: -5 } },
-        resultText: 'Du schickst anonyme Warnungen. Manche ignorieren dich. Aber einige melden sich zurück: "Wir haben das auch."',
-        setsFlags: ['warned_others', 'has_allies'],
+        id: 'warn_utility',
+        text: 'Das betroffene Werk anonym kontaktieren und vor der Signatur warnen',
+        effects: { skills: { softSkills: 3 } },
+        resultText: 'Du schickst eine anonyme, präzise Warnung mit den Indikatoren. Eine Stunde später eine knappe Antwort: "Danke. Woher wissen Sie das?" Du antwortest nicht.',
+        setsFlags: ['warned_utility', 'sees_full_scope'],
       },
       {
-        id: 'stay_quiet',
-        text: 'Abwarten und beobachten',
+        id: 'realize_scope',
+        text: 'Dir wird kalt: Wasser hier, Strom woanders — das ist koordiniert',
         effects: { stress: 10 },
-        resultText: 'Du wartest. Das Muster wird deutlicher. Aber die Zeit läuft.',
-        setsFlags: ['waited'],
+        resultText: 'Du setzt dich. Das Ausmaß trifft dich mit voller Wucht. Das ist kein einzelner Angreifer auf eurer kleinen IT. Das ist eine Kampagne. Und ihr seid mittendrin.',
+        setsFlags: ['attack_accelerating', 'sees_full_scope'],
+      },
+    ],
+  },
+  {
+    id: 'adv_connecting_dots',
+    title: 'Alles ergibt einen Sinn',
+    category: 'story',
+    weekRange: [5, 5],
+    probability: 1,
+    description: `Nachts im Büro. Ihr habt alles an die Wand gepinnt: Stefans Dossier, die Nacht-Logs, der C2-Server, die Eilmeldung, eure Timeline. Fäden dazwischen.
+
+Und plötzlich ergibt es ein Bild. Kein Chaos — ein Plan. Die "Pannen" der letzten Wochen waren Tests: Wie schnell reagiert ihr? Was fällt euch auf? Was nicht?
+
+Bjorg flüstert: "Wir waren nie das Ziel. Wir waren die Generalprobe." Stefans Countdown läuft. In wenigen Tagen wird aus der Probe der Ernstfall — überall gleichzeitig.
+
+Die Frage ist nur noch: Was macht ihr jetzt damit?`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter5', 'act2', 'climax'],
+    choices: [
+      {
+        id: 'plan_defense',
+        text: 'Erst die eigenen Systeme härten — jede gewonnene Stunde zählt',
+        effects: { skills: { security: 4, troubleshooting: 3 }, compliance: 5, stress: 5 },
+        resultText: 'Ihr fangt sofort an: Segmentierung, Notfall-Accounts, Offline-Backups. Wenn es losgeht, wollt ihr nicht unvorbereitet sein.',
+        setsFlags: ['hardening_started', 'sees_full_scope'],
+        teachingMoment: 'Auch ohne die Angreifer stoppen zu können, reduziert Härtung (Segmentierung, MFA, getestete Backups) den Schaden im Ernstfall erheblich.',
+      },
+      {
+        id: 'go_authorities',
+        text: '"Das ist zu groß für uns. Das gehört sofort zu den Behörden."',
+        effects: { skills: { softSkills: 3 } },
+        resultText: 'Bjorg ist unsicher. "Stefan hat das versucht. Schau, wie das für ihn ausging." Aber du hast einen Punkt: Allein stoppt ihr eine Kampagne nicht.',
+        setsFlags: ['wants_official', 'sees_full_scope'],
+      },
+      {
+        id: 'trust_no_system',
+        text: '"Stefan wurde verraten. Wir trauen niemandem — wir machen das selbst."',
+        effects: { skills: { security: 3 }, stress: 8 },
+        resultText: '"Einverstanden", sagt Bjorg leise. "Aber wenn der Insider mitliest, müssen wir ab jetzt vorsichtig sein. Sehr vorsichtig."',
+        setsFlags: ['wants_solo', 'sees_full_scope'],
+      },
+    ],
+  },
+
+  // ─── Kapitel 6: Wem vertraust du? ───
+  {
+    id: 'adv_evidence_gathered',
+    title: 'Die Beweismappe',
+    category: 'story',
+    weekRange: [6, 6],
+    probability: 1,
+    description: `Es liegt alles vor dir: eine lückenlose Mappe, die einen koordinierten Angriff auf die kritische Infrastruktur der Region belegt. Logs, Korrelationen, Stefans Dossier, die Eilmeldung.
+
+Es ist genug. Es ist sogar mehr als genug.
+
+Bjorg betrachtet den Stapel. "Das reicht", sagt er. "Aber reicht es WEM? Stefan hatte auch genug. Und schau, wo ihn das hingebracht hat."
+
+Bevor du irgendwem irgendwas zeigst, musst du diese Beweise schützen — und entscheiden, wem du sie überhaupt anvertraust.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter6', 'act2'],
+    choices: [
+      {
+        id: 'secure_evidence',
+        text: 'Die Beweise verschlüsseln und eine Offline-Kopie an einem sicheren Ort hinterlegen',
+        effects: { skills: { security: 5 }, stress: -3 },
+        resultText: 'Verschlüsselt, kopiert, weggeschlossen. Was auch passiert — die Beweise sind nicht mehr nur in einem Kopf und auf einem Rechner. Stefans Fehler wiederholst du nicht.',
+        setsFlags: ['evidence_secured'],
+        teachingMoment: 'Beweise und Whistleblower-Material gehören verschlüsselt und redundant gesichert — eine Kopie außerhalb des Zugriffs der Gegenseite ist überlebenswichtig.',
+      },
+      {
+        id: 'organize_report',
+        text: 'Alles zu einem sauberen, meldefähigen Bericht ordnen',
+        effects: { skills: { softSkills: 4 }, compliance: 5 },
+        resultText: 'Du gießt das Chaos in eine klare Struktur: Was, wann, woher, mit welcher Sicherheit. Ein Bericht, den eine Behörde ernst nehmen muss.',
+        setsFlags: ['report_ready'],
+      },
+      {
+        id: 'share_ally',
+        text: 'Eine Kopie still einer Vertrauensperson außerhalb des Hauses geben',
+        effects: { relationships: { kollegen: 5 } },
+        resultText: 'Eine alte Studienfreundin, weit weg, kein Bezug zur Sache. "Wenn ich mich drei Tage nicht melde, schick das an diese Adresse." Eine Lebensversicherung aus Papier.',
+        setsFlags: ['evidence_shared'],
+      },
+    ],
+  },
+  {
+    id: 'adv_chef_confrontation',
+    title: 'Die Konfrontation',
+    category: 'story',
+    weekRange: [6, 6],
+    probability: 1,
+    description: `Du legst Chef Bert die Mappe auf den Schreibtisch. Er blättert, wird blasser, schiebt sie weg.
+
+"Sehen Sie... das ist..." Er räuspert sich. "Das ist eine Nummer zu groß für uns. Wir sind ein kommunales Stadtwerk, kein Geheimdienst. Vielleicht ist das auch alles nur ein Missverständnis. Lassen Sie uns nichts überstürzen."
+
+Bjorg neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du den offiziellen Weg — über den Chef, sauber, dokumentiert? Oder hat Bert gerade bewiesen, dass auf den Dienstweg kein Verlass ist?`,
+    involvedCharacters: ['chef', 'kollege'],
+    tags: ['story', 'chapter6', 'act2', 'decision'],
+    choices: [
+      {
+        id: 'official_route',
+        text: 'Den Dienstweg gehen: Bert einbinden und gemeinsam offiziell ans BSI melden',
+        effects: { relationships: { chef: 8 }, compliance: 10, stress: 5 },
+        resultText: 'Du bleibst hartnäckig und sachlich, bis Bert einlenkt. "Also gut. Aber das machen wir RICHTIG, mit allem Drum und Dran." Der offizielle Weg ist eingeschlagen.',
+        setsFlags: ['chose_official_route', 'chef_informed'],
+        teachingMoment: 'Der dokumentierte Meldeweg (Vorgesetzte → BSI nach §8b BSIG / NIS2) schützt dich rechtlich und sorgt dafür, dass die Meldung nicht an einer Einzelperson hängt.',
+      },
+      {
+        id: 'go_solo',
+        text: 'Bert hat sich gerade disqualifiziert — das ziehst du mit Bjorg allein durch',
+        effects: { relationships: { chef: -5 }, stress: 6 },
+        resultText: 'Du nickst freundlich und sagst nichts mehr. In Gedanken hast du Bert schon abgeschrieben. Wenn der Insider Zugang zur Führungsebene hat, ist Schweigen sicherer.',
+        setsFlags: ['distrust_chef', 'going_solo'],
+      },
+      {
+        id: 'pressure_chef',
+        text: 'Bert unter Druck setzen: "Wenn das rauskommt und wir nichts getan haben — wer haftet dann?"',
+        effects: { relationships: { chef: -10 }, skills: { softSkills: 3 }, stress: 6 },
+        resultText: 'Bert wird wütend, dann nachdenklich, dann ausweichend. Er verspricht "drüber zu schlafen". Du weißt: Auf den ist kein Verlass. Du musst selbst handeln.',
+        setsFlags: ['pressured_chef', 'going_solo'],
+      },
+    ],
+  },
+  {
+    id: 'adv_bsi_contact',
+    title: 'Der Anruf beim BSI',
+    category: 'story',
+    weekRange: [6, 6],
+    probability: 1,
+    description: `Ihr meldet offiziell. Stefans letzter Versuch endete mit einem abgebrochenen Anruf und einem "Unfall" — also macht ihr es diesmal richtig.
+
+Eine echte Ansprechpartnerin beim BSI, Frau Dr. Reinhardt, hört zu. Erst routiniert, dann immer aufmerksamer. "Diese Signatur... die haben wir diese Woche schon zweimal gesehen. Wo sagten Sie, sitzen Sie?"
+
+Zum ersten Mal hast du das Gefühl, nicht allein gegen eine Wand zu reden.`,
+    involvedCharacters: ['chef'],
+    tags: ['story', 'chapter6', 'act2', 'official'],
+    choices: [
+      {
+        id: 'formal_report',
+        text: 'Formell nach Meldepflicht melden — vollständig dokumentiert',
+        effects: { skills: { security: 4, softSkills: 3 }, compliance: 15, stress: -3 },
+        resultText: 'Aktenzeichen, Ansprechpartnerin, dokumentierter Eingang. Was auch kommt: Es ist jetzt offiziell aktenkundig. Frau Reinhardt verspricht, sich zu melden — und diesmal glaubst du es.',
+        setsFlags: ['bsi_notified', 'official_record'],
+        teachingMoment: 'KRITIS-Betreiber sind nach §8b BSIG / NIS2 meldepflichtig. Eine formale, dokumentierte Meldung mit Aktenzeichen ist Pflicht — und der beste Eigenschutz.',
+      },
+      {
+        id: 'encrypted_channel',
+        text: 'Über einen verschlüsselten Kanal nachreichen — vorsichtiger, als Stefan war',
+        effects: { skills: { security: 6 }, compliance: 8 },
+        resultText: 'Du übermittelst das Dossier verschlüsselt, nur für sie lesbar. "Klug", sagt sie. "Sie haben aus etwas gelernt." Sie weiß nicht, woraus. Du erzählst es ihr nicht.',
+        setsFlags: ['bsi_notified', 'careful_contact'],
+      },
+      {
+        id: 'demand_escalation',
+        text: 'Auf sofortige Eskalation drängen — der Countdown läuft in Tagen ab',
+        effects: { relationships: { gf: 8 }, stress: 10 },
+        resultText: 'Du machst klar, wie wenig Zeit bleibt. Sie wird ernst. "Wenn Ihr Zeitfenster stimmt, ist das hier Priorität. Ich ziehe das hoch." Räder beginnen sich zu drehen.',
+        setsFlags: ['bsi_notified', 'escalated'],
+      },
+    ],
+  },
+  {
+    id: 'adv_solo_investigation',
+    title: 'Im Alleingang',
+    category: 'story',
+    weekRange: [6, 6],
+    probability: 1,
+    description: `Kein Dienstweg. Keine Behörde, von der ihr nicht wisst, wer mithört. Nur ihr beide.
+
+Bjorg ist nervös, aber entschlossen. "Okay. Dann machen wir das wie Stefan — nur schlauer. Wir bleiben unsichtbar, wir sammeln, und wir schlagen erst zu, wenn wir müssen."
+
+Ihr richtet euch ein: ein abgeschotteter Laptop, der nie ins Firmennetz geht. Ein zweites, stilles Auge auf dem Datenverkehr. Und die Regel: Niemand sonst erfährt etwas.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter6', 'act2', 'solo'],
+    choices: [
+      {
+        id: 'covert_monitoring',
+        text: 'Den C2-Verkehr heimlich mitschneiden, ohne die Angreifer zu alarmieren',
+        effects: { skills: { security: 6, netzwerk: 4 }, stress: 5 },
+        resultText: 'Ein passiver Mirror-Port, kein aktiver Scan, nichts, das auffällt. Ihr seht, ohne gesehen zu werden. Langsam zeichnet sich ab, wann der Angriff kommt.',
+        setsFlags: ['covert_ops', 'watching_c2'],
+        teachingMoment: 'Passives Monitoring (z. B. ein Mirror-/SPAN-Port) beobachtet einen Angreifer, ohne ihn zu warnen — aktives Scannen würde verraten, dass jemand hinschaut.',
+      },
+      {
+        id: 'build_case',
+        text: 'In aller Stille eine wasserdichte Beweiskette für den entscheidenden Moment aufbauen',
+        effects: { skills: { security: 4 }, compliance: 5 },
+        resultText: 'Jeder Fund sauber gesichert, mit Zeitstempel und Hash. Wenn der Moment kommt, in dem ihr jemanden überzeugen müsst, habt ihr nicht nur eine Geschichte — ihr habt Beweise.',
+        setsFlags: ['building_case'],
+      },
+      {
+        id: 'recruit_allies',
+        text: 'Heimlich ein, zwei absolut Vertraute einweihen',
+        effects: { relationships: { kollegen: 8 }, stress: -3 },
+        resultText: 'Zu zweit gegen eine Kampagne ist zu wenig. Vorsichtig weiht ihr zwei Leute ein, denen ihr das Leben anvertrauen würdet. Aus zwei werden vier. Es fühlt sich weniger einsam an.',
+        setsFlags: ['has_allies'],
+      },
+    ],
+  },
+  {
+    id: 'adv_point_of_no_return',
+    title: 'Kein Zurück mehr',
+    category: 'story',
+    weekRange: [6, 6],
+    probability: 1,
+    description: `Es ist spät, als die Nachricht auf deinem privaten Handy aufploppt. Unbekannte Nummer.
+
+"Neugierige Azubis werden selten alt. Frag Stefan."
+
+Dein Blut gefriert. Sie wissen, dass du gräbst. Genau wie bei ihm. Die Probezeit, die du angetreten hast, um Drucker zu reparieren, ist zu etwas ganz anderem geworden.
+
+Du könntest jetzt noch aufhören. Wegsehen. Den Kopf einziehen. Oder du gehst dahin, wo Stefan aufhören musste.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter6', 'act2', 'climax'],
+    choices: [
+      {
+        id: 'all_in',
+        text: '"Jetzt erst recht." — Du bist drin, bis zum Ende',
+        effects: { skills: { security: 3 }, stress: 10 },
+        resultText: 'Die Angst ist da, aber sie lähmt dich nicht mehr — sie schärft dich. Sie haben gerade den falschen Menschen bedroht. Du machst weiter.',
+        setsFlags: ['committed', 'point_of_no_return'],
+      },
+      {
+        id: 'protect_others',
+        text: 'Zuerst dafür sorgen, dass Bjorg und die anderen sicher sind',
+        effects: { relationships: { kollegen: 12 }, stress: 5 },
+        resultText: 'Bevor du irgendetwas riskierst, sorgst du dafür, dass die anderen geschützt und ihre Spuren verwischt sind. Wenn das hier schiefgeht, soll es nur dich treffen.',
+        setsFlags: ['protected_allies', 'point_of_no_return'],
+      },
+      {
+        id: 'steel_self',
+        text: 'Tief durchatmen — du machst weiter, wo Stefan aufhören musste',
+        effects: { skills: { security: 5 }, stress: -5 },
+        resultText: 'Du liest die Drohung noch einmal, ruhig diesmal. Dann löschst du sie. Stefan hat dir den Weg gezeigt. Du wirst ihn zu Ende gehen — vorsichtiger, aber bis zum Schluss.',
+        setsFlags: ['point_of_no_return', 'stefans_legacy'],
+      },
+    ],
+  },
+
+  // ─── Kapitel 7: Eskalation ───
+  {
+    id: 'adv_targeted_phishing',
+    title: 'Maßgeschneidert',
+    category: 'story',
+    weekRange: [7, 7],
+    probability: 1,
+    description: `Die Mail ist perfekt. Kein Tippfehler, kein generisches "Sehr geehrter Kunde". Sie spricht dich mit Namen an, nennt ein internes Projekt, das nur eine Handvoll Leute kennt, und hängt sich an einen echten Vorgang von letzter Woche.
+
+Nur der Link am Ende führt nicht dahin, wo er behauptet.
+
+Das ist kein Massen-Phishing. Das ist auf DICH zugeschnitten. Und die Details darin — die hat ihnen jemand von innen gegeben.`,
+    involvedCharacters: [],
+    tags: ['story', 'chapter7', 'act2'],
+    choices: [
+      {
+        id: 'analyze_headers',
+        text: 'Die Mail forensisch zerlegen — Header, Link-Ziel, Metadaten',
+        effects: { skills: { security: 5, netzwerk: 2 } },
+        resultText: 'Die Header verraten einen Relay-Server, der Link eine frisch registrierte Domain. Es ist professionell — aber nicht spurlos. Du sicherst alles.',
+        setsFlags: ['analyzed_phish'],
+        teachingMoment: 'E-Mail-Header und Link-Ziele (ohne zu klicken) verraten Herkunft und Infrastruktur eines Angriffs — die Basis jeder Phishing-Analyse.',
+      },
+      {
+        id: 'dont_click_report',
+        text: 'Nicht klicken, sichern und als gezielten Angriff dokumentieren',
+        effects: { skills: { security: 3 }, compliance: 5 },
+        resultText: 'Du behandelst es als das, was es ist: einen Spear-Phishing-Angriff mit Insider-Wissen. Sauber dokumentiert, gemeldet, eskaliert.',
+        setsFlags: ['reported_phish'],
+      },
+      {
+        id: 'bait_back',
+        text: 'Eine kontrollierte Antwort senden, um mehr über sie herauszufinden',
+        effects: { skills: { security: 4 }, stress: 10 },
+        resultText: 'Riskant, aber du gibst nur Brotkrumen preis. Ihre Antwort kommt schnell — zu schnell. Jemand sitzt direkt am anderen Ende und beobachtet euch genau.',
+        setsFlags: ['engaged_attacker'],
+      },
+    ],
+  },
+  {
+    id: 'adv_insider_threat',
+    title: 'Der Maulwurf',
+    category: 'story',
+    weekRange: [7, 7],
+    probability: 1,
+    description: `Die Mail wusste Dinge, die nur wenige wissen. Ihr setzt euch hin und macht eine Liste: Wer hatte Zugriff auf dieses Projekt, diese Termine, diese Details?
+
+Die Liste ist kurz. Und unangenehm. Es sind Kollegen. Menschen, an denen du jeden Tag vorbeigehst.
+
+Bjorg reibt sich die Augen. "Stefan hat es geahnt. Deshalb hat er niemandem getraut. Jetzt verstehe ich, warum."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter7', 'act2'],
+    choices: [
+      {
+        id: 'quiet_audit',
+        text: 'Still die Zugriffslogs der Verdächtigen prüfen — niemanden vorwarnen',
+        effects: { skills: { security: 6 }, stress: 5 },
+        resultText: 'Ohne Aufsehen gehst du die Logs durch. Anmeldezeiten, Dateizugriffe, Berechtigungsänderungen. Ein Muster beginnt sich abzuzeichnen — bei einem Konto.',
+        setsFlags: ['auditing_insider'],
+        teachingMoment: 'Einen vermuteten Insider niemals vorwarnen: diskrete Log-Auswertung sichert Beweise, bevor jemand Spuren verwischen kann.',
+      },
+      {
+        id: 'confide_bjorg',
+        text: 'Den Verdacht nur mit Bjorg teilen und gemeinsam einen Plan machen',
+        effects: { relationships: { kollegen: 8 } },
+        resultText: 'Zu zweit tragt ihr die Last. "Wir machen keinen Fehler aus Wut", sagt Bjorg. "Wir brauchen Gewissheit, keine Vermutung." Er hat recht.',
+        setsFlags: ['insider_plan'],
+      },
+      {
+        id: 'suspect_bjorg',
+        text: 'Ein kalter Gedanke: Wie viel weißt du eigentlich wirklich über Bjorg?',
+        effects: { stress: 8 },
+        resultText: 'Du schaust ihn an und hasst dich für den Gedanken. Aber er war von Anfang an dabei. Er hatte Stefans Dossier. Er wusste alles zuerst. Du sagst nichts — und vertraust ab jetzt ein bisschen weniger.',
+        setsFlags: ['doubts_bjorg'],
+      },
+    ],
+  },
+  {
+    id: 'adv_unexpected_ally',
+    title: 'Hilfe von unerwarteter Seite',
+    category: 'story',
+    weekRange: [7, 7],
+    probability: 1,
+    description: `Eine Nachricht über einen Kanal, den du kaum noch nutzt. Absender: die IT-Leiterin des Nachbar-Stadtwerks — das, dessen Wasserversorgung getroffen wurde.
+
+"Jemand hat uns vor ein paar Wochen anonym gewarnt. Wir waren vorbereiteter als die anderen. Ich glaube, das waren Sie. Wir sind nicht die Einzigen, die zurückschlagen wollen. Reden wir?"
+
+Zum ersten Mal seit Wochen kommt Hilfe — von außen, ungefragt.`,
+    involvedCharacters: [],
+    tags: ['story', 'chapter7', 'act2'],
+    choices: [
+      {
+        id: 'verify_first',
+        text: 'Erst über einen zweiten Weg prüfen, ob der Kontakt echt ist',
+        effects: { skills: { security: 5 } },
+        resultText: 'Du rufst die offizielle Nummer des Werks an und lässt dich durchstellen. Sie ist echt. In einer Lage voller Fallen ist das die wichtigste Bestätigung.',
+        setsFlags: ['has_external_ally', 'verified_ally'],
+        teachingMoment: 'Unerwartete Kontakte in einer Krise immer über einen zweiten, unabhängigen Kanal verifizieren — bevor man irgendetwas teilt.',
+      },
+      {
+        id: 'accept_help',
+        text: 'Das Angebot annehmen und Indikatoren austauschen',
+        effects: { skills: { security: 4 }, relationships: { fachabteilung: 5 } },
+        resultText: 'Ihr teilt Signaturen, IPs, Zeitfenster. Was sie gesehen hat, schließt Lücken in eurem Bild. Aus zwei isolierten Opfern wird ein Netzwerk von Verteidigern.',
+        setsFlags: ['has_external_ally', 'allied_utility'],
+      },
+      {
+        id: 'cautious_share',
+        text: 'Vorsichtig kooperieren, aber nicht alles preisgeben',
+        effects: { skills: { security: 3 }, stress: 3 },
+        resultText: 'Du gibst, was hilft, und behältst, was schützt. Sie versteht das. "Vorsicht ist gut. Genau deshalb leben wir beide noch."',
+        setsFlags: ['has_external_ally', 'cautious_alliance'],
+      },
+    ],
+  },
+
+  // ─── Kapitel 8: Die Ruhe vor dem Sturm ───
+  {
+    id: 'adv_false_peace',
+    title: 'Zu ruhig',
+    category: 'story',
+    weekRange: [8, 8],
+    probability: 1,
+    description: `Tage vergehen. Nichts. Keine Phishing-Mails, keine seltsamen Logs, keine nächtlichen Verbindungen. Die Systeme laufen stabil. Sauber. Perfekt.
+
+Genau das macht dich nervös.
+
+Bjorg läuft im Serverraum auf und ab. "Das gefällt mir nicht. Vor einem Sturm wird's immer ganz still. Sie sind nicht weg. Sie laden nach."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter8', 'act2'],
+    choices: [
+      {
+        id: 'stay_vigilant',
+        text: 'Wachsam bleiben: Monitoring hochfahren, jeden Alarm ernst nehmen',
+        effects: { skills: { security: 5, netzwerk: 2 }, stress: 5 },
+        resultText: 'Du drehst die Empfindlichkeit hoch und richtest dir eine 24/7-Sicht ein. Wenn es losgeht, willst du es in der ersten Sekunde sehen, nicht in der ersten Stunde.',
+        setsFlags: ['heightened_alert'],
+        teachingMoment: 'Eine plötzliche Stille während einer laufenden Kampagne bedeutet oft Vorbereitung (Staging), nicht Rückzug.',
+      },
+      {
+        id: 'use_time_harden',
+        text: 'Die Ruhe nutzen, um die letzten Lücken zu schließen',
+        effects: { skills: { security: 4 }, compliance: 5, stress: 3 },
+        resultText: 'Patches, Segmentgrenzen, Notfall-Zugänge. Jede Stunde Ruhe steckst du in eine Lücke weniger. Geschenkte Zeit verschenkt man nicht.',
+        setsFlags: ['extra_hardening'],
+      },
+      {
+        id: 'brief_relief',
+        text: 'Kurz durchatmen — ihr habt die Pause verdient',
+        effects: { stress: -10 },
+        resultText: 'Ihr gönnt euch einen Abend ohne Bildschirme. Es tut gut. Aber im Hinterkopf tickt die Uhr weiter.',
+        setsFlags: ['took_breath'],
+      },
+    ],
+  },
+  {
+    id: 'adv_preparation_check',
+    title: 'Sind wir bereit?',
+    category: 'story',
+    weekRange: [8, 8],
+    probability: 1,
+    description: `Ihr geht die Liste durch. Die, die ihr nie machen wolltet, aber jetzt braucht.
+
+Backups — offline, getrennt, getestet? Segmentierung — hält sie? Notfallplan — wer ruft wen, in welcher Reihenfolge, mit welcher Nummer?
+
+Es ist die Generalprobe, die niemand will. Und sie zeigt Lücken.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter8', 'act2'],
+    choices: [
+      {
+        id: 'test_restore',
+        text: 'Einen echten Restore-Test fahren — kein Vertrauen ohne Beweis',
+        effects: { skills: { security: 4, troubleshooting: 5 }, stress: 5 },
+        resultText: 'Ihr spielt ein Backup auf ein Testsystem zurück. Es funktioniert — fast. Zwei Dateien fehlen, ihr fixt es. Jetzt wisst ihr, dass es wirklich funktioniert.',
+        setsFlags: ['restore_tested', 'ready_backups'],
+        teachingMoment: 'Ein ungetestetes Backup ist eine Hoffnung; ein getesteter Restore ist ein Plan. Genau jetzt, nicht im Ernstfall, testet man das.',
+      },
+      {
+        id: 'ir_runbook',
+        text: 'Den Notfallplan durchgehen und Rollen klar verteilen',
+        effects: { skills: { softSkills: 4 }, compliance: 5 },
+        resultText: 'Wer isoliert, wer kommuniziert, wer meldet. Ihr schreibt es auf, mit Namen und Nummern. Im Chaos wird niemand mehr überlegen müssen, wer was tut.',
+        setsFlags: ['ir_ready'],
+      },
+      {
+        id: 'isolate_crown_jewels',
+        text: 'Die wichtigsten Systeme noch strenger isolieren',
+        effects: { skills: { netzwerk: 5, security: 3 }, stress: 3 },
+        resultText: 'Die Kronjuwelen — Wasserversorgung, Abrechnung, Bürgerdaten — bekommen die strengste Zone. Selbst wenn der Rest fällt, sollen die stehen bleiben.',
+        setsFlags: ['crown_jewels_isolated'],
+      },
+    ],
+  },
+  {
+    id: 'adv_thomas_flashback',
+    title: 'Schon einmal gesehen',
+    category: 'story',
+    weekRange: [8, 8],
+    probability: 1,
+    description: `Spät am Abend, nur ihr beide. Bjorg wird still, dann fängt er an zu erzählen.
+
+"Vor zehn Jahren. Anderer Arbeitgeber, ein Energieversorger. Ich hab Warnzeichen gesehen und gemeldet. Sie haben mich ausgelacht. 'Wer soll uns schon angreifen?'"
+
+Er schaut auf seine Hände. "Drei Wochen später war alles verschlüsselt. Menschen ohne Strom, mitten im Winter. Ich konnte nichts mehr tun. Deshalb habe ich Stefan geglaubt, als sonst niemand wollte. Ich mache diesen Fehler nicht zweimal."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter8', 'act2', 'character'],
+    choices: [
+      {
+        id: 'listen',
+        text: 'Einfach zuhören — er muss das erzählen',
+        effects: { relationships: { kollegen: 12 }, stress: -3 },
+        resultText: 'Du sagst nichts, lässt ihn reden. Am Ende nickt er dir zu. Zwischen euch ist etwas fester geworden — Vertrauen, hart erarbeitet.',
+        setsFlags: ['bjorg_backstory'],
+      },
+      {
+        id: 'learn_lesson',
+        text: 'Fragen, was er daraus gelernt hat — und es heute anwenden',
+        effects: { skills: { security: 5 }, relationships: { kollegen: 6 } },
+        resultText: '"Glaub den leisen Signalen", sagt er. "Und hab einen Plan, BEVOR du ihn brauchst." Ihr geht eure Vorbereitung im Licht seiner Erfahrung noch einmal durch.',
+        setsFlags: ['learned_from_bjorg'],
+        teachingMoment: 'Erfahrung aus früheren Vorfällen ist konkreter Verteidigungswert — Lessons Learned gehören in die Vorbereitung, nicht ins Archiv.',
+      },
+      {
+        id: 'reassure',
+        text: 'Ihm sagen, dass es diesmal anders läuft — weil ihr vorbereitet seid',
+        effects: { relationships: { kollegen: 8 }, stress: -5 },
+        resultText: '"Diesmal hört jemand zu", sagst du. "Diesmal haben wir einen Plan." Bjorg lächelt müde. "Ja. Diesmal schon." Es klingt fast nach Hoffnung.',
+        setsFlags: ['reassured_bjorg'],
+      },
+    ],
+  },
+  {
+    id: 'adv_warning_signs',
+    title: 'Die ersten Risse',
+    category: 'story',
+    weekRange: [8, 8],
+    probability: 1,
+    description: `Dann fängt es an. Leise.
+
+Ein Ausschlag fehlgeschlagener Anmeldungen um 3:14 Uhr. Ein Backup-Job, der heute Nacht verdächtig schnell "fertig" war. Ein Domänencontroller mit ein paar Sekunden unerklärlicher Zeitabweichung.
+
+Jedes für sich: nichts. Zusammen: die Handschrift, die ihr seit Wochen kennt. Der Countdown steht bei null. Es passiert heute.`,
+    involvedCharacters: [],
+    tags: ['story', 'chapter8', 'act2', 'climax'],
+    choices: [
+      {
+        id: 'sound_alarm',
+        text: 'Alarm schlagen: alle Vorbereiteten in Stellung, jetzt',
+        effects: { skills: { softSkills: 3 }, stress: 10 },
+        resultText: 'Du löst die Kette aus, die ihr geübt habt. Telefone klingeln, Leute nehmen ihre Positionen ein. Wenn es kommt, kommt es nicht in einen schlafenden Laden.',
+        setsFlags: ['raised_alarm', 'storm_imminent'],
+      },
+      {
+        id: 'final_check',
+        text: 'Die allerletzten Vorbereitungen abschließen, bevor es losbricht',
+        effects: { skills: { security: 5 }, stress: 5 },
+        resultText: 'Backups verifiziert, Segmente dicht, Notfall-Accounts bereit. Mehr könnt ihr nicht tun. Du atmest einmal tief durch.',
+        setsFlags: ['final_prep', 'storm_imminent'],
+      },
+      {
+        id: 'brace',
+        text: 'Position beziehen und warten — ihr seid so bereit, wie ihr sein könnt',
+        effects: { skills: { security: 3 }, stress: -3 },
+        resultText: 'Kein Aktionismus mehr. Ihr sitzt vor den Monitoren, ruhig, konzentriert. Stefan hat gewarnt. Ihr habt zugehört. Jetzt zeigt sich, ob es gereicht hat.',
+        setsFlags: ['braced', 'storm_imminent'],
       },
     ],
   },

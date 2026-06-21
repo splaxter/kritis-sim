@@ -339,14 +339,25 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   term.writeln('');
 
                   // Show success feedback
-                  term.writeln('\x1b[32m╔════════════════════════════════════════╗\x1b[0m');
-                  term.writeln('\x1b[32m║  ✓ Problem erfolgreich gelöst!        ║\x1b[0m');
-                  term.writeln('\x1b[32m╚════════════════════════════════════════╝\x1b[0m');
+                  term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
+                  term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
+                  term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
                   term.writeln('');
-                  term.writeln('\x1b[90mWeiter in 3 Sekunden...\x1b[0m');
 
-                  // Wait before transitioning
-                  setTimeout(() => onSolvedRef.current(cmd.skillGain || {}), 3000);
+                  // Learning mode: wait for Enter press instead of auto-advancing
+                  if (gameMode === 'learning') {
+                    term.writeln('\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m');
+                    const waitForEnter = (data: string) => {
+                      if (data === '\r') {
+                        term.onData(() => {});
+                        onSolvedRef.current(cmd.skillGain || {});
+                      }
+                    };
+                    term.onData(waitForEnter);
+                  } else {
+                    term.writeln('\x1b[90mWeiter in 3 Sekunden...\x1b[0m');
+                    setTimeout(() => onSolvedRef.current(cmd.skillGain || {}), 3000);
+                  }
                   return; // Don't write prompt after solution
                 }
 
@@ -379,12 +390,31 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 const solution = checkSolutions(teachedCommandsRef.current);
                 if (solution) {
                   term.writeln('');
-                  term.writeln('\x1b[32m╔════════════════════════════════════════╗\x1b[0m');
-                  term.writeln('\x1b[32m║  ✓ ' + (solution.resultText || 'Aufgabe gelöst!').slice(0, 35).padEnd(35) + ' ║\x1b[0m');
-                  term.writeln('\x1b[32m╚════════════════════════════════════════╝\x1b[0m');
+                  term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
+                  term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
+                  term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
                   term.writeln('');
-                  term.writeln('\x1b[90mWeiter in 2 Sekunden...\x1b[0m');
-                  setTimeout(() => onSolvedRef.current(solution.skillGain || {}), 2000);
+                  // Show full result text for learning mode
+                  if (solution.resultText) {
+                    term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
+                    term.writeln('');
+                  }
+
+                  // Learning mode: wait for Enter press instead of auto-advancing
+                  if (gameMode === 'learning') {
+                    term.writeln('\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m');
+                    // Set flag to wait for Enter
+                    const waitForEnter = (data: string) => {
+                      if (data === '\r') {
+                        term.onData(() => {}); // Clear handler
+                        onSolvedRef.current(solution.skillGain || {});
+                      }
+                    };
+                    term.onData(waitForEnter);
+                  } else {
+                    term.writeln('\x1b[90mWeiter in 2 Sekunden...\x1b[0m');
+                    setTimeout(() => onSolvedRef.current(solution.skillGain || {}), 2000);
+                  }
                   return;
                 }
 

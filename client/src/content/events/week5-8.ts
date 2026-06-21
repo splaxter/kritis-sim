@@ -289,6 +289,18 @@ Du hast: Eine veraltete PowerPoint von 2019, YouTube-Videos über Ransomware, un
         resultText: 'Nach 20 Minuten schläft die erste Reihe. {gf} schaut enttäuscht. Die Schulung wird als "Pflichtveranstaltung" abgehakt.',
       },
       {
+        id: 'solid_basics',
+        text: 'Ehrlich und einfach: Die fünf wichtigsten Regeln an echten Beispielen erklären',
+        effects: {
+          skills: { softSkills: 4, security: 2 },
+          relationships: { gf: 5, fachabteilung: 3 },
+          stress: 8,
+        },
+        resultText: 'Keine Show, aber Substanz: Du zeigst echte Phishing-Mails aus dem eigenen Postfach und drei klare Regeln. Die Leute nicken — das bleibt hängen.',
+        choiceTags: ['solid', 'honest'],
+        teachingMoment: 'Man braucht keine Live-Demo für eine gute Schulung. Wenige, konkrete, alltagsnahe Regeln schlagen eine aufgehübschte Folienschlacht.',
+      },
+      {
         id: 'fake_phishing',
         text: 'Fake-Phishing-Kampagne vorab starten und Ergebnisse präsentieren',
         requires: { skill: 'security', threshold: 45 },
@@ -676,6 +688,18 @@ Problem: Ihr habt keinen Plan B. Der Vertrag enthält ein SLA von 99.5% - aber w
           stress: 25,
         },
         resultText: 'Du googelst verzweifelt, rufst Kollegen an, schaust in alten Dokumenten. Nach 4 Stunden ist der Vendor von selbst wieder online. Du hast nur Zeit verbrannt.',
+      },
+      {
+        id: 'structured_escalation',
+        text: 'Strukturiert reagieren: Störung dokumentieren, Fachabteilungen informieren, Vendor-Support eskalieren',
+        effects: {
+          skills: { softSkills: 4 },
+          relationships: { gf: 5, fachabteilung: 8 },
+          stress: 12,
+        },
+        resultText: 'Du schreibst eine knappe Störungsmeldung, informierst die Fachabteilungen und eskalierst beim Vendor mit Vertrags-Referenz. Technisch löst es nichts, aber alle wissen Bescheid — und die SLA-Verletzung ist dokumentiert.',
+        choiceTags: ['solid', 'communicate'],
+        teachingMoment: 'Ohne tiefes Technik-Wissen ist sauberes Eskalieren und Kommunizieren die solide Wahl — und dokumentiert zugleich die SLA-Verletzung für später.',
       },
     ],
     tags: ['crisis', 'vendor', 'linux', 'softskills'],

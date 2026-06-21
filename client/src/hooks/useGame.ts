@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, EventEffects } from '@kritis/shared';
+import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, EventEffects, Skills } from '@kritis/shared';
 import {
   createInitialState,
   applyEffects,
@@ -20,7 +20,7 @@ import {
   cleanupPendingEvent,
 } from '../engine/chainEngine';
 
-export type GamePhase = 'menu' | 'playing' | 'terminal' | 'result' | 'gameover';
+export type GamePhase = 'menu' | 'playing' | 'terminal' | 'result' | 'gameover' | 'storyEnding';
 export type ContentType = 'event' | 'scenario';
 
 interface UseGameReturn {
@@ -44,9 +44,10 @@ interface UseGameReturn {
   makeScenarioChoice: (choice: ScenarioChoice) => void;
   openTerminal: (choice: EventChoice) => void;
   openScenarioTerminal: (choice: ScenarioChoice) => void;
-  closeTerminal: (solved: boolean) => void;
+  closeTerminal: (solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[]) => void;
   continueGame: () => void;
   skipToNextDay: () => void;
+  endStoryAct: () => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -244,11 +245,17 @@ export function useGame(): UseGameReturn {
     setPhase('terminal');
   }, []);
 
-  const closeTerminal = useCallback((solved: boolean) => {
+  // `skillGain` is the reward from the matched terminal/GUI *solution* (extra
+  // hands-on reward), applied additively ON TOP of the choice's own effects.
+  // Precedence: choice.effects always apply; solution.skillGain adds skills.
+  const closeTerminal = useCallback((solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[]) => {
     // Handle event terminal choice
     if (solved && pendingTerminalChoice) {
       setState((prev) => {
         let newState = applyEffects(prev, pendingTerminalChoice.effects);
+        if (skillGain && Object.keys(skillGain).length > 0) {
+          newState = applyEffects(newState, { skills: skillGain });
+        }
 
         // Chain system: Record the decision
         if (currentEvent) {
@@ -262,11 +269,12 @@ export function useGame(): UseGameReturn {
           newState = cleanupPendingEvent(newState, currentEvent.id);
         }
 
-        if (pendingTerminalChoice.setsFlags) {
+        // Flags from the choice AND from the matched solution (e.g. full vs
+        // partial), so a later level can branch on how this one was solved.
+        const flagsToSet = [...(pendingTerminalChoice.setsFlags ?? []), ...(solutionFlags ?? [])];
+        if (flagsToSet.length > 0) {
           const flags = { ...newState.flags };
-          for (const flag of pendingTerminalChoice.setsFlags) {
-            flags[flag] = true;
-          }
+          for (const flag of flagsToSet) flags[flag] = true;
           newState.flags = flags;
         }
 
@@ -287,17 +295,21 @@ export function useGame(): UseGameReturn {
     if (solved && pendingScenarioTerminalChoice) {
       setState((prev) => {
         const effects = calculateScenarioEffects(pendingScenarioTerminalChoice);
-        const newState = applyEffects(prev, effects);
+        let newState = applyEffects(prev, effects);
+        if (skillGain && Object.keys(skillGain).length > 0) {
+          newState = applyEffects(newState, { skills: skillGain });
+        }
 
         if (currentScenario) {
           newState.completedScenarios = [...(prev.completedScenarios || []), currentScenario.id];
         }
 
+        const flags = { ...newState.flags };
         if (pendingScenarioTerminalChoice.triggersEvent) {
-          const flags = { ...newState.flags };
           flags[`triggered_${pendingScenarioTerminalChoice.triggersEvent}`] = true;
-          newState.flags = flags;
         }
+        for (const flag of solutionFlags ?? []) flags[flag] = true;
+        newState.flags = flags;
 
         return newState;
       });
@@ -349,6 +361,12 @@ export function useGame(): UseGameReturn {
     });
   }, []);
 
+  // Story mode reached the end of authored content → act-break "Fortsetzung
+  // folgt" screen, instead of skipping empty days to a false victory.
+  const endStoryAct = useCallback(() => {
+    setPhase('storyEnding');
+  }, []);
+
   return {
     state,
     phase,
@@ -369,5 +387,6 @@ export function useGame(): UseGameReturn {
     closeTerminal,
     continueGame,
     skipToNextDay,
+    endStoryAct,
   };
 }

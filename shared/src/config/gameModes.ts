@@ -1,6 +1,6 @@
 /**
  * Game Mode Configurations
- * Defines all 5 game modes with their specific settings
+ * Defines visible and hidden game modes with their specific settings
  */
 
 import { GameModeConfig, GameModeId, VISIBLE_MODES } from '../types/gameMode';

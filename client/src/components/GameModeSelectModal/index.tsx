@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { GameModeId, GameModeConfig, getVisibleGameModes } from '@kritis/shared';
+import { GameModeId, GameModeConfig, getVisibleGameModes, RECOMMENDED_MODE_ID } from '@kritis/shared';
 import { AsciiFrame } from '../TerminalUI';
 
 interface GameModeSelectModalProps {
@@ -13,8 +13,10 @@ interface GameModeSelectModalProps {
 }
 
 export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalProps) {
-  const [selectedIndex, setSelectedIndex] = useState(0);
   const modes = getVisibleGameModes();
+  // Pre-select the recommended mode so newcomers can just hit Enter.
+  const recommendedIndex = Math.max(0, modes.findIndex((m) => m.id === RECOMMENDED_MODE_ID));
+  const [selectedIndex, setSelectedIndex] = useState(recommendedIndex);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -40,6 +42,12 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
       <div className="w-full max-w-2xl">
         <AsciiFrame title="SPIELMODUS WÄHLEN" variant="info">
           <div className="p-4 space-y-3">
+            {/* Newcomer guidance — the picker shows 4 modes before you know the game. */}
+            <p className="text-terminal-green-dim text-sm">
+              Neu hier? <span className="text-terminal-green">Einsteiger</span> ist vorausgewählt —
+              einfach Enter drücken. Erfahrene wählen mit [↑↓].
+            </p>
+
             {/* Mode cards - single click starts directly */}
             <div className="space-y-2">
               {modes.map((mode, index) => (
@@ -47,6 +55,7 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
                   key={mode.id}
                   mode={mode}
                   isSelected={index === selectedIndex}
+                  isRecommended={mode.id === RECOMMENDED_MODE_ID}
                   onClick={() => onSelect(mode.id)}
                   onMouseEnter={() => setSelectedIndex(index)}
                 />
@@ -75,11 +84,12 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
 interface GameModeCardProps {
   mode: GameModeConfig;
   isSelected: boolean;
+  isRecommended: boolean;
   onClick: () => void;
   onMouseEnter: () => void;
 }
 
-function GameModeCard({ mode, isSelected, onClick, onMouseEnter }: GameModeCardProps) {
+function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter }: GameModeCardProps) {
   const borderColor = isSelected
     ? 'border-terminal-green bg-terminal-green/10'
     : 'border-terminal-border hover:border-terminal-info';
@@ -103,6 +113,11 @@ function GameModeCard({ mode, isSelected, onClick, onMouseEnter }: GameModeCardP
             <span className="text-terminal-green-dim text-sm">
               ({mode.gameLength.totalWeeks} Wochen)
             </span>
+            {isRecommended && (
+              <span className="text-xs text-terminal-info border border-terminal-info px-1.5 py-0.5 tracking-wide">
+                ★ EMPFOHLEN
+              </span>
+            )}
           </div>
           <div className="text-terminal-green-dim text-sm">
             {mode.description}

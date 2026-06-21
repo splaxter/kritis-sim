@@ -4,6 +4,7 @@ export * from './types/gameMode';
 export * from './types/events';
 export * from './types/characters';
 export * from './types/terminal';
+export * from './types/gui';
 export * from './types/meta';
 export * from './types/content';
 export * from './types/npcs';
