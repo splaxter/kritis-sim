@@ -18,10 +18,10 @@ const lesson = learningPathEvents.find((e) => e.id === ID)!;
 const ctx = lesson?.terminalContext;
 
 describe(`learning lesson: ${ID}`, () => {
-  it('is a learning-mode terminal lesson gated on the network lesson', () => {
+  it('is a learning-mode terminal lesson gated on the Explorer ACL lesson', () => {
     expect(lesson, `${ID} must be authored in learning-path.ts`).toBeDefined();
     expect(lesson.requiredModes).toContain('learning');
-    expect(lesson.requires?.events).toContain('learn_08_network_recon');
+    expect(lesson.requires?.events).toContain('gui_explorer_auth_users');
   });
 
   it('wins on BOTH identify-orphan AND remove-orphan', () => {
@@ -73,11 +73,16 @@ describe(`learning lesson: ${ID}`, () => {
     expect(/sed|stefan@old-laptop/.test(first), `first hint gives it away: "${first}"`).toBe(false);
   });
 
-  it('is reachable in learning mode only after the network lesson', () => {
+  it('is reachable in learning mode only after the Explorer ACL lesson', () => {
     const base = createInitialState('SEED', 'learning');
-    const before: GameState = { ...base, completedEvents: [] };
+    // Not yet unlocked: the Explorer ACL prereq (gui_explorer_auth_users) is missing.
+    const before: GameState = { ...base, completedEvents: ['learn_04_grep_hunter', 'gui_explorer_open_share'] };
     expect(getAvailableEvents(allEvents, before).map((e) => e.id)).not.toContain(ID);
-    const after: GameState = { ...base, completedEvents: ['learn_08_network_recon'] };
+    // Full transitive chain: learn_04_grep_hunter ← gui_explorer_open_share ← gui_explorer_auth_users.
+    const after: GameState = {
+      ...base,
+      completedEvents: ['learn_04_grep_hunter', 'gui_explorer_open_share', 'gui_explorer_auth_users'],
+    };
     expect(getAvailableEvents(allEvents, after).map((e) => e.id)).toContain(ID);
   });
 });

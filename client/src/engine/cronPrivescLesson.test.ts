@@ -15,10 +15,10 @@ const ID = 'learn_adv_cron_privesc';
 const lesson = learningPathEvents.find((e) => e.id === ID)!;
 
 describe(`learning lesson: ${ID}`, () => {
-  it('is a learning-mode terminal lesson gated on the process lesson', () => {
+  it('is a learning-mode terminal lesson gated on the SSH-orphan lesson', () => {
     expect(lesson, `${ID} must be authored in learning-path.ts`).toBeDefined();
     expect(lesson.requiredModes).toContain('learning');
-    expect(lesson.requires?.events).toContain('learn_06_zombie_hunt');
+    expect(lesson.requires?.events).toContain('learn_adv_ssh_orphan');
   });
 
   it('wins on BOTH find-writable AND fix-perms', () => {
@@ -64,11 +64,26 @@ describe(`learning lesson: ${ID}`, () => {
     expect(/chmod|cleanup\.sh/.test(first), `first hint reveals the fix: "${first}"`).toBe(false);
   });
 
-  it('is reachable in learning mode only after the process lesson', () => {
+  it('is reachable in learning mode only after the SSH-orphan lesson', () => {
     const base = createInitialState('SEED', 'learning');
-    const before: GameState = { ...base, completedEvents: [] };
+    // Not yet unlocked: learn_adv_ssh_orphan itself is missing, even though its
+    // own prereqs are complete.
+    const before: GameState = {
+      ...base,
+      completedEvents: ['learn_04_grep_hunter', 'gui_explorer_open_share', 'gui_explorer_auth_users'],
+    };
     expect(getAvailableEvents(allEvents, before).map((e) => e.id)).not.toContain(ID);
-    const after: GameState = { ...base, completedEvents: ['learn_06_zombie_hunt'] };
+    // Full transitive chain ending in learn_adv_ssh_orphan (which needs
+    // gui_explorer_auth_users ← gui_explorer_open_share ← learn_04_grep_hunter).
+    const after: GameState = {
+      ...base,
+      completedEvents: [
+        'learn_04_grep_hunter',
+        'gui_explorer_open_share',
+        'gui_explorer_auth_users',
+        'learn_adv_ssh_orphan',
+      ],
+    };
     expect(getAvailableEvents(allEvents, after).map((e) => e.id)).toContain(ID);
   });
 });

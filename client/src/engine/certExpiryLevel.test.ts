@@ -15,10 +15,10 @@ const ID = 'gui_eventviewer_cert_expiry';
 const level = guiLevelEvents.find((e) => e.id === ID)!;
 
 describe(`GUI level: ${ID}`, () => {
-  it('is a learning Event Viewer level gated on the brute-force level', () => {
+  it('is a learning Event Viewer level gated on the DNS split-brain lesson', () => {
     expect(level, `${ID} must be authored in gui-levels.ts`).toBeDefined();
     expect(level.requiredModes).toContain('learning');
-    expect(level.requires?.events).toContain('gui_eventviewer_bruteforce');
+    expect(level.requires?.events).toContain('learn_adv_dns_splitbrain');
     expect(level.guiContext?.app).toBe('eventviewer');
   });
 
@@ -49,13 +49,18 @@ describe(`GUI level: ${ID}`, () => {
     expect(givesItAway, `first hint gives away the answer: "${first}"`).toBe(false);
   });
 
-  it('is reachable in learning mode only after the brute-force level', () => {
+  it('is reachable in learning mode only after the DNS split-brain lesson', () => {
     const base = createInitialState('SEED', 'learning');
-    const before: GameState = { ...base, completedEvents: ['learn_04_grep_hunter'] };
+    // Not yet unlocked: the DNS split-brain prereq (learn_adv_dns_splitbrain) is missing.
+    const before: GameState = {
+      ...base,
+      completedEvents: ['learn_04_grep_hunter', 'learn_08_network_recon'],
+    };
     expect(getAvailableEvents(allEvents, before).map((e) => e.id)).not.toContain(ID);
+    // Full transitive chain: learn_04_grep_hunter ← learn_08_network_recon ← learn_adv_dns_splitbrain.
     const after: GameState = {
       ...base,
-      completedEvents: ['learn_04_grep_hunter', 'gui_eventviewer_bruteforce'],
+      completedEvents: ['learn_04_grep_hunter', 'learn_08_network_recon', 'learn_adv_dns_splitbrain'],
     };
     expect(getAvailableEvents(allEvents, after).map((e) => e.id)).toContain(ID);
   });

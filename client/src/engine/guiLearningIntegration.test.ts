@@ -88,30 +88,45 @@ describe('GUI levels in learning mode — engine integration', () => {
     }
   });
 
-  it('interleaves GUI levels with terminal lessons (anti-clustering in selectNextEvent)', () => {
-    const longestGuiRun = (seq: string[]): number => {
-      let maxRun = 0;
-      let run = 0;
-      for (const id of seq) {
-        run = id.startsWith('gui_') ? run + 1 : 0;
-        maxRun = Math.max(maxRun, run);
-      }
-      return maxRun;
-    };
+  it('never serves a 3rd consecutive GUI level while a non-GUI lesson is available (MAX_CONSECUTIVE_GUI)', () => {
+    // The live guarantee in selectNextEvent: after 2 GUI levels in a row, it
+    // prefers non-GUI content WHILE ANY non-GUI event remains selectable. Under
+    // the track-based path, terminal lessons can themselves gate behind a GUI
+    // level (e.g. learn_adv_ssh_orphan ← gui_explorer_auth_users), so there are
+    // legitimate moments where the ONLY selectable content is GUI — a 3-in-a-row
+    // run there reflects the prerequisite graph, not a clustering failure. So we
+    // assert the property the cap actually enforces: every time the engine picks
+    // a GUI level that would extend a GUI streak to >=3, there was no non-GUI
+    // learning event available to serve instead.
     const seeds = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF'];
-
-    // The guarantee that matters: while any terminal lesson is still unplayed,
-    // selectNextEvent's MAX_CONSECUTIVE_GUI cap forces a terminal after 2 GUI in
-    // a row. Once every terminal lesson is done, remaining GUI capstones can run
-    // back-to-back at the TAIL — that's a finale, not a mid-game pileup. So we
-    // assert the mid-game streak (everything up to and incl. the last terminal
-    // lesson) stays <=2; the tail is allowed to stack.
     for (const seed of seeds) {
-      const seq = playLearning(seed);
-      const lastTerminalIdx = seq.map((id) => id.startsWith('learn_')).lastIndexOf(true);
-      const midGame = seq.slice(0, lastTerminalIdx + 1);
-      const worstMid = longestGuiRun(midGame);
-      expect(worstMid, `seed ${seed}: mid-game GUI streak = ${worstMid} (tail excluded)`).toBeLessThanOrEqual(2);
+      let state: GameState = { ...createInitialState(seed, 'learning'), completedEvents: [] };
+      let trailingGui = 0;
+      for (let i = 0; i < 80; i++) {
+        const event = selectNextEvent(allEvents, state, state.seed);
+        if (!event) {
+          state = { ...state, currentDay: state.currentDay + 1 };
+          continue;
+        }
+        const isGui = !!event.guiContext;
+        if (isGui && trailingGui >= 2) {
+          // The cap should only be "overridden" when nothing non-GUI is selectable.
+          const available = getAvailableEvents(allEvents, state);
+          const nonGuiAvailable = available.filter((e) => !e.guiContext);
+          expect(
+            nonGuiAvailable.length,
+            `seed ${seed}: 3rd consecutive GUI (${event.id}) served while non-GUI was available: [${nonGuiAvailable
+              .map((e) => e.id)
+              .join(',')}]`
+          ).toBe(0);
+        }
+        trailingGui = isGui ? trailingGui + 1 : 0;
+        state = {
+          ...state,
+          completedEvents: [...state.completedEvents, event.id],
+          currentDay: state.currentDay + 1,
+        };
+      }
     }
   });
 
