@@ -923,6 +923,198 @@ Tasks: 120 total, 2 running
     tags: ['learning', 'terminal', 'linux', 'level3', 'processes', 'story'],
   },
 
+  // ----------------------------------------------------------------
+  // ADVANCED (optional, unlocks after Lektion 6). Thematic sequel: L6 was a
+  // VISIBLE CPU hog; this is an INVISIBLE disk hog — a deleted-but-still-open
+  // file handle. Multi-step win: diagnose (lsof +L1) AND fix (restart the
+  // holding service). No "Lektion N" number, so it reads as a bonus and
+  // doesn't renumber the curriculum. Surfaces via the engine's interleaving
+  // once learn_06 is done.
+  // ----------------------------------------------------------------
+  {
+    id: 'learn_adv_phantom_storage',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_06_zombie_hunt'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Fortgeschritten: Der unsichtbare Speicherfresser',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  ⚠️  DISK-ALARM — warm-srv-log01                             ║
+║                                                              ║
+║  /  [████████████████████████████████████████] 100%  0 B frei║
+║                                                              ║
+║  rsyslog: kann nicht schreiben (No space left on device)     ║
+║  Monitoring: Log-Eingang gestoppt                            ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Der zentrale Log-Server ist voll. Komplett. Keine Bytes mehr frei.
+
+Du fängst an aufzuräumen … aber die Logs unter \`/var/log\` sind gar nicht so groß. Du rechnest zusammen — und kommst nicht mal annähernd auf die belegte Menge. Der Platz ist weg, aber **du findest ihn nicht**.
+
+Irgendwo hält etwas die Platte fest. Du musst herausfinden, *wer* — und ihn dazu bringen, loszulassen.
+
+**Deine Aufgabe:**
+- \`df -h\` — wie voll ist die Platte wirklich?
+- \`du -sh /var/log/*\` — wo steckt der Platz? (rechne nach …)
+- Finde heraus, *wer* den Speicher in Wirklichkeit festhält — und gib ihn frei.`,
+    mentorNote:
+      'Eine gelöschte Datei, die ein Prozess noch offen hält, gibt ihren Speicher erst frei, wenn der Prozess sie schließt. df zählt die belegten Blöcke weiter, du findet die Datei nicht mehr — ihr Verzeichniseintrag ist schon weg. Der saubere Fix ist NICHT noch mehr löschen, sondern den haltenden Dienst gezielt neu zu starten.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Speicher-Mysterium untersuchen...',
+        effects: { skills: { linux: 5, troubleshooting: 5 } },
+        resultText: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 SPEICHER ZURÜCK                                          ║
+║                                                              ║
+║  Übeltäter: rsyslogd (PID 812)                               ║
+║  hielt: /var/log/warm-debug.log (gelöscht) ≈ 42 GB           ║
+║                                                              ║
+║  /  [██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 13%  43 G frei║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Klassiker gelöst! Jemand hatte vor Wochen Debug-Logging angeschaltet. logrotate hat die 42-GB-Datei zwar gelöscht — aber rsyslogd hielt den Dateihandle offen weiter. Der Platz blieb belegt, ohne dass eine Datei zu sehen war.
+
+Ein gezielter Neustart des Dienstes hat den Handle geschlossen — und 42 GB sind sofort zurück. Kein Reboot, kein Datenverlust.`,
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-srv-log01',
+      username: 'root',
+      currentPath: '/var/log',
+      commands: [
+        {
+          pattern: 'df -h',
+          patternRegex: '^df',
+          output: `Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1        50G   50G     0 100% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+
+# 100% voll, 0 frei. Aber wo sind die 50 GB hin?`,
+          teachesCommand: 'df',
+          skillGain: { linux: 2 },
+        },
+        {
+          pattern: 'du -sh /var/log/*',
+          patternRegex: '^du',
+          output: `1.2G	/var/log/journal
+220M	/var/log/nginx
+84M	/var/log/syslog
+12M	/var/log/auth.log
+6.0M	/var/log/dpkg.log
+
+# Summe /var/log ≈ 1.6 GB. Selbst die ganze Platte bringt per du nur
+# ~7 GB zusammen. Wo sind die fehlenden ~42 GB?!`,
+          teachesCommand: 'du',
+          skillGain: { linux: 2, troubleshooting: 2 },
+        },
+        {
+          pattern: 'ls -lh',
+          patternRegex: '^ls\\b',
+          output: `insgesamt 1,6G
+drwxr-xr-x  2 root    root   4,0K Jun 22 03:00 journal
+-rw-r-----  1 syslog  adm      84M Jun 22 09:14 syslog
+-rw-r-----  1 syslog  adm      12M Jun 22 09:14 auth.log
+-rw-r--r--  1 root    root    6,0M Jun 20 06:25 dpkg.log
+
+# Sieht völlig normal aus. Keine Riesen-Datei in Sicht — genau das ist
+# der Hinweis: die Datei steht nicht mehr im Verzeichnis.`,
+          skillGain: { linux: 1 },
+        },
+        {
+          pattern: 'lsof +L1',
+          patternRegex: 'lsof\\s*\\+L1|lsof[^|]*\\|\\s*grep\\s+deleted|lsof[^|]*deleted',
+          output: `COMMAND   PID  USER  FD   TYPE DEVICE   SIZE/OFF NLINK   NODE NAME
+rsyslogd  812  root   7w   REG    8,1 45097156608     0 393219 /var/log/warm-debug.log (deleted)
+nginx    1455 www-d   3w   REG    8,1    2097152     1 131074 /var/log/nginx/access.log
+
+# DA! rsyslogd (PID 812) hält /var/log/warm-debug.log offen — NLINK 0
+# heißt gelöscht, aber der Handle lebt. SIZE/OFF ≈ 42 GB. Solange der
+# Prozess die Datei offen hält, gibt das System den Platz nicht frei.`,
+          teachesCommand: 'lsof-deleted',
+          skillGain: { linux: 4, troubleshooting: 3, security: 1 },
+        },
+        {
+          pattern: 'lsof',
+          patternRegex: '^lsof\\s*$',
+          output: `COMMAND   PID  USER  FD   TYPE DEVICE SIZE/OFF   NODE NAME
+init        1  root  cwd   DIR    8,1     4096      2 /
+sshd      234  root  mem   REG    8,1   166008    ... /usr/sbin/sshd
+... (mehrere tausend Zeilen) ...
+
+# Viel zu viel auf einmal. Du suchst eine GELÖSCHTE, noch offene Datei —
+# dafür gibt es einen Filter für Link-Count 0.`,
+          skillGain: { linux: 1 },
+        },
+        {
+          pattern: 'systemctl restart rsyslog',
+          patternRegex: 'systemctl\\s+restart\\s+rsyslog|service\\s+rsyslog\\s+restart|systemctl\\s+restart\\s+syslog',
+          output: `[ ok ] Restarting rsyslog ...
+rsyslog.service: gestoppt (Dateihandle geschlossen)
+rsyslog.service: gestartet
+
+# Dienst neu gestartet — der offene Handle ist weg. Prüf den Platz:
+# df -h zeigt jetzt 43 G frei. Der Speicher ist zurück.`,
+          teachesCommand: 'restart-service',
+          skillGain: { linux: 4, troubleshooting: 4 },
+        },
+        {
+          pattern: 'systemctl restart nginx',
+          patternRegex: 'systemctl\\s+restart\\s+(nginx|apache2|mysql|ssh)|service\\s+(nginx|apache2|mysql)\\s+restart',
+          output: `[ ok ] Dienst neu gestartet.
+
+# Läuft wieder — aber df zeigt weiter 100%. Das war nicht der Prozess,
+# der die gelöschte Datei festhält. Schau nochmal genau hin, WER den
+# Handle offen hat.`,
+          skillGain: { linux: 1 },
+        },
+        {
+          pattern: 'rm',
+          patternRegex: '^rm\\b|truncate|:\\s*>\\s*/var',
+          output: `# Du löschst noch mehr Dateien — aber die 42 GB bleiben belegt. Die
+# Datei ist längst gelöscht; ihr Platz hängt am offenen Handle, nicht
+# am Verzeichnis. Mehr löschen hilft hier NICHT.`,
+          wrongApproachFeedback:
+            'Mehr löschen bringt den Platz nicht zurück — er hängt an einem offenen Handle, nicht an einer sichtbaren Datei.',
+          skillGain: {},
+        },
+        {
+          pattern: 'reboot',
+          patternRegex: '^reboot|shutdown\\s+-r',
+          output: `# Ein Reboot würde den Platz freigeben (alle Handles sterben) — aber das
+# nimmt den KRITIS-Log-Server für Minuten vom Netz und reißt alle anderen
+# Dienste mit. Es geht gezielter: nur den einen Dienst neu starten.`,
+          skillGain: { linux: 1 },
+        },
+      ],
+      solutions: [
+        {
+          commands: ['lsof-deleted', 'restart-service'],
+          allRequired: true,
+          resultText:
+            'Sauber diagnostiziert und gezielt behoben: rsyslogd hielt eine gelöschte 42-GB-Debug-Log offen — lsof +L1 hat den Handle sichtbar gemacht, der Dienst-Neustart hat ihn geschlossen. 43 GB sofort zurück, ohne Reboot.',
+          skillGain: { linux: 6, troubleshooting: 6 },
+          effects: { stress: -8 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "df sagt voll, du findest den Platz nicht? Dann liegt er nicht mehr im Dateisystem — er hängt noch woanders fest."',
+        '🤖 Bjorg: "Eine gelöschte Datei, die ein Prozess noch offen hält, belegt weiter Platz. Es gibt ein Tool, das offene Dateien auflistet."',
+        '🤖 Bjorg: "lsof +L1 zeigt offene Dateien mit Link-Count 0 — gelöscht, aber noch offen. Da steht der Übeltäter samt PID und Dienst."',
+        '🤖 Bjorg: "Den Platz gibt erst der haltende Prozess frei. Starte gezielt SEINEN Dienst neu (systemctl restart …) — kein Reboot, kein rm."',
+      ],
+    },
+    tags: ['learning', 'terminal', 'linux', 'advanced', 'troubleshooting', 'disk', 'forensics'],
+  },
+
   // ============================================
   // ACT 3: THE INFRASTRUCTURE
   // ============================================
