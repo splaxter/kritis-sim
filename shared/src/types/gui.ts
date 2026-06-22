@@ -8,7 +8,13 @@ import { Skills } from './skills';
  */
 
 /** Which fake Windows app a GUI level renders. Extend as new apps are added. */
-export type GuiAppId = 'taskmanager' | 'eventviewer' | 'uac' | 'explorer' | 'settings';
+export type GuiAppId =
+  | 'taskmanager'
+  | 'eventviewer'
+  | 'uac'
+  | 'explorer'
+  | 'settings'
+  | 'corefirewall';
 
 /** Windows Event Viewer severity levels (German labels rendered in the UI). */
 export type EventLevel =
@@ -136,6 +142,52 @@ export interface ExplorerState {
   entries: AclEntry[];
 }
 
+/** A single rule row in the Core-Firewall console. */
+export interface FirewallRuleEntry {
+  /** Stable key used in interaction tokens ('block:<id>', 'unblock:<id>'). */
+  id: string;
+  /** Display label, e.g. 'SSH von extern → Jump-Server'. */
+  label: string;
+  /** Traffic direction shown as a badge. */
+  direction: 'inbound' | 'outbound';
+  /** Source/target shown in the row, e.g. '185.234.72.15' or 'scada-net'. */
+  target: string;
+  /** Current rule action — the seed/live state, toggled by the player. */
+  action: 'allow' | 'block';
+  /** Hostile/over-broad rule that must be blocked — the one(s) to act on. */
+  hostile?: boolean;
+  /**
+   * Critical link (e.g. the Leitstand management rule). Blocking it is refused
+   * with `riskFeedback` instead of succeeding — pulling it cuts the control room.
+   */
+  critical?: boolean;
+  /** Warning shown when the player tries to block a critical rule. */
+  riskFeedback?: string;
+}
+
+/** A network segment that can be isolated from the rest of the plant. */
+export interface FirewallSubnet {
+  /** Stable key used in 'isolate:<id>' tokens. */
+  id: string;
+  label: string;
+  /** Whether the segment is already isolated at seed. */
+  isolated?: boolean;
+  /**
+   * Must-stay-reachable segment. Isolation is refused with `riskFeedback`
+   * (isolating it would take the plant offline).
+   */
+  critical?: boolean;
+  /** Warning shown when the player tries to isolate a critical segment. */
+  riskFeedback?: string;
+}
+
+export interface CoreFirewallState {
+  /** Appliance / zone name shown in the header, e.g. 'KRITIS-FW-CORE'. */
+  zoneName: string;
+  rules: FirewallRuleEntry[];
+  subnets: FirewallSubnet[];
+}
+
 /** App-specific seed state. The relevant field is keyed by the context's `app`. */
 export interface GuiAppState {
   taskManager?: TaskManagerState;
@@ -143,6 +195,7 @@ export interface GuiAppState {
   uac?: UacPromptState;
   settings?: SettingsState;
   explorer?: ExplorerState;
+  coreFirewall?: CoreFirewallState;
 }
 
 /**

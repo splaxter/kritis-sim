@@ -9,6 +9,7 @@ import { chainEvents } from './chains';
 import { storyEvents } from './story';
 import { learningPathEvents } from './learning-path';
 import { guiLevelEvents } from './gui-levels';
+import { blackoutEvents } from './blackout';
 
 export const allEvents: GameEvent[] = [
   ...week1Events,
@@ -21,6 +22,7 @@ export const allEvents: GameEvent[] = [
   ...storyEvents,
   ...learningPathEvents,
   ...guiLevelEvents,
+  ...blackoutEvents,
 ];
 
 export function getEventById(id: string): GameEvent | undefined {

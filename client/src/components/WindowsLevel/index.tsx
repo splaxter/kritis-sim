@@ -6,6 +6,7 @@ import { EventViewer } from './apps/EventViewer';
 import { UacPrompt } from './apps/UacPrompt';
 import { Settings } from './apps/Settings';
 import { Explorer } from './apps/Explorer';
+import { CoreFirewall } from './apps/CoreFirewall';
 import { useGuiLevel } from './useGuiLevel';
 
 interface WindowsLevelProps {
@@ -87,6 +88,7 @@ const APP_ICONS: Record<string, string> = {
   uac: '🛡️',
   explorer: '🗂️',
   settings: '⚙️',
+  corefirewall: '🧱',
 };
 
 export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: WindowsLevelProps) {
@@ -134,6 +136,16 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             shareName={context.state.explorer?.shareName ?? 'Freigabe'}
             sharePath={context.state.explorer?.sharePath ?? ''}
             entries={context.state.explorer?.entries ?? []}
+            emit={emit}
+            locked={solved}
+          />
+        );
+      case 'corefirewall':
+        return (
+          <CoreFirewall
+            zoneName={context.state.coreFirewall?.zoneName ?? 'KRITIS-FW-CORE'}
+            rules={context.state.coreFirewall?.rules ?? []}
+            subnets={context.state.coreFirewall?.subnets ?? []}
             emit={emit}
             locked={solved}
           />
