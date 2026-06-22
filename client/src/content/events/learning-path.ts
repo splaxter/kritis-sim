@@ -1661,6 +1661,180 @@ $ ls -l /opt/scripts/helpers/cleanup.sh
     tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'privesc', 'permissions'],
   },
 
+  // ----------------------------------------------------------------
+  // ADVANCED (optional, unlocks after Lektion 8). Offboarding / access
+  // lifecycle: an ex-admin's SSH key is still in authorized_keys long after
+  // AD/VPN were disabled — a backdoor. Win ONLY via targeted removal of the
+  // orphan line (comment stefan@old-laptop); rm authorized_keys, chmod 000,
+  // "delete all ssh- lines", and removing the ACTIVE deploy key are traps.
+  // ----------------------------------------------------------------
+  {
+    id: 'learn_adv_ssh_orphan',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_08_network_recon'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Fortgeschritten: Der Schlüssel des Vorgängers',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  📋 OFFBOARDING-AUDIT — warm-jump01                          ║
+║                                                              ║
+║  Admin Stefan ist zum 31.05. ausgeschieden. AD-Konto und     ║
+║  VPN wurden deaktiviert. ABER: hat jemand die SSH-Zugänge    ║
+║  geprüft? Schlüssel überleben das Offboarding oft.           ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Stefan ist seit Wochen weg. Sein AD-Konto ist tot, sein VPN gesperrt. Trotzdem könnte er sich — oder wer auch immer seinen alten Laptop hat — per **SSH-Schlüssel** einloggen, wenn der Key noch in \`authorized_keys\` steht.
+
+Auf dem Automatisierungs-Account des Jump-Hosts liegen mehrere Schlüssel. Einer davon gehört zu niemandem mehr. Finde **den einen** — und entferne nur den.
+
+**Deine Aufgabe:**
+- Existiert der Account überhaupt noch? Wem gehören die Schlüssel (Kommentare lesen)?
+- Identifiziere die **Karteileiche** — den Key des ausgeschiedenen Admins.
+- Entferne gezielt diese eine Zeile und verifiziere, dass die legitimen Keys bleiben.`,
+    mentorNote:
+      'SSH-Schlüssel sind ein eigener Zugangsweg — unabhängig von AD/VPN. Beim Offboarding muss man authorized_keys aller (auch geteilter Automatisierungs-)Accounts prüfen. Schlüssel werden über ihren KOMMENTAR identifiziert (z.B. stefan@old-laptop), nicht über einen System-User. Entferne gezielt die verwaiste Zeile — niemals die ganze Datei löschen oder die Rechte zerstören (chmod 000), das sperrt die legitimen Keys (CI/Deploy) gleich mit aus.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Die SSH-Zugänge prüfen...',
+        effects: { skills: { security: 4, linux: 3 } },
+        resultText: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 KARTEILEICHE ENTFERNT                                    ║
+║                                                              ║
+║  entfernt:  ssh-rsa ... stefan@old-laptop   (ausgeschieden) ║
+║  behalten:  ssh-ed25519 ... ansible@warm-automation  ✓      ║
+║             ssh-ed25519 ... mk@warm-mgmt             ✓      ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Sauber abgeschlossen. Der Schlüssel des ausgeschiedenen Admins ist raus — die legitimen Keys (CI/Automatisierung und der aktuelle Admin) bleiben unangetastet, der Betrieb läuft weiter. Offboarding heißt eben nicht nur AD und VPN, sondern auch jeden SSH-Key, der noch Zugang gewährt.`,
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-jump01',
+      username: 'root',
+      currentPath: '/home/deploy/.ssh',
+      commands: [
+        {
+          pattern: 'getent passwd stefan',
+          patternRegex: 'getent\\s+passwd\\s+stefan|grep\\s+stefan\\s+/etc/passwd|id\\s+stefan',
+          output: `# (keine Ausgabe)
+
+# Es gibt gar keinen System-User "stefan" mehr — der Account ist weg.
+# Sein Zugang lief über einen SSH-Key auf dem geteilten deploy-Account.
+# Schlüssel erkennt man am KOMMENTAR, nicht am Usernamen.`,
+          teachesCommand: 'check-account',
+          skillGain: { linux: 2, security: 1 },
+        },
+        {
+          pattern: 'stat /home/deploy/.ssh/authorized_keys',
+          patternRegex: 'stat\\s+.*authorized_keys|ls\\s+-l.*authorized_keys',
+          output: `  File: authorized_keys
+  Size: 1142        Access: (0600/-rw-------)  Uid: (1001/deploy)
+  Modify: 2025-11-02 23:14:08
+
+# Zuletzt im November geändert — seitdem hat niemand die Keys
+# kuratiert. Höchste Zeit, den Inhalt zu prüfen.`,
+          teachesCommand: 'check-keyfile',
+          skillGain: { linux: 1 },
+        },
+        {
+          pattern: 'cat /home/deploy/.ssh/authorized_keys',
+          patternRegex: 'cat\\s+.*authorized_keys',
+          output: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...3kQ ansible@warm-automation
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...7pV mk@warm-mgmt
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB...0c2 stefan@old-laptop
+
+# Drei Schlüssel, drei Kommentare:
+#  - ansible@warm-automation  → aktiver CI-/Deploy-Key
+#  - mk@warm-mgmt             → aktueller Admin
+#  - stefan@old-laptop        → der ausgeschiedene Admin. DAS ist die Karteileiche.`,
+          teachesCommand: 'identify-orphan',
+          skillGain: { security: 3, linux: 2 },
+        },
+        {
+          pattern: 'grep stefan /home/deploy/.ssh/authorized_keys',
+          patternRegex: 'grep\\s+.*(stefan|old-laptop|ausgeschieden).*authorized_keys',
+          output: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQAB...0c2 stefan@old-laptop
+
+# Genau diese eine Zeile gehört zum ausgeschiedenen Admin — und nur die
+# soll weg. Die anderen beiden Schlüssel bleiben.`,
+          teachesCommand: 'identify-orphan',
+          skillGain: { security: 2, troubleshooting: 1 },
+        },
+        {
+          pattern: "sed -i '/stefan@old-laptop/d' /home/deploy/.ssh/authorized_keys",
+          patternRegex: "sed\\s+-i.*(stefan|old-laptop|ex-admin)|sed\\s+.*(stefan|old-laptop|ex-admin).*\\/d",
+          output: `# Die Zeile mit stefan@old-laptop wurde entfernt.
+
+$ cat /home/deploy/.ssh/authorized_keys
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...3kQ ansible@warm-automation
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...7pV mk@warm-mgmt
+
+# Verifiziert: der verwaiste Schlüssel ist weg, die beiden legitimen
+# Keys (Automatisierung + aktueller Admin) sind unverändert da.`,
+          teachesCommand: 'remove-orphan',
+          skillGain: { security: 5, linux: 2, troubleshooting: 2 },
+        },
+        {
+          pattern: "sed -i '/ansible@warm-automation/d' /home/deploy/.ssh/authorized_keys",
+          patternRegex: 'sed.*(ansible|ci-runner|warm-automation|mk@warm-mgmt)|sed\\s+-i.*(deploy@|@warm-automation)',
+          output: `# STOP — das ist ein AKTIVER Schlüssel (CI-/Automatisierung bzw. der
+# aktuelle Admin), keine Karteileiche. Entfernst du den, brechen
+# Deployments oder der reguläre Admin-Zugang. Nur den Key des
+# Ausgeschiedenen (stefan@old-laptop) entfernen.`,
+          wrongApproachFeedback:
+            'Das ist ein aktiver Deploy-/Admin-Key, nicht die Karteileiche — nur stefan@old-laptop gehört entfernt.',
+          skillGain: {},
+        },
+        {
+          pattern: 'rm /home/deploy/.ssh/authorized_keys',
+          patternRegex: 'rm\\s+\\S*authorized_keys|truncate\\s+.*authorized_keys|>\\s*\\S*authorized_keys|sed.*ssh-(rsa|ed25519).*\\/d',
+          output: `# Niemals die ganze Datei (oder alle Key-Zeilen) löschen! Das sperrt
+# AUCH die legitimen Keys aus — CI/Deploy und der aktuelle Admin
+# verlieren sofort den Zugang. Entfernt wird nur die EINE verwaiste Zeile.`,
+          wrongApproachFeedback:
+            'Das löscht alle Zugänge, nicht nur den verwaisten — gezielt nur stefan@old-laptop entfernen.',
+          skillGain: {},
+        },
+        {
+          pattern: 'chmod 000 /home/deploy/.ssh/authorized_keys',
+          patternRegex: 'chmod\\s+0?00\\b',
+          output: `# Das macht die Datei für sshd unlesbar — alle Schlüssel fallen aus,
+# auch die legitimen. Das ist kein Offboarding, das ist ein Ausfall.
+# Die Lösung ist das gezielte Entfernen der einen Zeile.`,
+          wrongApproachFeedback:
+            'chmod 000 sperrt alle Keys aus (auch die legitimen) — das ist keine gezielte Entfernung.',
+          skillGain: {},
+        },
+      ],
+      solutions: [
+        {
+          commands: ['identify-orphan', 'remove-orphan'],
+          allRequired: true,
+          resultText:
+            'Access-Lifecycle sauber abgeschlossen: Du hast die Schlüssel über ihre Kommentare identifiziert, die Karteileiche des ausgeschiedenen Admins (stefan@old-laptop) gezielt entfernt und verifiziert, dass die legitimen Keys (CI/Automatisierung + aktueller Admin) bleiben. SSH-Zugänge gehören ins Offboarding — nicht nur AD und VPN.',
+          skillGain: { security: 6, linux: 2, troubleshooting: 2 },
+          effects: { stress: -5 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "AD und VPN sind gesperrt — aber SSH-Keys sind ein eigener Zugangsweg. Wer steht noch in authorized_keys?"',
+        '🤖 Bjorg: "Schlüssel erkennt man am Kommentar am Zeilenende. Welcher gehört zu jemandem, der gar nicht mehr da ist?"',
+        '🤖 Bjorg: "stefan@old-laptop — der Ausgeschiedene. Entferne GENAU diese Zeile, die anderen beiden Keys sind aktiv."',
+        '🤖 Bjorg: "Gezielt mit sed -i \'/stefan@old-laptop/d\' ... — niemals die ganze Datei löschen oder chmod 000, das sperrt CI und Admin mit aus."',
+      ],
+    },
+    tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'offboarding', 'ssh'],
+  },
+
   // ============================================
   // ACT 3: THE INFRASTRUCTURE
   // ============================================
