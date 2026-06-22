@@ -845,4 +845,119 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     },
     tags: ['learning', 'gui', 'windows', 'security', 'acl', 'least-privilege'],
   },
+
+  // Detect-and-report level (stays inside the Event Viewer token model — no
+  // "renew cert" action). A department reports TLS warnings, monitoring is
+  // green, and there is NO service-crash event: the server is up, the cert is
+  // expiring. The skill is reading CN/expiry, not chasing the loud red error.
+  {
+    id: 'gui_eventviewer_cert_expiry',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['gui_eventviewer_bruteforce'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'GUI-Lektion: Das Zertifikat, das heute Nacht stirbt',
+    description: `Die Bürger-Hotline meldet: Mehrere Sachbearbeiter bekommen seit dem Morgen TLS-/Zertifikatswarnungen auf \`portal.stadt.local\`. Das Monitoring ist grün — Ping und Port 443 antworten.
+
+\`\`\`
+[NACHRICHT VON: bjorg] "Wenn der Server wirklich down wäre, hätten wir einen
+                        Dienst-Absturz im Log. Haben wir aber nicht. Schau ins
+                        System-Protokoll — und lies bei den Zertifikats-Meldungen
+                        den Hostnamen UND das Ablaufdatum genau."
+\`\`\`
+
+**Deine Aufgabe:** Finde das Ereignis, das die TLS-Warnungen erklärt, und melde es — bevor das Zertifikat heute Nacht endgültig abläuft.`,
+    mentorNote:
+      'Ein ablaufendes TLS-Zertifikat ist KEIN Dienst-Absturz: der Server antwortet weiter, aber Clients brechen die Verbindung mit Zertifikatswarnungen ab. Achte auf CN/SAN (gilt das Zertifikat für genau diesen Hostnamen?) und das „Gültig bis"-Datum. Ein Monitoring, das nur Ping/Port prüft, sieht so etwas NICHT — deshalb „grün" trotz Problem.',
+    choices: [
+      {
+        id: 'open_eventlog_cert',
+        text: 'Ereignisanzeige öffnen...',
+        effects: { skills: { windows: 3, security: 4 }, stress: -1 },
+        resultText:
+          'Du hast die Ursache sauber von den lauten, aber harmlosen Meldungen getrennt: kein Crash, sondern ein ablaufendes Zertifikat. Gemeldet und eskaliert, bevor es heute Nacht abläuft.',
+        guiCommand: true,
+      },
+    ],
+    guiContext: {
+      app: 'eventviewer',
+      title: 'Ereignisanzeige',
+      hostname: 'SRV-PORTAL01',
+      briefing:
+        'Im System-Protokoll: Es gibt KEINEN Dienst-Absturz — der Server läuft. Finde die Zertifikats-Warnung zu portal.stadt.local (CN + Ablaufdatum lesen!), wähle sie aus und klicke „Als Vorfall melden". Lauter rote Fehler, die nichts mit TLS zu tun haben, lässt du liegen.',
+      state: {
+        eventViewer: {
+          logName: 'System',
+          entries: [
+            {
+              id: 'evt-spooler',
+              level: 'Fehler',
+              dateTime: '22.06.2026 07:41:12',
+              source: 'Service Control Manager',
+              eventId: 7034,
+              task: 'Dienst',
+              message:
+                'Der Dienst "Druckwarteschlange" wurde unerwartet beendet. Dies ist bereits 2 Mal vorgekommen.\n\n# Laut, rot — aber ein Drucker-Dienst, kein TLS. Nicht die Ursache der Portal-Warnungen.',
+            },
+            {
+              id: 'evt-schannel-ok',
+              level: 'Information',
+              dateTime: '22.06.2026 08:02:55',
+              source: 'Schannel',
+              eventId: 36880,
+              task: 'TLS',
+              message:
+                'Eine TLS-Verbindung wurde erfolgreich ausgehandelt.\nServer: mail.stadt.local\nProtokoll: TLS 1.3\n\n# TLS — aber erfolgreich, und ein ANDERER Host (mail). Ablenkung.',
+            },
+            {
+              id: 'evt-cert-expiry',
+              level: 'Warnung',
+              dateTime: '22.06.2026 06:00:03',
+              source: 'Microsoft-Windows-CertificateServicesClient',
+              eventId: 64,
+              task: 'Zertifikatsüberwachung',
+              message:
+                'Das Zertifikat für die lokale Webseite läuft in Kürze ab.\nAntragsteller (CN): portal.stadt.local\nSAN: portal.stadt.local, www.portal.stadt.local\nAussteller: Stadt-CA G2\nGültig bis: 23.06.2026 02:00:14  (HEUTE NACHT)\n\n⚠ Nach Ablauf weisen Browser die Verbindung mit Zertifikatswarnungen ab — obwohl der Dienst weiterläuft.',
+            },
+            {
+              id: 'evt-w32time',
+              level: 'Warnung',
+              dateTime: '22.06.2026 05:12:40',
+              source: 'Microsoft-Windows-Time-Service',
+              eventId: 134,
+              task: 'Zeitsynchronisierung',
+              message:
+                'NtpClient konnte den Zeitserver zeit.stadt.local für 30 Minuten nicht erreichen.\n\n# Eine zweite Warnung — aber Zeitsync, nicht TLS. Lies genau, sonst meldest du das Falsche.',
+            },
+            {
+              id: 'evt-update-info',
+              level: 'Information',
+              dateTime: '22.06.2026 03:30:00',
+              source: 'Microsoft-Windows-WindowsUpdateClient',
+              eventId: 19,
+              task: 'Installation',
+              message: 'Update erfolgreich installiert: 2026-06 Sicherheitsupdate.\n\n# Routine. Kein Bezug zu den Portal-Warnungen.',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['report:evt-cert-expiry'],
+          allRequired: true,
+          resultText:
+            'Richtig! Das Zertifikat für portal.stadt.local (CN passt) läuft heute Nacht um 02:00 ab. Der Server ist nicht down — er antwortet weiter, aber Clients lehnen das bald ungültige Zertifikat ab. Genau deshalb war das Monitoring grün und die Nutzer sahen trotzdem Warnungen. Rechtzeitig gemeldet, bevor es kippt.',
+          skillGain: { security: 4, windows: 2 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Kein Dienst-Absturz im Log = der Server läuft. Was löst TLS-Warnungen aus, OHNE dass etwas abstürzt?"',
+        '🤖 Bjorg: "Such eine Zertifikats-Meldung (CertificateServicesClient), keine rote Fehlermeldung. Und prüf: gilt sie für portal.stadt.local?"',
+        '🤖 Bjorg: "Die Warnung zu portal.stadt.local — Gültig bis heute Nacht. Das ist die Ursache. Auswählen und „Als Vorfall melden"."',
+      ],
+    },
+    tags: ['learning', 'gui', 'windows', 'security', 'certificates', 'tls', 'detection'],
+  },
 ];
