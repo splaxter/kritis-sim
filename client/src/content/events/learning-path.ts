@@ -1466,6 +1466,201 @@ Jun 22 09:05:12 warm-srv-web03 sudo:   deploy : COMMAND=/usr/bin/wget http://203
     tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'incident-response', 'forensics'],
   },
 
+  // ----------------------------------------------------------------
+  // ADVANCED (optional, unlocks after Lektion 6). "Sieht harmlos aus, ist aber
+  // wegen Dateirechten gefährlich": a root cron runs a clean 755 script — but
+  // that script SOURCES a world-writable helper in /opt/scripts/helpers/. The
+  // twist is the include chain: the obvious file is fine, the sourced one is
+  // the privesc hole. Multi-step win: find the writable include AND fix its
+  // perms (chmod o-w) — not disable the legitimate job.
+  // ----------------------------------------------------------------
+  {
+    id: 'learn_adv_cron_privesc',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_06_zombie_hunt'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Fortgeschritten: Der Cronjob, der zu viel darf',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🔍 SECURITY-AUDIT — warm-srv-backup01                       ║
+║                                                              ║
+║  Befund: "Privilege-Escalation-Risiko über nächtlichen       ║
+║  root-Cronjob." Der Admin winkt ab: "Das Backup läuft seit   ║
+║  Jahren sauber, das Script ist sogar root-only."             ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Jede Nacht läuft ein Wartungs-/Backup-Job als **root**. Das Script selbst gehört root und ist sauber gesetzt. Trotzdem flaggt das Audit ein Privesc-Risiko.
+
+Der Haken liegt selten beim offensichtlichen Script — sondern bei dem, was es **einbindet**. Ein root-Job ist nur so sicher wie *jede* Datei, die er ausführt, und *jeder*, der diese Dateien beschreiben darf.
+
+**Deine Aufgabe:**
+- Was führt root nachts aus? (\`/etc/crontab\`)
+- Folge der GANZEN Kette — welche Scripte ruft/bindet es ein?
+- Finde die Datei, die root ausführt und die **jemand anderes ändern darf** — und schließ die Lücke.`,
+    mentorNote:
+      'Ein root-Cronjob ist nur so sicher wie ALLE Dateien seiner Ausführungskette — inklusive eingebundener (sourced) Scripte. Ist eine davon world-writable (o+w), kann jeder lokale Nutzer ihren Inhalt ändern und beim nächsten Lauf als root ausführen lassen — klassische lokale Privilege Escalation. Prüfe Rechte UND Eigentümer der gesamten Kette (ls -l, find -perm -0002), nicht nur des offensichtlichen Scripts. Fix: world-write entfernen (chmod o-w), nicht den legitimen Job abschalten.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Die Ausführungskette prüfen...',
+        effects: { skills: { linux: 4, security: 4 } },
+        resultText: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 PRIVESC GESCHLOSSEN                                      ║
+║                                                              ║
+║  root-Cron → /opt/scripts/run-maintenance.sh   (755 root ✓) ║
+║         └─ source helpers/cleanup.sh   war: -rwxrwxrwx ✗    ║
+║                                        jetzt: -rwxr-xr-x ✓  ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Treffer. Das offensichtliche Wartungsskript war sauber — aber es bindet \`helpers/cleanup.sh\` ein, und DIE war world-writable. Jeder lokale Nutzer hätte beliebigen Code hineinschreiben können, den root in der nächsten Nacht ausführt. Mit \`chmod o-w\` ist die Schreibberechtigung weg, der Backup-Job läuft unverändert weiter. Lücke zu, ohne Betrieb zu stören.`,
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-srv-backup01',
+      username: 'root',
+      currentPath: '/opt/scripts',
+      commands: [
+        {
+          pattern: 'cat /etc/crontab',
+          patternRegex: 'cat\\s+/etc/crontab|crontab\\s+-l',
+          output: `# /etc/crontab
+SHELL=/bin/bash
+# m h dom mon dow user  command
+  0 2 *   *   *  root   /opt/scripts/run-maintenance.sh
+
+# root führt jede Nacht /opt/scripts/run-maintenance.sh aus.
+# Sieht normal aus — aber WAS genau macht (und lädt) dieses Script?`,
+          teachesCommand: 'read-crontab',
+          skillGain: { linux: 2 },
+        },
+        {
+          pattern: 'cat /opt/scripts/run-maintenance.sh',
+          patternRegex: 'cat\\s+\\S*run-maintenance',
+          output: `#!/bin/bash
+set -e
+# Nächtliche Wartung
+rsync -a /srv/data/ /backup/data/
+# gemeinsame Hilfsfunktionen einbinden:
+source /opt/scripts/helpers/cleanup.sh
+run_cleanup
+
+# Das Script selbst ist unauffällig — ABER es bindet
+# helpers/cleanup.sh per "source" ein. Das läuft auch als root.
+# Wer darf diese eingebundene Datei beschreiben?`,
+          teachesCommand: 'read-maintenance',
+          skillGain: { linux: 2, security: 2 },
+        },
+        {
+          pattern: 'ls -l /opt/scripts/helpers/',
+          patternRegex: 'ls\\s+-l.*opt/scripts/helpers|find\\s+.*-perm\\s+-0*2',
+          output: `insgesamt 8
+-rwxrwxrwx 1 root root  812 Jun 18 23:14 cleanup.sh
+
+# DA ist das Loch: cleanup.sh ist -rwxrwxrwx — world-writable.
+# Jeder lokale Nutzer (o+w) kann den Inhalt ändern. root bindet sie
+# ein und führt sie nachts aus = beliebiger Code als root.`,
+          teachesCommand: 'find-writable',
+          skillGain: { linux: 3, security: 4, troubleshooting: 2 },
+        },
+        {
+          pattern: 'ls -l /opt/scripts',
+          patternRegex: 'ls\\s+-l.*opt/scripts',
+          output: `insgesamt 12
+drwxr-xr-x 2 root root 4096 Jun 18 23:14 helpers
+-rwxr-xr-x 1 root root 1840 Jun 10 10:02 run-maintenance.sh
+
+# run-maintenance.sh: 755, root:root — völlig korrekt. Hier ist alles
+# sauber. Die Frage ist, was IN helpers/ liegt und was eingebunden wird.`,
+          teachesCommand: 'list-scripts',
+          skillGain: { linux: 2 },
+        },
+        {
+          pattern: 'cat /opt/scripts/helpers/cleanup.sh',
+          patternRegex: 'cat\\s+\\S*cleanup\\.sh',
+          output: `#!/bin/bash
+run_cleanup() {
+  find /tmp -type f -mtime +7 -delete
+  journalctl --vacuum-time=14d
+}
+
+# Inhalt ist (aktuell) harmlos — aber das ist NICHT der Punkt.
+# Solange jeder die Datei beschreiben darf, kann der Inhalt morgen
+# ganz anders aussehen. Das Risiko sind die Rechte, nicht der Code.`,
+          teachesCommand: 'read-cleanup',
+          skillGain: { linux: 1, security: 1 },
+        },
+        {
+          pattern: 'chmod o-w /opt/scripts/helpers/cleanup.sh',
+          patternRegex: 'chmod\\s+(o-w|g-w,o-w|o=rx|750|755|700|754|751|0750|0755|0700)\\s+\\S*cleanup\\.sh',
+          output: `# Schreibrecht für "andere" entfernt.
+
+$ ls -l /opt/scripts/helpers/cleanup.sh
+-rwxr-xr-x 1 root root 812 Jun 18 23:14 cleanup.sh
+
+# Jetzt kann nur noch root die Datei ändern. Der Cronjob läuft
+# unverändert weiter — die Privesc-Lücke ist geschlossen.`,
+          teachesCommand: 'fix-perms',
+          skillGain: { linux: 3, security: 5, troubleshooting: 2 },
+        },
+        {
+          pattern: 'chmod 777 /opt/scripts/helpers/cleanup.sh',
+          patternRegex: 'chmod\\s+(777|0777|a\\+w|o\\+w|666|646|766)\\s',
+          output: `# Falsche Richtung! Das gibt NOCH MEHR Leuten Schreibzugriff auf eine
+# Datei, die root ausführt. Du sollst world-write ENTFERNEN, nicht
+# hinzufügen.`,
+          wrongApproachFeedback:
+            'Du machst es schlimmer — die Datei braucht WENIGER Schreibrechte (chmod o-w), nicht mehr.',
+          skillGain: {},
+        },
+        {
+          pattern: 'chmod 755 /opt/scripts/run-maintenance.sh',
+          patternRegex: 'chmod\\s+\\S+\\s+\\S*run-maintenance',
+          output: `# run-maintenance.sh ist bereits korrekt (755, root:root). Hier ist
+# nichts zu reparieren. Die Lücke steckt im eingebundenen Script —
+# folge dem "source"-Aufruf.`,
+          wrongApproachFeedback:
+            'Falsche Datei: run-maintenance.sh ist schon sicher. Die Schwachstelle ist das eingebundene helpers/cleanup.sh.',
+          skillGain: {},
+        },
+        {
+          pattern: 'rm /etc/crontab',
+          patternRegex: 'rm\\s+/etc/crontab|crontab\\s+-r|systemctl\\s+(stop|disable)\\s+cron',
+          output: `# Der Cronjob selbst ist legitim — die nächtliche Wartung soll laufen.
+# Ihn abzuschalten "löst" das Problem nicht, es bricht nur das Backup.
+# Das Problem sind die Dateirechte, nicht der Job.`,
+          wrongApproachFeedback:
+            'Den legitimen Wartungs-Job abzuschalten ist keine Lösung — fix die Dateirechte.',
+          skillGain: {},
+        },
+      ],
+      solutions: [
+        {
+          commands: ['find-writable', 'fix-perms'],
+          allRequired: true,
+          resultText:
+            'Sauber: Du bist der Ausführungskette des root-Crons gefolgt, hast das eingebundene helpers/cleanup.sh als world-writable entlarvt (find -perm / ls -l) und die Schreibrechte für "andere" entfernt (chmod o-w). Der Backup-Job läuft weiter, die lokale Privilege-Escalation ist zu.',
+          skillGain: { linux: 3, security: 6, troubleshooting: 3 },
+          effects: { stress: -5 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Der Cronjob selbst ist harmlos. Die Gefahr ist eine Datei, die root ausführt und die JEMAND ANDERES ändern darf. Welche?"',
+        '🤖 Bjorg: "Schau nicht nur auf das offensichtliche Script. Was bindet run-maintenance.sh ein (source/.)? Und welche Rechte hat DIESE Datei?"',
+        '🤖 Bjorg: "ls -l /opt/scripts/helpers/ zeigt cleanup.sh als -rwxrwxrwx — world-writable. Jeder kann sie umschreiben, root führt sie aus."',
+        '🤖 Bjorg: "World-write weg: chmod o-w /opt/scripts/helpers/cleanup.sh. Den Cronjob selbst lässt du laufen."',
+      ],
+    },
+    tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'privesc', 'permissions'],
+  },
+
   // ============================================
   // ACT 3: THE INFRASTRUCTURE
   // ============================================
