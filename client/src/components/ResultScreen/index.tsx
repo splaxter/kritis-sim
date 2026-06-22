@@ -11,6 +11,8 @@ import { MentorNote } from '../MentorNote';
 export interface LearningResultCtas {
   /** track has a next playable level → primary "Nächste Lektion" */
   onNextLesson?: () => void;
+  /** title of the next lesson's track, shown in parentheses on the CTA */
+  nextLessonTrackTitle?: string;
   /** finale unlocked and not yet the finale/done → "Finale starten" */
   onStartFinale?: () => void;
   /** always available secondary (and the primary when the track is complete) */
@@ -113,7 +115,7 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
             onClick={ctas.onNextLesson}
             className="w-full p-3 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-center"
           >
-            Nächste Lektion
+            Nächste Lektion{ctas.nextLessonTrackTitle ? ` (${ctas.nextLessonTrackTitle})` : ''}
           </button>
         ) : (
           <button

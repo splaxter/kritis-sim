@@ -474,6 +474,7 @@ function AppContent() {
 
     learningResultCtas = {
       onNextLesson: next ? () => handleNextLesson(next) : undefined,
+      nextLessonTrackTitle: next ? getTrackOfLevel(next.id)?.title : undefined,
       onBackToHub: handleBackToHub,
       onStartFinale: offerFinale ? handleStartFinale : undefined,
     };

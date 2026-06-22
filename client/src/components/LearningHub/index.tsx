@@ -1,7 +1,7 @@
 /**
  * Learning Hub — topic-selection screen for learning mode.
  * Shows a recommended-next CTA and one card per learning track with
- * per-level progress. Standalone: not wired into App yet.
+ * per-level progress.
  */
 
 import { GameState, GameEvent } from '@kritis/shared';
@@ -89,7 +89,12 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
                 {progress.levels.map((level) => {
                   const title = levelTitle(level.id);
                   const glyph = LEVEL_GLYPH[level.state];
-                  const clickable = level.state === 'next' || level.state === 'advanced';
+                  // A level is only launchable if its track is unlocked. The finale
+                  // level's requires is just the Foundations gate, so without this
+                  // guard a locked finale card would still be clickable — bypassing
+                  // the hub-side ≥3-tracks rule (isFinaleUnlocked).
+                  const clickable =
+                    (level.state === 'next' || level.state === 'advanced') && !isLocked;
 
                   if (clickable) {
                     return (

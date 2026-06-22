@@ -46,6 +46,33 @@ describe('LearningHub', () => {
     expect(screen.getByText('1/3')).toBeInTheDocument();
   });
 
+  // Regression: the finale must stay hub-gated. Its level's `requires` is only
+  // the Foundations exit, so without the track-lock guard its card entry would be
+  // clickable and bypass the ≥3-tracks rule.
+  it('does NOT make the finale level clickable while the finale track is locked', () => {
+    // Foundations done but 0 core tracks complete → finale locked.
+    render(<LearningHub state={mkState(FOUNDATIONS_DONE)} onPick={vi.fn()} />);
+    expect(screen.getByText('Schließe 3 Tracks ab')).toBeInTheDocument();
+    // The finale level title must not render as a launch button.
+    expect(screen.queryByRole('button', { name: /Finale: Root Awakening/ })).toBeNull();
+  });
+
+  it('makes the finale level clickable once 3 core tracks are complete', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    // 3 completed core tracks: linux_services (05/06/07), network_dns (08), incident_response (10).
+    const state = mkState([
+      ...FOUNDATIONS_DONE,
+      'learn_05_pipe_filter', 'learn_06_zombie_hunt', 'learn_07_necromancer',
+      'learn_08_network_recon',
+      'learn_10_incident_boss',
+    ]);
+    render(<LearningHub state={state} onPick={onPick} />);
+    const finaleBtn = screen.getByRole('button', { name: /Finale: Root Awakening/ });
+    await user.click(finaleBtn);
+    expect(onPick.mock.calls.some((c) => c[0]?.id === 'learn_11_final_boss')).toBe(true);
+  });
+
   it('clicking a next-level entry calls onPick with that event', async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();
