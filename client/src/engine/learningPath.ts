@@ -14,6 +14,11 @@ function coreLevels(track: LearningTrack) {
   return track.levels.filter((l) => !l.optional);
 }
 
+/** The track a given learning level belongs to, or undefined if none. */
+export function getTrackOfLevel(levelId: string, tracks = LEARNING_TRACKS): LearningTrack | undefined {
+  return tracks.find((t) => t.levels.some((l) => l.eventId === levelId));
+}
+
 export function isFoundationsComplete(state: GameState, tracks = LEARNING_TRACKS): boolean {
   const f = tracks.find((t) => t.isFoundations);
   return !!f && coreLevels(f).every((l) => isDone(state, l.eventId));

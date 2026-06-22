@@ -4,7 +4,7 @@ import { LEARNING_TRACKS } from '../content/events/learning-tracks';
 import { allEvents } from '../content/events';
 import {
   getTrackState, getTrackProgress, getNextInTrack,
-  getRecommendedNext, isFinaleUnlocked,
+  getRecommendedNext, isFinaleUnlocked, getTrackOfLevel,
 } from './learningPath';
 
 const track = (id: string) => LEARNING_TRACKS.find((t) => t.id === id)!;
@@ -41,6 +41,22 @@ describe('learningPath engine', () => {
   it('getNextInTrack returns the first not-done unlocked level', () => {
     const done = ['learn_01_awakening','learn_02_hidden_notes','learn_03_forensics','learn_04_grep_hunter'];
     expect(getNextInTrack(track('linux_services'), state(done), allEvents)?.id).toBe('learn_05_pipe_filter');
+  });
+});
+
+describe('getTrackOfLevel', () => {
+  it('maps a level id to its owning track', () => {
+    expect(getTrackOfLevel('learn_01_awakening')?.id).toBe('foundations');
+    expect(getTrackOfLevel('learn_05_pipe_filter')?.id).toBe('linux_services');
+    expect(getTrackOfLevel('learn_11_final_boss')?.id).toBe('finale');
+  });
+
+  it('maps optional (advanced) levels to their track too', () => {
+    expect(getTrackOfLevel('learn_adv_phantom_storage')?.id).toBe('linux_services');
+  });
+
+  it('returns undefined for an unknown level id', () => {
+    expect(getTrackOfLevel('not_a_real_level')).toBeUndefined();
   });
 });
 

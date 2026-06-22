@@ -40,6 +40,7 @@ interface UseGameReturn {
   loadState: (state: GameState) => void;
   setEvent: (event: GameEvent) => void;
   setScenario: (scenario: Scenario) => void;
+  setLearningTrack: (trackId: string) => void;
   makeChoice: (choice: EventChoice) => void;
   makeScenarioChoice: (choice: ScenarioChoice) => void;
   openTerminal: (choice: EventChoice) => void;
@@ -48,6 +49,7 @@ interface UseGameReturn {
   continueGame: () => void;
   skipToNextDay: () => void;
   endStoryAct: () => void;
+  clearCurrentContent: () => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -105,6 +107,15 @@ export function useGame(): UseGameReturn {
     setCurrentEvent(null);
     setContentType('scenario');
     setPhase('playing');
+  }, []);
+
+  // Learning mode: remember the track the player last actively chose, so the
+  // hub's "recommended next" stays within the track they're working on.
+  const setLearningTrack = useCallback((trackId: string) => {
+    setState((prev) => ({
+      ...prev,
+      learningState: { ...prev.learningState, lastTrackId: trackId },
+    }));
   }, []);
 
   const makeChoice = useCallback((choice: EventChoice) => {
@@ -367,6 +378,19 @@ export function useGame(): UseGameReturn {
     setPhase('storyEnding');
   }, []);
 
+  // Clear the current event/scenario WITHOUT advancing the day. In learning mode
+  // this returns to the Learning Hub (App renders the hub when there's no current
+  // content and the day-advance is intentionally suppressed for cliOnly modes).
+  const clearCurrentContent = useCallback(() => {
+    setCurrentEvent(null);
+    setCurrentScenario(null);
+    setLastChoice(null);
+    setLastScenarioChoice(null);
+    setPendingTerminalChoice(null);
+    setPendingScenarioTerminalChoice(null);
+    setPhase('playing');
+  }, []);
+
   return {
     state,
     phase,
@@ -380,6 +404,7 @@ export function useGame(): UseGameReturn {
     loadState,
     setEvent,
     setScenario,
+    setLearningTrack,
     makeChoice,
     makeScenarioChoice,
     openTerminal,
@@ -388,5 +413,6 @@ export function useGame(): UseGameReturn {
     continueGame,
     skipToNextDay,
     endStoryAct,
+    clearCurrentContent,
   };
 }

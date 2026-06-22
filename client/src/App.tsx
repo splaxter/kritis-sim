@@ -19,6 +19,8 @@ import { IntroScreen } from './components/IntroScreen';
 import { LegalPages } from './components/LegalPages';
 import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
 import { StoryBackground } from './components/StoryBackground';
+import { LearningHub } from './components/LearningHub';
+import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
@@ -120,6 +122,12 @@ function AppContent() {
       const modeConfig = getGameModeConfig(game.state.gameMode);
       const cliOnly = modeConfig.features.cliOnly === true;
 
+      // Learning mode: NEVER auto-serve a level. The Learning Hub renders
+      // instead and the player explicitly picks their next lesson.
+      if (cliOnly) {
+        return;
+      }
+
       // Standard mode: probabilistic content selection
       // Use scenarios ~30% of the time after week 1, increasing with progression
       // Skip scenarios entirely in CLI-only mode
@@ -160,6 +168,37 @@ function AppContent() {
     }
     return Math.abs(hash);
   }
+
+  // Learning mode: player picked a level in the hub. Remember its track (so the
+  // hub's recommendation stays within it) then serve that level.
+  const handlePickLearningLevel = useCallback((level: GameEvent) => {
+    const trackId = getTrackOfLevel(level.id)?.id;
+    if (trackId) game.setLearningTrack(trackId);
+    game.setEvent(level);
+  }, [game]);
+
+  // Learning result-screen CTAs: continue within the track, return to the hub,
+  // or jump into the finale. State timing: the just-completed level is already
+  // in completedEvents by the time the result renders (closeTerminal/makeChoice
+  // record it), so getNextInTrack/isFinaleUnlocked read the post-completion state.
+  const handleNextLesson = useCallback((next: GameEvent) => {
+    const trackId = getTrackOfLevel(next.id)?.id;
+    if (trackId) game.setLearningTrack(trackId);
+    game.setEvent(next);
+  }, [game]);
+
+  const handleBackToHub = useCallback(() => {
+    game.clearCurrentContent();
+  }, [game]);
+
+  const handleStartFinale = useCallback(() => {
+    const finale = allEvents.find((e) => e.id === 'learn_11_final_boss');
+    if (finale) {
+      const trackId = getTrackOfLevel(finale.id)?.id;
+      if (trackId) game.setLearningTrack(trackId);
+      game.setEvent(finale);
+    }
+  }, [game]);
 
   // Handle mode selection and start game
   const handleModeSelect = useCallback((mode: GameModeId) => {
@@ -405,6 +444,24 @@ function AppContent() {
           )}
         </Suspense>
       </div>
+    );
+  }
+
+  // Learning mode (cliOnly): when no level is active, render the hub instead of
+  // GameScreen's "no content" fallback. The player picks their next lesson here;
+  // we never auto-serve in learning mode.
+  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
+  if (
+    game.phase === 'playing' &&
+    learningCliOnly &&
+    !game.currentEvent &&
+    !game.currentScenario
+  ) {
+    return (
+      <>
+        <StoryBackground />
+        <LearningHub state={game.state} onPick={handlePickLearningLevel} />
+      </>
     );
   }
 
