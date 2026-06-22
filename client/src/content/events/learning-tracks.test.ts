@@ -33,3 +33,46 @@ describe('LEARNING_TRACKS registry', () => {
     expect(getFoundationsExitLevelId(LEARNING_TRACKS)).toBe('learn_04_grep_hunter');
   });
 });
+
+// Map every learning level id → its track id.
+const trackOfLevel = new Map<string, string>();
+for (const t of LEARNING_TRACKS) for (const l of t.levels) trackOfLevel.set(l.eventId, t.id);
+
+const eventById = new Map(allEvents.map((e) => [e.id, e]));
+const FOUNDATIONS_EXIT = getFoundationsExitLevelId(LEARNING_TRACKS);
+
+// Genuine pedagogical cross-references we KEEP (level → its non-track-internal require).
+// Foundations-exit gates are allowed everywhere and are not listed here.
+const ALLOWED_CROSS_TRACK: Record<string, string[]> = {
+  // (none beyond the Foundations gate — all real gates are track-internal)
+};
+
+describe('LEARNING_TRACKS prerequisites', () => {
+  it('every non-foundations track-entry gates on the Foundations exit', () => {
+    const bad: string[] = [];
+    for (const t of LEARNING_TRACKS) {
+      if (t.isFoundations) continue;
+      const first = t.levels[0];
+      const reqs = eventById.get(first.eventId)?.requires?.events ?? [];
+      if (!reqs.includes(FOUNDATIONS_EXIT)) bad.push(`${t.id}/${first.eventId} requires ${JSON.stringify(reqs)}`);
+    }
+    expect(bad, `track entries not gated on Foundations:\n${bad.join('\n')}`).toEqual([]);
+  });
+
+  it('no requires.events points into a different track (except Foundations exit / allowlist)', () => {
+    const bad: string[] = [];
+    for (const t of LEARNING_TRACKS) {
+      for (const lvl of t.levels) {
+        const reqs = eventById.get(lvl.eventId)?.requires?.events ?? [];
+        for (const r of reqs) {
+          if (r === FOUNDATIONS_EXIT) continue;
+          const rTrack = trackOfLevel.get(r);
+          const sameTrack = rTrack === t.id;
+          const allowed = (ALLOWED_CROSS_TRACK[lvl.eventId] ?? []).includes(r);
+          if (!sameTrack && !allowed) bad.push(`${t.id}/${lvl.eventId} → "${r}" (track ${rTrack ?? 'none'})`);
+        }
+      }
+    }
+    expect(bad, `cross-track prerequisites:\n${bad.join('\n')}`).toEqual([]);
+  });
+});
