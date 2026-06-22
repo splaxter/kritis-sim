@@ -304,7 +304,7 @@ Niemand hat ein Ticket gemacht. Alle haben sich daran gewoehnt.
     title: 'Das WLAN-Geheimnis',
     description: `Du findest den WLAN-Schluessel fuer das Gaeste-Netz.
 
-"awrm1234"
+"warm1234"
 
 Seit 2017 unveraendert. Auf dem Aushang im Foyer.`,
     involvedCharacters: [],
@@ -485,7 +485,7 @@ Die Poststelle hat 200 Briefe zu scannen.`,
     title: 'Gespeichertes Passwort',
     description: `Du arbeitest am PC eines kranken Kollegen.
 
-Der Browser oeffnet sich. Autofill zeigt: "admin@awrm.de" mit gespeichertem Passwort.
+Der Browser oeffnet sich. Autofill zeigt: "admin@warm-kommunal.de" mit gespeichertem Passwort.
 
 Es ist ein Shared PC in der Poststelle.`,
     involvedCharacters: [],
