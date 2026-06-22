@@ -1,6 +1,7 @@
 import { Skills } from './skills';
 import { GameModeId } from './gameMode';
 import { AdventureState } from './adventure';
+import { LearningState } from './learning';
 
 export interface Relationships {
   chef: number;
@@ -51,6 +52,8 @@ export interface GameState {
   // Story mode specific
   isStoryMode: boolean;
   storyState?: AdventureState;
+  // Learning mode specific
+  learningState?: LearningState;
   // Chain system
   decisions: DecisionRecord[];           // All decisions made
   pendingChainEvents: PendingChainEvent[];  // Scheduled consequences
