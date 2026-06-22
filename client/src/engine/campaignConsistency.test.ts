@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { allEvents } from '../content/events';
 import { adventureStoryEvents } from '../content/adventure/story-events';
 import { adventureChapters } from '../content/adventure/chapters';
+import { adventureSidequests } from '../content/adventure/sidequests';
 import { getAllScenarios } from '../content/packs';
 import { GameEvent } from '@kritis/shared';
 
@@ -31,6 +32,31 @@ const FINISHED_CHAPTERS = [
 ];
 const KNOWN_WIP_CHAPTERS = adventureChapters.map((c) => c.id).filter((id) => !FINISHED_CHAPTERS.includes(id));
 const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger removed)
+
+// ── DOCUMENTED CONTENT GAP: sidequest events ──────────────────────────────
+// adventureSidequests is the LIVE source the engine scans (getAvailableSidequests
+// in adventureEngine.ts) — NOT chapters[].sidequests, which are all empty today.
+// The adv_sq_* events these quests reference (plus the adv_complete_picture beat)
+// were never authored, so the sidequest layer is currently inert: story beats take
+// priority in getNextStoryContent, and even if a quest started its events wouldn't
+// resolve. Like the Act 3 chapter gap, we don't bless this — we PIN the exact set
+// of dangling refs so it can neither grow silently (a new unauthored ref slips in)
+// nor shrink silently (someone authors one — then remove it from this list).
+const KNOWN_DANGLING_SIDEQUEST_EVENTS = [
+  'adv_complete_picture',
+  'adv_sq_basement_1', 'adv_sq_basement_2', 'adv_sq_basement_3',
+  'adv_sq_chef_1', 'adv_sq_chef_2',
+  'adv_sq_coffee_1', 'adv_sq_coffee_2', 'adv_sq_coffee_3',
+  'adv_sq_contact_1', 'adv_sq_contact_2', 'adv_sq_contact_3',
+  'adv_sq_excel_1', 'adv_sq_excel_2',
+  'adv_sq_legacy_1', 'adv_sq_legacy_2',
+  'adv_sq_logs_1', 'adv_sq_logs_2',
+  'adv_sq_network_1', 'adv_sq_network_2',
+  'adv_sq_password_1', 'adv_sq_password_2',
+  'adv_sq_printer_1', 'adv_sq_printer_2', 'adv_sq_printer_3',
+  'adv_sq_thomas_1', 'adv_sq_thomas_2', 'adv_sq_thomas_3',
+  'adv_sq_trail_1', 'adv_sq_trail_2', 'adv_sq_trail_3', 'adv_sq_trail_4',
+];
 
 const setFlags = new Set<string>(['kritis_mode']);
 for (const e of storyEvents) {
@@ -69,7 +95,10 @@ describe('campaign (story mode) consistency', () => {
     expect(broken, 'set of chapters with unresolved beats changed').toEqual(KNOWN_WIP_CHAPTERS);
   });
 
-  it('every sidequest event id resolves', () => {
+  it('chapter-embedded sidequest event ids resolve', () => {
+    // Guards chapters[].sidequests — a real structure that is empty today, so this
+    // currently iterates nothing. Kept so that IF a chapter ever embeds a sidequest,
+    // its events are validated. The LIVE sidequest gap is tracked separately below.
     const dangling: string[] = [];
     for (const ch of adventureChapters) {
       for (const sq of ch.sidequests ?? []) {
@@ -79,6 +108,22 @@ describe('campaign (story mode) consistency', () => {
       }
     }
     expect(dangling, `dangling sidequest events:\n${dangling.join('\n')}`).toEqual([]);
+  });
+
+  it('tracks the dangling-sidequest-event gap (adventureSidequests, the live source)', () => {
+    const dangling = new Set<string>();
+    for (const sq of adventureSidequests) {
+      for (const ev of sq.events ?? []) {
+        if (!contentIds.has(ev)) dangling.add(ev);
+      }
+      // addsStoryBeat injects extra beats whose events must also exist.
+      for (const add of sq.storyEffects?.addsStoryBeat ?? []) {
+        if (!contentIds.has(add.beat.eventId)) dangling.add(add.beat.eventId);
+      }
+    }
+    // If this fails: a sidequest event was authored (good — remove it from the
+    // known list) or a new unauthored ref was introduced (fix or add it knowingly).
+    expect([...dangling].sort()).toEqual(KNOWN_DANGLING_SIDEQUEST_EVENTS);
   });
 
   it('chapter completionUnlocks reference real chapter ids', () => {

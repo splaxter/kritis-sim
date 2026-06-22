@@ -25,7 +25,7 @@ Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter
 
 **Chef Bert** (graue Haare, Kaffeetasse in der Hand): "Ah, der Neue! Endlich Verstärkung. Der letzte hat uns ja... naja, ziemlich plötzlich verlassen."
 
-**Bjorg** (dein Alter, trägt ein Linux-Shirt): "Hey! Ich bin Bjorg. Bin gespannt, ob du länger bleibst als der letzte."`,
+**Bjorg** (etwa in deinem Alter, trägt ein Linux-Shirt): "Hey! Ich bin Bjorg. Bin gespannt, ob du länger bleibst als der letzte."`,
     involvedCharacters: ['chef', 'kollege'],
     tags: ['story', 'chapter1', 'introduction'],
     choices: [
@@ -307,7 +307,7 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
         text: '"Lass uns vorsichtig sein. Wer weiß noch davon?"',
         effects: { relationships: { kollegen: 15 }, skills: { security: 2 } },
         resultText: '"Nur wir", sagt Bjorg. "Und Stefan, wo auch immer er ist." Er schaut sich um. "Lass uns woanders reden."',
-        setsFlags: ['careful_approach', 'thomas_partner'],
+        setsFlags: ['careful_approach', 'thomas_partner', 'thomas_ally'],
       },
     ],
   },
@@ -1439,7 +1439,7 @@ Was ist deine erste Aktion?`,
     category: 'story',
     weekRange: [7, 7],
     probability: 1,
-    description: `Die Phishing-Angriffe werden immer gezielter. Die letzte Mail wusste sogar deinen Geburtag.
+    description: `Die Phishing-Angriffe werden immer gezielter. Die letzte Mail wusste sogar deinen Geburtstag.
 
 Es ist Zeit für ernsthafte Maßnahmen. Aber welche?`,
     involvedCharacters: ['chef'],
