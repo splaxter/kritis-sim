@@ -293,4 +293,82 @@ describe('Content Packs Registry', () => {
       }
     });
   });
+
+  describe('Terminal command matching', () => {
+    // Discovery commands take no required argument: typing them bare must work.
+    // Regression guard for the `ls.*-la?` bug where a plain `ls` matched nothing
+    // and fell through to an empty VFS listing (GitHub issue #1).
+    const DISCOVERY_COMMANDS = ['ls', 'dir', 'pwd', 'whoami'];
+
+    it('argument-free discovery commands match when typed bare', () => {
+      const scenarios = getAllScenarios();
+
+      for (const scenario of scenarios) {
+        const ctx = scenario.terminalContext;
+        if (!ctx) continue;
+
+        for (const cmd of ctx.commands) {
+          if (!DISCOVERY_COMMANDS.includes(cmd.pattern)) continue;
+
+          // Replicates the matcher in useTerminal.ts
+          const matchesBare = cmd.patternRegex
+            ? new RegExp(cmd.patternRegex).test(cmd.pattern)
+            : cmd.pattern.startsWith(cmd.pattern) || cmd.pattern === cmd.pattern;
+
+          expect(
+            matchesBare,
+            `Scenario ${scenario.id}: command "${cmd.pattern}" has patternRegex ` +
+              `"${cmd.patternRegex}" that does not match a bare "${cmd.pattern}"`
+          ).toBe(true);
+        }
+      }
+    });
+
+    it('every patternRegex is a valid regular expression', () => {
+      const scenarios = getAllScenarios();
+
+      for (const scenario of scenarios) {
+        const ctx = scenario.terminalContext;
+        if (!ctx) continue;
+
+        for (const cmd of ctx.commands) {
+          if (!cmd.patternRegex) continue;
+          expect(() => new RegExp(cmd.patternRegex!)).not.toThrow();
+        }
+      }
+    });
+
+    // In beginner mode the terminal auto-prints hints[0] on entry
+    // (useTerminal.ts). So the FIRST hint must orient the player, never hand
+    // them a runnable solution command. The exact syntax belongs in a later,
+    // last-resort hint. Regression guard against copy-paste levels.
+    it('the first hint never reveals a solution command', () => {
+      const scenarios = getAllScenarios();
+      const violations: string[] = [];
+
+      for (const scenario of scenarios) {
+        const ctx = scenario.terminalContext;
+        if (!ctx || ctx.hints.length === 0) continue;
+
+        // Commands that count as "the answer": explicitly flagged solutions,
+        // or named in any solution's required command list.
+        const solutionNames = new Set(ctx.solutions.flatMap(s => s.commands));
+        const solutionRegexes = ctx.commands
+          .filter(c => c.isSolution || solutionNames.has(c.pattern))
+          .map(c => c.patternRegex)
+          .filter((r): r is string => Boolean(r));
+
+        const firstHint = ctx.hints[0];
+        for (const regex of solutionRegexes) {
+          if (new RegExp(regex).test(firstHint)) {
+            violations.push(
+              `${scenario.id}: first hint matches /${regex}/ — "${firstHint}"`
+            );
+          }
+        }
+      }
+
+      expect(violations, `First hint reveals a solution command:\n${violations.join('\n')}`).toEqual([]);
+    });
+  });
 });

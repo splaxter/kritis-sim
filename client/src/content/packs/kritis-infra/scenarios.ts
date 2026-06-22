@@ -110,7 +110,7 @@ operator     pts/0   10.0.0.100   Thu Mar 13 06:00 - 18:00 (12:00)
         },
         {
           pattern: 'ls',
-          patternRegex: 'ls.*-la',
+          patternRegex: '^ls(\\s.*)?$',
           output: `total 48
 drwxr-xr-x 2 root operator 4096 Mar 14 09:45 .
 drwxr-xr-x 4 root root     4096 Jan 15 08:00 ..
@@ -287,9 +287,9 @@ modbus.service: Started successfully.
         },
       ],
       hints: [
-        'Tipp: Teste erstmal ob der PLC überhaupt erreichbar ist (ping 10.0.0.12)',
-        'Tipp: SCADA nutzt Modbus auf Port 502. Teste ob der Port offen ist.',
-        'Tipp: nc -z 10.0.0.12 502 testet ob Port 502 erreichbar ist',
+        'Tipp: Bevor du tiefer gräbst — ist der PLC 10.0.0.12 überhaupt im Netz erreichbar? Fang mit einem simplen Erreichbarkeits-Test an.',
+        'Tipp: SCADA nutzt Modbus auf Port 502. Selbst wenn der Host antwortet, kann der Service-Port zu sein — prüf gezielt den Port.',
+        'Tipp: Festgefahren? ping 10.0.0.12 prüft den Host, nc -z 10.0.0.12 502 prüft den Modbus-Port.',
       ],
     },
   },
@@ -420,9 +420,9 @@ access.log:192.168.20.45 user.schmidt [14/Mar/2026:09:00:01] "POST upload.google
         },
       ],
       hints: [
-        'Tipp: Schau dir die Alert-Details an mit cat /var/log/monitoring/alerts.log',
-        'Tipp: Wer ist die Quelle des Traffics? grep nach der IP oder dem User',
-        'Tipp: Ist das Ziel verdächtig? whois kann helfen',
+        'Tipp: Bevor du Alarm schlägst — lies erstmal die Alert-Details selbst. Die liegen unter /var/log/monitoring/.',
+        'Tipp: Wer ist die Quelle des Traffics? Filter die Logs nach der verdächtigen IP oder dem User.',
+        'Tipp: Festgefahren? cat /var/log/monitoring/alerts.log zeigt die Details, grep filtert nach der IP, whois prüft das Ziel.',
       ],
     },
   },
@@ -781,7 +781,7 @@ Du musst koordinieren. Das Update liegt unter /opt/siemens/firmware/ bereit.`,
       commands: [
         {
           pattern: 'ls',
-          patternRegex: 'ls.*-la?',
+          patternRegex: '^ls(\\s.*)?$',
           output: `total 24576
 drwxr-xr-x 2 root engineer 4096 Mar 14 08:00 .
 drwxr-xr-x 4 root root     4096 Jan 15 08:00 ..
@@ -1042,9 +1042,9 @@ Status: Ready to send
         },
       ],
       hints: [
-        'Tipp: Wie sieht der Ticket-Verlauf aus? cat ticket*.log',
-        'Tipp: Was steht im Support-Vertrag zur Reaktionszeit?',
-        'Tipp: Screenshots helfen bei der Dokumentation',
+        'Tipp: Bevor du dich auf eine Diskussion einlässt — verschaff dir den kompletten Ticket-Verlauf. Wann wurde was zugesagt, wann tatsächlich reagiert?',
+        'Tipp: Sichere die Fakten: Was steht im Support-Vertrag zur Reaktionszeit, und wie dokumentierst du den Verlauf belastbar?',
+        'Tipp: Konkret: cat ticket*.log zeigt den Verlauf, Screenshots sichern die Beweise.',
       ],
     },
   },
@@ -1116,7 +1116,7 @@ Du bist auf dem Dokumentationsserver (doc-server, 192.168.1.200). Zeit zu prüfe
       commands: [
         {
           pattern: 'ls',
-          patternRegex: 'ls.*-la?',
+          patternRegex: '^ls(\\s.*)?$',
           output: `total 48
 drwxr-xr-x 6 root admin 4096 Mar 14 09:00 .
 drwxr-xr-x 4 root root  4096 Jan 15 08:00 ..
@@ -1402,9 +1402,9 @@ Report saved to: /tmp/nis2_report_2026-03-14.pdf`,
         },
       ],
       hints: [
-        'Tipp: cat assessment.conf zeigt den aktuellen Status',
-        'Tipp: Die 72h-Meldefrist bei Incidents ist ein häufiger Stolperstein',
-        'Tipp: nis2-report generiert einen Compliance-Report',
+        'Tipp: Wo steht ihr bei der NIS2-Umsetzung gerade? Verschaff dir erst einen Überblick über den aktuellen Compliance-Status.',
+        'Tipp: Die 72h-Meldefrist bei Incidents ist ein häufiger Stolperstein — prüf, ob die eingehalten wird.',
+        'Tipp: Konkret: cat assessment.conf zeigt den Status, nis2-report generiert den Compliance-Report.',
       ],
     },
   },
@@ -1590,9 +1590,9 @@ PROBLEM: Diesel wurde nie nachgefüllt!
         },
       ],
       hints: [
-        'Tipp: ups-status zeigt Restlaufzeit und Lastverteilung',
-        'Tipp: Welche Systeme können abgeschaltet werden um Strom zu sparen?',
-        'Tipp: list-systems oder show-priorities zeigt die Prioritäten',
+        'Tipp: Stromausfall — wie viel Zeit bleibt dir? Check zuerst Restlaufzeit und Last der USV.',
+        'Tipp: Welche Systeme kannst du abschalten, um Strom zu sparen? Die kritischen müssen am längsten durchhalten.',
+        'Tipp: Konkret: ups-status zeigt Restlaufzeit und Last, list-systems (oder show-priorities) zeigt die Prioritäten.',
       ],
     },
   },
@@ -1783,9 +1783,9 @@ Successful IT→OT connections since 02:00: 0
         },
       ],
       hints: [
-        'Tipp: show-alerts oder tail -f alerts.log zeigt aktuelle Aktivität',
-        'Tipp: Das OT-Netz muss isoliert werden! IT/OT-Firewall nutzen',
-        'Tipp: Die kompromittierten Konten müssen gesperrt werden',
+        'Tipp: Verschaff dir erst ein Lagebild — welche verdächtige Aktivität läuft gerade? Wirf einen Blick in die aktuellen Alerts.',
+        'Tipp: Das OT-Netz muss isoliert werden! Nutz die IT/OT-Firewall, um die Ausbreitung zu stoppen — und sperr die kompromittierten Konten.',
+        'Tipp: Konkret bekommst du die Aktivität mit show-alerts oder tail -f alerts.log angezeigt.',
       ],
     },
   },
