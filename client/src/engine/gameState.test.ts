@@ -158,6 +158,11 @@ describe('gameState', () => {
       expect(state.compliance).toBe(50);
     });
 
+    it('learning mode initializes learningState', () => {
+      const s = createInitialState(undefined, 'learning');
+      expect(s.learningState).toBeDefined();
+    });
+
     it('enables mentor mode for beginner, disables for arcade', () => {
       const beginnerState = createInitialState(undefined, 'beginner');
       const arcadeState = createInitialState(undefined, 'arcade');

@@ -51,6 +51,10 @@ export function createInitialState(seed?: string, mode: GameModeId = 'beginner')
     ...(mode === 'kritis' ? {
       flags: { kritis_mode: true },
     } : {}),
+    // Initialize learning state for learning mode (topic-selection progress)
+    ...(mode === 'learning' ? {
+      learningState: {},
+    } : {}),
     // Chain system - always initialize
     decisions: [],
     pendingChainEvents: [],
