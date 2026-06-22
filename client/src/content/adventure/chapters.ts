@@ -93,6 +93,7 @@ export const adventureChapters: AdventureChapter[] = [
     description: 'Die Anomalien häufen sich. Ein "Zufall" nach dem anderen. Bjorg gesteht dir etwas - und plötzlich ergibt alles einen schrecklichen Sinn.',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_pattern_recognition', isOptional: false },
+      { id: 'beat_gui_probe', eventId: 'adv_gui_eventviewer_probe', isOptional: true },
       { id: 'beat02', eventId: 'adv_thomas_confession', isOptional: false },
       { id: 'beat03', eventId: 'adv_news_report', isOptional: false },
       { id: 'beat04', eventId: 'adv_connecting_dots', isOptional: false },
@@ -148,6 +149,7 @@ export const adventureChapters: AdventureChapter[] = [
     storyBeats: [
       { id: 'beat01', eventId: 'adv_false_peace', isOptional: false },
       { id: 'beat02', eventId: 'adv_preparation_check', isOptional: false },
+      { id: 'beat_gui_preharden', eventId: 'adv_gui_settings_preharden', isOptional: true },
       { id: 'beat03', eventId: 'adv_thomas_flashback', isOptional: false },
       { id: 'beat04', eventId: 'adv_warning_signs', isOptional: false },
     ],
@@ -168,6 +170,7 @@ export const adventureChapters: AdventureChapter[] = [
     description: 'Es passiert am Montagmorgen. Ransomware. Verschlüsselte Systeme. Telefone, die nicht mehr funktionieren. Und mitten in der Panik: Du hast 72 Stunden.',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_ransomware_strike', isOptional: false },
+      { id: 'beat_gui_contain', eventId: 'adv_gui_taskmanager_attack', isOptional: true },
       { id: 'beat02', eventId: 'adv_chaos_unfolds', isOptional: false },
       { id: 'beat03', eventId: 'adv_initial_response', isOptional: false },
       { id: 'beat04', eventId: 'adv_clock_starts', isOptional: false },
