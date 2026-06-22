@@ -1,5 +1,6 @@
 // client/src/components/Terminal/index.tsx
 import '@xterm/xterm/css/xterm.css';
+import { useState } from 'react';
 import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
 import { useTerminal } from './useTerminal';
 
@@ -11,12 +12,11 @@ interface TerminalProps {
 }
 
 export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate' }: TerminalProps) {
+  const [partialFeedback, setPartialFeedback] = useState<string | null>(null);
   const { terminalRef, hintsRemaining, showHint } = useTerminal({
     context,
     onSolved,
-    onPartialSolution: (_feedback) => {
-      // TODO: Display partial solution feedback to user
-    },
+    onPartialSolution: setPartialFeedback,
     gameMode,
   });
 
@@ -32,6 +32,15 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
 
       {/* Terminal area */}
       <div ref={terminalRef} className="flex-1 p-2" />
+
+      {partialFeedback && (
+        <div
+          role="status"
+          className="border-t border-terminal-warning bg-terminal-warning/10 px-3 py-2 text-sm text-terminal-warning"
+        >
+          {partialFeedback}
+        </div>
+      )}
 
       {/* Footer */}
       <div className="p-2 border-t border-terminal-border bg-terminal-bg-secondary flex justify-between text-sm">
