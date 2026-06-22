@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { GuiContext } from '@kritis/shared';
 import { guiLevelEvents } from '../../content/events/gui-levels';
+import { blackoutEvents } from '../../content/events/blackout';
 import { WindowsLevel } from './index';
+
+const blk = (id: string): GuiContext | undefined =>
+  blackoutEvents.find((e) => e.id === id)?.guiContext;
 
 /**
  * ⚠️ DEV-ONLY preview harness for Windows GUI levels.
@@ -20,6 +24,10 @@ const PREVIEWS: Record<string, GuiContext | undefined> = {
   uac: guiLevelEvents.find((e) => e.guiContext?.app === 'uac')?.guiContext,
   settings: guiLevelEvents.find((e) => e.guiContext?.app === 'settings')?.guiContext,
   explorer: guiLevelEvents.find((e) => e.guiContext?.app === 'explorer')?.guiContext,
+  // Blackout track GUI levels (the new core-firewall app + its EventViewer/Task-Manager beats).
+  blk_logread: blk('blk_c1_logread'),
+  blk_hunt_gui: blk('blk_c1_hunt_gui'),
+  corefirewall: blk('blk_c3_firewall'),
 };
 
 export function DevGuiPreview({ previewId }: { previewId: string }) {
