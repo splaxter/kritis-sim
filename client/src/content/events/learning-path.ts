@@ -1115,6 +1115,177 @@ rsyslog.service: gestartet
     tags: ['learning', 'terminal', 'linux', 'advanced', 'troubleshooting', 'disk', 'forensics'],
   },
 
+  // ----------------------------------------------------------------
+  // ADVANCED (optional, unlocks after Lektion 8 / Netzwerk). DNS split-brain
+  // with a LOCAL twist: dig says the right IP, but curl hits the wrong one —
+  // because /etc/hosts is consulted before the DNS server (and nscd cached it).
+  // Multi-step win: remove the stale override AND flush the local cache. The
+  // fix stays host-local (no nsupdate/rndc), so it fits one CLI lesson.
+  // ----------------------------------------------------------------
+  {
+    id: 'learn_adv_dns_splitbrain',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_08_network_recon'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Fortgeschritten: Der Name, der lügt',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  ⚠️  TICKET #4471 — warm-app-02                              ║
+║                                                              ║
+║  "portal.kritis.local zeigt die ALTE Oberfläche / falsche    ║
+║   Daten. Andere Kollegen sehen die neue Version. Bei mir     ║
+║   nicht. Neustart hat nichts gebracht."                      ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Das interne Portal wurde letzte Woche auf einen neuen Server umgezogen. Die meisten sehen die neue Version — von **diesem** Host aus landest du aber immer noch beim alten Backend.
+
+Komisch: Das Netzwerk ist ok, der DNS-Server kennt die neue IP. Trotzdem geht der Zugriff woanders hin. *Irgendwas zwischen dem Namen und der DNS-Abfrage trickst dich aus.*
+
+**Deine Aufgabe:**
+- \`curl portal.kritis.local\` — wo landest du wirklich?
+- \`dig portal.kritis.local\` — was sagt der DNS-Server?
+- Finde heraus, warum dieser Host den Namen anders auflöst als der DNS — und korrigier es.`,
+    mentorNote:
+      'Namensauflösung läuft über nsswitch (/etc/nsswitch.conf): /etc/hosts wird i.d.R. VOR dem DNS-Server befragt. dig fragt nur den DNS-Server (korrekt), getent hosts zeigt das ECHTE Ergebnis der Auflösungskette. Ein veralteter /etc/hosts-Eintrag — oder ein nscd-Cache, der ihn hält — übersteuert den richtigen DNS-Wert. Fix bleibt lokal: Eintrag raus + Cache leeren, nicht am DNS-Server schrauben.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Der Namensauflösung auf den Grund gehen...',
+        effects: { skills: { netzwerk: 5, troubleshooting: 5 } },
+        resultText: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 NAME ENTLARVT                                            ║
+║                                                              ║
+║  DNS sagt:        portal.kritis.local → 10.0.9.20 (neu)      ║
+║  /etc/hosts log:  portal.kritis.local → 10.0.5.10 (alt) ✗    ║
+║                                                              ║
+║  Override entfernt + Cache geleert → curl trifft 10.0.9.20   ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Gelöst! Beim Umzug hatte jemand testweise einen \`/etc/hosts\`-Eintrag auf die alte IP gesetzt — und vergessen, ihn zu entfernen. Der DNS-Server war die ganze Zeit korrekt; nur dieser Host fragte zuerst \`/etc/hosts\` und bekam die alte IP. Nach dem Entfernen (und einem Cache-Flush, weil nscd den Eintrag noch hielt) landet \`curl\` wieder beim richtigen Backend.`,
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-app-02',
+      username: 'root',
+      currentPath: '~',
+      commands: [
+        {
+          pattern: 'curl portal.kritis.local',
+          patternRegex: '(curl|wget).*portal',
+          output: `*   Trying 10.0.5.10:80...
+* Connected to portal.kritis.local (10.0.5.10) port 80
+< HTTP/1.1 200 OK
+< X-Backend: portal-legacy-v1  (ABGEKÜNDIGT)
+< X-Server: web-old-03
+
+# Du landest auf 10.0.5.10 — dem ALTEN Backend. Aber der Umzug ging
+# doch auf einen neuen Server? Wer schickt dich auf die alte IP?`,
+          teachesCommand: 'curl',
+          skillGain: { netzwerk: 2, troubleshooting: 2 },
+        },
+        {
+          pattern: 'dig portal.kritis.local',
+          patternRegex: '(dig|nslookup|host)\\s+portal',
+          output: `;; ANSWER SECTION:
+portal.kritis.local.   300   IN   A   10.0.9.20
+
+;; SERVER: 10.0.0.53#53(10.0.0.53)
+
+# Der DNS-Server sagt 10.0.9.20 (neu) — also völlig korrekt!
+# Aber curl ging auf 10.0.5.10. Der DNS ist es NICHT. Das Problem
+# sitzt zwischen "Name eintippen" und "DNS fragen" — also lokal.`,
+          teachesCommand: 'dig',
+          skillGain: { netzwerk: 3, troubleshooting: 2 },
+        },
+        {
+          pattern: 'getent hosts portal.kritis.local',
+          patternRegex: 'getent\\s+.*portal',
+          output: `10.0.5.10       portal.kritis.local
+
+# DA ist der Beweis: die ECHTE Auflösungskette dieses Hosts gibt
+# 10.0.5.10 zurück — anders als dig (10.0.9.20). getent folgt
+# nsswitch, also /etc/hosts ZUERST. Da muss ein alter Eintrag liegen.`,
+          teachesCommand: 'getent',
+          skillGain: { netzwerk: 3, troubleshooting: 3 },
+        },
+        {
+          pattern: 'grep portal /etc/hosts',
+          patternRegex: 'grep.*portal.*hosts|cat\\s+/etc/hosts|grep.*hosts.*portal',
+          output: `10.0.5.10   portal.kritis.local   # TEST Umzug -- TODO wieder entfernen (mk)
+
+# Gefunden. Ein hartkodierter Override auf die alte IP, als "TEST"
+# gesetzt und nie aufgeräumt. Der übersteuert den korrekten DNS-Wert.`,
+          teachesCommand: 'find-override',
+          skillGain: { netzwerk: 2, security: 1, troubleshooting: 2 },
+        },
+        {
+          pattern: "sed -i '/portal/d' /etc/hosts",
+          patternRegex: 'sed.*portal.*/etc/hosts|sed.*/etc/hosts|sed.*hosts.*portal',
+          output: `# Zeile entfernt. /etc/hosts enthält keinen portal-Override mehr.
+# Achtung: ein laufender Cache (nscd/systemd-resolved) kann den alten
+# Wert noch halten — sicherheitshalber den Cache leeren.`,
+          teachesCommand: 'remove-override',
+          skillGain: { netzwerk: 3, troubleshooting: 3, linux: 2 },
+        },
+        {
+          pattern: 'resolvectl flush-caches',
+          patternRegex: 'resolvectl\\s+flush|systemd-resolve\\s+--flush|systemctl\\s+restart\\s+(nscd|systemd-resolved)|nscd\\s+-i|nscd.*invalidate',
+          output: `# Lokaler Resolver-Cache geleert.
+
+$ curl -s -o /dev/null -w '%{remote_ip}\\n' portal.kritis.local
+10.0.9.20
+
+# Jetzt trifft curl 10.0.9.20 — das neue Backend. Behoben.`,
+          teachesCommand: 'flush-cache',
+          skillGain: { netzwerk: 3, troubleshooting: 3 },
+        },
+        {
+          pattern: 'nsupdate',
+          patternRegex: 'nsupdate|rndc|named|/etc/bind|/etc/resolv.conf',
+          output: `# Stopp — der autoritative DNS-Server ist KORREKT (dig zeigt 10.0.9.20).
+# Wenn du dort etwas änderst, brichst du die Auflösung für ALLE anderen,
+# bei denen es längst funktioniert. Das Problem ist nur auf diesem Host.`,
+          wrongApproachFeedback:
+            'Finger weg vom DNS-Server — der ist korrekt. Der Fehler sitzt lokal auf diesem Host.',
+          skillGain: {},
+        },
+        {
+          pattern: 'systemctl restart nginx',
+          patternRegex: 'systemctl\\s+restart\\s+(nginx|apache2|portal|app)',
+          output: `# Der Dienst läuft sauber — er bekommt nur die falsche IP aufgelöst.
+# Einen Neustart hat der Nutzer laut Ticket schon probiert. Das Problem
+# ist die Namensauflösung, nicht die Anwendung.`,
+          skillGain: {},
+        },
+      ],
+      solutions: [
+        {
+          commands: ['remove-override', 'flush-cache'],
+          allRequired: true,
+          resultText:
+            'Sauber eingegrenzt und lokal behoben: dig bewies, dass der DNS korrekt ist, getent/​grep entlarvten den alten /etc/hosts-Override. Eintrag raus, Cache geleert — curl trifft wieder das neue Backend (10.0.9.20). Kein Eingriff am DNS-Server nötig.',
+          skillGain: { netzwerk: 6, troubleshooting: 5 },
+          effects: { stress: -6 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "curl landet woanders als dig sagt? Dann fragt curl nicht (nur) den DNS-Server. Wo schaut die lokale Namensauflösung ZUERST nach?"',
+        '🤖 Bjorg: "dig fragt den DNS direkt — der ist korrekt. getent hosts portal.kritis.local zeigt, was der Host WIRKLICH auflöst. Vergleich die beiden."',
+        '🤖 Bjorg: "Die Auflösung kommt aus /etc/hosts, nicht vom DNS. grep portal /etc/hosts findet den alten Eintrag."',
+        '🤖 Bjorg: "Eintrag raus (sed -i \'/portal/d\' /etc/hosts) und den lokalen Cache leeren (resolvectl flush-caches bzw. nscd neu starten)."',
+      ],
+    },
+    tags: ['learning', 'terminal', 'linux', 'advanced', 'netzwerk', 'dns', 'troubleshooting'],
+  },
+
   // ============================================
   // ACT 3: THE INFRASTRUCTURE
   // ============================================
