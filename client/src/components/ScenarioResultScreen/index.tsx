@@ -1,6 +1,6 @@
 // client/src/components/ScenarioResultScreen/index.tsx
-import { ScenarioChoice, EventEffects } from '@kritis/shared';
-import { getOutcomeColor, getOutcomeLabel } from '../../engine/scenarioEngine';
+import { ScenarioChoice } from '@kritis/shared';
+import { getOutcomeColor, getOutcomeLabel, calculateScenarioEffects } from '../../engine/scenarioEngine';
 
 interface ScenarioResultScreenProps {
   choice: ScenarioChoice;
@@ -8,32 +8,64 @@ interface ScenarioResultScreenProps {
   onContinue: () => void;
 }
 
+// Display labels for the actual stat fields the engine touches, so the
+// "Auswirkungen" panel matches what really changes on the bars.
+const SKILL_LABELS: Record<string, string> = {
+  netzwerk: 'Netzwerk',
+  linux: 'Linux',
+  windows: 'Windows',
+  security: 'Security',
+  troubleshooting: 'Troubleshoot',
+  softSkills: 'Soft Skills',
+};
+
+const RELATIONSHIP_LABELS: Record<string, string> = {
+  chef: 'Chef',
+  gf: 'GF',
+  kaemmerer: 'Kämmerer',
+  fachabteilung: 'Fachabtlg.',
+  kollegen: 'Kollegen',
+};
+
 export function ScenarioResultScreen({ choice, bsiReference, onContinue }: ScenarioResultScreenProps) {
+  // Show the effects that are ACTUALLY applied to the game state (skills,
+  // relationships, stress), not the abstract score/reputation numbers which
+  // never matched the bars (GitHub issue #2).
+  const effects = calculateScenarioEffects(choice);
+
+  const renderDelta = (key: string, label: string, value: number, invert = false) => {
+    if (!value) return null;
+    // For stress, an increase is "bad" (danger); for skills/relationships, up is "good".
+    const good = invert ? value < 0 : value > 0;
+    const color = good ? 'text-terminal-success' : 'text-terminal-danger';
+    const sign = value > 0 ? '+' : '';
+    return (
+      <div key={key} className={color}>
+        {label} {sign}{value}
+      </div>
+    );
+  };
+
   const renderEffects = () => {
     const items: JSX.Element[] = [];
 
-    if (choice.scoreChange !== 0) {
-      const color = choice.scoreChange > 0 ? 'text-terminal-success' : 'text-terminal-danger';
-      const sign = choice.scoreChange > 0 ? '+' : '';
-      items.push(
-        <div key="score" className={color}>
-          Kompetenz {sign}{choice.scoreChange}
-        </div>
-      );
+    for (const [key, value] of Object.entries(effects.skills ?? {})) {
+      const el = renderDelta(`skill-${key}`, SKILL_LABELS[key] ?? key, value as number);
+      if (el) items.push(el);
     }
 
-    if (choice.reputationChange !== 0) {
-      const color = choice.reputationChange > 0 ? 'text-terminal-success' : 'text-terminal-danger';
-      const sign = choice.reputationChange > 0 ? '+' : '';
-      items.push(
-        <div key="reputation" className={color}>
-          Reputation {sign}{choice.reputationChange}
-        </div>
-      );
+    for (const [key, value] of Object.entries(effects.relationships ?? {})) {
+      const el = renderDelta(`rel-${key}`, RELATIONSHIP_LABELS[key] ?? key, value as number);
+      if (el) items.push(el);
     }
+
+    const stressEl = renderDelta('stress', 'Stress', effects.stress ?? 0, true);
+    if (stressEl) items.push(stressEl);
 
     return items;
   };
+
+  const hasEffects = () => renderEffects().length > 0;
 
   return (
     <div className="border border-terminal-border p-6">
@@ -68,7 +100,7 @@ export function ScenarioResultScreen({ choice, bsiReference, onContinue }: Scena
       )}
 
       {/* Effects */}
-      {(choice.scoreChange !== 0 || choice.reputationChange !== 0) && (
+      {hasEffects() && (
         <div className="border border-terminal-border p-4 mb-6">
           <div className="text-terminal-green-dim mb-2">─ AUSWIRKUNGEN ─</div>
           <div className="grid grid-cols-2 gap-2">

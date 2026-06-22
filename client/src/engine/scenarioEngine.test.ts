@@ -286,7 +286,7 @@ describe('scenarioEngine', () => {
       expect(effects.stress).toBe(-2); // -100/50 = -2 (stress reduction)
     });
 
-    it('calculates stress increase for negative score change', () => {
+    it('calculates skill loss and stress increase for negative score change', () => {
       const choice: ScenarioChoice = {
         id: 'B',
         text: 'Bad choice',
@@ -299,6 +299,9 @@ describe('scenarioEngine', () => {
 
       const effects = calculateScenarioEffects(choice);
 
+      // Symmetric with the positive case: failure lowers the same skills it would raise.
+      expect(effects.skills?.troubleshooting).toBe(-5); // -100/20 = -5
+      expect(effects.skills?.security).toBe(-2); // -(5/2) = -2
       expect(effects.stress).toBe(4); // 100/25 = 4 (stress increase)
     });
 

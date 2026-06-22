@@ -86,9 +86,9 @@ export function selectNextScenario(
 export function calculateScenarioEffects(choice: ScenarioChoice): EventEffects {
   const effects: EventEffects = {};
 
-  // Convert scoreChange to skill improvements
+  // Convert scoreChange to skill changes (symmetric: success raises skills, failure lowers them)
   if (choice.scoreChange > 0) {
-    // Positive score = skill gain
+    // Positive score = skill gain + stress relief
     const skillGain = Math.floor(choice.scoreChange / 20);
     effects.skills = {
       troubleshooting: skillGain,
@@ -96,8 +96,14 @@ export function calculateScenarioEffects(choice: ScenarioChoice): EventEffects {
     };
     effects.stress = -Math.floor(choice.scoreChange / 50);
   } else if (choice.scoreChange < 0) {
-    // Negative score = stress increase
-    effects.stress = Math.abs(Math.floor(choice.scoreChange / 25));
+    // Negative score = skill loss (mirrors the gain) + stress increase.
+    // applyEffects() clamps skills at 0, so this can't drive a skill negative.
+    const skillLoss = Math.floor(Math.abs(choice.scoreChange) / 20);
+    effects.skills = {
+      troubleshooting: -skillLoss,
+      security: -Math.floor(skillLoss / 2),
+    };
+    effects.stress = Math.floor(Math.abs(choice.scoreChange) / 25);
   }
 
   // Convert reputationChange to relationship effects
