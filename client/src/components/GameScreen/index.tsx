@@ -3,7 +3,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
-import { ResultScreen } from '../ResultScreen';
+import { ResultScreen, LearningResultCtas } from '../ResultScreen';
 import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
@@ -29,6 +29,8 @@ interface GameScreenProps {
   onTerminalCancel: () => void;
   onSave?: () => void;
   onLoad?: () => void;
+  /** learning mode only: explicit next-step CTAs on the result screen */
+  learningResultCtas?: LearningResultCtas;
 }
 
 export function GameScreen({
@@ -47,6 +49,7 @@ export function GameScreen({
   onTerminalCancel,
   onSave,
   onLoad,
+  learningResultCtas,
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
 
@@ -69,13 +72,14 @@ export function GameScreen({
   const terminalContext = currentEvent?.terminalContext || currentScenario?.terminalContext;
   const guiContext = currentEvent?.guiContext || currentScenario?.guiContext;
 
-  // Extract lesson number for learning mode (from event id like "learn_01_awakening")
-  const getLessonNumber = (): number => {
-    if (!currentEvent?.id?.startsWith('learn_')) return 1;
-    const match = currentEvent.id.match(/learn_(\d+)/);
-    return match ? parseInt(match[1], 10) : 1;
-  };
-  const currentLessonNumber = getLessonNumber();
+  // Learning-mode header shows a progress counter. With the track system a level
+  // id no longer encodes a global "lesson N" (GUI levels have no number, tracks
+  // are non-linear), so derive the current lesson from how many learning levels
+  // are already done: the active one is "next" → completed + 1.
+  const completedLearningLevels = state.completedEvents.filter((id) =>
+    id.startsWith('learn_') || id.startsWith('gui_')
+  ).length;
+  const currentLessonNumber = completedLearningLevels + 1;
 
   if (phase === 'terminal' && (terminalContext || guiContext)) {
     return (
@@ -173,6 +177,7 @@ export function GameScreen({
                     mentorNote={currentEvent?.mentorNote}
                     mentorModeEnabled={state.mentorModeEnabled}
                     isStoryMode={true}
+                    learningCtas={learningResultCtas}
                   />
                 </div>
               </div>
@@ -246,6 +251,7 @@ export function GameScreen({
             characters={characters}
             mentorNote={currentEvent?.mentorNote}
             mentorModeEnabled={state.mentorModeEnabled}
+            learningCtas={learningResultCtas}
           />
         )}
 

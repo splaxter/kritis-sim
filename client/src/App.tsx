@@ -451,6 +451,33 @@ function AppContent() {
   // GameScreen's "no content" fallback. The player picks their next lesson here;
   // we never auto-serve in learning mode.
   const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
+
+  // Learning result-screen CTAs. Only in learning mode, on the result of a level.
+  // Computed against the post-completion state: the just-finished level is
+  // already recorded in completedEvents by makeChoice/closeTerminal, but we build
+  // `stateAfter` explicitly (idempotent) so getNextInTrack/isFinaleUnlocked never
+  // depend on subtle ordering of when completion lands in state.
+  let learningResultCtas: import('./components/ResultScreen').LearningResultCtas | undefined;
+  if (learningCliOnly && game.phase === 'result' && game.currentEvent) {
+    const completedId = game.currentEvent.id;
+    const stateAfter = game.state.completedEvents.includes(completedId)
+      ? game.state
+      : { ...game.state, completedEvents: [...game.state.completedEvents, completedId] };
+
+    const track = getTrackOfLevel(completedId);
+    const next = track ? getNextInTrack(track, stateAfter, allEvents) : null;
+
+    const finaleEvent = allEvents.find((e) => e.id === 'learn_11_final_boss');
+    const finaleDone = finaleEvent ? stateAfter.completedEvents.includes(finaleEvent.id) : true;
+    const offerFinale =
+      isFinaleUnlocked(stateAfter) && completedId !== 'learn_11_final_boss' && !finaleDone;
+
+    learningResultCtas = {
+      onNextLesson: next ? () => handleNextLesson(next) : undefined,
+      onBackToHub: handleBackToHub,
+      onStartFinale: offerFinale ? handleStartFinale : undefined,
+    };
+  }
   if (
     game.phase === 'playing' &&
     learningCliOnly &&
@@ -476,6 +503,7 @@ function AppContent() {
         contentType={game.contentType}
         currentEvent={game.currentEvent}
         currentScenario={game.currentScenario}
+        learningResultCtas={learningResultCtas}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
         characters={characters}
