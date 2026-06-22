@@ -1518,6 +1518,132 @@ Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Ham
   },
 
   {
+    id: 'adv_gui_eventviewer_probe',
+    title: 'Selbst nachsehen: Die Protokolle von DC01',
+    category: 'story',
+    weekRange: [5, 6],
+    probability: 1,
+    description: `Das Muster lässt dich nicht los. Wenn jemand WARM testet, dann steht es in den Logs des Domänencontrollers.
+
+\`\`\`
+[NACHRICHT VON: bjorg] "Reden wir nicht drüber, sieh nach. Sicherheitsprotokoll auf DC01.
+                        Wenn da nachts jemand Konten durchprobiert, steht's da schwarz auf weiß."
+\`\`\`
+
+Du kannst dich auf den Monatsbericht des Dienstleisters verlassen — oder selbst in die Ereignisanzeige schauen.`,
+    involvedCharacters: [],
+    tags: ['story', 'gui', 'act2', 'chapter5', 'evidence'],
+    mentorNote:
+      '4625 = fehlgeschlagene Anmeldung, 4624 = erfolgreiche. Viele 4625 auf ein Konto von einer fremden IP, gefolgt von EINER 4624 derselben IP, ist ein erfolgreicher Zugriffsversuch — und genau die frühe Spur, die einen späteren Angriff ankündigt.',
+    choices: [
+      {
+        id: 'inspect_logs',
+        text: 'Sieh dir das Sicherheitsprotokoll auf DC01 selbst an',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Du hast die Spur selbst gefunden und dokumentiert — kein Bericht hätte sie dir so klar gezeigt.',
+        guiCommand: true,
+      },
+      {
+        id: 'trust_report',
+        text: 'Auf den Monatsbericht des Dienstleisters verlassen',
+        effects: { stress: 3 },
+        resultText:
+          'Der Bericht meldet "keine Auffälligkeiten". Ein ungutes Gefühl bleibt — gesehen hast du nichts.',
+      },
+    ],
+    guiContext: {
+      app: 'eventviewer',
+      title: 'Ereignisanzeige',
+      hostname: 'DC01',
+      briefing:
+        'Filtere nach "Überwachung fehlgeschlagen", erkenne das Muster, und finde dann die EINE erfolgreiche Anmeldung (4624) von genau derselben Quelle. Wähle sie aus und klicke "Als Vorfall melden".',
+      state: {
+        eventViewer: {
+          logName: 'Sicherheit',
+          entries: [
+            {
+              id: 'evt-probe-legit',
+              level: 'Überwachung erfolgreich',
+              dateTime: '12.06.2026 07:58:10',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4624,
+              task: 'Anmeldung',
+              message:
+                'Ein Konto wurde erfolgreich angemeldet.\nKonto: t.berg\nAnmeldetyp: 2 (Interaktiv)\nQuellnetzwerkadresse: 10.0.1.14\nStatus: Normale Benutzeranmeldung.',
+            },
+            {
+              id: 'evt-probe-fail-1',
+              level: 'Überwachung fehlgeschlagen',
+              dateTime: '12.06.2026 02:11:03',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4625,
+              task: 'Anmeldung',
+              message:
+                'Fehler bei der Anmeldung eines Kontos.\nKonto: svc_scada\nFehlerursache: Ungültiges Kennwort.\nQuellnetzwerkadresse: 185.220.101.47',
+            },
+            {
+              id: 'evt-probe-fail-2',
+              level: 'Überwachung fehlgeschlagen',
+              dateTime: '12.06.2026 02:11:39',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4625,
+              task: 'Anmeldung',
+              message:
+                'Fehler bei der Anmeldung eines Kontos.\nKonto: svc_scada\nFehlerursache: Ungültiges Kennwort.\nQuellnetzwerkadresse: 185.220.101.47',
+            },
+            {
+              id: 'evt-probe-fail-3',
+              level: 'Überwachung fehlgeschlagen',
+              dateTime: '12.06.2026 02:12:51',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4625,
+              task: 'Anmeldung',
+              message:
+                'Fehler bei der Anmeldung eines Kontos.\nKonto: svc_scada\nFehlerursache: Ungültiges Kennwort.\nQuellnetzwerkadresse: 185.220.101.47',
+            },
+            {
+              id: 'evt-probe-success',
+              level: 'Überwachung erfolgreich',
+              dateTime: '12.06.2026 02:14:08',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4624,
+              task: 'Anmeldung',
+              message:
+                'Ein Konto wurde erfolgreich angemeldet.\nKonto: svc_scada\nAnmeldetyp: 3 (Netzwerk)\nQuellnetzwerkadresse: 185.220.101.47\n\n⚠ Diese erfolgreiche Anmeldung folgt unmittelbar auf dutzende Fehlversuche von derselben fremden IP.',
+            },
+            {
+              id: 'evt-probe-backup',
+              level: 'Information',
+              dateTime: '12.06.2026 06:00:00',
+              source: 'Microsoft-Windows-Security-Auditing',
+              eventId: 4624,
+              task: 'Anmeldung',
+              message:
+                'Ein Konto wurde erfolgreich angemeldet.\nKonto: backup-svc\nAnmeldetyp: 5 (Dienst)\nStatus: Geplanter Backup-Dienst.',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['report:evt-probe-success'],
+          allRequired: true,
+          resultText:
+            'Treffer. Nach dutzenden Fehlversuchen meldete sich um 02:14 jemand von 185.220.101.47 erfolgreich als "svc_scada" an. Das ist kein Rauschen — das ist ein Test, der funktioniert hat. Du dokumentierst die Spur.',
+          skillGain: { security: 5, windows: 3 },
+          setsFlags: ['story_saw_intrusion'],
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Filter auf \'Überwachung fehlgeschlagen\'. Fällt dir ein Konto + eine IP auf?"',
+        '🤖 Bjorg: "svc_scada, von 185.220.101.47, mitten in der Nacht. Klassisches Durchprobieren."',
+        '🤖 Bjorg: "Jetzt die Frage: gibt es eine ERFOLGREICHE Anmeldung (4624) von genau dieser IP? Such sie, melde sie."',
+      ],
+    },
+  },
+
+  {
     id: 'adv_backup_available',
     title: 'Das Ass im Ärmel',
     category: 'story',
