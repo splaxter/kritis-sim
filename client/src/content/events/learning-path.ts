@@ -26,7 +26,7 @@ export const learningPathEvents: GameEvent[] = [
     requiredModes: ['learning'],
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 1: Das Erwachen',
+    title: 'Grundlagen 1: Das Erwachen',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  SYSTEM BOOT... OK                                           ║
@@ -171,7 +171,7 @@ Note: Memory wipe successful.
     requires: { events: ['learn_01_awakening'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 2: Die versteckte Nachricht',
+    title: 'Grundlagen 2: Die versteckte Nachricht',
     description: `\`\`\`
 [SYSTEM LOG] Letzter Login: azubi @ 02:47 Uhr
 [SYSTEM LOG] Aktivität: 47 Dateien gelöscht
@@ -323,7 +323,7 @@ PPS: Lösch diese Nachricht wenn du sie gelesen hast.
     requires: { events: ['learn_02_hidden_notes'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 3: Digitale Forensik',
+    title: 'Grundlagen 3: Digitale Forensik',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚠️  WARNUNG: SYSTEMPROTOKOLL BESCHÄDIGT                     ║
@@ -493,7 +493,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
     requires: { events: ['learn_03_forensics'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 4: Der Grep-Jäger',
+    title: 'Grundlagen 4: Der Grep-Jäger',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚡ NEUE FÄHIGKEIT VERFÜGBAR: GREP                           ║
@@ -643,7 +643,7 @@ Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
     requires: { events: ['learn_04_grep_hunter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 5: Der Filter',
+    title: 'Linux & Services 1: Der Filter',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚡ NEUE FÄHIGKEIT VERFÜGBAR: PIPES                          ║
@@ -780,7 +780,7 @@ malware:x:0:0:System Service:/tmp:/bin/bash
     requires: { events: ['learn_05_pipe_filter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 6: Die Zombie-Jagd',
+    title: 'Linux & Services 2: Die Zombie-Jagd',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚠️  SYSTEM-ALARM                                            ║
@@ -939,7 +939,7 @@ Tasks: 120 total, 2 running
     requires: { events: ['learn_06_zombie_hunt'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Fortgeschritten: Der unsichtbare Speicherfresser',
+    title: 'Linux & Services ★: Der unsichtbare Speicherfresser',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚠️  DISK-ALARM — warm-srv-log01                             ║
@@ -1130,7 +1130,7 @@ rsyslog.service: gestartet
     requires: { events: ['learn_08_network_recon'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Fortgeschritten: Der Name, der lügt',
+    title: 'Netzwerk & DNS ★: Der Name, der lügt',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ⚠️  TICKET #4471 — warm-app-02                              ║
@@ -1302,7 +1302,7 @@ $ curl -s -o /dev/null -w '%{remote_ip}\\n' portal.kritis.local
     requires: { events: ['learn_10_incident_boss'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Fortgeschritten: Erst sichern, dann reparieren',
+    title: 'Incident Response ★: Erst sichern, dann reparieren',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  🚨 INCIDENT LÄUFT — warm-srv-web03                          ║
@@ -1847,7 +1847,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...7pV mk@warm-mgmt
     requires: { events: ['learn_06_zombie_hunt'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 7: Der Nekromant',
+    title: 'Linux & Services 3: Der Nekromant',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  ☠️  DIENST-STATUS                                           ║
@@ -1997,7 +1997,7 @@ cron.service             loaded active running Regular background cron
     requires: { events: ['learn_04_grep_hunter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 8: Netzwerk-Aufklärung',
+    title: 'Netzwerk & DNS 1: Netzwerk-Aufklärung',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  📡 NETZWERK-SCAN ERFORDERLICH                               ║
@@ -2152,7 +2152,7 @@ nc      9999 malware    3u  IPv4  12345      0t0  TCP *:4444 (LISTEN)
     requires: { events: ['learn_04_grep_hunter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 9: Das Windows-Reich',
+    title: 'Windows-Sicherheit ★: Das Windows-Reich',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
 ║  🪟 DIMENSION WECHSEL                                        ║
@@ -2300,7 +2300,7 @@ Stopped  SensorService      Sensordienst
     requires: { events: ['learn_04_grep_hunter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'Lektion 10: BOSS - Incident Response',
+    title: 'Incident Response 1: Erstreaktion',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════════════════╗
 ║  ⚔️  BOSS BATTLE: INCIDENT RESPONSE                                      ║
@@ -2458,7 +2458,7 @@ abuse-mailbox:  /dev/null
     requires: { events: ['learn_04_grep_hunter'] },
     category: 'training',
     involvedCharacters: [],
-    title: 'FINALE: Root Awakening',
+    title: 'Finale: Root Awakening',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════════════════╗
 ║  ⚔️⚔️⚔️  FINAL BOSS: ROOT AWAKENING  ⚔️⚔️⚔️                               ║
