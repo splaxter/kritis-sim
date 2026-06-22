@@ -1723,6 +1723,93 @@ Du kannst auf die Standard-Konfiguration des Dienstleisters vertrauen — oder d
   },
 
   {
+    id: 'adv_gui_taskmanager_attack',
+    title: 'Eindämmen: Der Prozess, der frisst',
+    category: 'story',
+    weekRange: [9, 10],
+    probability: 1,
+    description: `Es ist soweit. Der Datei-Server reagiert kaum noch, Dateien bekommen reihenweise eine neue Endung. Das ist kein Ausfall — das ist eine Verschlüsselung, live.
+
+\`\`\`
+[NACHRICHT VON: bjorg] "Geh sofort auf die Konsole von FILE01. Irgendein Prozess verschlüsselt
+                        gerade alles. Finde ihn, beende ihn — aber kill nicht das halbe System
+                        im Panikmodus."
+\`\`\`
+
+Jede Minute zählt.`,
+    involvedCharacters: [],
+    tags: ['story', 'gui', 'act3', 'chapter9', 'crisis', 'containment'],
+    mentorNote:
+      'Bei laufender Ransomware: den schädlichen Prozess identifizieren und stoppen, NICHT blind das System killen. Ein Prozess mit hoher CPU/Disk-Last, gestartet aus einem Temp-Ordner und ohne verifizierten Herausgeber, ist der Übeltäter — System-Prozesse blockt Windows ohnehin.',
+    choices: [
+      {
+        id: 'contain_self',
+        text: 'An die Konsole — den Prozess finden und gezielt beenden',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Du gehst chirurgisch vor: den richtigen Prozess gestoppt, den Server am Leben gelassen.',
+        guiCommand: true,
+      },
+      {
+        id: 'pull_plug',
+        text: 'Stecker ziehen — Server hart vom Netz und aus',
+        effects: { stress: 6, skills: { security: 1 } },
+        resultText:
+          'Die Verschlüsselung stoppt — aber du verlierst flüchtige Spuren und reißt den Server abrupt aus dem Betrieb. Eingedämmt, aber grob.',
+      },
+      {
+        id: 'call_external',
+        text: 'Externen Notdienst rufen und warten',
+        effects: { stress: 4, compliance: -5 },
+        resultText:
+          'Der Notdienst meldet sich in 40 Minuten zurück. In der Zeit verschlüsselt der Prozess weiter. Wertvolle Minuten verloren.',
+      },
+    ],
+    guiContext: {
+      app: 'taskmanager',
+      title: 'Task-Manager',
+      hostname: 'SRV-WARM-FILE01',
+      briefing:
+        'Finde den Prozess, der gerade verschlüsselt: hohe Last, gestartet aus einem Temp-Ordner, kein verifizierter Herausgeber. Wähle ihn aus und beende ihn — System-Prozesse lässt du in Ruhe.',
+      briefingVariants: [
+        {
+          flag: 'story_hardened',
+          briefing:
+            'Dein Manipulationsschutz hat gehalten — Defender läuft noch und hat den Angreifer ausgebremst. Der schädliche Prozess sticht dadurch klar heraus. Wähl ihn aus und beende ihn, die System-Prozesse lässt du in Ruhe.',
+        },
+      ],
+      state: {
+        taskManager: {
+          processes: [
+            { name: 'System', pid: 4, cpu: 1, memoryMb: 24, description: 'NT Kernel & System', critical: true },
+            { name: 'svchost.exe', pid: 1008, cpu: 2, memoryMb: 150, description: 'Hostprozess für Windows-Dienste', critical: true },
+            { name: 'lsass.exe', pid: 780, cpu: 1, memoryMb: 40, description: 'Lokale Sicherheitsautorität', critical: true },
+            { name: 'MsMpEng.exe', pid: 2901, cpu: 18, memoryMb: 520, description: 'Antimalware Service Executable (Microsoft Defender)' },
+            { name: 'explorer.exe', pid: 3210, cpu: 1, memoryMb: 198, description: 'Windows-Explorer' },
+            { name: 'svhost32.exe', pid: 9120, cpu: 91, memoryMb: 770, description: 'Unbekannt — gestartet aus C:\\Users\\Public\\Temp, kein verifizierter Herausgeber, hohe Datenträgeraktivität' },
+            { name: 'OUTLOOK.EXE', pid: 4402, cpu: 2, memoryMb: 300, description: 'Microsoft Outlook' },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['endtask:svhost32.exe'],
+          allRequired: true,
+          resultText:
+            'Richtig! "svhost32.exe" (kein echter Windows-Name) lief aus C:\\Users\\Public\\Temp und schrieb pausenlos auf die Platte — der Verschlüsselungsprozess. Beendet. Die Verschlüsselung stoppt sofort, der Server bleibt am Netz.',
+          skillGain: { security: 4, troubleshooting: 4, windows: 2 },
+          setsFlags: ['story_incident_contained'],
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "MsMpEng mit 18% ist nur der Defender. Lass den."',
+        '🤖 Bjorg: "Lies die Namen genau. svchost… svhost32… und woher gestartet?"',
+        '🤖 Bjorg: "C:\\Users\\Public\\Temp, unsigniert, 91% Last. Das ist er. Beenden."',
+      ],
+    },
+  },
+
+  {
     id: 'adv_backup_available',
     title: 'Das Ass im Ärmel',
     category: 'story',
