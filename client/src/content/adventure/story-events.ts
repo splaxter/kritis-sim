@@ -1644,6 +1644,85 @@ Du kannst dich auf den Monatsbericht des Dienstleisters verlassen — oder selbs
   },
 
   {
+    id: 'adv_gui_settings_preharden',
+    title: 'Vor dem Sturm: Den Schutz prüfen',
+    category: 'story',
+    weekRange: [7, 8],
+    probability: 1,
+    description: `Es ist ruhig. Zu ruhig. Wenn das Muster stimmt, kommt der eigentliche Schlag noch. Bevor er kommt, willst du wissen, ob die wichtigen Server überhaupt geschützt sind.
+
+\`\`\`
+[NACHRICHT VON: bjorg] "Prüf den Datei-Server. Defender, Manipulationsschutz, Firewall.
+                        Wenn der Manipulationsschutz aus ist, kann ein Angreifer den Rest
+                        einfach abschalten — dann sind wir blind."
+\`\`\`
+
+Du kannst auf die Standard-Konfiguration des Dienstleisters vertrauen — oder die Windows-Sicherheit selbst öffnen und nachhärten.`,
+    involvedCharacters: [],
+    tags: ['story', 'gui', 'act2', 'chapter8', 'hardening'],
+    mentorNote:
+      'Manipulationsschutz (Tamper Protection) ist die Wurzel: ist er aus, kann ein Angreifer Defender und Firewall einfach deaktivieren. Proaktiv aktivieren, BEVOR der Angriff kommt — nicht erst danach.',
+    choices: [
+      {
+        id: 'harden_self',
+        text: 'Windows-Sicherheit öffnen und selbst härten',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Du hast die Lücken selbst geschlossen — und dokumentierst, was du geändert hast.',
+        guiCommand: true,
+      },
+      {
+        id: 'trust_default',
+        text: 'Auf die Standard-Konfiguration des Dienstleisters vertrauen',
+        effects: { stress: 2 },
+        resultText:
+          'Du gehst davon aus, dass schon alles passt. Geprüft hast du es nicht.',
+      },
+    ],
+    guiContext: {
+      app: 'settings',
+      title: 'Windows-Sicherheit',
+      hostname: 'SRV-WARM-FILE01',
+      briefing:
+        'Schalte die deaktivierten Schutzfunktionen wieder ein — Echtzeitschutz, Domänen-Firewall und vor allem den Manipulationsschutz. Was bereits korrekt (grün) ist, lässt du unverändert.',
+      briefingVariants: [
+        {
+          flag: 'story_saw_intrusion',
+          briefing:
+            'Du hast die nächtlichen Login-Versuche auf DC01 selbst gesehen — jetzt schließ die Lücken, bevor sie wiederkommen. Aktiviere Echtzeitschutz, Domänen-Firewall und Manipulationsschutz. Was schon grün ist, lässt du in Ruhe.',
+        },
+      ],
+      state: {
+        settings: {
+          settings: [
+            { id: 'realtime-protection', category: 'Viren- & Bedrohungsschutz', label: 'Echtzeitschutz', description: 'Aktuell deaktiviert.', enabled: false, recommended: true },
+            { id: 'tamper-protection', category: 'Viren- & Bedrohungsschutz', label: 'Manipulationsschutz', description: 'Verhindert, dass Schutzfunktionen unbefugt abgeschaltet werden.', enabled: false, recommended: true },
+            { id: 'cloud-protection', category: 'Viren- & Bedrohungsschutz', label: 'Über Cloud bereitgestellter Schutz', enabled: true, recommended: true },
+            { id: 'firewall-domain', category: 'Firewall- & Netzwerkschutz', label: 'Domänennetzwerk-Firewall', description: 'Aktuell deaktiviert.', enabled: false, recommended: true },
+            { id: 'firewall-private', category: 'Firewall- & Netzwerkschutz', label: 'Privates Netzwerk-Firewall', enabled: true, recommended: true },
+            { id: 'smartscreen', category: 'App- & Browsersteuerung', label: 'SmartScreen für Apps und Dateien', enabled: true, recommended: true },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['enable:realtime-protection', 'enable:firewall-domain', 'enable:tamper-protection'],
+          allRequired: true,
+          resultText:
+            'Stark. Echtzeitschutz und Domänen-Firewall laufen wieder — und durch den Manipulationsschutz kann ein Angreifer sie nicht mehr einfach abschalten. Du hast nicht repariert, sondern vorgesorgt.',
+          skillGain: { security: 4, windows: 3 },
+          setsFlags: ['story_hardened'],
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Drei Schalter stehen auf rot/\'Aktion nötig\'. Genau die brauchen wir an."',
+        '🤖 Bjorg: "Echtzeitschutz und Domänen-Firewall sind klar. Aber WARUM könnte sie jemand abschalten?"',
+        '🤖 Bjorg: "Manipulationsschutz. Mach den an — sonst war alles andere umsonst."',
+      ],
+    },
+  },
+
+  {
     id: 'adv_backup_available',
     title: 'Das Ass im Ärmel',
     category: 'story',
