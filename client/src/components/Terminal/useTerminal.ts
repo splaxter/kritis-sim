@@ -186,6 +186,11 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     let cursorPos = 0;
     let savedLine = ''; // For history navigation
 
+    // Once a level is solved the terminal is "frozen": the success/solution
+    // text stays on screen and only Enter advances (no auto-timeout).
+    let solved = false;
+    let pendingSkillGain: Partial<Skills> = {};
+
     // Tab completion state for cycling
     let tabCompletions: Completion[] = [];
     let tabIndex = -1;
@@ -219,6 +224,16 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     term.onData((data) => {
       // Reset idle timer on any input
       resetIdleTimer();
+
+      // After solving, swallow all input except Enter, which advances. This
+      // keeps the solution on screen until the player confirms.
+      if (solved) {
+        if (data === '\r') {
+          solved = false;
+          onSolvedRef.current(pendingSkillGain);
+        }
+        return;
+      }
 
       // Handle escape sequences (arrow keys, etc.)
       if (data.startsWith('\x1b[')) {
@@ -344,20 +359,15 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
                   term.writeln('');
 
-                  // Learning mode: wait for Enter press instead of auto-advancing
-                  if (gameMode === 'learning') {
-                    term.writeln('\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m');
-                    const waitForEnter = (data: string) => {
-                      if (data === '\r') {
-                        term.onData(() => {});
-                        onSolvedRef.current(cmd.skillGain || {});
-                      }
-                    };
-                    term.onData(waitForEnter);
-                  } else {
-                    term.writeln('\x1b[90mWeiter in 3 Sekunden...\x1b[0m');
-                    setTimeout(() => onSolvedRef.current(cmd.skillGain || {}), 3000);
-                  }
+                  // Wait for the player to confirm with Enter (all modes) so the
+                  // solution stays readable instead of auto-advancing.
+                  term.writeln(
+                    gameMode === 'learning'
+                      ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
+                      : '\x1b[33m[ENTER] Weiter...\x1b[0m'
+                  );
+                  solved = true;
+                  pendingSkillGain = cmd.skillGain || {};
                   return; // Don't write prompt after solution
                 }
 
@@ -400,21 +410,15 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                     term.writeln('');
                   }
 
-                  // Learning mode: wait for Enter press instead of auto-advancing
-                  if (gameMode === 'learning') {
-                    term.writeln('\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m');
-                    // Set flag to wait for Enter
-                    const waitForEnter = (data: string) => {
-                      if (data === '\r') {
-                        term.onData(() => {}); // Clear handler
-                        onSolvedRef.current(solution.skillGain || {});
-                      }
-                    };
-                    term.onData(waitForEnter);
-                  } else {
-                    term.writeln('\x1b[90mWeiter in 2 Sekunden...\x1b[0m');
-                    setTimeout(() => onSolvedRef.current(solution.skillGain || {}), 2000);
-                  }
+                  // Wait for the player to confirm with Enter (all modes) so the
+                  // solution stays readable instead of auto-advancing.
+                  term.writeln(
+                    gameMode === 'learning'
+                      ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
+                      : '\x1b[33m[ENTER] Weiter...\x1b[0m'
+                  );
+                  solved = true;
+                  pendingSkillGain = solution.skillGain || {};
                   return;
                 }
 
