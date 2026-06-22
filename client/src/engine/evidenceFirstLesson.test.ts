@@ -37,6 +37,18 @@ describe(`learning lesson: ${ID}`, () => {
     }
   });
 
+  it('preserve-copy only credits a copy OUTSIDE the rotation (not /tmp, not same dir)', () => {
+    // The whole point is getting the evidence off the rotating path. A copy
+    // into /tmp (volatile) or back into /var/log (still rotated) must NOT count.
+    const ctx = lesson.terminalContext!;
+    const copyCmd = ctx.commands.find((c) => c.teachesCommand === 'preserve-copy')!;
+    const re = new RegExp(copyCmd.patternRegex!);
+    expect(re.test('cp /var/log/auth.log /root/incident/')).toBe(true);
+    expect(re.test('cp /var/log/auth.log /evidence/')).toBe(true);
+    expect(re.test('cp /var/log/auth.log /tmp/')).toBe(false);
+    expect(re.test('cp /var/log/auth.log /var/log/auth.log.bak')).toBe(false);
+  });
+
   it('every remediation action is a non-winning trap with feedback', () => {
     const ctx = lesson.terminalContext!;
     // logrotate -f, restart, iptables/block, rm/truncate — each must give
