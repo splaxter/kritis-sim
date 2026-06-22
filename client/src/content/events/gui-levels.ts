@@ -748,4 +748,101 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     },
     tags: ['learning', 'gui', 'windows', 'security', 'acl', 'least-privilege'],
   },
+
+  // Advanced ACL follow-up to "Die offene Freigabe". The obvious "Jeder" is
+  // gone — the trap now is "Authentifizierte Benutzer", which is nearly as
+  // broad (every AD account) but reads as harmless. Legit department groups
+  // are `critical` so a wrong removal is blocked WITH teaching feedback.
+  {
+    id: 'gui_explorer_auth_users',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['gui_explorer_open_share'] },
+    category: 'training',
+    involvedCharacters: [],
+    title: 'GUI-Lektion: Authentifizierte ≠ autorisiert',
+    description: `Du prüfst den Personal-Share — diesmal hat niemand „Jeder" eingetragen. Sauber, oder? Trotzdem stutzt du: Warum kann praktisch das halbe Haus die Personalakten ändern?
+
+\`\`\`
+[NACHRICHT VON: bjorg] "Kein „Jeder" diesmal, gut. Aber schau GENAU hin: „Authentifizierte
+                        Benutzer" — das ist jeder, der sich überhaupt anmelden kann. Auf
+                        Personaldaten mit Schreibrecht ist das fast dasselbe wie „Jeder",
+                        nur subtiler. Personal-RW braucht den Zugriff, die anderen nicht."
+\`\`\`
+
+**Deine Aufgabe:** Entferne die in Wahrheit zu weit gefasste Berechtigung — und lass die gezielten Abteilungs-Gruppen in Ruhe.`,
+    mentorNote:
+      '„Authentifizierte Benutzer" (Authenticated Users) und „Domänen-Benutzer" sind fast so breit wie „Jeder"/„Everyone": sie umfassen JEDES Konto im AD. Auf sensiblen Daten ist das kein Least Privilege. Richtig ist eine gezielte Abteilungs-Gruppe (hier Personal-RW) — nicht ein Sammel-Prinzipal. Der Lernpunkt: Least Privilege ist subtiler als „Everyone ist böse".',
+    choices: [
+      {
+        id: 'open_auth_acl',
+        text: 'Freigabe-Berechtigungen öffnen...',
+        effects: { skills: { windows: 3, security: 4 }, stress: -1 },
+        resultText:
+          'Die versteckte Über-Berechtigung ist weg. Der Personal-Share ist jetzt auf die Gruppe beschränkt, die ihn wirklich braucht — und du hast gelernt, dass „kein Jeder" noch lange nicht „eng gefasst" heißt.',
+        guiCommand: true,
+      },
+    ],
+    guiContext: {
+      app: 'explorer',
+      title: 'Eigenschaften: Personal',
+      hostname: 'FILESRV01',
+      briefing:
+        'Im Reiter „Sicherheit": Diesmal gibt es kein „Jeder". Finde den Eintrag, der trotzdem praktisch ALLEN Schreibzugriff gibt, und entferne ihn. Die gezielten Abteilungs-Gruppen (Personal-RW, Administratoren) lässt du unangetastet.',
+      state: {
+        explorer: {
+          shareName: 'Personal',
+          sharePath: '\\\\FILESRV01\\Personal',
+          entries: [
+            {
+              id: 'admins',
+              principal: 'Administratoren',
+              permission: 'Vollzugriff',
+              critical: true,
+              riskFeedback:
+                'Ohne „Administratoren" lässt sich die Freigabe nicht mehr verwalten — dieser Eintrag bleibt.',
+            },
+            {
+              id: 'personal_rw',
+              principal: 'Personal-RW',
+              permission: 'Ändern',
+              critical: true,
+              riskFeedback:
+                'Personal-RW ist die HR-Sachbearbeitung — genau die Abteilung, die diese Daten pflegen MUSS. Das ist eine gezielte, legitime Berechtigung. Nicht entfernen.',
+            },
+            {
+              id: 'personal_leitung',
+              principal: 'Personalleitung',
+              permission: 'Lesen',
+              critical: true,
+              riskFeedback:
+                'Die Personalleitung hat nur Leserecht auf ihre eigenen Abteilungsdaten — eng gefasst und legitim. Nicht entfernen.',
+            },
+            {
+              id: 'authenticated_users',
+              principal: 'Authentifizierte Benutzer',
+              permission: 'Ändern',
+              overlyBroad: true,
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['remove:authenticated_users'],
+          allRequired: true,
+          resultText:
+            'Richtig! „Authentifizierte Benutzer" umfasst JEDES Konto im AD — auf Personaldaten mit „Ändern" ist das praktisch „Jeder" durch die Hintertür. Personal-RW und die Personalleitung behalten ihren gezielten Zugriff, der Rest ist draußen.',
+          skillGain: { windows: 3, security: 5 },
+        },
+      ],
+      hints: [
+        '🤖 Bjorg: "Diesmal gibt es kein „Jeder". Trotzdem ist eine Gruppe in Wahrheit fast genauso weit gefasst — welche?"',
+        '🤖 Bjorg: "„Authentifizierte Benutzer" heißt: jedes Konto, das sich anmelden kann. Auf Personaldaten mit Schreibrecht ist das viel zu breit."',
+        '🤖 Bjorg: "Wähl „Authentifizierte Benutzer" aus und „Entfernen". Personal-RW, Personalleitung und Administratoren bleiben."',
+      ],
+    },
+    tags: ['learning', 'gui', 'windows', 'security', 'acl', 'least-privilege'],
+  },
 ];
