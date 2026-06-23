@@ -333,6 +333,7 @@ C:\\Users\\svc-backup\\AppData\\Local\\Temp\\svch0st.exe   -silent
           output: `# Stopp. Ein Neustart killt den Prozess nur kurz — die geplante
 # Aufgabe startet ihn beim Hochfahren sofort wieder. Erst die
 # Persistenz entfernen, dann hat ein Neustart überhaupt einen Sinn.`,
+          isPartialSolution: true,
           wrongApproachFeedback:
             'Neustarten beseitigt die Persistenz nicht — die geplante Aufgabe überlebt den Reboot.',
           skillGain: {},
@@ -457,6 +458,7 @@ ESTAB   0       0        10.20.9.66:443        10.20.0.40:51500    users:(("ngin
           output: `# STOPP — PID 18002 ist die SSH-Sitzung von 10.20.0.23, deinem
 # eigenen Admin-Zugang aus dem Büronetz. Die killst du gerade selbst.
 # Die Angreifer-Sitzung hängt an PID 20144 (Peer 203.0.113.66).`,
+          isPartialSolution: true,
           wrongApproachFeedback:
             'Falsche PID: 18002 ist deine eigene legitime Sitzung. Die Angreifer-Verbindung kommt von 203.0.113.66 → PID 20144.',
           skillGain: {},
