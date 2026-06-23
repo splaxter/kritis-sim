@@ -166,3 +166,24 @@ Reine Content-Varianten, kein Eingriff ins Score-/Ending-System.
 3. **Core-Firewall-App + Abschnitt 3** (der einzige neue Engine-Teil).
 4. **Outro-Event** + Bergmann-Funk-Layer (Descriptions/Hints/briefingVariants).
 5. **Tests.**
+
+---
+
+## Backlog — offene narrative Payoffs (Design-Note, keine Correctness)
+
+Der Track setzt Flags, die **noch niemand liest** (Stand: Review feat/blackout-slice).
+Reine Erzähl-Auszahlung, bewusst aus dem Correctness-Cleanup herausgehalten.
+
+- **`blk_source_ip_known` / `blk_attacker_cut`** (L4 Jump-Server) und
+  **`solution_firewall_locked`** (L5 Firewall) haben keinen Downstream-Reader.
+  Die fünf Level fühlen sich dadurch wie eine Sackgasse an — sie *füttern* nichts.
+- **Idee:** Im Finale-Track (oder einem Blackout-Debrief-Event) auf
+  `solution_firewall_locked` / `blk_source_ip_known` reagieren — z. B. Bergmann
+  greift „die IP, die du am Jump-Server rausgezogen hast" (203.0.113.66) wieder
+  auf, oder ein Abschluss-Beat quittiert den abgewendeten Blackout. Macht aus der
+  Slice einen Bogen mit Auflösung statt fünf isolierter Übungen.
+- **Auch offen:** `blk_sloppy` wird von briefingVariants in L2/L5 gelesen (gut),
+  aber es gibt keinen finalen „du warst von Anfang an schlampig"-Beat. Optional.
+
+Scope: Content-/`briefingVariants`-Arbeit, kein Engine-Change. Erst angehen, wenn
+der Finale-Track inhaltlich dran ist.
