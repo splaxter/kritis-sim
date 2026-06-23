@@ -81,7 +81,16 @@ describe('Blackout track — flag flow', () => {
       expect.arrayContaining(['blk_attacker_cut', 'blk_source_ip_known'])
     );
     const sol = ev.terminalContext!.solutions[0];
-    expect(sol.commands).toContain('kill-session');
+    // Solving must require the full investigate→locate→kill chain, not just the
+    // kill. No command may carry `isSolution`, which would short-circuit the
+    // terminal engine and complete the level before checkSolutions runs —
+    // letting a player win on `kill -9 <pid>` alone and stranding this
+    // solution's resultText/reward. (Mirrors the C1 PowerShell contract.)
+    expect(sol.allRequired).toBe(true);
+    expect(sol.commands).toEqual(
+      expect.arrayContaining(['find-source', 'find-session', 'kill-session'])
+    );
+    expect(ev.terminalContext!.commands.some((c) => c.isSolution)).toBe(false);
   });
 
   it('C3 Core-Firewall: block + isolate sets solution_firewall_locked; criticals are guarded', () => {

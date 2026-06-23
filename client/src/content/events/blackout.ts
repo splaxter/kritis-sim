@@ -450,7 +450,6 @@ ESTAB   0       0        10.20.9.66:443        10.20.0.40:51500    users:(("ngin
 [SYSTEM] Verbindung getrennt. Die Angreifer-Sitzung ist tot.`,
           teachesCommand: 'kill-session',
           skillGain: { linux: 3, security: 4 },
-          isSolution: true,
         },
         {
           pattern: 'kill -9 18002',
