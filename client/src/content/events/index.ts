@@ -4,6 +4,7 @@ import { week2to4Events } from './week2-4';
 import { week5to8Events } from './week5-8';
 import { week9to12Events } from './week9-12';
 import { week13to18Events } from './week13-18';
+import { week19to24Events } from './week19-24';
 import { kritisSpecialEvents } from './kritis-special';
 import { tutorialEvents } from './tutorials';
 import { chainEvents } from './chains';
@@ -18,6 +19,7 @@ export const allEvents: GameEvent[] = [
   ...week5to8Events,
   ...week9to12Events,
   ...week13to18Events,
+  ...week19to24Events,
   ...kritisSpecialEvents,
   ...tutorialEvents,
   ...chainEvents,
