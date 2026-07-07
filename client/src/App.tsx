@@ -213,7 +213,10 @@ function AppContent() {
     if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMenuIndex(prev => (prev - 1 + menuItems.length) % menuItems.length);
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setMenuIndex(prev => (prev + 1) % menuItems.length);
       } else if (e.key === 'Enter') {
