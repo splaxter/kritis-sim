@@ -272,7 +272,7 @@ Frau Weber schaut dich hoffnungsvoll an: "Sie sind doch von der IT. Können Sie 
   },
 
   {
-    id: 'adv_thomas_warning',
+    id: 'adv_jens_warning',
     title: 'Bjorg\' Warnung',
     category: 'story',
     weekRange: [2, 2],
@@ -293,7 +293,7 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
         text: '"Zeig mir alles. Ich glaube dir."',
         effects: { relationships: { kollegen: 20 } },
         resultText: 'Bjorg atmet aus. "Endlich jemand. Okay, pass auf..." Er beginnt zu erklären. Es ist komplizierter als du dachtest.',
-        setsFlags: ['thomas_ally', 'knows_stefans_findings'],
+        setsFlags: ['jens_ally', 'knows_stefans_findings'],
       },
       {
         id: 'skeptical',
@@ -307,7 +307,7 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
         text: '"Lass uns vorsichtig sein. Wer weiß noch davon?"',
         effects: { relationships: { kollegen: 15 }, skills: { security: 2 } },
         resultText: '"Nur wir", sagt Bjorg. "Und Stefan, wo auch immer er ist." Er schaut sich um. "Lass uns woanders reden."',
-        setsFlags: ['careful_approach', 'thomas_partner', 'thomas_ally'],
+        setsFlags: ['careful_approach', 'thomas_partner', 'jens_ally'],
       },
     ],
   },
@@ -1271,7 +1271,7 @@ Es ist die Generalprobe, die niemand will. Und sie zeigt Lücken.`,
     ],
   },
   {
-    id: 'adv_thomas_flashback',
+    id: 'adv_jens_flashback',
     title: 'Schon einmal gesehen',
     category: 'story',
     weekRange: [8, 8],
@@ -2152,7 +2152,7 @@ Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: 
   },
 
   {
-    id: 'adv_thomas_helps',
+    id: 'adv_jens_helps',
     title: 'Bjorgs Revanche',
     category: 'story',
     weekRange: [10, 10],

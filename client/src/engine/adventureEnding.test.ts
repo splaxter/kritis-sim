@@ -119,11 +119,11 @@ describe('campaign paths reach all three endings', () => {
   it('hero path: branch flags set, full chain playable, ending = good', () => {
     const served = walkCampaign({
       found_basement_server: true,
-      thomas_ally: true,
+      jens_ally: true,
       chose_official_route: true,
     });
     expect(served).toContain('adv_backup_check');
-    expect(served).toContain('adv_thomas_helps');
+    expect(served).toContain('adv_jens_helps');
 
     // Build the hero final profile and assert the good ending.
     const s = storyState({

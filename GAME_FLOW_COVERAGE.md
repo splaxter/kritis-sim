@@ -209,7 +209,7 @@
 | adv_mysterious_note | ch01 | 3 | - |
 | adv_system_tour | ch02 | 3 | - |
 | adv_coffee_machine_intro | ch02 | 3 | - |
-| adv_thomas_warning | ch02 | 3 | - |
+| adv_jens_warning | ch02 | 3 | - |
 | adv_strange_logs | ch02 | 3 | - |
 | adv_printer_emergency | ch03 | 3 | - |
 | adv_chef_pressure | ch03 | 3 | - |
