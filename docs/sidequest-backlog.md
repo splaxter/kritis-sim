@@ -9,7 +9,7 @@ premises are parked here so the design work isn't lost.
 
 | id | Title | Premise | Blocker at cut time |
 |---|---|---|---|
-| sq_thomas_secret | Bjorg' Mining-Geheimnis | Bjorg schürft nachts heimlich Krypto im Büro; wer es entdeckt, gewinnt sein Vertrauen. | Unlock-Option `already_know` existiert nicht in `adv_thomas_confession` |
+| sq_thomas_secret | Bjorg' Mining-Geheimnis | Bjorg schürft nachts heimlich Krypto im Büro; wer es entdeckt, gewinnt sein Vertrauen. Passt nach dem Charakter-Rework PERFEKT zu Bjorg (der Mann, der "nie Zeit" hat, hat nachts Zeit fürs Schürfen); Achtung: `adv_thomas_confession` gehört inzwischen Jens, ein Revival bräuchte ein neues Payoff-Ziel. | Unlock-Option `already_know` existiert nicht in `adv_thomas_confession` |
 | sq_chef_family | Der Chef hat Sorgen | Chef Bernd hat private Probleme; wer zuhört, macht ihn zum Verbündeten. | Unlock-Option `appeal_to_family` existiert nicht in `adv_chef_confrontation` |
 | sq_kaemmerer_excel | Der Excel-Albtraum | Eine 50-MB-Excel-Datei entscheidet über die Karriere des Kämmerers — und über dein Notfall-Budget. | Reward hing am toten `grantsAbility`-Hook (`emergency_budget`) |
 | sq_basement_server | Der Server im Keller | Ein vergessener Server im Keller läuft noch — und könnte das geheime Backup sein. | Hing am toten `addsStoryBeat`-Hook; Haupt-Story setzt `found_basement_server` inzwischen selbst |

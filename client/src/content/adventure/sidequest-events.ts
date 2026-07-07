@@ -18,7 +18,9 @@ export const adventureSidequestEvents: GameEvent[] = [
 
 Auf den Blättern: Rechnungen. Ordentlich formatiert, mit Briefkopf. Absender: "Meridian Logistik GmbH". Du hast den Namen noch nie gehört - und Google auch nicht.
 
-**Bjorg** (ohne vom Monitor aufzuschauen): "Der Drucker ist verflucht. Stefan hat das auch gesagt. Ich fasse das Ding nicht an."
+**Bjorg** (ohne vom Monitor aufzuschauen): "Der Drucker ist verflucht. Nicht mein Aufgabenbereich, kennste. Wer den Drucker anfasst, hat den Drucker."
+
+**Jens** (leise): "Stefan hat das auch gesagt. Das mit dem Fluch. Er hat es nicht als Witz gemeint."
 
 **Frau Weber**: "Gestern Nacht waren es 34 Seiten. Der Hausmeister hat sie um sechs Uhr früh im Ausgabefach gefunden."`,
     involvedCharacters: ['kollege'],
@@ -35,7 +37,7 @@ Auf den Blättern: Rechnungen. Ordentlich formatiert, mit Briefkopf. Absender: "
         id: 'ask_around',
         text: 'Erst mal fragen: Wer hat Zugriff auf den Drucker?',
         effects: { relationships: { fachabteilung: 5 } },
-        resultText: '"Alle", sagt Frau Weber. "Er hängt im Netzwerk." Bjorg murmelt: "Genau wie die Kaffeemaschine." Ihr schaut euch an.',
+        resultText: '"Alle", sagt Frau Weber. "Er hängt im Netzwerk." Jens murmelt: "Genau wie die Kaffeemaschine." Ihr schaut euch an.',
         setsFlags: ['printer_asked_around'],
       },
       {
@@ -79,9 +81,9 @@ Die Maschine spuckt eine weitere "Meridian Logistik"-Rechnung aus, noch warm. De
       },
       {
         id: 'call_thomas',
-        text: 'Bjorg anrufen. Um Mitternacht. Er wollte das Ding nie anfassen.',
+        text: 'Henry anrufen. Um Mitternacht. Wer sonst?',
         effects: { relationships: { kollegen: 10 }, stress: -5 },
-        resultText: 'Zwanzig Minuten später steht Bjorg in Jogginghose in der Tür - mit einem Fläschchen Weihwasser in der einen und seinem Laptop in der anderen Hand. "Falls Technik nicht reicht", sagt er ernst. Ihr fangt beide an zu lachen. Dann setzt er sich neben dich.',
+        resultText: 'Zwanzig Minuten später steht Henry in Jogginghose in der Tür, Laptop unterm Arm — und ein Fläschchen Weihwasser in der Hand. "Von Bjorg", sagt er trocken. "Er käme ja selbst, aber sein Rücken. Das Weihwasser übernimmt seinen Teil." Ihr fangt beide an zu lachen. Dann setzt er sich neben dich.',
         setsFlags: ['printer_thomas_joined'],
       },
     ],
@@ -119,9 +121,9 @@ Jemand wollte genau das herausfinden. Und du bist die Antwort.`,
       },
       {
         id: 'tell_team',
-        text: 'Frau Weber und Bjorg die ganze Geschichte erzählen',
+        text: 'Frau Weber und Jens die ganze Geschichte erzählen',
         effects: { relationships: { kollegen: 10, fachabteilung: 5 }, stress: -5 },
-        resultText: '"Also KEIN Geist?", fragt Frau Weber fast enttäuscht. "Schlimmer", sagt Bjorg leise. "Ein Geist macht keine Firmware-Updates." Er schaut dich an. "Stefan hat sowas gesucht. Genau sowas." Zum ersten Mal nimmt er dich ganz ernst.',
+        resultText: '"Also KEIN Geist?", fragt Frau Weber fast enttäuscht. "Schlimmer", sagt Jens leise. "Ein Geist macht keine Firmware-Updates." Er schaut dich an. "Stefan hat sowas gesucht. Genau sowas." Zum ersten Mal nimmt er dich ganz ernst. Bjorg ruft aus dem Flur: "Sag ich doch — verflucht!"',
         setsFlags: ['printer_team_told'],
       },
     ],
@@ -160,7 +162,7 @@ Irgendwo im Haus kriecht der Datenverkehr durch einen Engpass, den niemand je ge
         id: 'ask_thomas',
         text: 'Bjorg fragen, wie das Netz eigentlich gewachsen ist',
         effects: { relationships: { kollegen: 5 } },
-        resultText: '"Historisch gewachsen", sagt Bjorg und zuckt mit den Schultern, als wäre das eine vollständige Antwort. Auf Nachfrage: "Also... irgendwer hat irgendwann irgendwas angeschlossen. Seit zehn Jahren." Immerhin ehrlich.',
+        resultText: '"Historisch gewachsen", sagt Bjorg und zuckt mit den Schultern, als wäre das eine vollständige Antwort. Auf Nachfrage: "Also... irgendwer hat irgendwann irgendwas angeschlossen. Seit zehn Jahren. Ich war\'s nie — ich hab da nämlich grundsätzlich Termine." Immerhin ehrlich. Und, ganz nebenbei: Sein Geschwätz verrät dir, WO der älteste Schrank steht.',
         setsFlags: ['network_asked_thomas'],
       },
     ],
@@ -208,7 +210,9 @@ Du hast den Flaschenhals gefunden. Und gleichzeitig das größte Sicherheitsloch
 
 **Frau Weber**: "Ich schwöre, wenn das so weitergeht, stelle ich meine eigene Thermoskanne hin. Filterkaffee. Von zu Hause." Im Pausenraum geht ein kollektives Stöhnen um. Die Moral im Haus hängt an dieser Maschine - und die Maschine spinnt.
 
-**Bjorg**: "Stefan hat gesagt, das Ding ist gefährlich. Ich dachte, er meint das Koffein."`,
+**Jens**: "Stefan hat gesagt, das Ding ist gefährlich. Ich dachte damals, er meint das Koffein."
+
+**Bjorg** (mit Tasse in der Hand): "47 Espresso? Kennste — die Maschine ist wie meine Schwiegermutter: macht nachts Krach und keiner weiß warum!" Er lacht. Die Maschine gurgelt. Sonst ist es still.`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'sidequest', 'coffee', 'iot'],
     choices: [
@@ -265,9 +269,9 @@ Das ist keine Kaffee-Statistik. Das ist ein Bewegungsprofil des Gebäudes. Wer d
       },
       {
         id: 'show_thomas',
-        text: 'Bjorg das Bewegungsprofil zeigen',
+        text: 'Jens das Bewegungsprofil zeigen',
         effects: { relationships: { kollegen: 10 } },
-        resultText: 'Bjorg schaut auf den Bildschirm und wird blass. "Das ist... das ist genau das, wovor Stefan Angst hatte. Kleine Dinger. Überall. Die niemand ernst nimmt." Er schluckt. "Stefan hatte recht."',
+        resultText: 'Jens schaut auf den Bildschirm und wird blass. "Das ist... das ist genau das, wovor Stefan Angst hatte. Kleine Dinger. Überall. Die niemand ernst nimmt." Er schluckt. "Stefan hatte recht."',
         setsFlags: ['coffee_thomas_told'],
       },
     ],
@@ -298,7 +302,7 @@ Im Pausenraum hat sich herumgesprochen, wer "das mit der Kaffeemaschine" gefixt 
         id: 'enjoy_moment',
         text: 'Den Moment einfach genießen - der erste echte Team-Erfolg',
         effects: { relationships: { kollegen: 10 }, stress: -5 },
-        resultText: 'Ihr steht zu dritt am Fenster, jeder mit einer Tasse. Bjorg hebt seine wie zum Anstoßen. "Auf den Kaffeemaschinenflüsterer." Frau Weber lacht. Es ist klein. Aber es ist echt. Und du wirst dich daran erinnern, wenn es mal richtig hart wird.',
+        resultText: 'Ihr steht am Fenster, jeder mit einer Tasse. Jens hebt seine wie zum Anstoßen: "Auf den Kaffeemaschinenflüsterer." Frau Weber lacht. Bjorg taucht exakt in diesem Moment auf — Kaffee gibt es ja wieder. "Worauf trinken wir? Egal, bin dabei!" Es ist klein. Aber es ist echt. Und du wirst dich daran erinnern, wenn es mal richtig hart wird.',
         setsFlags: ['coffee_team_moment'],
       },
     ],
