@@ -28,7 +28,7 @@ Und überlebe die nächsten 12 Wochen.`,
   ],
   features: [
     '12 Kapitel in 3 Akten',
-    '15+ Sidequests die die Story beeinflussen',
+    'Optionale Sidequests, die die Story beeinflussen',
     'Charaktere die sich an deine Taten erinnern',
     'Comedy-Drama Ton mit echten Cyber-Gefahren',
   ],

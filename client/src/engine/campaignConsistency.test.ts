@@ -33,29 +33,20 @@ const FINISHED_CHAPTERS = [
 const KNOWN_WIP_CHAPTERS = adventureChapters.map((c) => c.id).filter((id) => !FINISHED_CHAPTERS.includes(id));
 const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger removed)
 
-// ── DOCUMENTED CONTENT GAP: sidequest events ──────────────────────────────
+// ── SIDEQUEST LAYER: rescoped to 3 authored quests ────────────────────────
 // adventureSidequests is the LIVE source the engine scans (getAvailableSidequests
 // in adventureEngine.ts) — NOT chapters[].sidequests, which are all empty today.
-// The adv_sq_* events these quests reference (plus the adv_complete_picture beat)
-// were never authored, so the sidequest layer is currently inert: story beats take
-// priority in getNextStoryContent, and even if a quest started its events wouldn't
-// resolve. Like the Act 3 chapter gap, we don't bless this — we PIN the exact set
-// of dangling refs so it can neither grow silently (a new unauthored ref slips in)
-// nor shrink silently (someone authors one — then remove it from this list).
+// The sidequest layer shipped 12 definitions with zero authored events. It is being
+// rescoped to 3 fully-authored quests (sq_haunted_printer, sq_network_optimization,
+// sq_coffee_machine) and the other 9 are cut (parked in docs/sidequest-backlog.md).
+// This pin tracks the still-unauthored events of the kept 3 while Tasks 4–6 author
+// them; it shrinks to [] once every kept quest's events exist. It can neither grow
+// silently (a new unauthored ref slips in) nor shrink silently (someone authors
+// one — then remove it from this list).
 const KNOWN_DANGLING_SIDEQUEST_EVENTS = [
-  'adv_complete_picture',
-  'adv_sq_basement_1', 'adv_sq_basement_2', 'adv_sq_basement_3',
-  'adv_sq_chef_1', 'adv_sq_chef_2',
   'adv_sq_coffee_1', 'adv_sq_coffee_2', 'adv_sq_coffee_3',
-  'adv_sq_contact_1', 'adv_sq_contact_2', 'adv_sq_contact_3',
-  'adv_sq_excel_1', 'adv_sq_excel_2',
-  'adv_sq_legacy_1', 'adv_sq_legacy_2',
-  'adv_sq_logs_1', 'adv_sq_logs_2',
   'adv_sq_network_1', 'adv_sq_network_2',
-  'adv_sq_password_1', 'adv_sq_password_2',
   'adv_sq_printer_1', 'adv_sq_printer_2', 'adv_sq_printer_3',
-  'adv_sq_thomas_1', 'adv_sq_thomas_2', 'adv_sq_thomas_3',
-  'adv_sq_trail_1', 'adv_sq_trail_2', 'adv_sq_trail_3', 'adv_sq_trail_4',
 ];
 
 const setFlags = new Set<string>(['kritis_mode']);

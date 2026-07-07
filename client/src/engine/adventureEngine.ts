@@ -548,30 +548,6 @@ export function hasAbility(state: GameState, ability: string): boolean {
 }
 
 /**
- * Get NPC behavior state based on completed sidequests
- */
-export function getNpcBehaviorState(state: GameState, npcId: string): string | null {
-  if (!state.storyState) return null;
-
-  const completedSidequests = state.storyState.completedSidequests;
-
-  // Check sidequests in reverse order (latest completed takes priority)
-  for (let i = completedSidequests.length - 1; i >= 0; i--) {
-    const sqId = completedSidequests[i];
-    const sidequest = adventureSidequests.find(sq => sq.id === sqId);
-    if (!sidequest?.storyEffects?.changesNpcBehavior) continue;
-
-    for (const change of sidequest.storyEffects.changesNpcBehavior) {
-      if (change.npcId === npcId) {
-        return change.newState;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Get sidequest rewards to apply when completing a sidequest
  */
 export function getSidequestRewards(sidequestId: string): {
@@ -610,32 +586,6 @@ export function findSidequestByEvent(eventId: string): SidequestDefinition | nul
  */
 export function isSidequestEvent(eventId: string): boolean {
   return findSidequestByEvent(eventId) !== null;
-}
-
-/**
- * Get dynamic story beats added by completed sidequests
- */
-export function getAddedStoryBeats(
-  state: GameState,
-  chapterId: string
-): StoryBeat[] {
-  if (!state.storyState) return [];
-
-  const addedBeats: StoryBeat[] = [];
-  const completedSidequests = state.storyState.completedSidequests;
-
-  for (const sqId of completedSidequests) {
-    const sidequest = adventureSidequests.find(sq => sq.id === sqId);
-    if (!sidequest?.storyEffects?.addsStoryBeat) continue;
-
-    for (const addition of sidequest.storyEffects.addsStoryBeat) {
-      if (addition.chapterId === chapterId) {
-        addedBeats.push(addition.beat);
-      }
-    }
-  }
-
-  return addedBeats;
 }
 
 // ============================================

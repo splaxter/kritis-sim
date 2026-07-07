@@ -26,7 +26,7 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 
 ### Features
 - **12 chapters** across 3 acts with branching story beats
-- **12 sidequests** that unlock dialogue options and change NPC behavior
+- **Optional sidequests** that unlock hidden dialogue options
 - **Character memory** - NPCs remember your choices
 - **3 endings** based on relationships, completed sidequests, and key decisions
 

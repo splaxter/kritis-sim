@@ -9,15 +9,12 @@ import {
   getAvailableSidequests,
   advanceSidequest,
   isDialogueUnlocked,
-  getUnlockedAbilities,
-  hasAbility,
-  getNpcBehaviorState,
   getSidequestRewards,
   findSidequestByEvent,
   advanceStoryBeat,
   getStoryProgress,
 } from './adventureEngine';
-import { GameState, createInitialAdventureState } from '@kritis/shared';
+import { GameState, SidequestDefinition, createInitialAdventureState } from '@kritis/shared';
 
 function createTestState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -100,24 +97,23 @@ describe('Sidequest Triggers', () => {
     });
 
     const available = getAvailableSidequests(state);
-    const legacyQuest = available.find(sq => sq.id === 'sq_legacy_code');
+    const networkQuest = available.find(sq => sq.id === 'sq_network_optimization');
 
-    expect(legacyQuest).toBeDefined();
+    expect(networkQuest).toBeDefined();
   });
 
   it('triggers flag-based sidequest when flag is set', () => {
-    const state = createTestState({
-      flags: { found_mysterious_note: true },
-      storyState: {
-        ...createInitialAdventureState(),
-        currentChapter: 'ch04_the_file',
-      },
-    });
+    const flagQuest: SidequestDefinition = {
+      id: 'sq_test_flag',
+      title: 't',
+      description: 't',
+      triggerCondition: { flags: ['some_flag'] },
+      events: ['x'],
+      rewards: {},
+    };
+    const stateWithFlag = createTestState({ flags: { some_flag: true } });
 
-    const available = getAvailableSidequests(state);
-    const trailQuest = available.find(sq => sq.id === 'sq_predecessor_trail');
-
-    expect(trailQuest).toBeDefined();
+    expect(checkSidequestTrigger(flagQuest, stateWithFlag)).toBe(true);
   });
 
   it('respects chapter bounds', () => {
@@ -210,59 +206,6 @@ describe('Dialogue Unlocks', () => {
 
     const isUnlocked = isDialogueUnlocked(state, 'adv_team_rally', 'coffee_speech');
     expect(isUnlocked).toBe(false);
-  });
-});
-
-describe('Granted Abilities', () => {
-  it('grants ability after completing sidequest', () => {
-    const state = createTestState({
-      storyState: {
-        ...createInitialAdventureState(),
-        completedSidequests: ['sq_coffee_machine'],
-      },
-    });
-
-    expect(hasAbility(state, 'team_morale_boost')).toBe(true);
-  });
-
-  it('does not grant ability without completing sidequest', () => {
-    const state = createTestState();
-
-    expect(hasAbility(state, 'team_morale_boost')).toBe(false);
-  });
-
-  it('returns all unlocked abilities', () => {
-    const state = createTestState({
-      storyState: {
-        ...createInitialAdventureState(),
-        completedSidequests: ['sq_coffee_machine', 'sq_basement_server'],
-      },
-    });
-
-    const abilities = getUnlockedAbilities(state);
-    expect(abilities).toContain('team_morale_boost');
-    expect(abilities).toContain('secret_backup');
-  });
-});
-
-describe('NPC Behavior Changes', () => {
-  it('changes NPC behavior after completing sidequest', () => {
-    const state = createTestState({
-      storyState: {
-        ...createInitialAdventureState(),
-        completedSidequests: ['sq_coffee_machine'],
-      },
-    });
-
-    const npcState = getNpcBehaviorState(state, 'kollegen');
-    expect(npcState).toBe('grateful');
-  });
-
-  it('returns null for unchanged NPC', () => {
-    const state = createTestState();
-
-    const npcState = getNpcBehaviorState(state, 'kollegen');
-    expect(npcState).toBeNull();
   });
 });
 
