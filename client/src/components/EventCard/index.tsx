@@ -1,33 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { GameEvent, EventChoice, GameState } from '@kritis/shared';
 import { getVisibleChoices } from '../../engine/eventEngine';
-import { formatArcadeTime } from '../../hooks/useArcadeTimer';
-import { formatScore, getMultiplier } from '../../engine/arcadeScoring';
 import { useStoryBackground } from '../../contexts/StoryBackgroundContext';
-
-interface ArcadeState {
-  enabled: boolean;
-  timeRemaining: number;
-  progress: number;
-  totalTime: number;
-  score: number;
-  streak: number;
-  lastScorePopup?: {
-    points: number;
-    multiplier: number;
-    message?: string;
-  };
-}
 
 interface EventCardProps {
   event: GameEvent;
   state: GameState;
   onChoice: (choice: EventChoice) => void;
   characters?: Record<string, string>;
-  arcade?: ArcadeState;
 }
 
-export function EventCard({ event, state, onChoice, characters = {}, arcade }: EventCardProps) {
+export function EventCard({ event, state, onChoice, characters = {} }: EventCardProps) {
   const visibleChoices = getVisibleChoices(event, state);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -184,7 +167,7 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
             isSelected
               ? 'bg-terminal-bg-highlight border-terminal-green text-terminal-green'
               : 'border-terminal-border hover:bg-terminal-bg-highlight hover:border-terminal-green'
-          } ${arcade?.enabled && arcade.progress <= 0.25 ? 'hover:border-red-500' : ''}`}
+          }`}
         >
           <span>
             <span className={isSelected ? 'text-terminal-green' : 'text-terminal-green-dim'}>[{index + 1}]</span>{' '}
@@ -208,13 +191,6 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
       return <div className={className}>- Zwischenfall -</div>;
     }
     return null;
-  };
-
-  const getTimerBarColor = () => {
-    if (!arcade) return 'bg-terminal-green';
-    if (arcade.progress > 0.5) return 'bg-terminal-green';
-    if (arcade.progress > 0.25) return 'bg-yellow-500';
-    return 'bg-red-500';
   };
 
   // Story mode layout - floating card over persistent background
@@ -265,57 +241,11 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
     );
   }
 
-  // Standard/Arcade mode layout
+  // Standard mode layout
   return (
     <div className="border border-terminal-border p-4 relative">
-      {/* Arcade Header */}
-      {arcade?.enabled && (
-        <div className="mb-4 pb-3 border-b border-terminal-border">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-4">
-              <span className="text-terminal-info text-lg font-bold">
-                SCORE: {formatScore(arcade.score)}
-              </span>
-              {arcade.streak > 0 && (
-                <span className="text-yellow-400 text-sm">
-                  x{getMultiplier(arcade.streak)} ({arcade.streak} STREAK)
-                </span>
-              )}
-            </div>
-            <div className={`text-2xl font-mono ${arcade.progress <= 0.25 ? 'text-red-500 animate-pulse' : 'text-terminal-green'}`}>
-              {formatArcadeTime(arcade.timeRemaining)}
-            </div>
-          </div>
-
-          <div className="h-2 bg-terminal-bg-dark rounded-full overflow-hidden">
-            <div
-              className={`h-full ${getTimerBarColor()} transition-all duration-100 ease-linear`}
-              style={{ width: `${arcade.progress * 100}%` }}
-            />
-          </div>
-
-          {arcade.lastScorePopup && (
-            <div className="absolute top-12 right-4 animate-bounce text-right">
-              <div className={`text-xl font-bold ${arcade.lastScorePopup.points >= 0 ? 'text-terminal-success' : 'text-red-500'}`}>
-                {arcade.lastScorePopup.points >= 0 ? '+' : ''}{formatScore(arcade.lastScorePopup.points)}
-              </div>
-              {arcade.lastScorePopup.multiplier > 1 && (
-                <div className="text-yellow-400 text-sm">
-                  x{arcade.lastScorePopup.multiplier}
-                </div>
-              )}
-              {arcade.lastScorePopup.message && (
-                <div className="text-yellow-300 text-lg font-bold animate-pulse">
-                  {arcade.lastScorePopup.message}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       <div className="text-terminal-green-dim mb-2 text-sm">
-        {arcade?.enabled ? '- ARCADE EREIGNIS -' : '- EREIGNIS -'}
+        - EREIGNIS -
       </div>
 
       <h2 className="text-xl mb-4">&gt; {event.title}</h2>
@@ -331,11 +261,7 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
       </div>
 
       <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted">
-        {arcade?.enabled ? (
-          <span>[1-{visibleChoices.length}] Schnell auswählen!</span>
-        ) : (
-          <span>{cardKind === 'decision' ? `[1-${visibleChoices.length}] / [Enter] Auswählen   [S] Speichern` : '[Enter] Weiter   [S] Speichern'}</span>
-        )}
+        <span>{cardKind === 'decision' ? `[1-${visibleChoices.length}] / [Enter] Auswählen   [S] Speichern` : '[Enter] Weiter   [S] Speichern'}</span>
       </div>
     </div>
   );
