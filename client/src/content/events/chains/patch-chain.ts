@@ -17,9 +17,9 @@ export const patchChainEvents: GameEvent[] = [
     probability: 0.95,
     category: 'security',
     title: 'Patch Tuesday',
-    description: `Microsoft hat 47 kritische Updates veroeffentlicht. {chef} sagt: "Mach mal." {kollege} schaut nervoees auf den WSUS-Server.
+    description: `Microsoft hat 47 kritische Updates veroeffentlicht. {chef} sagt: "Mach mal." Jens schaut nervoees auf den WSUS-Server.
 
-"Das sind einige grosse Updates dabei", sagt {kollege}. "Letztes Mal hat der Druckertreiber-Patch die Buchhaltung lahmgelegt."
+"Das sind einige grosse Updates dabei", sagt Jens. "Letztes Mal hat der Druckertreiber-Patch die Buchhaltung lahmgelegt."
 
 Die BSI-Compliance fordert zeitnahes Patchen. Aber die Fachabteilungen arbeiten gerade an Quartalsabschluessen.`,
     involvedCharacters: ['chef', 'kollege'],
@@ -41,7 +41,7 @@ Die BSI-Compliance fordert zeitnahes Patchen. Aber die Fachabteilungen arbeiten 
         id: 'patch_test',
         text: 'Erst auf 5 Test-PCs deployen, dann abwarten',
         effects: { relationships: { chef: -5, kollegen: 5 }, compliance: -3, stress: 3 },
-        resultText: '{kollege} hilft dir bei der Testgruppe. "Gute Idee. Ich hab noch Alptraeume vom letzten Update-Desaster." {chef} meckert ueber die Verzoegerung, aber ihr ignoriert das.',
+        resultText: 'Jens hilft dir bei der Testgruppe. "Gute Idee. Ich hab noch Alptraeume vom letzten Update-Desaster." {chef} meckert ueber die Verzoegerung, aber ihr ignoriert das.',
         choiceTags: ['careful', 'methodical'],
         teachingMoment: 'Eine Testgruppe ist der beste Kompromiss zwischen Geschwindigkeit und Sicherheit. 48-72 Stunden Testphase sind Standard.',
       },
@@ -93,7 +93,7 @@ Du erinnerst dich: Das waren die Patches, die du sofort ausgerollt hast. Ohne Te
         id: 'blame_microsoft',
         text: '"Microsoft hat einen Bug eingebaut. Nicht meine Schuld."',
         effects: { relationships: { chef: -15, kollegen: -5 }, stress: 5 },
-        resultText: '{chef}: "Und was machen wir jetzt? Die Wasserwerke brauchen ihre Software!" Er glaubt dir nicht. {kollege} schaut peinlich beruehrt weg.',
+        resultText: '{chef}: "Und was machen wir jetzt? Die Wasserwerke brauchen ihre Software!" Er glaubt dir nicht. Jens schaut peinlich beruehrt weg.',
         choiceTags: ['deflect', 'unprofessional'],
       },
       {

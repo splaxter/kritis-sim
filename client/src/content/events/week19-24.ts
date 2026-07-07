@@ -26,7 +26,7 @@ Die bequeme Variante flüstert: "Setz sie an ein Fachbuch, sie wächst schon rei
         text: 'Strukturiertes Onboarding: Einarbeitungsplan, Patin, echte Aufgaben mit Begleitung',
         effects: { skills: { softSkills: 6 }, relationships: { kollegen: 12 }, stress: 10 },
         resultText:
-          'Du nimmst dir die Zeit: Einarbeitungsplan, {kollege} als Pate, jede Woche eine echte, begleitete Aufgabe. Es kostet dich zwei Wochen Produktivität — und macht danach aus ihr die Entlastung, die ihr gebraucht habt. Nach einem Monat übernimmt sie den First-Level-Support komplett allein.',
+          'Du nimmst dir die Zeit: Einarbeitungsplan, Jens als Pate, jede Woche eine echte, begleitete Aufgabe. Es kostet dich zwei Wochen Produktivität — und macht danach aus ihr die Entlastung, die ihr gebraucht habt. Nach einem Monat übernimmt sie den First-Level-Support komplett allein.',
         teachingMoment:
           'Gutes Onboarding ist eine Investition mit hoher Rendite: Die Wochen, die man vorne reinsteckt, kommen als Eigenständigkeit vielfach zurück. Schlechtes Onboarding produziert Frust und Fluktuation.',
         setsFlags: ['onboarding_gut', 'team_verstaerkt'],
@@ -369,7 +369,7 @@ Es ist der 20. Dezember. Eigentlich wolltest du Feierabend machen.`,
         text: 'Freundlich abwinken — heute mal wirklich Feierabend',
         effects: { stress: -4, relationships: { kollegen: -2 } },
         resultText:
-          'Du sagst freundlich, aber bestimmt, dass heute mal jemand anders dran ist, und gehst pünktlich. {kollege} bastelt dann selbst am Beamer, es dauert eine halbe Stunde länger, aber es klappt. Die Welt dreht sich weiter, auch ohne dass du jedes Kabel steckst. Guter Vorsatz fürs neue Jahr.',
+          'Du sagst freundlich, aber bestimmt, dass heute mal jemand anders dran ist, und gehst pünktlich. Henry bastelt dann am Beamer, es dauert eine halbe Stunde länger, aber es klappt. Die Welt dreht sich weiter, auch ohne dass du jedes Kabel steckst. Guter Vorsatz fürs neue Jahr.',
       },
     ],
     tags: ['kritis', 'absurd', 'comic_relief'],
@@ -742,12 +742,12 @@ Klartext oder Beruhigungspillen?`,
     probability: 0.8,
     category: 'personal',
     title: 'Das Angebot',
-    description: `{kollege} bittet dich um ein Gespräch unter vier Augen. Er hat ein Angebot: ein Systemhaus, 30 Prozent mehr Gehalt, moderne Technik, keine Amtsstuben. "Ich weiß nicht, ob ich das machen soll", sagt er. "Du kennst mich. Was denkst du?"
+    description: `Henry bittet dich um ein Gespräch unter vier Augen. Er hat ein Angebot: ein Systemhaus, 30 Prozent mehr Gehalt, moderne Technik, keine Meetings — "haben die versprochen" — und keine Amtsstuben. "Ich weiß nicht, ob ich das machen soll", sagt er. "Du kennst mich. Was denkst du?"
 
-Er fragt dich ehrlich um Rat — nicht deinen Chef, dich. Und du steckst im Zwiespalt: Du brauchst {kollege}, er hält das halbe System zusammen. Aber es ist sein Leben, seine Karriere, sein Gehalt.
+Er fragt dich ehrlich um Rat — nicht deinen Chef, dich. Und du steckst im Zwiespalt: Du brauchst Henry, er hält das halbe System zusammen. Aber es ist sein Leben, seine Karriere, sein Gehalt. (Bjorg hat übrigens noch nie ein Abwerbe-Angebot bekommen. Das Universum ist manchmal gerecht.)
 
 Was du jetzt sagst, entscheidet vielleicht, ob er bleibt. Und ob du es dir selbst verzeihst.`,
-    involvedCharacters: ['kollege', 'chef'],
+    involvedCharacters: ['henry', 'chef'],
     choices: [
       {
         id: 'abwerbung_ehrlich_raten',
@@ -764,7 +764,7 @@ Was du jetzt sagst, entscheidet vielleicht, ob er bleibt. Und ob du es dir selbs
         text: 'Mit {chef} über ein Gegenangebot oder bessere Bedingungen sprechen',
         effects: { skills: { softSkills: 4 }, relationships: { kollegen: 8, chef: 3 }, stress: 10 },
         resultText:
-          'Du gehst zu {chef} und lotest aus, was möglich ist — im öffentlichen Dienst selten das Gehalt, aber vielleicht Fortbildung, Aufgaben, Flexibilität. {chef} bemüht sich, und {kollege} spürt, dass er wertgeschätzt wird. Das Gehalt kann die Verwaltung nicht toppen, aber das Gesamtpaket wird verhandelt. Er überlegt es sich neu.',
+          'Du gehst zu {chef} und lotest aus, was möglich ist — im öffentlichen Dienst selten das Gehalt, aber vielleicht Fortbildung, Aufgaben, Flexibilität. {chef} bemüht sich, und Henry spürt, dass er wertgeschätzt wird. Das Gehalt kann die Verwaltung nicht toppen, aber das Gesamtpaket wird verhandelt. Er überlegt es sich neu.',
         teachingMoment:
           'Gegen das Gehalt der freien Wirtschaft kann der öffentliche Dienst selten anbieten — aber Wertschätzung, Entwicklung und Arbeitsbedingungen sind Stellschrauben, die oft mehr zählen, als man denkt.',
       },
@@ -773,7 +773,7 @@ Was du jetzt sagst, entscheidet vielleicht, ob er bleibt. Und ob du es dir selbs
         text: 'Ihm die neue Stelle schlechtreden, damit er bleibt',
         effects: { relationships: { kollegen: -10 }, stress: 4 },
         resultText:
-          'Du redest das Systemhaus schlecht — Überstunden, Druck, "die versprechen viel". {kollege} merkt schnell, dass du in eigener Sache argumentierst, nicht in seiner. Das beschädigt euer Vertrauen. Wenn er trotzdem geht, geht er im Groll. Wenn er bleibt, weiß er, dass du ihn manipuliert hast. Beides verlierst du.',
+          'Du redest das Systemhaus schlecht — Überstunden, Druck, "die versprechen viel". Henry merkt schnell, dass du in eigener Sache argumentierst, nicht in seiner. Das beschädigt euer Vertrauen. Wenn er trotzdem geht, geht er im Groll. Wenn er bleibt, weiß er, dass du ihn manipuliert hast. Beides verlierst du.',
         choiceTags: ['selfish', 'manipulative'],
       },
     ],
@@ -809,7 +809,7 @@ Drei offene Punkte: Wer übernimmt, wie wird es vergütet, und was ist eigentlic
         text: 'Auf Freiwilligkeit setzen und mit Ausgleich (Freizeit/Zulage) attraktiv machen',
         effects: { skills: { softSkills: 4 }, compliance: 5, relationships: { kollegen: 8 }, stress: 6, budget: -1000 },
         resultText:
-          'Du fragst, wer freiwillig will, und machst es attraktiv: extra Ausgleichstage plus Zulage. Tatsächlich melden sich genug — der eine mag Ruhe im leeren Büro, der andere braucht die freien Tage im Januar. Freiwilligkeit plus fairer Ausgleich schlägt jeden Zwangsdienstplan. {kollege} nimmt sogar Silvester.',
+          'Du fragst, wer freiwillig will, und machst es attraktiv: extra Ausgleichstage plus Zulage. Tatsächlich melden sich genug — der eine mag Ruhe im leeren Büro, der andere braucht die freien Tage im Januar. Freiwilligkeit plus fairer Ausgleich schlägt jeden Zwangsdienstplan. Henry nimmt sogar Silvester. Bjorg hat an sämtlichen Feiertagen \'leider familiäre Verpflichtungen, kennste\'.',
         teachingMoment:
           'Freiwillige Bereitschaft mit echtem Ausgleich ist oft besser besetzt als eine verordnete — Menschen haben unterschiedliche Präferenzen, und fairer Ausgleich macht unbeliebte Dienste attraktiv.',
       },
@@ -845,7 +845,7 @@ Jetzt willst du ihn endlich loswerden. Aber wie, ohne die halbe Verwaltung lahmz
         text: 'Sauber analysieren: Abhängigkeiten und Zugriffe erfassen, migrieren, dann abschalten',
         effects: { skills: { windows: 5, netzwerk: 4, linux: 3 }, compliance: 10, relationships: { kollegen: 5 }, stress: 12 },
         resultText:
-          'Du gehst methodisch vor: Netzwerkverbindungen mitschneiden, laufende Dienste und geöffnete Freigaben erfassen, wer greift zu und worauf. Es tauchen zwei aktive Dienste und eine Freigabe des Standesamts auf — die migrierst du auf aktuelle Systeme. Erst als eine Woche lang niemand mehr zugreift, ziehst du den Stecker. {kollege}: "13 Jahre, und du hast ihn in Rente geschickt, ohne dass es jemand gemerkt hat."',
+          'Du gehst methodisch vor: Netzwerkverbindungen mitschneiden, laufende Dienste und geöffnete Freigaben erfassen, wer greift zu und worauf. Es tauchen zwei aktive Dienste und eine Freigabe des Standesamts auf — die migrierst du auf aktuelle Systeme. Erst als eine Woche lang niemand mehr zugreift, ziehst du den Stecker. Jens: "13 Jahre, und du hast ihn in Rente geschickt, ohne dass es jemand gemerkt hat." Von ihm ist das eine Laudatio.',
         teachingMoment:
           'Altsysteme schaltet man nicht blind ab, sondern legt sie kontrolliert still: Abhängigkeiten und Zugriffe über eine Beobachtungsphase erfassen, migrieren, und erst abschalten, wenn nachweislich niemand mehr zugreift.',
         setsFlags: ['altserver_abgeschaltet'],
@@ -936,7 +936,7 @@ Die Server summen leise. Zum ersten Mal seit langem klingt das nicht nach Bedroh
         text: 'Innehalten und anerkennen, was du geschafft hast',
         effects: { stress: -5, skills: { softSkills: 3 } },
         resultText:
-          'Du bleibst kurz stehen und lässt es sacken. Das getestete Backup, die Segmentierung, die Notfallübung, das Team, das gewachsen ist. Nicht alles ist perfekt — aber das Kartenhaus ist zu einem Fundament geworden. {kollege} kommt vorbei, sieht dein Gesicht und grinst: "Ganz gutes Jahr, oder?" Ja. Ganz gutes Jahr.',
+          'Du bleibst kurz stehen und lässt es sacken. Das getestete Backup, die Segmentierung, die Notfallübung, das Team, das gewachsen ist. Nicht alles ist perfekt — aber das Kartenhaus ist zu einem Fundament geworden. Henry kommt vorbei, sieht dein Gesicht und grinst: "Ganz gutes Jahr, oder?" Ja. Ganz gutes Jahr.',
         teachingMoment:
           'Innezuhalten und Erreichtes anzuerkennen ist kein Luxus, sondern Psychohygiene — wer nur die offenen Baustellen sieht, brennt aus. Auch Fortschritt darf gefeiert werden.',
       },

@@ -106,7 +106,7 @@ Only these modes are visible in the mode selection screen:
 |-----|-------|-------------|
 | Chef | +10 | Supportive training environment |
 | Kämmerer | 0 | Neutral |
-| Kollegen | +15 | Bjorg helps you learn |
+| Kollegen | +15 | Jens helps you learn |
 
 ### Game Over Thresholds
 

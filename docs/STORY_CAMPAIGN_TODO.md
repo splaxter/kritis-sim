@@ -5,7 +5,7 @@ _Story mode "Die Probezeit" — 12-chapter narrative campaign._
 ## Status: authored through chapter 8 of 12
 
 - **Act 1 (ch1–4):** complete (pre-existing).
-- **Act 2 (ch5–8):** authored this session — Bjorg's confession + the pattern clicking (ch5), the official-vs-solo trust fork (ch6), personal escalation/insider hunt (ch7), the lull before the storm (ch8).
+- **Act 2 (ch5–8):** authored this session — Jens' confession + the pattern clicking (ch5), the official-vs-solo trust fork (ch6), personal escalation/insider hunt (ch7), the lull before the storm (ch8).
 - **Act-break ending:** the old dead-air soft-end (→ false "Probezeit überstanden" victory) is gone. On entering the first not-fully-authored chapter, the run ends on a derived **"AKT {completedAct} — ENDE / Fortsetzung folgt"** screen (`App.tsx` `storyEnding` phase, body from `content/adventure/actBreaks.ts`). Boundary moves automatically as chapters land.
 
 ## Remaining: chapters 9–12 (Act 3)
@@ -24,4 +24,4 @@ Author each chapter's beats into `adventure/story-events.ts`, then add the chapt
 - **Sidequest audit gap (close before declaring the campaign complete):** `campaignConsistency.test.ts` does not yet validate sidequest `unlocksDialogue` targets — e.g. ch11's `sq_predecessor_trail` unlocks `adv_complete_picture`, which doesn't exist. Extend the audit when authoring ch11.
 
 ## How to extend
-See the `[[story-campaign-gap]]` memory for the full authoring pattern, lore bible (Bjorg = "Thomas" in code; Stefan = the vanished predecessor), and guardrails (don't add `requires` to branch beat events; story events aren't in the general `allEvents` pool).
+See the `[[story-campaign-gap]]` memory for the full authoring pattern, lore bible (the serious "Thomas" beats in code belong to Jens after the 2026-07 character rework — ally-branch ids are now adv_jens_*; Bjorg is the comic obstruction, never competent; Henry is the hands-on doer; Stefan = the vanished predecessor), and guardrails (don't add `requires` to branch beat events; story events aren't in the general `allEvents` pool).

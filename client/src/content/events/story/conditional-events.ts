@@ -193,7 +193,7 @@ Du liegst im Bett und ueberlegst: Du hast die Migration vorgeschlagen. Du bist j
         id: 'remote_help',
         text: 'Per Telefon anleiten - Schritt fuer Schritt',
         effects: { stress: 15, relationships: { chef: 5 } },
-        resultText: 'Du leitest {kollege} durch die OPNsense-Oberflaeche. Eine Stunde spaeter laeuft das VPN. Du bist erschoepft, aber erleichtert.',
+        resultText: 'Du leitest Henry durch die OPNsense-Oberflaeche. Eine Stunde spaeter laeuft das VPN. Du bist erschoepft, aber erleichtert.',
         choiceTags: ['dedicated'],
       },
       {

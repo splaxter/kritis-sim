@@ -55,7 +55,7 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     startingRelationships: {
       chef: 10,
       kaemmerer: 0,
-      kollegen: 15,  // Bjorg helps you learn
+      kollegen: 15,  // Jens helps you learn
     },
     difficulty: {
       maxScenarioDifficulty: 4,

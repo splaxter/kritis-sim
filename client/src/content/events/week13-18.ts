@@ -1074,19 +1074,19 @@ Die Baufirma verlegt Fernwärme und hat dabei euer Glasfaserkabel erwischt — d
     probability: 0.85,
     category: 'personal',
     title: 'Zweimal falsch konfiguriert',
-    description: `{kollege} macht seit Wochen Überstunden. Er kommt als Erster, geht als Letzter, und trotzdem stapelt sich die Arbeit. Heute ist ihm etwas passiert, das ihm sonst nie passiert: Er hat den nächtlichen Backup-Job zweimal falsch konfiguriert — einmal aufs falsche Ziel, einmal mit falschem Zeitplan.
+    description: `Henry macht seit Wochen Überstunden. Er kommt als Erster, geht als Letzter, und trotzdem stapelt sich die Arbeit — auch, weil Bjorg alles, was nach Arbeit aussieht, zuverlässig an ihn weiterreicht ("Henry macht das, der ist da schneller!"). Heute ist Henry etwas passiert, das ihm sonst nie passiert: Er hat den nächtlichen Backup-Job zweimal falsch konfiguriert — einmal aufs falsche Ziel, einmal mit falschem Zeitplan.
 
 Er ist blass, gereizt, und als du ihn ansprichst, wird er fast wütend: "Ich krieg das schon hin. Lass mich einfach machen."
 
 Du kennst diese Signale. Das ist keine Schludrigkeit. Das ist jemand, der langsam ausbrennt.`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['henry'],
     choices: [
       {
         id: 'burnout_ansprechen',
         text: 'Das Gespräch suchen: zuhören, Last teilen, gemeinsam entlasten',
         effects: { skills: { softSkills: 6 }, relationships: { kollegen: 15 }, stress: 8 },
         resultText:
-          'Du holst {kollege} auf einen Kaffee raus, ohne Vorwurf, und hörst zu. Es bricht aus ihm heraus: die Überstunden, die Angst, etwas kaputtzumachen, das schlechte Gewissen. Ihr verteilt Aufgaben neu und du sorgst dafür, dass er endlich mal freihat. Ein paar Tage später ist er ein anderer Mensch. Und du hast einen Kollegen behalten.',
+          'Du holst Henry auf einen Kaffee raus, ohne Vorwurf, und hörst zu. Es bricht aus ihm heraus: die Überstunden, die Angst, etwas kaputtzumachen, das schlechte Gewissen — und dass er sich nicht traut, Bjorgs weitergereichte Aufgaben einfach liegen zu lassen. Ihr verteilt Aufgaben neu (auch zurück an Bjorg, der lautstark protestiert) und du sorgst dafür, dass Henry endlich mal freihat. Ein paar Tage später ist er ein anderer Mensch. Und du hast einen Kollegen behalten.',
         teachingMoment:
           'Burnout-Signale ernst zu nehmen ist Führungsarbeit, nicht Einmischung. Ein überlasteter Admin macht Fehler an genau den Systemen, die am wenigsten Fehler vertragen.',
         setsFlags: ['kollege_entlastet'],
@@ -1096,7 +1096,7 @@ Du kennst diese Signale. Das ist keine Schludrigkeit. Das ist jemand, der langsa
         text: 'Erst still die Backup-Konfiguration prüfen und korrigieren, dann behutsam ansprechen',
         effects: { skills: { troubleshooting: 4, softSkills: 3 }, relationships: { kollegen: 8 }, compliance: 5, stress: 6 },
         resultText:
-          'Du prüfst unauffällig die Backup-Jobs, korrigierst die beiden Fehler, bevor sie schaden — und sprichst {kollege} danach ruhig an, ohne ihn bloßzustellen. Er ist erst beschämt, dann erleichtert, dass du es abgefangen hast, statt ihn vorzuführen. Vertrauen entsteht in genau solchen Momenten.',
+          'Du prüfst unauffällig die Backup-Jobs, korrigierst die beiden Fehler, bevor sie schaden — und sprichst Henry danach ruhig an, ohne ihn bloßzustellen. Er ist erst beschämt, dann erleichtert, dass du es abgefangen hast, statt ihn vorzuführen. Vertrauen entsteht in genau solchen Momenten.',
         teachingMoment:
           'Fehler eines überlasteten Kollegen fängt man ab, ohne ihn vorzuführen — die Sache absichern und den Menschen schützen, beides gleichzeitig.',
       },
@@ -1105,7 +1105,7 @@ Du kennst diese Signale. Das ist keine Schludrigkeit. Das ist jemand, der langsa
         text: '"Er sagt, er kriegt das hin" — beim Wort nehmen und weitermachen',
         effects: { relationships: { kollegen: -8 }, compliance: -6, stress: -3 },
         resultText:
-          'Du nimmst {kollege} beim Wort und lässt ihn machen. Er kriegt es nicht hin. Zwei Wochen später fällt er krankheitsbedingt aus — für einen Monat. Jetzt machst du seine Arbeit mit, und die falsch konfigurierten Backups musst du auch noch nacharbeiten. Die Signale waren da. Du hast weggeschaut.',
+          'Du nimmst Henry beim Wort und lässt ihn machen. Er kriegt es nicht hin. Zwei Wochen später fällt er krankheitsbedingt aus — für einen Monat. Jetzt machst du seine Arbeit mit, und die falsch konfigurierten Backups musst du auch noch nacharbeiten. Die Signale waren da. Du hast weggeschaut.',
         choiceTags: ['negligent', 'dismissive'],
       },
     ],

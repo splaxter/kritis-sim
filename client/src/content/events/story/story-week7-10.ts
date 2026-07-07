@@ -70,7 +70,7 @@ Die Buchhaltung dreht durch. {kaemmerer} ruft persoenlich an:
 
 "Wir koennen keine Rechnungen freigeben! Die Lieferanten drohen mit Mahnungen! FIX. THAT. NOW."
 
-Du kennst ELO nicht gut. {kollege} kennt es besser. Der ELO-Support kostet 180 Euro pro Stunde.`,
+Du kennst ELO nicht gut. Jens kennt es besser. Der ELO-Support kostet 180 Euro pro Stunde.`,
     involvedCharacters: ['kollege', 'kaemmerer'],
     mentorNote: 'Systeme die du nicht kennst: Nicht heldenhaft selbst fixen. Herstellersupport nutzen und dabei LERNEN. Jedes Ticket das der Support loest, dokumentierst du als Runbook fuer naechstes Mal.',
     choices: [
@@ -104,9 +104,9 @@ Du kennst ELO nicht gut. {kollege} kennt es besser. Der ELO-Support kostet 180 E
       },
       {
         id: 'ask_colleague',
-        text: '{kollege} fragen - er kennt ELO besser',
+        text: 'Jens fragen - er kennt ELO besser',
         effects: { relationships: { kollegen: 5 }, stress: 5 },
-        resultText: '{kollege} schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem geloest.',
+        resultText: 'Jens schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem geloest.',
         choiceTags: ['teamwork'],
       },
     ],

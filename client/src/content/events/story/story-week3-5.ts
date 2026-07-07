@@ -14,7 +14,7 @@ export const storyWeek3to5Events: GameEvent[] = [
     probability: 0.85,
     category: 'crisis',
     title: 'Baramundi-Desaster',
-    description: `{kollege} kommt mit grossem Augen zu dir.
+    description: `Henry kommt mit grossen Augen zu dir.
 
 "Ich hab was kaputt gemacht. In Baramundi. Ich wollte nur ein Software-Paket testen und hab... aus Versehen auf 'An alle deployen' geklickt."
 
@@ -28,7 +28,7 @@ Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: 
         id: 'fix_together',
         text: 'Zusammen still fixen bevor {chef} zurueckkommt',
         effects: { relationships: { kollegen: 15 }, stress: 15, skills: { windows: 5 } },
-        resultText: 'Ihr arbeitet fieberhaft. Recovery-Image booten, Profile retten, neu deployen. Als {chef} zurueckkommt, laufen 18 von 20 PCs wieder. "Technische Stoerung", sagt {kollege}.',
+        resultText: 'Ihr arbeitet fieberhaft. Recovery-Image booten, Profile retten, neu deployen. Als {chef} zurueckkommt, laufen 18 von 20 PCs wieder. "Technische Stoerung", sagt Henry.',
         choiceTags: ['cover_up', 'loyal', 'teamwork'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_loyalty',
@@ -41,7 +41,7 @@ Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: 
         id: 'tell_chef',
         text: '{chef} sofort informieren - Transparenz ist wichtig',
         effects: { relationships: { chef: 5, kollegen: -15 }, stress: 10, compliance: 5 },
-        resultText: '{chef} ist nicht begeistert, aber fair: "Fehler passieren. Wichtig ist, wie wir sie fixen." {kollege} schaut dich nicht mehr an.',
+        resultText: '{chef} ist nicht begeistert, aber fair: "Fehler passieren. Wichtig ist, wie wir sie fixen." Henry schaut dich nicht mehr an.',
         choiceTags: ['honest', 'by_the_book'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_resentment',
@@ -51,7 +51,7 @@ Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: 
       },
       {
         id: 'fix_yourself',
-        text: '{kollege} nach Hause schicken, du machst das alleine',
+        text: 'Henry nach Hause schicken, du machst das alleine',
         effects: { relationships: { kollegen: 5 }, stress: 20, skills: { windows: 8 } },
         resultText: 'Du sagst: "Geh, ich regel das." Vier Stunden spaeter laeuft alles. Du bist muede, aber du verstehst Baramundi jetzt WIRKLICH.',
         choiceTags: ['heroic', 'learning'],
@@ -178,7 +178,7 @@ Die Abfallwirtschaft braucht JETZT Abfuhrbescheide - Buergerfrist.
 Die GF-Assistenz braucht JETZT Vertragsunterlagen - Meeting in einer Stunde.
 Die Personalabteilung druckt Gehaltsabrechnungen - auch dringend.
 
-Du hast zwei Haende und einen {kollege}n.`,
+Du hast zwei Haende, einen Henry — und einen Bjorg, der "gleich einen Termin" hat.`,
     involvedCharacters: ['kollege', 'gf'],
     mentorNote: 'Priorisierung nach Business Impact: Buergerfrist > GF-Vertraege > interne Post. Aber: Die GF-Assistenz vergisst nie, wer ihr geholfen hat. Politische Dimension nicht unterschaetzen.',
     choices: [
@@ -198,7 +198,7 @@ Du hast zwei Haende und einen {kollege}n.`,
       },
       {
         id: 'split_colleague',
-        text: '{kollege} nimmt einen, du nimmst zwei',
+        text: 'Henry nimmt einen, du nimmst zwei',
         effects: { relationships: { kollegen: 10 }, stress: 10, skills: { troubleshooting: 3 } },
         resultText: 'Ihr teilt euch auf. Teamwork! Nach einer Stunde laufen alle drei Drucker. Und ihr habt gezeigt, dass die IT auch unter Druck funktioniert.',
         choiceTags: ['teamwork', 'efficient'],
@@ -333,9 +333,9 @@ Das war ein guter Tag.`,
       },
       {
         id: 'mention_team',
-        text: 'Auf das Team hinweisen - {kollege} hat auch geholfen',
+        text: 'Auf das Team hinweisen - Henry hat auch geholfen',
         effects: { relationships: { gf: 5, kollegen: 10 }, skills: { softSkills: 8 }, stress: -8 },
-        resultText: '"Das Team hat stark unterstuetzt." {gf}: "Gut, dass Sie das erwaehnen. Teamplayer sind selten." {kollege} hoert davon und freut sich.',
+        resultText: '"Das Team hat stark unterstuetzt." {gf}: "Gut, dass Sie das erwaehnen. Teamplayer sind selten." Henry hoert davon und freut sich.',
         teachingMoment: 'Credit teilen macht dich groesser, nicht kleiner.',
       },
     ],
