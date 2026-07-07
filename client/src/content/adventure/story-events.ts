@@ -2231,4 +2231,191 @@ Draußen tickt der Countdown weiter. Drinnen tickt etwas anderes.`,
       },
     ],
   },
+
+  // ─── Kapitel 11: Die Wahrheit ───
+
+  {
+    id: 'adv_attacker_identity',
+    title: '23:47',
+    category: 'story',
+    weekRange: [11, 11],
+    probability: 1,
+    description: `Mitten im Restore fällt es euch vor die Füße. Die C2-Logs, endlich entschlüsselt, ordnen sich zu einem Bild.
+
+Die Gruppe signiert ihre Loader mit einem Wort: FENRIS. Professionell, wiedererkennbar, arrogant. Und der nächtliche Exfil-Slot — seit Monaten, immer dieselbe Zeit: 23:47. Stefans Zahl. "Check die Logs um 23:47", stand in seiner letzten Nachricht.
+
+Bjorg legt zwei Fenster nebeneinander. Der Exfil-Slot liegt exakt im wöchentlichen Fernwartungsfenster des externen Wartungsdienstleisters. Das benutzte Konto: ein Uralt-Admin, älter als Stefan, nie deaktiviert.
+
+Er zieht das zugehörige Personenprofil hoch. Ein Gesicht, das ihr alle kennt. Viktor Brandt. Der freundliche Techniker, der montags die Drucker macht und über das Wetter redet.
+
+"Der Drucker-Mensch", flüstert Frau Weber vom Türrahmen. "Wir haben dem jahrelang Kaffee gekocht."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter11', 'act3', 'truth', 'insider'],
+    choices: [
+      {
+        id: 'secure_evidence',
+        text: 'Beweise sichern und an BSI/Polizei übergeben',
+        effects: { compliance: 10, skills: { security: 5 } },
+        resultText: 'Ihr fasst nichts an, was ihr nicht sauber dokumentiert. Zeitstempel, Logs, das forensische Image, die Kontohistorie — alles in eine Beweismappe, alles unverändert. "Wir sind IT, keine Cops", sagst du. "Wir liefern denen einen Fall, den kein Anwalt zerpflückt." Am Nachmittag hat der Vorfall ein Aktenzeichen.',
+        setsFlags: ['insider_evidence', 'insider_identified'],
+        teachingMoment: 'Insider-Fälle gehören an die Strafverfolgung. Eine eigene Konfrontation gefährdet Beweise, warnt den Täter und kann Menschen in Gefahr bringen — sauber sichern und übergeben.',
+      },
+      {
+        id: 'lock_him_out',
+        text: 'Das Konto SOFORT stilllegen und Brandt aussperren',
+        effects: { skills: { security: 5, netzwerk: 3 } },
+        resultText: 'Du deaktivierst das Uralt-Konto, killst die offenen Sessions, sperrst das Fernwartungsfenster. Der Zugang ist dicht — sofort und sicher. Der Preis: FENRIS weiß jetzt, dass ihr es wisst. Um 23:47 kommt keine Exfiltration mehr. Aber vielleicht kommt etwas anderes.',
+        setsFlags: ['insider_locked_out', 'insider_identified'],
+      },
+      {
+        id: 'counter_intel',
+        text: 'Ihn weiterlaufen lassen und mit präparierten Daten füttern',
+        effects: { skills: { security: 6 }, stress: 10 },
+        resultText: 'Du lässt das Konto offen — und beginnst, den Kanal mit sorgfältig präparierten Daten zu fluten. Falsche Netzpläne, ein Honeytoken, eine Fährte, die ins Leere führt. Riskant. Wenn sie es merken, verliert ihr den Vorsprung. Wenn nicht, wisst ihr bald mehr über FENRIS als FENRIS über euch.',
+        setsFlags: ['counter_intel', 'insider_identified'],
+      },
+      {
+        id: 'reveal_source',
+        hidden: true,
+        text: 'Die IT-Leiterin des Nachbarwerks kontaktieren — kennt sie Brandts Firma auch?',
+        effects: { skills: { security: 4 }, compliance: 5 },
+        resultText: 'Ein Anruf beim Nachbarwerk. Die IT-Leiterin wird still, als du den Namen der Wartungsfirma nennst. "Die machen bei uns auch die Drucker", sagt sie langsam. "Montags." Ihr seid nicht die Einzigen. Brandts Firma ist bei einem halben Dutzend Kommunen im Haus — ein Generalschlüssel zur gesamten Region.',
+        setsFlags: ['supply_chain_confirmed', 'insider_identified'],
+        teachingMoment: 'Supply-Chain-Angriff: Ein kompromittierter Dienstleister ist ein Generalschlüssel zu allen seinen Kunden. Zugänge externer Partner gehören genauso überwacht und befristet wie interne.',
+      },
+    ],
+  },
+
+  {
+    id: 'adv_predecessor_truth',
+    title: 'Stefan lebt',
+    category: 'story',
+    weekRange: [11, 11],
+    probability: 1,
+    description: `Eine E-Mail. PGP-verschlüsselt, von einem Wegwerf-Account, an eine Adresse, die nur einer kennen kann. Der Betreff: "Ihr habt Brandt gefunden."
+
+Du entschlüsselst mit zitternden Fingern. "Ihr habt Brandt gefunden. Gut. Ich hätte es euch früher sagen sollen. Aber ich hatte Angst — und, ehrlich, ich hatte recht damit."
+
+Stefan. Er lebt. Seit dem inszenierten "Unfall" versteckt er sich bei seiner Schwester an der Ostsee. Er erklärt PROJEKT_X: kein Angreifer-Code, sondern sein EIGENER Ermittlungsordner. Und der Grund, warum die Gegenseite immer alles wusste, was er wusste: Brandt hatte den Ordner gefunden und mitgelesen. Daher das Änderungsdatum von gestern an deinem allerersten Tag.
+
+"Der Schreibtisch, an dem du sitzt, war meiner", schreibt er. "Es tut mir leid, dass ich ihn dir so hinterlassen habe. Ich hätte bleiben und kämpfen sollen. Du tust es. Sag mir, wie ich helfen kann."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter11', 'act3', 'truth', 'emotional'],
+    choices: [
+      {
+        id: 'bring_him_back',
+        text: 'Ihn bitten zurückzukommen — als Zeuge, offiziell geschützt',
+        effects: { relationships: { kollegen: 8 }, compliance: 5 },
+        resultText: 'Du schreibst zurück: Komm rein aus der Kälte, aber offiziell — mit Zeugenschutz, mit den Ermittlern im Rücken, nicht als Schatten. Lange keine Antwort. Dann: "Okay. Ich bin es leid, mich zu verstecken. Ich komme." Bjorg liest über deine Schulter mit und muss sich umdrehen.',
+        setsFlags: ['stefan_returns'],
+      },
+      {
+        id: 'keep_him_out',
+        text: 'Ihn draußen lassen — Infos ja, Risiko nein',
+        effects: { skills: { security: 4 } },
+        resultText: 'Du sagst ihm, er soll bleiben, wo er sicher ist. Schick alles, was du hast, aber setz keinen Fuß in diese Stadt, solange FENRIS nicht gefasst ist. Er ist erst erleichtert, dann still. "Wahrscheinlich klug", schreibt er. "Passt auf euch auf. Das sind keine Amateure."',
+        setsFlags: ['stefan_protected'],
+      },
+      {
+        id: 'take_his_files',
+        text: 'Alles, was er hat, in die Beweismappe übernehmen',
+        effects: { skills: { security: 5 } },
+        resultText: 'Stefan schickt vierzehn Monate akribischer Dokumentation — Screenshots, Logs, Zeitleisten, Namen. PROJEKT_X, vollständig. Zusammen mit euren eigenen Funden ergibt es eine Beweiskette, die nirgends mehr Löcher hat. "Er hat das alles die ganze Zeit gehabt", murmelt Bjorg. "Und keiner hat ihm zugehört."',
+        setsFlags: ['stefan_dossier_complete', 'found_evidence'],
+      },
+      {
+        id: 'show_evidence',
+        hidden: true,
+        text: 'Ihm zeigen, dass ihr seine Spur längst rekonstruiert habt',
+        effects: { relationships: { kollegen: 5 }, skills: { security: 3 } },
+        resultText: 'Du schickst ihm zurück, was ihr über ihn zusammengetragen habt — den Keller-Server, die 23:47-Spur, den staged Unfall, alles. Eine lange Pause. Dann: "Ihr wart besser als ich dachte. Deutlich besser. Ich komme zurück — und diesmal höre ich zu, statt allein zu ermitteln." Vertrauen, verdient auf beiden Seiten.',
+        setsFlags: ['stefan_returns', 'stefan_trusts_you'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_real_target',
+    title: 'Der eigentliche Plan',
+    category: 'story',
+    weekRange: [11, 11],
+    probability: 1,
+    description: `Ihr legt die Puzzlestücke nebeneinander — Brandts Daten, Stefans Ordner, eure eigenen Logs — und dann fällt der Groschen. Alle gleichzeitig.
+
+Die 500 Bitcoin sind eine Show. Die Erpressung ist Lärm, damit niemand auf das Eigentliche schaut.
+
+Die Abfallwirtschaft hängt als "vertrauenswürdiger Partner" an einer Koppel ins kommunale Verbundnetz. Über diese Koppel geht es weiter — zur Stadtwerke-Leitstelle. Wasser. Strom. Die Müllabfuhr war nie das Ziel. Sie war die Generalprobe und die Eintrittskarte.
+
+Bjorg zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein geplanter Task, aktiv, scharf. Uhrzeit der Ausführung: 23:47. Heute Nacht.
+
+"Sie pivotieren", sagt er tonlos. "Heute Nacht springen sie von unserem Müll auf das Stromnetz. Und wir sind die offene Tür."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter11', 'act3', 'truth', 'technical'],
+    choices: [
+      {
+        id: 'cut_interconnect',
+        text: 'Die Verbundkoppel kontrolliert trennen — abgestimmt mit den Stadtwerken',
+        effects: { skills: { netzwerk: 6 } },
+        resultText: 'Du rufst die Leitstelle der Stadtwerke an, erklärst in drei Sätzen die Lage, und gemeinsam trennt ihr die Koppel — kontrolliert, dokumentiert, ohne dass jemandem das Licht ausgeht. Der Pivot-Pfad ist tot, bevor er benutzt wird. "Ihr habt uns gerade einen Blackout erspart", sagt der Leitstellenleiter. "Das vergesse ich nicht."',
+        setsFlags: ['cut_interconnect'],
+        teachingMoment: 'Vertrauensbeziehungen zwischen Netzen sind Angriffsvektoren. Netzsegmentierung endet nicht an der Organisationsgrenze — auch die Koppel zu einem "vertrauenswürdigen Partner" braucht Kontrolle und Notfall-Trennung.',
+      },
+      {
+        id: 'coordinated_defense',
+        text: 'Stadtwerke und BSI alarmieren, gemeinsame Abwehr aufbauen',
+        effects: { compliance: 10, relationships: { gf: 5 } },
+        resultText: 'Statt allein zu trennen, holt ihr alle an einen Tisch: Stadtwerke, BSI, eure Leute. Innerhalb von Stunden steht eine gemeinsame Verteidigung — Monitoring auf beiden Seiten der Koppel, ein abgestimmter Notfallplan, klare Zuständigkeiten. Wenn FENRIS heute Nacht springt, springt es in eine vorbereitete Abwehr.',
+        setsFlags: ['coordinated_defense'],
+        teachingMoment: 'Verbund-Sicherheit: KRITIS-Sektoren hängen zusammen. Eine koordinierte Abwehr über Organisationsgrenzen hinweg — mit dem BSI als Drehscheibe — ist stärker als jeder Alleingang.',
+      },
+      {
+        id: 'set_honeypot',
+        text: 'Eine Falle bauen: den Pivot in ein Honeynet umleiten',
+        effects: { skills: { security: 7 }, stress: 8 },
+        resultText: 'Ihr baut in fieberhafter Eile ein Honeynet hinter der Koppel — eine perfekte Attrappe der Leitstelle, echt genug, um FENRIS glauben zu lassen, sie hätten es geschafft. Wenn sie heute Nacht springen, landen sie in einem Aquarium, und ihr schaut ihnen bei jedem Handgriff zu. "Riskant", sagt Bjorg und grinst zum ersten Mal seit Tagen, "aber sowas von geil."',
+        setsFlags: ['honeypot_set'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_final_decision',
+    title: 'Die letzte Weiche',
+    category: 'story',
+    weekRange: [11, 11],
+    probability: 1,
+    description: `Konferenzraum, später Nachmittag. Der Kämmerer hat eine Excel-Tabelle mitgebracht.
+
+"Fünfhundert Bitcoin", sagt er und tippt auf eine Zelle, "sind beim aktuellen Kurs günstiger als drei Wochen Stillstand. Rein betriebswirtschaftlich."
+
+Die Erpresser haben nachgelegt: Zahlt bis Mitternacht, oder wir leaken die Bürgerdaten. Der Restore steht bei achtzig Prozent. Und heute Nacht, um 23:47, kommt der Pivot aufs Stromnetz.
+
+Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Bjorg mit versteinerter Miene. Es ist deine Weiche.`,
+    involvedCharacters: ['chef', 'kaemmerer', 'kollege'],
+    tags: ['story', 'chapter11', 'act3', 'truth', 'decision'],
+    choices: [
+      {
+        id: 'no_ransom',
+        text: 'Nicht zahlen. Wiederherstellen, verteidigen, durchziehen.',
+        effects: { skills: { security: 4 }, relationships: { kollegen: 8 } },
+        resultText: '"Wir zahlen nicht", sagst du, und es wird sehr still. "Zahlen finanziert die nächste Welle, garantiert nichts, und ihre „Entschlüsselungs-Garantie“ ist das Papier nicht wert, auf dem sie nicht steht. Wir ziehen den Restore durch und wir stoppen den Pivot." Bjorg atmet aus. Der Kämmerer klappt seinen Laptop zu. "Dann auf Ihre Verantwortung." — "Ja. Auf meine."',
+        setsFlags: ['no_ransom', 'final_resolve'],
+        teachingMoment: 'BSI und LKA raten von Lösegeldzahlungen ab: Sie finanzieren das nächste Verbrechen, machen zum lohnenden Ziel und garantieren keine funktionierende Entschlüsselung. Vorbereitung (Backups, IR-Plan) ist die einzige verlässliche Antwort.',
+      },
+      {
+        id: 'feigned_negotiation',
+        text: 'Zum Schein verhandeln — jede Stunde Verhandlung ist eine Stunde für euch',
+        effects: { skills: { softSkills: 5 }, stress: 8 },
+        resultText: 'Du übernimmst den Chat selbst. "Wir brauchen die Wallet-Verifizierung, das dauert bei einer Behörde." Höflich, glaubwürdig, endlos. Während die Erpresser auf ein Geld warten, das nie kommt, arbeitet ihr die letzten zwanzig Prozent Restore ab und schließt die Koppel. Zeit gekauft mit Worten. Der Kämmerer schaut dir fasziniert zu.',
+        setsFlags: ['feigned_negotiation', 'final_resolve'],
+      },
+      {
+        id: 'recommend_payment',
+        text: 'Dem Kämmerer nachgeben und die Zahlung empfehlen',
+        effects: { relationships: { kaemmerer: 10, kollegen: -10 } },
+        resultText: 'Du gibst nach. "Betriebswirtschaftlich haben Sie recht." Der Kämmerer nickt zufrieden. Bjorg verlässt wortlos den Raum. Die 500 BTC gehen raus — und die versprochene Entschlüsselung ist ein halbgares Tool, das die Hälfte der Dateien schrottet, während der Pivot aufs Stromnetz völlig unberührt weiterläuft. Du wusstest es. Du hast es trotzdem getan.',
+        setsFlags: ['recommended_payment', 'ignored_warnings'],
+      },
+    ],
+  },
 ];
