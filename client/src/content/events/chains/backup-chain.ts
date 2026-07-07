@@ -23,7 +23,7 @@ export const backupChainEvents: GameEvent[] = [
     // Scoped away from story (which has its own ransomware/predecessor arc — a
     // generic backup-ransomware thread would muddy it) and learning (cliOnly).
     // Scoping the START event gates the whole chain: consequences are only ever
-    // scheduled if this fires. arcade is excluded (score mode, not narrative).
+    // scheduled if this fires.
     requiredModes: ['beginner', 'kritis', 'intermediate', 'hard'],
     category: 'security',
     title: 'Wie steht es um die Backups?',

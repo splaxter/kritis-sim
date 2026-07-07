@@ -38,8 +38,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
@@ -75,8 +73,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
       cliOnly: true,  // Only CLI/terminal events
     },
   },
@@ -113,8 +109,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
@@ -150,8 +144,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
@@ -187,46 +179,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
-    },
-  },
-
-  arcade: {
-    id: 'arcade',
-    name: 'Arcade',
-    description: 'Schneller Spaß: 8 Wochen, 30 Sekunden Timer und Combo-Scoring!',
-    icon: '🕹️',
-    startingStats: {
-      skills: 25,
-      stress: 10,
-      budget: 8000,
-      compliance: 50,
-    },
-    startingRelationships: {
-      chef: 5,
-      kaemmerer: 0,
-      kollegen: 15,
-    },
-    difficulty: {
-      maxScenarioDifficulty: 5,
-      effectMultiplier: 1.0,
-      stressDecayRate: 1.2,
-    },
-    gameLength: {
-      totalWeeks: 8,
-      daysPerWeek: 5,
-    },
-    thresholds: {
-      stressGameOver: 100,
-      complianceGameOver: 0,
-      chefRelationshipGameOver: -100,
-    },
-    features: {
-      showHints: false,
-      timerEnabled: true,
-      timerSeconds: 30,
-      comboScoringEnabled: true,
     },
   },
 
@@ -262,8 +214,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 };

@@ -45,10 +45,6 @@ export interface GameState {
   seed: string;
   runNumber: number;
   gameMode: GameModeId;
-  // Arcade mode specific
-  arcadeScore?: number;
-  comboMultiplier?: number;
-  comboStreak?: number;
   // Story mode specific
   isStoryMode: boolean;
   storyState?: AdventureState;

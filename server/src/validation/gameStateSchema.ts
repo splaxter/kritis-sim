@@ -28,7 +28,6 @@ const GameModeIdSchema = z.enum([
   'intermediate',
   'hard',
   'kritis',
-  'arcade',
   'adventure',
 ]);
 
@@ -69,11 +68,6 @@ export const GameStateSchema = z.object({
   seed: z.string().min(1),
   runNumber: z.number().min(1),
   gameMode: GameModeIdSchema,
-
-  // Arcade mode specific (optional)
-  arcadeScore: z.number().min(0).optional(),
-  comboMultiplier: z.number().min(1).optional(),
-  comboStreak: z.number().min(0).optional(),
 
   // Adventure mode specific
   isStoryMode: z.boolean(),
