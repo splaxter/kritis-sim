@@ -30,6 +30,7 @@ const FINISHED_CHAPTERS = [
   'ch06_trust_no_one',
   'ch07_escalation',
   'ch08_calm_before',
+  'ch09_attack',
 ];
 const KNOWN_WIP_CHAPTERS = adventureChapters.map((c) => c.id).filter((id) => !FINISHED_CHAPTERS.includes(id));
 const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger removed)

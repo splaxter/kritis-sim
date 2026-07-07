@@ -1932,4 +1932,89 @@ Deine Probezeit ist offiziell beendet.`,
       },
     ],
   },
+
+  // ─── Kapitel 9: Der Angriff ───
+
+  {
+    id: 'adv_chaos_unfolds',
+    title: 'Analoges Chaos',
+    category: 'story',
+    weekRange: [9, 9],
+    probability: 1,
+    description: `Zehn Uhr vormittags, und das Amt ist ins Neunzehnte Jahrhundert zurückgefallen.
+
+Frau Müller hat einen Zettel an ihren roten Bildschirm geklebt — "KAPUTT!!" in Großbuchstaben — und tippt trotzdem weiter, aus Prinzip. Die Anrufe laufen im Sekundentakt auf: verärgerte Bürger, verwirrte Fahrer, ein Bestatter, der wissen will, ob die Beerdigung heute noch stattfindet. Die Disposition der Müllabfuhr steht. Achtundvierzig Wagen, kein Tourenplan.
+
+Und mitten durch die Gänge läuft Chef Bert — mit einer AUSGEDRUCKTEN Telefonliste, tatsächlich Papier, und dirigiert Leute an Positionen, als hätte er sein Leben lang nichts anderes gemacht. Im Analogen ist er plötzlich in seinem Element.
+
+"Wir kriegen das hin", ruft er dir zu. "Irgendwie kriegen wir das hin. Was brauchst du?"`,
+    involvedCharacters: ['chef', 'fachabteilung'],
+    tags: ['story', 'chapter9', 'act3', 'crisis', 'comedy'],
+    choices: [
+      {
+        id: 'organize_analog',
+        text: 'Analog-Fallback organisieren: Papier-Tourenpläne, Aushänge, Telefonketten',
+        effects: { relationships: { fachabteilung: 10, kollegen: 5 }, skills: { softSkills: 4 } },
+        resultText: 'Innerhalb einer Stunde hängen Papier-Tourenpläne an der Wand, Frau Weber organisiert Klemmbretter und einen Stapel Kugelschreiber, und die Fahrer bekommen ihre Routen wie in den Achtzigern — auf Zetteln. Die Müllabfuhr rollt. Langsamer, chaotischer, aber sie rollt. "Manchmal", sagt Frau Weber, "ist das alte Zeug einfach nicht kaputtzukriegen."',
+        setsFlags: ['analog_fallback'],
+        teachingMoment: 'Business Continuity Management: Ein Notbetrieb ohne IT muss VORHER geplant sein. Wer im Ernstfall erst nach dem Papier-Tourenplan sucht, hat schon verloren.',
+      },
+      {
+        id: 'build_situation',
+        text: 'Lagebild erstellen: Was ist verschlüsselt, was läuft noch, was ist kritisch?',
+        effects: { skills: { security: 4, troubleshooting: 4 } },
+        resultText: 'Du gehst System für System durch. Die Liste der noch lebenden Server ist kürzer als gehofft: Fileserver — tot. Fachverfahren — tot. Aber der alte Reader für die Waagen am Wertstoffhof läuft, und das Bürgertelefon geht über eine separate Anlage. Du weißt jetzt, wo ihr steht. Das ist mehr wert als es sich anfühlt.',
+        setsFlags: ['scoped_damage'],
+      },
+      {
+        id: 'support_bert_report',
+        text: 'Chef Bert stützen und die BSI-Meldung sofort anstoßen',
+        effects: { relationships: { chef: 10 }, compliance: 10 },
+        resultText: 'Du gehst mit Bert in sein Büro, ihr formuliert zusammen die Meldung. Er zögert kurz — "Ist das nicht... eine Nummer zu groß für uns?" — dann greift er zum Hörer und wird ganz ruhig: "Ja. Wir melden das. Offiziell. Guten Tag, hier spricht die Abfallwirtschaft, wir haben einen Sicherheitsvorfall nach §8b." Zum ersten Mal seit Wochen wirkt er wie ein Chef.',
+        setsFlags: ['crisis_reported', 'bsi_notified'],
+        teachingMoment: '§8b BSIG (bzw. NIS2): KRITIS-Betreiber müssen erhebliche Störungen unverzüglich an das BSI melden — die Erstmeldung ist binnen 24 Stunden fällig, nicht erst wenn alles aufgeräumt ist.',
+      },
+    ],
+  },
+
+  {
+    id: 'adv_clock_starts',
+    title: 'Die Uhr läuft',
+    category: 'story',
+    weekRange: [9, 9],
+    probability: 1,
+    description: `Abends, Tag 1. Auf jedem Bildschirm im Haus läuft dieselbe Zahl rückwärts: 71:59:58. 71:59:57. 71:59:56.
+
+Bjorg rechnet vor, halb an dich, halb an sich selbst: "Zweiundsiebzig Stunden. Klingt nach viel. Sind aber, wenn man ehrlich ist, neun normale Arbeitstage. Und wir haben davon: keinen einzigen. Wir haben genau diese zweiundsiebzig Stunden. Am Stück."
+
+Er sagt es nüchtern, aber du siehst, wie ihm die Zahl in den Nacken kriecht. Draußen wird es dunkel. Die erste Nacht.
+
+Wie fahrt ihr diese Krise?`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter9', 'act3', 'crisis'],
+    choices: [
+      {
+        id: 'shift_plan',
+        text: 'Schichtplan aufsetzen: niemand arbeitet 72 Stunden am Stück, Übergaben werden dokumentiert',
+        effects: { skills: { softSkills: 4 }, stress: -5 },
+        resultText: 'Du teilst den Krisenstab in zwei Schichten, schreibst Übergabeprotokolle vor und schickst Bjorg — unter Protest — als Ersten schlafen. "Ein Krisenstab, der nach zwölf Stunden Fehler macht wie um vier Uhr früh, ist keine Hilfe mehr", sagst du. Er nickt widerwillig. Am nächsten Morgen ist er ausgeruht, klar und um einiges effektiver.',
+        setsFlags: ['shift_plan'],
+        teachingMoment: 'Krisenmanagement heißt Durchhaltefähigkeit: Ein Incident dauert oft Tage. Schichten und dokumentierte Übergaben verhindern Erschöpfungsfehler und Wissensverlust.',
+      },
+      {
+        id: 'all_nighter',
+        text: 'Durcharbeiten. Alle. Jetzt. Schlafen wird überbewertet.',
+        effects: { skills: { security: 3 }, stress: 15 },
+        resultText: 'Ihr zieht durch. Um vier Uhr früh öffnet Bjorg seine sechste Red Bull und starrt einen Restore-Fortschrittsbalken an, der sich seit vierzig Minuten nicht bewegt hat — was er erst nach vierzig Minuten bemerkt. Ihr schafft viel in dieser Nacht. Und ihr macht Fehler, die ihr in den nächsten zwei Tagen wieder ausbügeln müsst.',
+        setsFlags: ['all_nighter'],
+      },
+      {
+        id: 'call_reinforcements',
+        text: 'Verstärkung anfordern — ihr müsst das nicht allein stemmen',
+        effects: { relationships: { gf: 5 } },
+        resultText: 'Du greifst zum Telefon. Diesmal bist du es, der um Hilfe bittet — und diesmal hört jemand zu. Am anderen Ende sagt eine ruhige Stimme: "Halten Sie durch. Wir sind unterwegs." Es ändert nichts an der Zahl auf den Bildschirmen. Aber die Nacht fühlt sich weniger einsam an.',
+        setsFlags: ['called_reinforcements'],
+      },
+    ],
+  },
 ];
