@@ -735,7 +735,7 @@ Das Ergebnis hängt daran, wie der Prüftag lief.`,
     id: 'evt_bsi_stichproben_besuch',
     title: 'Der unangekündigte Kurzbesuch',
     category: 'compliance',
-    weekRange: [22, 23],
+    weekRange: [22, 24],
     probability: 0.6,
     requires: {
       flags: ['kritis_mode'],

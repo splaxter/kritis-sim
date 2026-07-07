@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { allEvents } from '../content/events';
-import { GameEvent } from '@kritis/shared';
+import { GameEvent, GameState, getGameModeConfig } from '@kritis/shared';
+import { createInitialState, advanceDay, applyEffects } from './gameState';
+import { selectNextEvent, getVisibleChoices } from './eventEngine';
+import { selectNextScenario, calculateScenarioEffects } from './scenarioEngine';
+import { recordDecision, scheduleChainEvents, cleanupPendingEvent } from './chainEngine';
+import { getAllScenarios } from '../content/packs';
 
 /**
  * Late-game pool guard for KRITIS mode (weeks 13-24).
@@ -68,5 +73,83 @@ describe('NIS2 Nachaudit arc (weeks 15-22)', () => {
     // announcement is reachable without prior-arc flags (works for every first-audit outcome)
     expect((ank!.requires?.flags ?? []).filter((f) => f !== 'kritis_mode')).toEqual([]);
     expect(ank!.weekRange[0]).toBeGreaterThanOrEqual(13);
+  });
+});
+
+describe('KRITIS 24-week simulation: no dead days in weeks 13-24', () => {
+  const allScenarios = getAllScenarios();
+  const SEEDS = Array.from({ length: 40 }, (_, i) => `LATE-${i}`);
+
+  function simpleHash(str: string): number {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) { h = (h << 5) - h + str.charCodeAt(i); h = h & h; }
+    return Math.abs(h);
+  }
+  const pick = (seed: string, n: number) => (n > 0 ? simpleHash(seed) % n : 0);
+
+  function playKritis(seed: string): { deadDays: { week: number; day: number }[] } {
+    const cfg = getGameModeConfig('kritis');
+    const totalWeeks = cfg.gameLength.totalWeeks;
+    const maxDays = totalWeeks * cfg.gameLength.daysPerWeek + 4;
+    let state: GameState = {
+      ...createInitialState(seed, 'kritis'),
+      completedEvents: [], completedScenarios: [], decisions: [], pendingChainEvents: [],
+      flags: { kritis_mode: true },
+    };
+    const deadDays: { week: number; day: number }[] = [];
+
+    for (let d = 0; d < maxDays && state.currentWeek <= totalWeeks; d++) {
+      const week = state.currentWeek;
+      const scenarioChance = Math.min(0.5, 0.1 + (week - 1) * 0.05);
+      const h = simpleHash(state.seed + week + state.currentDay + state.completedEvents.length);
+      const useScenario = (h % 100) < scenarioChance * 100;
+
+      let handled = false;
+      if (useScenario && allScenarios.length > 0) {
+        const sc = selectNextScenario(allScenarios, state, state.seed);
+        if (sc) {
+          const choices = sc.choices ?? [];
+          const choice = choices[pick(state.seed + sc.id, choices.length)] ?? choices[0];
+          if (choice) state = applyEffects(state, calculateScenarioEffects(choice));
+          state = { ...state, completedScenarios: [...(state.completedScenarios || []), sc.id] };
+          handled = true;
+        }
+      }
+      if (!handled) {
+        const ev = selectNextEvent(allEvents, state, state.seed);
+        if (!ev) {
+          if (week >= 13) deadDays.push({ week, day: state.currentDay });
+        } else {
+          const visible = getVisibleChoices(ev, state);
+          const choice = visible[pick(state.seed + ev.id, visible.length)] ?? visible[0];
+          if (choice) {
+            state = applyEffects(state, choice.effects ?? {});
+            const idx = ev.choices.indexOf(choice);
+            state = recordDecision(state, ev, choice, idx >= 0 ? idx : 0);
+            state = scheduleChainEvents(state, ev, choice);
+            state = cleanupPendingEvent(state, ev.id);
+            if (choice.setsFlags) {
+              const flags = { ...state.flags };
+              for (const f of choice.setsFlags) flags[f] = true;
+              state = { ...state, flags };
+            }
+            state = { ...state, completedEvents: [...state.completedEvents, ev.id] };
+          }
+        }
+      }
+      state = advanceDay(state);
+    }
+    return { deadDays };
+  }
+
+  it('40 seeded full-length runs never hit an empty day in weeks 13-24', () => {
+    const failures: string[] = [];
+    for (const seed of SEEDS) {
+      const { deadDays } = playKritis(seed);
+      if (deadDays.length > 0) {
+        failures.push(`${seed}: ${deadDays.map((x) => `w${x.week}d${x.day}`).join(', ')}`);
+      }
+    }
+    expect(failures, `dead late-game days found:\n${failures.join('\n')}`).toEqual([]);
   });
 });

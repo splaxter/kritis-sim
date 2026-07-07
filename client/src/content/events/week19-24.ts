@@ -10,7 +10,7 @@ export const week19to24Events: GameEvent[] = [
   // 1 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_neue_kollegin_start',
-    weekRange: [19, 20],
+    weekRange: [19, 23],
     probability: 0.85,
     category: 'team',
     title: 'Der erste Tag der Neuen',
@@ -55,7 +55,7 @@ Die bequeme Variante flüstert: "Setz sie an ein Fachbuch, sie wächst schon rei
   // 2 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_herbststurm_vorbereitung',
-    weekRange: [19, 20],
+    weekRange: [19, 23],
     probability: 0.85,
     category: 'crisis',
     title: 'Unwetterwarnung Stufe Rot',
@@ -100,7 +100,7 @@ Die Schwachstellen kennst du: die alte USV, die einzige Netzanbindung, der Serve
   // 3 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_iso27001_wunsch_gf',
-    weekRange: [19, 21],
+    weekRange: [19, 24],
     probability: 0.8,
     category: 'politics',
     title: 'Warum wir nicht?',
@@ -145,7 +145,7 @@ Du weißt: Eine ISO-27001-Zertifizierung ist ein großes Projekt — Managements
   // 4 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_dokumentation_verfall',
-    weekRange: [19, 22],
+    weekRange: [19, 24],
     probability: 0.8,
     category: 'compliance',
     title: 'Doku beschreibt Geister',
@@ -190,7 +190,7 @@ Beim nächsten Vorfall oder Audit ist genau das der Unterschied zwischen "wir wi
   // 5 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_speicher_voll_schon_wieder',
-    weekRange: [19, 22],
+    weekRange: [19, 24],
     probability: 0.8,
     category: 'support',
     title: 'Fileserver bei 97 Prozent',
@@ -234,7 +234,7 @@ Die {fachabteilung} sieht kein Problem: "Wir müssen die Videos doch aufbewahren
   // 6 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_haushaltssperre',
-    weekRange: [19, 21],
+    weekRange: [19, 24],
     probability: 0.8,
     category: 'budget',
     title: 'Haushaltssperre bis Jahresende',
@@ -339,7 +339,7 @@ Ein unautorisierter, dauerhaft aktiver Fernzugang. Direkt an der Trinkwasser-Ste
   // 8 ─── flavor / comic relief ───────────────────────────────────
   {
     id: 'evt_weihnachtsfeier_technik',
-    weekRange: [20, 21],
+    weekRange: [20, 23],
     probability: 0.7,
     category: 'absurd',
     title: '"Nur kurz" die Technik',
@@ -378,7 +378,7 @@ Es ist der 20. Dezember. Eigentlich wolltest du Feierabend machen.`,
   // 9 ─────────────────────────────────────────────────────────────
   {
     id: 'evt_krankheitswelle',
-    weekRange: [20, 22],
+    weekRange: [20, 24],
     probability: 0.8,
     category: 'team',
     title: 'Allein für 300 Nutzer',
@@ -423,7 +423,7 @@ Du kannst nicht alles machen. Die Frage ist nur, was liegen bleiben darf.`,
   // 10 ────────────────────────────────────────────────────────────
   {
     id: 'evt_bsi_warnmeldung_kommunen',
-    weekRange: [21, 22],
+    weekRange: [21, 24],
     probability: 0.85,
     category: 'security',
     title: 'BSI-Warnung: Kampagne gegen Kommunen',
@@ -468,7 +468,7 @@ Die IoCs liegen vor. Die Frage ist nur, was du damit machst — außer sie zur K
   // 11 ────────────────────────────────────────────────────────────
   {
     id: 'evt_dienstleister_insolvenz',
-    weekRange: [21, 22],
+    weekRange: [21, 24],
     probability: 0.8,
     category: 'crisis',
     title: 'Der Dienstleister ist pleite',
@@ -513,7 +513,7 @@ Die nächste Ratssitzung ist in zwei Wochen. Ohne RIS wird das interessant.`,
   // 12 ────────────────────────────────────────────────────────────
   {
     id: 'evt_restore_jahrestest',
-    weekRange: [21, 23],
+    weekRange: [21, 24],
     probability: 0.85,
     category: 'compliance',
     title: 'Der Restore-Test mit Protokoll',
@@ -558,7 +558,7 @@ Wenn es schlecht läuft, findest du heraus, dass eure Backups seit Monaten still
   // 13 ────────────────────────────────────────────────────────────
   {
     id: 'evt_digitalprojekt_vs_grundschutz',
-    weekRange: [21, 23],
+    weekRange: [21, 24],
     probability: 0.8,
     category: 'politics',
     title: 'Bürger-App gegen Grundschutz',
@@ -603,7 +603,7 @@ Eine App, über die man in der Zeitung liest, gegen Sicherheit, die niemand sieh
   // 14 ────────────────────────────────────────────────────────────
   {
     id: 'evt_zero_day_firewall',
-    weekRange: [22, 23],
+    weekRange: [22, 24],
     probability: 0.9,
     category: 'security',
     title: 'Zero-Day in der Firewall',
@@ -648,7 +648,7 @@ Warten ist gefährlich. Aber die Firewall lahmlegen bedeutet, das ganze Rathaus 
   // 15 ────────────────────────────────────────────────────────────
   {
     id: 'evt_winterdienst_system',
-    weekRange: [22, 23],
+    weekRange: [22, 24],
     probability: 0.85,
     category: 'crisis',
     title: '4:30 Uhr, und der Winterdienst steht',
@@ -738,7 +738,7 @@ Klartext oder Beruhigungspillen?`,
   // 17 ────────────────────────────────────────────────────────────
   {
     id: 'evt_kollege_abwerbung',
-    weekRange: [22, 23],
+    weekRange: [22, 24],
     probability: 0.8,
     category: 'personal',
     title: 'Das Angebot',
@@ -783,7 +783,7 @@ Was du jetzt sagst, entscheidet vielleicht, ob er bleibt. Und ob du es dir selbs
   // 18 ────────────────────────────────────────────────────────────
   {
     id: 'evt_bereitschaft_feiertage',
-    weekRange: [23, 24],
+    weekRange: [24, 24],
     probability: 0.85,
     category: 'team',
     title: 'Rufbereitschaft über die Feiertage',
@@ -828,7 +828,8 @@ Drei offene Punkte: Wer übernimmt, wie wird es vergütet, und was ist eigentlic
   // 19 ────────────────────────────────────────────────────────────
   {
     id: 'evt_altserver_abschaltung',
-    weekRange: [23, 24],
+    weekRange: [24, 24],
+    dayPreference: [3],
     probability: 0.8,
     category: 'support',
     title: 'Der Server, der seit 2011 läuft',
@@ -873,7 +874,7 @@ Jetzt willst du ihn endlich loswerden. Aber wie, ohne die halbe Verwaltung lahmz
   // 20 ────────────────────────────────────────────────────────────
   {
     id: 'evt_jahresgespraech_chef',
-    weekRange: [23, 24],
+    weekRange: [24, 24],
     probability: 0.85,
     category: 'personal',
     title: 'Jahresgespräch mit Bert',
