@@ -31,7 +31,7 @@ export const adventureChapters: AdventureChapter[] = [
     id: 'ch02_settling_in',
     title: 'Einarbeitung',
     act: 1,
-    description: 'Die erste Woche ist überstanden. Du lernst die Systeme kennen - und ihre Macken. Bjorg scheint dir vertrauen zu wollen, aber da ist noch etwas, das er verschweigt.',
+    description: 'Die erste Woche ist überstanden. Du lernst die Systeme kennen - und ihre Macken. Der stille Jens scheint dir vertrauen zu wollen, aber da ist noch etwas, das er verschweigt. Bjorg verschweigt nichts - leider.',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_system_tour', isOptional: false },
       { id: 'beat02', eventId: 'adv_coffee_machine_intro', isOptional: false },
@@ -90,7 +90,7 @@ export const adventureChapters: AdventureChapter[] = [
     id: 'ch05_coincidence',
     title: 'Zufälle gibt es nicht',
     act: 2,
-    description: 'Die Anomalien häufen sich. Ein "Zufall" nach dem anderen. Bjorg gesteht dir etwas - und plötzlich ergibt alles einen schrecklichen Sinn.',
+    description: 'Die Anomalien häufen sich. Ein "Zufall" nach dem anderen. Jens gesteht dir etwas - und plötzlich ergibt alles einen schrecklichen Sinn.',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_pattern_recognition', isOptional: false },
       { id: 'beat_gui_probe', eventId: 'adv_gui_eventviewer_probe', isOptional: true },
@@ -107,7 +107,7 @@ export const adventureChapters: AdventureChapter[] = [
     id: 'ch06_trust_no_one',
     title: 'Wem vertraust du?',
     act: 2,
-    description: 'Du weißt jetzt, dass etwas Größeres im Gange ist. Aber wem kannst du vertrauen? Dem Chef, der nichts hören will? Bjorg, der Geheimnisse hat? Dem BSI? Oder niemandem?',
+    description: 'Du weißt jetzt, dass etwas Größeres im Gange ist. Aber wem kannst du vertrauen? Dem Chef, der nichts hören will? Jens, der Geheimnisse hat? Dem BSI? Oder niemandem? (Bjorg immerhin ist zu beschäftigt für Verschwörungen. Sagt er.)',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_evidence_gathered', isOptional: false },
       { id: 'beat02', eventId: 'adv_chef_confrontation', isOptional: false },
@@ -145,7 +145,7 @@ export const adventureChapters: AdventureChapter[] = [
     id: 'ch08_calm_before',
     title: 'Die Ruhe vor dem Sturm',
     act: 2,
-    description: 'Eine trügerische Stille. Die Systeme laufen stabil. Zu stabil. Bjorg ist nervös - er hat so etwas schon mal erlebt, sagt er. Kurz bevor alles explodierte.',
+    description: 'Eine trügerische Stille. Die Systeme laufen stabil. Zu stabil. Jens ist unruhig - er hat so etwas schon mal erlebt, sagt er. Kurz bevor alles explodierte.',
     storyBeats: [
       { id: 'beat01', eventId: 'adv_false_peace', isOptional: false },
       { id: 'beat02', eventId: 'adv_preparation_check', isOptional: false },

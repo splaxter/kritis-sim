@@ -18,8 +18,10 @@ interface EndingScreenProps {
 
 const CHARACTER_LABELS: Record<string, string> = {
   chef: 'Chef Bert',
-  kollegen: 'Bjorg & Kollegen',
+  kollegen: 'Jens, Henry & Bjorg',
   kollege: 'Bjorg',
+  jens: 'Jens',
+  henry: 'Henry',
   gf: 'Geschäftsführung',
   kaemmerer: 'Kämmerer',
   fachabteilung: 'Fachabteilungen',

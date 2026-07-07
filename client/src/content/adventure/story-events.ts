@@ -21,33 +21,35 @@ export const adventureStoryEvents: GameEvent[] = [
 
 Ein graues Bürogebäude aus den 80ern, aber immerhin mit Parkplatz. An der Eingangstür klebt ein handgeschriebener Zettel: "IT-Abteilung: 2. Stock, links, dann rechts, dann fragen."
 
-Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter auf dich.
+Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter wartet die versammelte Abteilung.
 
 **Chef Bert** (graue Haare, Kaffeetasse in der Hand): "Ah, der Neue! Endlich Verstärkung. Der letzte hat uns ja... naja, ziemlich plötzlich verlassen."
 
-**Bjorg** (etwa in deinem Alter, trägt ein Linux-Shirt): "Hey! Ich bin Bjorg. Bin gespannt, ob du länger bleibst als der letzte."`,
-    involvedCharacters: ['chef', 'kollege'],
+**Bjorg** (laut, Hemd einen Knopf zu weit offen): "Der Neue! Sehr gut! Dann kannst du ja gleich die Tickets übernehmen — ich bin nämlich gleich in einem wichtigen Termin." Er lacht, als hätte er einen Witz gemacht. Niemand sonst lacht.
+
+Am Fenster hebt ein grauhaariger Mann kurz die Hand, ohne vom Monitor aufzusehen: "Jens." Mehr kommt nicht. Und unter einem Schreibtisch ragen zwei Beine hervor. "Das ist Henry", sagt Chef Bert. "Henry! Der Neue ist da!" — "Moment", kommt es gedämpft, "gleich fertig."`,
+    involvedCharacters: ['chef', 'kollege', 'jens', 'henry'],
     tags: ['story', 'chapter1', 'introduction'],
     choices: [
       {
         id: 'formal',
         text: 'Professionell: "Guten Tag! Ich freue mich auf die Zusammenarbeit."',
         effects: { relationships: { chef: 10, kollegen: 0 } },
-        resultText: 'Chef Bert nickt zufrieden. Bjorg verdreht unmerklich die Augen.',
+        resultText: 'Chef Bert nickt zufrieden. Bjorg ruft: "Ein Förmlicher! Kennste die Förmlichen? Erst Sie sagen, dann Überstunden schieben!" Er lacht allein. Jens nickt dir knapp zu — es wirkt wie eine Entschuldigung für Bjorg.',
         setsFlags: ['first_impression_formal'],
       },
       {
         id: 'casual',
         text: 'Locker: "Hi! Was ist denn mit meinem Vorgänger passiert?"',
         effects: { relationships: { chef: -5, kollegen: 15 } },
-        resultText: 'Bjorg grinst. Chef Bert räuspert sich: "Das... ist eine längere Geschichte. Für später."',
+        resultText: 'Chef Bert räuspert sich: "Das... ist eine längere Geschichte. Für später." Jens schaut zum ersten Mal richtig von seinem Monitor auf. Er sagt nichts. Aber er hat dich gehört.',
         setsFlags: ['first_impression_casual', 'asked_about_predecessor'],
       },
       {
         id: 'technical',
         text: 'Nerdiger: "Morgen! Welche Infrastruktur habt ihr hier - Windows oder Linux?"',
         effects: { relationships: { chef: 0, kollegen: 20 } },
-        resultText: 'Bjorg\' Augen leuchten auf: "Beides! Das ist ja das Problem!" Chef Bert seufzt.',
+        resultText: 'Unter dem Schreibtisch ein trockenes Lachen. Henry taucht auf und wischt sich die Hände ab: "Beides. Das ist ja das Problem." Chef Bert seufzt. Bjorg: "Ich bin ja mehr der Windows-Typ. Also vom Zugucken her."',
         setsFlags: ['first_impression_technical'],
       },
     ],
@@ -60,14 +62,14 @@ Du findest tatsächlich eine Tür mit "IT" drauf. Dahinter warten zwei Gesichter
     weekRange: [1, 1],
     probability: 1,
     image: '/images/events/evt_docusnap_einrichtung.webp',
-    description: `Bjorg zeigt dir deinen Schreibtisch. Er steht in einer Ecke, umgeben von Kabeln und leeren Red Bull-Dosen.
+    description: `Henry zeigt dir deinen Schreibtisch. Er steht in einer Ecke, umgeben von Kabeln und leeren Red Bull-Dosen. Eigentlich wollte Bjorg die Einführung machen, aber der hatte "ganz kurzfristig was Wichtiges".
 
-"Das war Stefans Platz", sagt Bjorg leise. "Er hat's nicht aufgeräumt bevor er... gegangen ist."
+"Das war Stefans Platz", sagt Jens vom Fenster her, leise. "Er hat's nicht aufgeräumt, bevor er... gegangen ist."
 
 Du setzt dich und fährst den PC hoch. Windows 10, mindestens 3 Jahre alt. Aber etwas fällt dir auf:
 
 Im Papierkorb liegt ein zerknüllter Zettel. Und auf dem Desktop gibt es einen Ordner namens "PROJEKT_X".`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['henry', 'jens'],
     tags: ['story', 'chapter1', 'discovery'],
     choices: [
       {
@@ -88,7 +90,7 @@ Im Papierkorb liegt ein zerknüllter Zettel. Und auf dem Desktop gibt es einen O
         id: 'clean_up',
         text: 'Erstmal aufräumen - das ist unprofessionell',
         effects: { relationships: { chef: 5 } },
-        resultText: 'Du wirfst alles weg und machst sauber. Chef Bert lobt dich später dafür. Bjorg schaut dich seltsam an.',
+        resultText: 'Du wirfst alles weg und machst sauber. Chef Bert lobt dich später dafür. Jens schaut dich seltsam an — lange und wortlos.',
       },
     ],
   },
@@ -108,10 +110,12 @@ Betreff: INTERNET GEHT NICHT!!!!!
 
 "Der Internet ist kaputt!!!! Ich kann keine E-Mails mehr lesen!!! Das ist ein NOTFALL!!!"
 
-Bjorg lacht leise: "Willkommen in der IT. Das ist übrigens der gleiche PC, der letzte Woche 'explodiert' ist. Und davor 'gehackt' wurde."
+Bjorg lehnt sich zurück: "Frau Müller! Kennste? Frauen und Technik — das ist wie ich und Diät: gute Vorsätze, nix dahinter!" Er lacht dröhnend. Henry, ohne aufzusehen: "Bjorg." — "Was denn? Ist doch so!"
+
+Jens, trocken: "Es ist derselbe PC, der letzte Woche 'explodiert' ist. Und davor 'gehackt' wurde."
 
 Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bildschirm und tippt trotzdem auf der Tastatur.`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['kollege', 'jens', 'henry'],
     tags: ['story', 'chapter1', 'support'],
     choices: [
       {
@@ -130,9 +134,9 @@ Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bilds
       },
       {
         id: 'delegate',
-        text: 'Bjorg holen - du bist doch noch neu',
+        text: 'Henry holen - du bist doch noch neu',
         effects: { relationships: { kollegen: 5 } },
-        resultText: 'Bjorg löst es in 3 Sekunden. "Nur Mut", sagt er. "Das war noch das einfache Level."',
+        resultText: 'Henry löst es in 3 Sekunden. "Nur Mut", sagt er. "Das war noch das einfache Level." Auf dem Rückweg ruft Bjorg euch nach: "Gut delegiert, Neuer! Delegieren ist die halbe Miete!" Henry und du wechselt einen Blick.',
         setsFlags: ['first_ticket_delegated'],
       },
     ],
@@ -145,7 +149,7 @@ Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bilds
     weekRange: [1, 1],
     probability: 1,
     // No image - late night mystery scene, no matching visual
-    description: `Es ist Feierabend. Bjorg ist schon gegangen. Du willst gerade herunterfahren, als du etwas bemerkst.
+    description: `Es ist Feierabend. Alle sind schon weg — Bjorg bereits seit halb vier ("Termin!"). Du willst gerade herunterfahren, als du etwas bemerkst.
 
 In den Kommentaren eines alten Skripts, das auf dem Desktop lag, steht etwas Seltsames:
 
@@ -179,9 +183,9 @@ Es ist 18:30. Du könntest nach Hause gehen. Oder du könntest um 23:47 die Logs
       },
       {
         id: 'tell_thomas',
-        text: 'Bjorg anrufen und ihm davon erzählen',
+        text: 'Jens anrufen und ihm davon erzählen',
         effects: { relationships: { kollegen: 10 } },
-        resultText: 'Bjorg\' Stimme klingt angespannt: "Zeig mir das morgen. Und... lösch die Nachricht aus dem Browserverlauf, falls du nach Stefans Namen gesucht hast."',
+        resultText: 'Jens hört schweigend zu. Dann, sehr ruhig: "Zeig mir das morgen. Und such nicht im Firmennetz nach Stefans Namen." Er legt auf. Kein überflüssiges Wort — aber du bist sicher, dass er heute Nacht nicht gut schlafen wird.',
         setsFlags: ['thomas_knows', 'thomas_worried'],
       },
     ],
@@ -198,35 +202,35 @@ Es ist 18:30. Du könntest nach Hause gehen. Oder du könntest um 23:47 die Logs
     weekRange: [2, 2],
     probability: 1,
     image: '/images/events/evt_kabelschrank.webp',
-    description: `Bjorg gibt dir eine Tour durch die Systeme. Es ist... chaotisch.
+    description: `Jens gibt dir eine Tour durch die Systeme. Er redet dabei mehr als in der ganzen ersten Woche zusammen — was immer noch nicht viel ist.
 
-"Also", sagt er, "wir haben 3 Windows-Server, 2 Linux-Kisten, eine Firewall die keiner versteht, und das hier..." Er zeigt auf einen verstaubten Kasten in der Ecke. "Das ist die SCADA-Anbindung für die Müllverbrennungsanlage."
+"3 Windows-Server. 2 Linux-Kisten. Eine Firewall, die keiner versteht." Er zeigt auf einen verstaubten Kasten in der Ecke. "SCADA-Anbindung. Müllverbrennungsanlage."
 
 Du starrst ihn an. "Ihr steuert eine *Müllverbrennungsanlage*?"
 
-"Technisch gesehen nur das Monitoring. Aber ja. KRITIS und so." Er zuckt mit den Schultern. "Stefan wollte das immer absichern. Hat er nie geschafft."`,
-    involvedCharacters: ['kollege'],
+"Nur das Monitoring. Aber ja. KRITIS." Pause. "Stefan wollte das absichern. Hat er nie geschafft."`,
+    involvedCharacters: ['jens'],
     tags: ['story', 'chapter2', 'infrastructure'],
     choices: [
       {
         id: 'concerned',
         text: '"Das ist kritische Infrastruktur! Wie kann das so unsicher sein?"',
         effects: { relationships: { kollegen: 5 }, skills: { security: 2 } },
-        resultText: 'Bjorg nickt ernst: "Ich weiß. Budget, Zeit, Prioritäten. Der Chef sagt, es läuft doch. Bis es nicht mehr läuft."',
+        resultText: 'Jens nickt ernst: "Ich weiß. Budget, Zeit, Prioritäten. Der Chef sagt, es läuft doch." Er schaut den Kasten an. "Bis es nicht mehr läuft."',
         setsFlags: ['understands_kritis'],
       },
       {
         id: 'practical',
         text: '"Okay, was ist die dringendste Baustelle?"',
         effects: { skills: { troubleshooting: 3 } },
-        resultText: '"Alles", sagt Bjorg. "Aber fang mit dem Backup an. Das hat seit 3 Monaten keiner geprüft."',
+        resultText: '"Alles", sagt Jens. "Aber fang mit dem Backup an. Das hat seit 3 Monaten keiner geprüft." Es klingt nicht wie ein Vorwurf. Es klingt wie eine Diagnose.',
         setsFlags: ['prioritized_backup'],
       },
       {
         id: 'ignore',
         text: '"Naja, bisher ist ja nichts passiert, oder?"',
         effects: { relationships: { kollegen: -10 } },
-        resultText: 'Bjorg\' Gesichtsausdruck wird kühl. "Noch nicht", sagt er leise. "Noch nicht."',
+        resultText: 'Jens\' Gesichtsausdruck wird kühl. "Noch nicht", sagt er leise. "Noch nicht." Dann dreht er sich um und geht. Die Tour ist offenbar beendet.',
         setsFlags: ['downplayed_risk'],
       },
     ],
@@ -243,10 +247,10 @@ Du starrst ihn an. "Ihr steuert eine *Müllverbrennungsanlage*?"
 
 "Die spinnt seit Wochen", erklärt Frau Weber aus der Personalabteilung. "Manchmal macht sie Kaffee ohne dass jemand drückt. Letzte Woche hat sie um Mitternacht 47 Tassen Espresso gemacht."
 
-Bjorg flüstert dir zu: "Die ist mit dem Netzwerk verbunden. Für die Statistik, angeblich. Stefan hat behauptet, sie wäre ein Sicherheitsrisiko."
+Bjorg kommt vorbei, weil es hier Publikum gibt: "Kaffeemaschine kaputt? Kennste den? Ist wie bei meiner Frau — macht auch nur noch, was SIE will!" Er lacht. Frau Weber lacht nicht. Jens, der hinter dir aufgetaucht ist, sagt leise: "Die ist mit dem Netzwerk verbunden. Für die Statistik, angeblich. Stefan hat behauptet, sie wäre ein Sicherheitsrisiko."
 
 Frau Weber schaut dich hoffnungsvoll an: "Sie sind doch von der IT. Können Sie das fixen?"`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['kollege', 'jens'],
     tags: ['story', 'chapter2', 'iot'],
     choices: [
       {
@@ -266,47 +270,47 @@ Frau Weber schaut dich hoffnungsvoll an: "Sie sind doch von der IT. Können Sie 
         id: 'delegate',
         text: 'Bjorg fragen ob er sich drum kümmern kann',
         effects: { relationships: { kollegen: -5 } },
-        resultText: 'Bjorg seufzt. "Stefan hat auch immer delegiert. Schau\'s dir wenigstens mal an."',
+        resultText: 'Bjorg schaut auf eine imaginäre Armbanduhr. "Puh, da bin ich raus — ich hab gleich einen Termin. Wichtig!" Weg ist er. Die Maschine bleibt dein Problem. Und Frau Weber hat den Versuch gesehen.',
       },
     ],
   },
 
   {
     id: 'adv_jens_warning',
-    title: 'Bjorg\' Warnung',
+    title: 'Jens\' Warnung',
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
     // No image - bar conversation scene, no matching visual
-    description: `Bjorg bittet dich nach Feierabend auf ein Bier. Er wirkt nervös.
+    description: `Jens bittet dich nach Feierabend auf ein Bier. Das allein ist bemerkenswert — Jens bittet niemanden irgendwohin.
 
-"Okay, ich sag's dir jetzt, weil ich glaube, du bist anders als die anderen", beginnt er. "Stefan war nicht verrückt. Er hat was gefunden. Etwas im Netzwerk, das nicht da sein sollte."
+Er trinkt einen Schluck, stellt das Glas ab und schaut es an, nicht dich. "Ich hab das schon mal gesehen", sagt er. "Das, was gerade in unserem Netz passiert. Ich erkenne die Handschrift."
 
-Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
+Er legt sein Handy auf den Tisch. Screenshots von Logs, Netzwerkdiagramme, Notizen.
 
-"Er hat mir das geschickt, bevor er gegangen ist. Hat gesagt, ich soll niemandem vertrauen. Auch nicht dem Chef." Bjorg schluckt. "Dann war er weg. Von einem Tag auf den anderen."`,
-    involvedCharacters: ['kollege'],
+"Stefan hat mir das geschickt, bevor er gegangen ist. Hat gesagt, ich soll niemandem vertrauen. Auch nicht dem Chef." Pause. "Stefan war nicht verrückt. Er hat was gefunden. Und dann war er weg. Von einem Tag auf den anderen."`,
+    involvedCharacters: ['jens'],
     tags: ['story', 'chapter2', 'revelation'],
     choices: [
       {
         id: 'believe',
         text: '"Zeig mir alles. Ich glaube dir."',
         effects: { relationships: { kollegen: 20 } },
-        resultText: 'Bjorg atmet aus. "Endlich jemand. Okay, pass auf..." Er beginnt zu erklären. Es ist komplizierter als du dachtest.',
+        resultText: 'Jens atmet aus. "Endlich jemand." Dann beginnt er zu erklären — ruhig, präzise, vollständig. Es ist komplizierter, als du dachtest.',
         setsFlags: ['jens_ally', 'knows_stefans_findings'],
       },
       {
         id: 'skeptical',
         text: '"Das klingt nach Paranoia. Bist du sicher?"',
         effects: { relationships: { kollegen: -5 } },
-        resultText: 'Bjorg\' Gesicht verschließt sich. "Vergiss es. War dumm von mir." Er zahlt und geht.',
+        resultText: 'Jens\' Gesicht wird wieder das übliche: freundlich, verschlossen. "Vergiss es." Er zahlt und geht. Du hast das Gefühl, dass sich diese Tür so schnell nicht wieder öffnet.',
         setsFlags: ['doubted_thomas'],
       },
       {
         id: 'careful',
         text: '"Lass uns vorsichtig sein. Wer weiß noch davon?"',
         effects: { relationships: { kollegen: 15 }, skills: { security: 2 } },
-        resultText: '"Nur wir", sagt Bjorg. "Und Stefan, wo auch immer er ist." Er schaut sich um. "Lass uns woanders reden."',
+        resultText: '"Nur wir", sagt Jens. "Und Stefan, wo auch immer er ist." Er schaut sich kurz um — routiniert, als hätte er das schon oft getan. "Lass uns woanders reden."',
         setsFlags: ['careful_approach', 'thomas_partner', 'jens_ally'],
       },
     ],
@@ -319,7 +323,7 @@ Er zeigt dir sein Handy. Screenshots von Logs, Netzwerkdiagramme, Notizen.
     weekRange: [2, 2],
     probability: 1,
     image: '/images/events/evt_docusnap_einrichtung.webp',
-    description: `Du hast Bjorg' Hinweise befolgt und die Logs der letzten Wochen analysiert. Was du findest, ist... beunruhigend.
+    description: `Du hast Jens' Hinweise befolgt und die Logs der letzten Wochen analysiert. Was du findest, ist... beunruhigend.
 
 Jede Nacht, zwischen 02:00 und 04:00:
 - Kleine Datenpakete werden nach außen gesendet
@@ -328,8 +332,8 @@ Jede Nacht, zwischen 02:00 und 04:00:
 
 Das ist kein Bug. Das ist ein Muster. Jemand sammelt Daten. Systematisch.
 
-Bjorg steht hinter dir. "Stefan hat das auch gefunden", flüstert er. "Drei Tage später war er weg."`,
-    involvedCharacters: ['kollege'],
+Jens steht hinter dir. "Stefan hat das auch gefunden", sagt er leise. "Drei Tage später war er weg."`,
+    involvedCharacters: ['jens'],
     tags: ['story', 'chapter2', 'security'],
     choices: [
       {
@@ -373,8 +377,10 @@ Die Panik-Mail kommt von der 3. Etage. Als du dort ankommst, sieht es aus wie in
 
 Eine Rechnung. Für "Beratungsdienstleistungen". An eine Firma namens "GHOST LLC". Betrag: 0,00 Euro.
 
-Bjorg steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er leise. "Stefan hatte Recht. Sie werden dreister."`,
-    involvedCharacters: ['kollege'],
+Jens steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er leise. "Stefan hatte Recht. Sie werden dreister."
+
+Bjorg bleibt demonstrativ im Türrahmen: "Ich fass das Ding nicht an. Drucker sind nicht mein Aufgabenbereich. Kennste: Wer den Drucker anfasst, hat den Drucker!"`,
+    involvedCharacters: ['jens', 'kollege'],
     tags: ['story', 'chapter3', 'incident'],
     choices: [
       {
@@ -395,7 +401,7 @@ Bjorg steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er lei
         id: 'play_dumb',
         text: 'So tun als wäre es ein Papierstau',
         effects: { stress: 5 },
-        resultText: 'Du sammelst die Blätter ein und sagst "Papierstau". Aber Bjorg schaut dich an, als wärst du verrückt geworden.',
+        resultText: 'Du sammelst die Blätter ein und sagst "Papierstau". Aber Jens schaut dich an, als wärst du verrückt geworden.',
         setsFlags: ['ignored_warning_sign'],
       },
     ],
@@ -409,7 +415,7 @@ Bjorg steht schon da und schaut sich die Blätter an. "Das ist neu", sagt er lei
     probability: 1,
     description: `Chef Bert stürmt ins IT-Büro. "DIE PRÄSENTATION! Der Bürgermeister kommt in 30 MINUTEN und PowerPoint stürzt ab!"
 
-Bjorg verdreht die Augen. Du gehst mit runter ins Chefbüro.
+Bjorg ruft ihm hinterher: "Ich würde ja mitkommen, aber ich bin gleich in einem Termin!" Du gehst allein runter ins Chefbüro.
 
 Das Problem: Eine 150 MB PowerPoint-Datei mit 200 eingebetteten Excel-Tabellen. Sein Laptop hat 4 GB RAM und kämpft ums Überleben.
 
@@ -494,9 +500,9 @@ Das war kein Script-Kiddie. Das war jemand mit Admin-Zugang.`,
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
-    description: `Es ist 23:00. Bjorg und du sitzt noch im Büro. Kaffee ist leer, Pizza ist kalt.
+    description: `Es ist 23:00. Jens und du sitzt noch im Büro. Kaffee ist leer, die Pizza, die Henry vor seinem Feierabend noch vorbeigebracht hat, ist kalt.
 
-"Was haben wir?", fragt Bjorg.
+"Was haben wir?", fragt Jens.
 
 Du zählst auf:
 - Mysteriöse Prozesse die Daten exfiltrieren
@@ -505,7 +511,7 @@ Du zählst auf:
 - Ein Chef der nichts hören will
 - Und ein Datum: In zwei Wochen soll irgendwas passieren
 
-Bjorg reibt sich die Augen. "Wir sollten zum BSI gehen", sagt er. "Das ist zu groß für uns."
+Jens reibt sich die Augen. "Wir sollten zum BSI gehen", sagt er. "Das ist zu groß für uns."
 
 Aber dann fällt dir ein: Wenn jemand Admin-Zugang hat, kann er auch mitlesen. Jede Mail. Jeder Chat. Jede Datei.
 
@@ -517,7 +523,7 @@ Ihr seid nicht allein in diesem Netzwerk.`,
         id: 'go_offline',
         text: 'Ab jetzt nur noch offline kommunizieren',
         effects: { skills: { security: 3 } },
-        resultText: '"Burner Phones", sagt Bjorg. "Wie im Film." Ihr lacht, aber keiner findet es lustig.',
+        resultText: '"Burner Phones", sagt Jens trocken. "Wie im Film." Es ist der erste Witz, den du von ihm hörst. Keiner von euch lacht.',
         setsFlags: ['went_offline', 'paranoid_but_smart'],
       },
       {
@@ -549,7 +555,7 @@ Ihr seid nicht allein in diesem Netzwerk.`,
     probability: 1,
     description: `Im Keller findest du ihn: Stefans alten Rechner. Er wurde nie abgeholt, nur abgestellt und vergessen.
 
-Bjorg steht Wache oben. "Beeil dich", sagt er über Funk. "Der Chef macht um 14 Uhr seine Runde."
+Henry steht Wache oben. "Beeil dich", sagt er über Funk. "Der Chef macht um 14 Uhr seine Runde. Und Bjorg erzählt gerade im Flur einen Witz — der bindet ihn maximal drei Minuten."
 
 Der PC startet. Windows 7. Kein Passwort. Auf dem Desktop: Ordner über Ordner, alle verschlüsselt. Und eine Datei namens "NICHT_ÖFFNEN.zip".
 
@@ -594,7 +600,7 @@ Stefan hat aber einen Hinweis hinterlassen - typisch für einen Paranoiden:
 
 "Das Passwort ist, wo ich jeden Tag hingegangen bin, wenn ich die Wahrheit brauchte."
 
-Bjorg runzelt die Stirn. "Das könnte alles sein. Die Kantine? Das Klo? Der Raucherbereich?"
+Henry runzelt die Stirn. "Das könnte alles sein. Die Kantine? Das Klo? Der Raucherbereich?"
 
 Du überlegst. Stefan war kein Raucher. Aber er war oft... wo?`,
     involvedCharacters: ['kollege'],
@@ -616,9 +622,9 @@ Du überlegst. Stefan war kein Raucher. Aber er war oft... wo?`,
       },
       {
         id: 'ask_thomas',
-        text: '"Bjorg, du kanntest Stefan. Wo ist er immer hin?"',
+        text: '"Jens, du kanntest Stefan. Wo ist er immer hin?"',
         effects: { relationships: { kollegen: 5 } },
-        resultText: '"Zum Rauchen auf\'s Dach", sagt Bjorg. "Obwohl er gar nicht raucht." Du versuchst "DACHTERASSE". RICHTIG!',
+        resultText: 'Jens überlegt keine zwei Sekunden. "Auf\'s Dach. Obwohl er gar nicht raucht." Du versuchst "DACHTERASSE". RICHTIG!',
         setsFlags: ['found_password', 'thomas_helped'],
       },
     ],
@@ -656,7 +662,7 @@ Jemand in dieser Firma arbeitet für die Angreifer. Jemand mit Admin-Zugang. Jem
         id: 'gather_more',
         text: 'Noch mehr Beweise sammeln bevor du handelst',
         effects: { skills: { security: 5 } },
-        resultText: 'Du kopierst alles dreifach. Eine Kopie für dich, eine für Bjorg, eine für das BSI. Sicher ist sicher.',
+        resultText: 'Du kopierst alles dreifach. Eine Kopie für dich, eine für Jens, eine für das BSI. Sicher ist sicher.',
         setsFlags: ['secured_evidence', 'careful_approach'],
       },
       {
@@ -698,14 +704,14 @@ PS: Der Schlüssel zum Keller-Server ist hinter dem Feuerlöscher."`,
         id: 'scared',
         text: 'Das ist zu groß. Das ist viel zu groß.',
         effects: { stress: 20 },
-        resultText: 'Du sitzt da und starrst auf den Bildschirm. Bjorg legt dir eine Hand auf die Schulter. "Wir schaffen das", sagt er. Du bist dir nicht sicher.',
+        resultText: 'Du sitzt da und starrst auf den Bildschirm. Jens legt dir eine Hand auf die Schulter. "Wir schaffen das", sagt er. Von ihm sind das viele Worte. Du bist dir trotzdem nicht sicher.',
         setsFlags: ['overwhelmed'],
       },
       {
         id: 'determined',
         text: 'Dann müssen wir sie aufhalten. Wir haben zwei Wochen.',
         effects: { skills: { security: 3, softSkills: 3 } },
-        resultText: '"Plan?", fragt Bjorg. "Wir brauchen einen Plan." Ihr fangt an zu schreiben. Es wird eine lange Nacht.',
+        resultText: '"Plan?", fragt Henry und krempelt schon die Ärmel hoch. "Wir brauchen einen Plan." Ihr fangt an zu schreiben. Es wird eine lange Nacht.',
         setsFlags: ['determined', 'making_plan'],
       },
       {
@@ -726,11 +732,11 @@ PS: Der Schlüssel zum Keller-Server ist hinter dem Feuerlöscher."`,
     probability: 1,
     description: `Ohne Passwort kommst du nicht an Stefans Dateien. Sie sind verschlüsselt, und nach 3 Versuchen löschen sie sich.
 
-Bjorg seufzt. "Stefan war immer paranoid. Aber vielleicht hatte er Recht."
+Jens seufzt. "Stefan war immer paranoid. Aber vielleicht hatte er Recht."
 
 Ihr steht wieder am Anfang. Die Hinweise, die ihr habt, sind vage. Die Nacht-Logs, die mysteriösen Prozesse, das komische Gefühl.
 
-"Wir müssen woanders suchen", sagt Bjorg. "Stefan hat bestimmt noch mehr hinterlassen."`,
+"Wir müssen woanders suchen", sagt Jens. "Stefan hat bestimmt noch mehr hinterlassen."`,
     involvedCharacters: [],
     tags: ['story', 'chapter4', 'alternate'],
     choices: [
@@ -765,39 +771,39 @@ Ihr steht wieder am Anfang. Die Hinweise, die ihr habt, sind vage. Die Nacht-Log
   // ─── Kapitel 5: Zufälle gibt es nicht ───
   {
     id: 'adv_thomas_confession',
-    title: 'Bjorgs Geständnis',
+    title: 'Jens\' Geständnis',
     category: 'story',
     weekRange: [5, 5],
     probability: 1,
-    description: `Bjorg schließt die Bürotür. Zum ersten Mal seit Wochen sieht er dir direkt in die Augen.
+    description: `Jens schließt die Bürotür. Zum ersten Mal, seit du hier bist, wirkt er unruhig.
 
 "Ich muss dir was sagen. Und du wirst sauer sein." Er legt einen USB-Stick auf den Tisch. "Stefan hat mir nicht nur ein paar Screenshots geschickt. Er hat mir ALLES geschickt. Sein ganzes Dossier. Vor Wochen."
 
-Er schluckt. "Ich hatte Angst. Nach dem, was mit ihm passiert ist... ich hab's einfach liegen lassen und gehofft, es löst sich von selbst."
+Er schaut auf den Stick, nicht auf dich. "Ich hab's liegen lassen. Ich wollte erst wissen, wem hier noch zu trauen ist. Beim letzten Mal..." Er bricht ab. "Egal. Es war ein Fehler, dir das zu verschweigen."
 
 Er schiebt dir den Stick zu. "Da drauf ist alles. Und das Schlimmste: Stefan war sich sicher, dass jemand hier im Haus mitspielt. Ein Insider. Und sein Countdown — der läuft in Tagen ab, nicht Wochen."`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['jens'],
     tags: ['story', 'chapter5', 'act2', 'revelation'],
     choices: [
       {
         id: 'take_dossier',
         text: '"Gib her. Ab jetzt machen wir das zusammen — keine Geheimnisse mehr."',
         effects: { relationships: { kollegen: 15 }, skills: { security: 3 } },
-        resultText: 'Bjorg nickt, sichtlich erleichtert. Ihr öffnet das Dossier gemeinsam. Es ist erschreckend vollständig — und erschreckend nah dran.',
+        resultText: 'Jens nickt. Kein Wort zu viel — aber die Anspannung fällt sichtbar von ihm ab. Ihr öffnet das Dossier gemeinsam. Es ist erschreckend vollständig — und erschreckend nah dran.',
         setsFlags: ['has_stefan_dossier', 'knows_attack_imminent'],
       },
       {
         id: 'angry_hid',
         text: '"Du hast das WOCHENLANG zurückgehalten? Während wir im Dunkeln getappt sind?!"',
         effects: { relationships: { kollegen: -10 }, stress: 10 },
-        resultText: 'Bjorg zuckt zusammen. "Du hast ja recht. Es tut mir leid." Die Anspannung bleibt — aber das Dossier ist endlich da, und das zählt jetzt mehr.',
+        resultText: 'Jens nimmt es hin, ohne sich zu verteidigen. "Du hast recht. Es tut mir leid." Mehr sagt er nicht — und genau deshalb glaubst du ihm. Das Dossier ist endlich da, und das zählt jetzt mehr.',
         setsFlags: ['has_stefan_dossier', 'knows_attack_imminent'],
       },
       {
         id: 'who_insider',
-        text: '"Ein Insider. Denk nach, Bjorg — wer hatte Zugriff, als Stefan verschwand?"',
+        text: '"Ein Insider. Denk nach, Jens — wer hatte Zugriff, als Stefan verschwand?"',
         effects: { skills: { security: 5 } },
-        resultText: 'Bjorg wird blass. "Ich... ich will da niemanden vorschnell verdächtigen." Aber die Frage steht jetzt im Raum. Und ihr werdet sie beantworten müssen.',
+        resultText: 'Jens wird still. "Ich verdächtige niemanden vorschnell", sagt er langsam. "Das habe ich einmal erlebt. Es macht mehr kaputt als der Angriff selbst." Aber die Frage steht jetzt im Raum. Und ihr werdet sie beantworten müssen.',
         setsFlags: ['has_stefan_dossier', 'knows_attack_imminent', 'suspects_insider'],
         teachingMoment: 'Insider-Bedrohungen sind besonders gefährlich, weil legitime Zugänge missbraucht werden. Wer Zugriff hatte, ist die erste Frage jeder Untersuchung.',
       },
@@ -851,7 +857,7 @@ Du erkennst es sofort. Das Muster. Dieselbe Handschrift wie in deinen Logs. Es i
 
 Und plötzlich ergibt es ein Bild. Kein Chaos — ein Plan. Die "Pannen" der letzten Wochen waren Tests: Wie schnell reagiert ihr? Was fällt euch auf? Was nicht?
 
-Bjorg flüstert: "Wir waren nie das Ziel. Wir waren die Generalprobe." Stefans Countdown läuft. In wenigen Tagen wird aus der Probe der Ernstfall — überall gleichzeitig.
+Jens sagt es leise, fast tonlos: "Wir waren nie das Ziel. Wir waren die Generalprobe." Stefans Countdown läuft. In wenigen Tagen wird aus der Probe der Ernstfall — überall gleichzeitig.
 
 Die Frage ist nur noch: Was macht ihr jetzt damit?`,
     involvedCharacters: ['kollege'],
@@ -869,14 +875,14 @@ Die Frage ist nur noch: Was macht ihr jetzt damit?`,
         id: 'go_authorities',
         text: '"Das ist zu groß für uns. Das gehört sofort zu den Behörden."',
         effects: { skills: { softSkills: 3 } },
-        resultText: 'Bjorg ist unsicher. "Stefan hat das versucht. Schau, wie das für ihn ausging." Aber du hast einen Punkt: Allein stoppt ihr eine Kampagne nicht.',
+        resultText: 'Jens ist unsicher. "Stefan hat das versucht. Schau, wie das für ihn ausging." Aber du hast einen Punkt: Allein stoppt ihr eine Kampagne nicht.',
         setsFlags: ['wants_official', 'sees_full_scope'],
       },
       {
         id: 'trust_no_system',
         text: '"Stefan wurde verraten. Wir trauen niemandem — wir machen das selbst."',
         effects: { skills: { security: 3 }, stress: 8 },
-        resultText: '"Einverstanden", sagt Bjorg leise. "Aber wenn der Insider mitliest, müssen wir ab jetzt vorsichtig sein. Sehr vorsichtig."',
+        resultText: '"Einverstanden", sagt Jens leise. "Aber wenn der Insider mitliest, müssen wir ab jetzt vorsichtig sein. Sehr vorsichtig."',
         setsFlags: ['wants_solo', 'sees_full_scope'],
       },
     ],
@@ -893,7 +899,7 @@ Die Frage ist nur noch: Was macht ihr jetzt damit?`,
 
 Es ist genug. Es ist sogar mehr als genug.
 
-Bjorg betrachtet den Stapel. "Das reicht", sagt er. "Aber reicht es WEM? Stefan hatte auch genug. Und schau, wo ihn das hingebracht hat."
+Jens betrachtet den Stapel. "Das reicht", sagt er. "Aber reicht es WEM? Stefan hatte auch genug. Und schau, wo ihn das hingebracht hat."
 
 Bevor du irgendwem irgendwas zeigst, musst du diese Beweise schützen — und entscheiden, wem du sie überhaupt anvertraust.`,
     involvedCharacters: ['kollege'],
@@ -933,7 +939,7 @@ Bevor du irgendwem irgendwas zeigst, musst du diese Beweise schützen — und en
 
 "Sehen Sie... das ist..." Er räuspert sich. "Das ist eine Nummer zu groß für uns. Wir sind ein kommunales Stadtwerk, kein Geheimdienst. Vielleicht ist das auch alles nur ein Missverständnis. Lassen Sie uns nichts überstürzen."
 
-Bjorg neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du den offiziellen Weg — über den Chef, sauber, dokumentiert? Oder hat Bert gerade bewiesen, dass auf den Dienstweg kein Verlass ist?`,
+Jens neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du den offiziellen Weg — über den Chef, sauber, dokumentiert? Oder hat Bert gerade bewiesen, dass auf den Dienstweg kein Verlass ist?`,
     involvedCharacters: ['chef', 'kollege'],
     tags: ['story', 'chapter6', 'act2', 'decision'],
     choices: [
@@ -947,7 +953,7 @@ Bjorg neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du
       },
       {
         id: 'go_solo',
-        text: 'Bert hat sich gerade disqualifiziert — das ziehst du mit Bjorg allein durch',
+        text: 'Bert hat sich gerade disqualifiziert — das ziehst du mit Jens allein durch',
         effects: { relationships: { chef: -5 }, stress: 6 },
         resultText: 'Du nickst freundlich und sagst nichts mehr. In Gedanken hast du Bert schon abgeschrieben. Wenn der Insider Zugang zur Führungsebene hat, ist Schweigen sicherer.',
         setsFlags: ['distrust_chef', 'going_solo'],
@@ -1007,7 +1013,7 @@ Zum ersten Mal hast du das Gefühl, nicht allein gegen eine Wand zu reden.`,
     probability: 1,
     description: `Kein Dienstweg. Keine Behörde, von der ihr nicht wisst, wer mithört. Nur ihr beide.
 
-Bjorg ist nervös, aber entschlossen. "Okay. Dann machen wir das wie Stefan — nur schlauer. Wir bleiben unsichtbar, wir sammeln, und wir schlagen erst zu, wenn wir müssen."
+Jens ist ruhig wie immer — nur seine Sätze werden noch kürzer. "Okay. Dann wie Stefan — nur schlauer. Unsichtbar bleiben. Sammeln. Zuschlagen, wenn wir müssen."
 
 Ihr richtet euch ein: ein abgeschotteter Laptop, der nie ins Firmennetz geht. Ein zweites, stilles Auge auf dem Datenverkehr. Und die Regel: Niemand sonst erfährt etwas.`,
     involvedCharacters: ['kollege'],
@@ -1062,7 +1068,7 @@ Du könntest jetzt noch aufhören. Wegsehen. Den Kopf einziehen. Oder du gehst d
       },
       {
         id: 'protect_others',
-        text: 'Zuerst dafür sorgen, dass Bjorg und die anderen sicher sind',
+        text: 'Zuerst dafür sorgen, dass Jens, Henry und die anderen sicher sind',
         effects: { relationships: { kollegen: 12 }, stress: 5 },
         resultText: 'Bevor du irgendetwas riskierst, sorgst du dafür, dass die anderen geschützt und ihre Spuren verwischt sind. Wenn das hier schiefgeht, soll es nur dich treffen.',
         setsFlags: ['protected_allies', 'point_of_no_return'],
@@ -1126,7 +1132,7 @@ Das ist kein Massen-Phishing. Das ist auf DICH zugeschnitten. Und die Details da
 
 Die Liste ist kurz. Und unangenehm. Es sind Kollegen. Menschen, an denen du jeden Tag vorbeigehst.
 
-Bjorg reibt sich die Augen. "Stefan hat es geahnt. Deshalb hat er niemandem getraut. Jetzt verstehe ich, warum."`,
+Jens reibt sich die Augen. "Stefan hat es geahnt. Deshalb hat er niemandem getraut. Jetzt verstehe ich, warum."`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter7', 'act2'],
     choices: [
@@ -1140,16 +1146,16 @@ Bjorg reibt sich die Augen. "Stefan hat es geahnt. Deshalb hat er niemandem getr
       },
       {
         id: 'confide_bjorg',
-        text: 'Den Verdacht nur mit Bjorg teilen und gemeinsam einen Plan machen',
+        text: 'Den Verdacht nur mit Jens teilen und gemeinsam einen Plan machen',
         effects: { relationships: { kollegen: 8 } },
-        resultText: 'Zu zweit tragt ihr die Last. "Wir machen keinen Fehler aus Wut", sagt Bjorg. "Wir brauchen Gewissheit, keine Vermutung." Er hat recht.',
+        resultText: 'Zu zweit tragt ihr die Last. "Wir machen keinen Fehler aus Wut", sagt Jens. "Wir brauchen Gewissheit, keine Vermutung." Er hat recht.',
         setsFlags: ['insider_plan'],
       },
       {
         id: 'suspect_bjorg',
         text: 'Ein kalter Gedanke: Wie viel weißt du eigentlich wirklich über Bjorg?',
         effects: { stress: 8 },
-        resultText: 'Du schaust ihn an und hasst dich für den Gedanken. Aber er war von Anfang an dabei. Er hatte Stefans Dossier. Er wusste alles zuerst. Du sagst nichts — und vertraust ab jetzt ein bisschen weniger.',
+        resultText: 'Du schaust zu Bjorg rüber, der gerade jemandem am Telefon erklärt, warum er "da leider raus" ist, und hasst dich für den Gedanken. Aber: Immer beschäftigt, nie greifbar, ständig "Termine" — wäre das nicht die perfekte Tarnung? Du sagst nichts. Und vertraust ab jetzt ein bisschen weniger.',
         setsFlags: ['doubts_bjorg'],
       },
     ],
@@ -1204,7 +1210,7 @@ Zum ersten Mal seit Wochen kommt Hilfe — von außen, ungefragt.`,
 
 Genau das macht dich nervös.
 
-Bjorg läuft im Serverraum auf und ab. "Das gefällt mir nicht. Vor einem Sturm wird's immer ganz still. Sie sind nicht weg. Sie laden nach."`,
+Jens sitzt vor dem Monitoring und ist noch stiller als sonst. Irgendwann sagt er: "Das gefällt mir nicht. Vor einem Sturm wird es genau so still. Sie sind nicht weg. Sie laden nach."`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter8', 'act2'],
     choices: [
@@ -1276,7 +1282,7 @@ Es ist die Generalprobe, die niemand will. Und sie zeigt Lücken.`,
     category: 'story',
     weekRange: [8, 8],
     probability: 1,
-    description: `Spät am Abend, nur ihr beide. Bjorg wird still, dann fängt er an zu erzählen.
+    description: `Spät am Abend, nur ihr beide. Jens dreht lange sein Glas in der Hand — und fängt dann an zu erzählen. Mehr Sätze am Stück, als du je von ihm gehört hast.
 
 "Vor zehn Jahren. Anderer Arbeitgeber, ein Energieversorger. Ich hab Warnzeichen gesehen und gemeldet. Sie haben mich ausgelacht. 'Wer soll uns schon angreifen?'"
 
@@ -1303,7 +1309,7 @@ Er schaut auf seine Hände. "Drei Wochen später war alles verschlüsselt. Mensc
         id: 'reassure',
         text: 'Ihm sagen, dass es diesmal anders läuft — weil ihr vorbereitet seid',
         effects: { relationships: { kollegen: 8 }, stress: -5 },
-        resultText: '"Diesmal hört jemand zu", sagst du. "Diesmal haben wir einen Plan." Bjorg lächelt müde. "Ja. Diesmal schon." Es klingt fast nach Hoffnung.',
+        resultText: '"Diesmal hört jemand zu", sagst du. "Diesmal haben wir einen Plan." Jens lächelt müde. "Ja. Diesmal schon." Es klingt fast nach Hoffnung.',
         setsFlags: ['reassured_bjorg'],
       },
     ],
@@ -1374,9 +1380,9 @@ Alle schauen dich an.`,
       },
       {
         id: 'delegate',
-        text: '"Bjorg, du koordinierst. Chef, Sie informieren den Bürgermeister."',
+        text: '"Jens, du koordinierst. Henry, du nimmst die Server. Chef, Sie informieren den Bürgermeister."',
         effects: { relationships: { kollegen: 5, chef: 10 } },
-        resultText: 'Jeder hat seine Aufgabe. Das Team funktioniert wieder. Auch wenn die Situation ernst ist.',
+        resultText: 'Jeder hat seine Aufgabe. Sogar Bjorg — er protestiert zwar ("Warum ich? Ich hab eigentlich gleich einen—"), übernimmt dann aber immerhin die Telefonliste. Das Team funktioniert wieder. Auch wenn die Situation ernst ist.',
         setsFlags: ['delegated_well'],
       },
       {
@@ -1484,7 +1490,7 @@ Der Drucker der nachts druckt. Die Kaffeemaschine die mit China redet. Die Mail-
 
 Es ist wie ein Uhrwerk. Regelmäßig. Präzise. Und es wird lauter.
 
-Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
+Jens zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Hamburg ein Krankenhaus. In München die Straßenbahn.
 
 "Sie testen", sagt er. "Überall."`,
     involvedCharacters: [],
@@ -1526,7 +1532,7 @@ Bjorg zeigt dir die Nachrichten: In Köln wurde eine Kläranlage gehackt. In Ham
     description: `Das Muster lässt dich nicht los. Wenn jemand WARM testet, dann steht es in den Logs des Domänencontrollers.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Reden wir nicht drüber, sieh nach. Sicherheitsprotokoll auf DC01.
+[NACHRICHT VON: jens] "Reden wir nicht drüber, sieh nach. Sicherheitsprotokoll auf DC01.
                         Wenn da nachts jemand Konten durchprobiert, steht's da schwarz auf weiß."
 \`\`\`
 
@@ -1636,9 +1642,9 @@ Du kannst dich auf den Monatsbericht des Dienstleisters verlassen — oder selbs
         },
       ],
       hints: [
-        '🤖 Bjorg: "Filter auf \'Überwachung fehlgeschlagen\'. Fällt dir ein Konto + eine IP auf?"',
-        '🤖 Bjorg: "svc_scada, von 185.220.101.47, mitten in der Nacht. Klassisches Durchprobieren."',
-        '🤖 Bjorg: "Jetzt die Frage: gibt es eine ERFOLGREICHE Anmeldung (4624) von genau dieser IP? Such sie, melde sie."',
+        '🤖 Jens: "Filter auf \'Überwachung fehlgeschlagen\'. Fällt dir ein Konto + eine IP auf?"',
+        '🤖 Jens: "svc_scada, von 185.220.101.47, mitten in der Nacht. Klassisches Durchprobieren."',
+        '🤖 Jens: "Jetzt die Frage: gibt es eine ERFOLGREICHE Anmeldung (4624) von genau dieser IP? Such sie, melde sie."',
       ],
     },
   },
@@ -1652,7 +1658,7 @@ Du kannst dich auf den Monatsbericht des Dienstleisters verlassen — oder selbs
     description: `Es ist ruhig. Zu ruhig. Wenn das Muster stimmt, kommt der eigentliche Schlag noch. Bevor er kommt, willst du wissen, ob die wichtigen Server überhaupt geschützt sind.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Prüf den Datei-Server. Defender, Manipulationsschutz, Firewall.
+[NACHRICHT VON: jens] "Prüf den Datei-Server. Defender, Manipulationsschutz, Firewall.
                         Wenn der Manipulationsschutz aus ist, kann ein Angreifer den Rest
                         einfach abschalten — dann sind wir blind."
 \`\`\`
@@ -1715,9 +1721,9 @@ Du kannst auf die Standard-Konfiguration des Dienstleisters vertrauen — oder d
         },
       ],
       hints: [
-        '🤖 Bjorg: "Drei Schalter stehen auf rot/\'Aktion nötig\'. Genau die brauchen wir an."',
-        '🤖 Bjorg: "Echtzeitschutz und Domänen-Firewall sind klar. Aber WARUM könnte sie jemand abschalten?"',
-        '🤖 Bjorg: "Manipulationsschutz. Mach den an — sonst war alles andere umsonst."',
+        '🤖 Jens: "Drei Schalter stehen auf rot/\'Aktion nötig\'. Genau die brauchen wir an."',
+        '🤖 Jens: "Echtzeitschutz und Domänen-Firewall sind klar. Aber WARUM könnte sie jemand abschalten?"',
+        '🤖 Jens: "Manipulationsschutz. Mach den an — sonst war alles andere umsonst."',
       ],
     },
   },
@@ -1731,7 +1737,7 @@ Du kannst auf die Standard-Konfiguration des Dienstleisters vertrauen — oder d
     description: `Es ist soweit. Der Datei-Server reagiert kaum noch, Dateien bekommen reihenweise eine neue Endung. Das ist kein Ausfall — das ist eine Verschlüsselung, live.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Geh sofort auf die Konsole von FILE01. Irgendein Prozess verschlüsselt
+[NACHRICHT VON: jens] "Geh sofort auf die Konsole von FILE01. Irgendein Prozess verschlüsselt
                         gerade alles. Finde ihn, beende ihn — aber kill nicht das halbe System
                         im Panikmodus."
 \`\`\`
@@ -1802,9 +1808,9 @@ Jede Minute zählt.`,
         },
       ],
       hints: [
-        '🤖 Bjorg: "MsMpEng mit 18% ist nur der Defender. Lass den."',
-        '🤖 Bjorg: "Lies die Namen genau. svchost… svhost32… und woher gestartet?"',
-        '🤖 Bjorg: "C:\\Users\\Public\\Temp, unsigniert, 91% Last. Das ist er. Beenden."',
+        '🤖 Jens: "MsMpEng mit 18% ist nur der Defender. Lass den."',
+        '🤖 Jens: "Lies die Namen genau. svchost… svhost32… und woher gestartet?"',
+        '🤖 Jens: "C:\\Users\\Public\\Temp, unsigniert, 91% Last. Das ist er. Beenden."',
       ],
     },
   },
@@ -1826,9 +1832,9 @@ Und jetzt, während alle Systeme verschlüsselt sind, hast du ein Backup das nie
     choices: [
       {
         id: 'reveal_backup',
-        text: '"Bjorg, ich habe da was im Keller..."',
+        text: '"Jens, ich habe da was im Keller..."',
         effects: { relationships: { kollegen: 25, chef: 15 }, stress: -20 },
-        resultText: 'Bjorg\' Augen werden groß. "Du... du hast Stefans Server gefunden? Und er läuft?" Er umarmt dich. Tatsächlich umarmt er dich. "Du Genie!"',
+        resultText: 'Jens sieht dich lange an. Dann lächelt er — richtig, mit dem ganzen Gesicht. "Stefans Server. Und er läuft." Henry hat den Kellerschlüssel schon in der Hand: "Worauf warten wir?"',
         setsFlags: ['revealed_secret_backup', 'hero_moment'],
         teachingMoment: 'Offline-Backups sind die letzte Verteidigung gegen Ransomware.',
       },
@@ -1861,7 +1867,7 @@ Alle Bildschirme sind rot. Auf jedem steht die gleiche Nachricht:
   Tick. Tock.
 ========================================
 
-Das Telefon klingelt. Es ist Bjorg. "Es ist soweit", sagt er. "Und es ist nicht nur bei uns."`,
+Das Telefon klingelt. Es ist Jens. "Es ist soweit", sagt er ruhig. "Und es ist nicht nur bei uns."`,
     involvedCharacters: [],
     tags: ['story', 'chapter9', 'act3', 'crisis'],
     choices: [
@@ -1883,7 +1889,7 @@ Das Telefon klingelt. Es ist Bjorg. "Es ist soweit", sagt er. "Und es ist nicht 
         id: 'laugh',
         text: 'Lachen. Ihr habt das Backup im Keller.',
         effects: { stress: -10 },
-        resultText: '"Bjorg", sagst du. "Hol den Schlüssel für den Keller." Er versteht sofort. Ihr habt einen Plan.',
+        resultText: '"Henry", sagst du. "Hol den Schlüssel für den Keller." Er versteht sofort. Ihr habt einen Plan.',
         setsFlags: ['ready', 'has_secret_weapon'],
       },
     ],
@@ -1897,7 +1903,7 @@ Das Telefon klingelt. Es ist Bjorg. "Es ist soweit", sagt er. "Und es ist nicht 
     probability: 1,
     description: `72 Stunden später.
 
-Du sitzt im Konferenzraum. Der Chef ist da. Der Bürgermeister. Das BSI. Und Bjorg, der aussieht als hätte er seit drei Tagen nicht geschlafen. (Hat er auch nicht.)
+Du sitzt im Konferenzraum. Der Chef ist da. Der Bürgermeister. Das BSI. Jens und Henry, die aussehen, als hätten sie seit drei Tagen nicht geschlafen. (Haben sie auch nicht.) Und Bjorg, erstaunlich ausgeruht, der dem Bürgermeister gerade erklärt, wie "wir" das Ding "gerockt" haben.
 
 Die Müllabfuhr läuft wieder. Die Systeme sind wiederhergestellt. Die Angreifer... sind nicht gefasst, aber ihre Infrastruktur ist zerstört.
 
@@ -1909,9 +1915,9 @@ Deine Probezeit ist offiziell beendet.`,
     choices: [
       {
         id: 'credit_team',
-        text: '"Das war Teamarbeit. Bjorg, Stefan, das BSI, sogar die Kaffeemaschine."',
+        text: '"Das war Teamarbeit. Jens, Henry, Stefan, das BSI, sogar die Kaffeemaschine."',
         effects: { relationships: { kollegen: 10, chef: 5 } },
-        resultText: 'Du gibst das Lob weiter, an jeden im Raum und ein paar, die nicht da sind. Bjorg wird rot, Frau Weber tut, als hätte sie was im Auge, und der Chef nickt langsam. "Ein Team, das so redet", sagt er, "will man behalten." Manchmal ist die stärkste Führung die, die den Applaus verteilt.',
+        resultText: 'Du gibst das Lob weiter, an jeden im Raum und ein paar, die nicht da sind. Jens nickt nur — aber es ist ein Nicken mit Gewicht. Henry grinst, Frau Weber tut, als hätte sie was im Auge, und Bjorg ruft "Sag ich doch die ganze Zeit: Teamwork!" Der Chef nickt langsam. "Ein Team, das so redet", sagt er, "will man behalten." Manchmal ist die stärkste Führung die, die den Applaus verteilt.',
         setsFlags: ['credit_shared'],
       },
       {
@@ -1984,11 +1990,11 @@ Und mitten durch die Gänge läuft Chef Bert — mit einer AUSGEDRUCKTEN Telefon
     probability: 1,
     description: `Abends, Tag 1. Auf jedem Bildschirm im Haus läuft dieselbe Zahl rückwärts: 71:59:58. 71:59:57. 71:59:56.
 
-Bjorg rechnet vor, halb an dich, halb an sich selbst: "Zweiundsiebzig Stunden. Klingt nach viel. Sind aber, wenn man ehrlich ist, neun normale Arbeitstage. Und wir haben davon: keinen einzigen. Wir haben genau diese zweiundsiebzig Stunden. Am Stück."
+Jens rechnet vor, halb an dich, halb an sich selbst: "Zweiundsiebzig Stunden. Klingt nach viel. Sind aber, wenn man ehrlich ist, neun normale Arbeitstage. Und wir haben davon: keinen einzigen. Wir haben genau diese zweiundsiebzig Stunden. Am Stück."
 
-Er sagt es nüchtern, aber du siehst, wie ihm die Zahl in den Nacken kriecht. Draußen wird es dunkel. Die erste Nacht.
+Er sagt es nüchtern, aber du siehst, wie ihm die Zahl in den Nacken kriecht. Henry hat schon einen Kasten Red Bull aus dem Keller geholt und verteilt Dosen wie Munition. Bjorg zieht sich die Jacke an: "Ihr schafft das! Ich hab morgen früh leider einen Termin. Wichtig." Weg ist er.
 
-Wie fahrt ihr diese Krise?`,
+Draußen wird es dunkel. Die erste Nacht. Wie fahrt ihr diese Krise?`,
     involvedCharacters: ['kollege'],
     tags: ['story', 'chapter9', 'act3', 'crisis'],
     choices: [
@@ -1996,7 +2002,7 @@ Wie fahrt ihr diese Krise?`,
         id: 'shift_plan',
         text: 'Schichtplan aufsetzen: niemand arbeitet 72 Stunden am Stück, Übergaben werden dokumentiert',
         effects: { skills: { softSkills: 4 }, stress: -5 },
-        resultText: 'Du teilst den Krisenstab in zwei Schichten, schreibst Übergabeprotokolle vor und schickst Bjorg — unter Protest — als Ersten schlafen. "Ein Krisenstab, der nach zwölf Stunden Fehler macht wie um vier Uhr früh, ist keine Hilfe mehr", sagst du. Er nickt widerwillig. Am nächsten Morgen ist er ausgeruht, klar und um einiges effektiver.',
+        resultText: 'Du teilst den Krisenstab in zwei Schichten, schreibst Übergabeprotokolle vor und schickst Henry — unter lautem Protest — als Ersten schlafen. "Ein Krisenstab, der nach zwölf Stunden Fehler macht wie um vier Uhr früh, ist keine Hilfe mehr", sagst du. Er nickt widerwillig. Am nächsten Morgen ist er ausgeruht, klar und um einiges effektiver.',
         setsFlags: ['shift_plan'],
         teachingMoment: 'Krisenmanagement heißt Durchhaltefähigkeit: Ein Incident dauert oft Tage. Schichten und dokumentierte Übergaben verhindern Erschöpfungsfehler und Wissensverlust.',
       },
@@ -2004,7 +2010,7 @@ Wie fahrt ihr diese Krise?`,
         id: 'all_nighter',
         text: 'Durcharbeiten. Alle. Jetzt. Schlafen wird überbewertet.',
         effects: { skills: { security: 3 }, stress: 15 },
-        resultText: 'Ihr zieht durch. Um vier Uhr früh öffnet Bjorg seine sechste Red Bull und starrt einen Restore-Fortschrittsbalken an, der sich seit vierzig Minuten nicht bewegt hat — was er erst nach vierzig Minuten bemerkt. Ihr schafft viel in dieser Nacht. Und ihr macht Fehler, die ihr in den nächsten zwei Tagen wieder ausbügeln müsst.',
+        resultText: 'Ihr zieht durch. Um vier Uhr früh öffnet Henry seine sechste Red Bull und starrt einen Restore-Fortschrittsbalken an, der sich seit vierzig Minuten nicht bewegt hat — was er erst nach vierzig Minuten bemerkt. Ihr schafft viel in dieser Nacht. Und ihr macht Fehler, die ihr in den nächsten zwei Tagen wieder ausbügeln müsst.',
         setsFlags: ['all_nighter'],
       },
       {
@@ -2027,7 +2033,7 @@ Wie fahrt ihr diese Krise?`,
     probability: 1,
     description: `Der Keller. Die zugemauerte Tür, hinter der Stefan seinen Server versteckt hat. Er läuft. Offline, verstaubt, und mit Ständen bis vor drei Tagen — bevor der Angriff losbrach.
 
-Bjorg streichelt tatsächlich das Gehäuse. "Du wunderschönes, verstaubtes Ding", murmelt er. "Stefan, du paranoider Genius."
+Henry streichelt tatsächlich das Gehäuse. "Du wunderschönes, verstaubtes Ding", murmelt er. "Stefan, du paranoider Genius."
 
 Aber jetzt beginnt die eigentliche Arbeit: Ihr müsst diese Daten zurück ins Produktivsystem bekommen, während der Countdown auf den Monitoren oben weiterläuft. Und ein Backup ist nur so gut wie das Restore, das man daraus fährt.
 
@@ -2054,7 +2060,7 @@ Wie geht ihr vor?`,
         id: 'forensic_copy_first',
         text: 'Erst eine forensische Kopie ziehen, dann restoren',
         effects: { skills: { security: 6 } },
-        resultText: 'Bevor irgendetwas angefasst wird, zieht ihr ein Image — für die Ermittler, und für euch selbst. "Wenn wir wissen wollen, WIE die reingekommen sind", sagst du, "brauchen wir die Spuren, bevor wir sie überschreiben." Bjorg nickt anerkennend. Die Kopie wandert in den Tresor. Sie wird später mehr wert sein, als du gerade ahnst.',
+        resultText: 'Bevor irgendetwas angefasst wird, zieht ihr ein Image — für die Ermittler, und für euch selbst. "Wenn wir wissen wollen, WIE die reingekommen sind", sagst du, "brauchen wir die Spuren, bevor wir sie überschreiben." Jens nickt anerkennend. Die Kopie wandert in den Tresor. Sie wird später mehr wert sein, als du gerade ahnst.',
         setsFlags: ['forensic_copy', 'found_evidence'],
         teachingMoment: 'Beweissicherung vor Wiederherstellung: Wer sofort restauriert, vernichtet die forensischen Spuren. Erst sichern (Image/Kopie), dann wiederherstellen.',
       },
@@ -2073,7 +2079,7 @@ Die regulären Backups liegen auf dem Backup-Server. Der Backup-Server hängt im
 
 Chef Bert steht hilflos daneben. "Aber... wir haben doch dieses NAS gekauft? Das teure?"
 
-Bjorg, ohne aufzublicken: "Das NAS ist AUCH verschlüsselt, Bert. Das NAS war im Netz. Alles war im Netz."
+Jens, ohne aufzublicken: "Das NAS ist AUCH verschlüsselt, Bert. Das NAS war im Netz. Alles war im Netz."
 
 Stille. Der Countdown oben tickt. Ihr müsst mit dem arbeiten, was ihr habt.`,
     involvedCharacters: ['chef', 'kollege'],
@@ -2116,7 +2122,7 @@ Er nimmt ab, sagt dreimal "Jawohl", einmal "Also, technisch gesehen—" und häl
 
 Durch die Jalousie siehst du auf den Parkplatz: Ein Übertragungswagen rangiert zwischen die Restmülltonnen.
 
-Bjorg flüstert: "Sag ihm nichts von den 500 Bitcoin. Sag ihm UM GOTTES WILLEN nichts von den Bitcoin."
+Bjorg — plötzlich doch da, wo etwas los ist — flüstert: "Sag ihm nichts von den 500 Bitcoin. Sag ihm UM GOTTES WILLEN nichts von den Bitcoin. Wenn das rauskommt, kriegen WIR alle Ärger. Also ihr."
 
 Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: Wie schlimm ist es, und wann fährt die Müllabfuhr wieder?"`,
     involvedCharacters: ['chef', 'kollege'],
@@ -2137,7 +2143,7 @@ Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: 
         text: 'Beschwichtigen: "Ein technischer Defekt, wir haben alles im Griff"',
         effects: { stress: -5, relationships: { gf: 5 } },
         resultText:
-          'Der Bürgermeister ist fürs Erste beruhigt und wiederholt deine Formulierung wortwörtlich vor laufender Kamera. Bjorg schaut dich an. Ihr wisst beide: Wenn rauskommt, was es wirklich ist — und es WIRD rauskommen —, fällt "technischer Defekt" euch auf die Füße.',
+          'Der Bürgermeister ist fürs Erste beruhigt und wiederholt deine Formulierung wortwörtlich vor laufender Kamera. Jens schaut dich an. Ihr wisst beide: Wenn rauskommt, was es wirklich ist — und es WIRD rauskommen —, fällt "technischer Defekt" euch auf die Füße.',
         setsFlags: ['downplayed_crisis'],
       },
       {
@@ -2145,7 +2151,7 @@ Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: 
         text: 'Die Schuld weiterreichen: "Der externe Dienstleister hat da was verbockt"',
         effects: { relationships: { gf: 8, kollegen: -10 }, stress: -5 },
         resultText:
-          'Der Bürgermeister hat seinen Schuldigen, die Pressemitteilung schreibt sich von selbst. Nur: Es stimmt nicht — noch nicht, ihr habt keine Beweise. Bjorg sagt leise: "Genau so hat es bei uns damals auch angefangen. Erst zeigt jeder auf jeden, dann arbeitet keiner mehr zusammen."',
+          'Der Bürgermeister hat seinen Schuldigen, die Pressemitteilung schreibt sich von selbst. Nur: Es stimmt nicht — noch nicht, ihr habt keine Beweise. Jens sagt leise: "Genau so hat es bei uns damals auch angefangen. Erst zeigt jeder auf jeden, dann arbeitet keiner mehr zusammen."',
         setsFlags: ['blamed_others'],
       },
     ],
@@ -2153,25 +2159,25 @@ Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: 
 
   {
     id: 'adv_jens_helps',
-    title: 'Bjorgs Revanche',
+    title: 'Jens\' Revanche',
     category: 'story',
     weekRange: [10, 10],
     probability: 1,
-    description: `Es ist die zweite Nacht, und Bjorg ist ein anderer Mensch.
+    description: `Es ist die zweite Nacht, und Jens ist ein anderer Mensch.
 
-Vor zehn Jahren beim Energieversorger hat man ihn nicht gehört — bis es zu spät war, bis die Lichter ausgingen und alle plötzlich wussten, dass der komische Linux-Typ die ganze Zeit recht gehabt hatte. Diese Nacht hat ihn nie losgelassen.
+Vor zehn Jahren beim Energieversorger hat man ihn nicht gehört — bis es zu spät war, bis die Lichter ausgingen und alle plötzlich wussten, dass der stille Kollege die ganze Zeit recht gehabt hatte. Diese Nacht hat ihn nie losgelassen.
 
-Jetzt kennt er diese Sorte Nacht auswendig. Er weiß, welche Fehler man um drei Uhr macht. Er weiß, wann man eine Pause erzwingen muss und wann man durchziehen kann. Er bewegt sich durch die Krise wie durch ein vertrautes, hässliches Zimmer.
+Jetzt kennt er diese Sorte Nacht auswendig. Er weiß, welche Fehler man um drei Uhr macht. Er weiß, wann man eine Pause erzwingen muss und wann man durchziehen kann. Er bewegt sich durch die Krise wie durch ein vertrautes, hässliches Zimmer. Und Henry setzt um, was Jens ansagt — schneller, als du zuschauen kannst: Kabel, Restores, Neustarts.
 
 Der Mann, dem damals niemand zugehört hat, ist jetzt der, auf den alle hören. Und er schaut dich an: "Sag mir, wo du mich brauchst."`,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['jens', 'henry'],
     tags: ['story', 'chapter10', 'act3', 'crisis', 'emotional'],
     choices: [
       {
         id: 'give_him_lead',
         text: 'Ihm die technische Einsatzleitung geben',
         effects: { relationships: { kollegen: 15 }, skills: { softSkills: 3 } },
-        resultText: 'Du sagst es vor versammeltem Krisenstab: "Bjorg führt die technische Wiederherstellung. Was er sagt, gilt." Für einen Moment sieht er aus, als hätte ihm das seit zehn Jahren jemand sagen müssen. Dann nickt er, krempelt die Ärmel hoch, und der Serverraum wird zu seinem Kommandostand. Ihr habt selten so gut funktioniert.',
+        resultText: 'Du sagst es vor versammeltem Krisenstab: "Jens führt die technische Wiederherstellung. Was er sagt, gilt." Für einen Moment sieht er aus, als hätte ihm das seit zehn Jahren jemand sagen müssen. Dann nickt er, und der Serverraum wird zu seinem Kommandostand — mit Henry als seiner rechten Hand. Ihr habt selten so gut funktioniert.',
         setsFlags: ['bjorg_lead', 'coordinated_defense'],
       },
       {
@@ -2197,14 +2203,14 @@ Der Mann, dem damals niemand zugehört hat, ist jetzt der, auf den alle hören. 
     category: 'story',
     weekRange: [10, 10],
     probability: 1,
-    description: `Bjorg arbeitet neben dir. Aber nicht mit dir.
+    description: `Jens arbeitet neben dir. Aber nicht mit dir.
 
-Ihr habt nie die Brücke gebaut — oder du hast sie abgebrochen, irgendwann zwischen einem misstrauischen Blick und einem Wort zu viel. Jetzt sitzt ihr im selben Raum, tippt an denselben Systemen, und redet in kurzen, sachlichen Sätzen aneinander vorbei.
+Du hast sein Vertrauen nie verdient — oder es verspielt, irgendwann zwischen einem misstrauischen Blick und einem Wort zu viel. Jetzt sitzt ihr im selben Raum, tippt an denselben Systemen, und redet in kurzen, sachlichen Sätzen aneinander vorbei. Er weiß Dinge über dieses Netz, die dir helfen würden. Du weißt Dinge über den Angriff, die ihm helfen würden. Aber zwischen euch steht diese Wand.
 
-Er weiß Dinge über dieses Netz, die dir helfen würden. Du weißt Dinge über den Angriff, die ihm helfen würden. Aber zwischen euch steht diese Wand, und die Nacht ist verdammt lang.
+Henry rennt seit achtzehn Stunden von Baustelle zu Baustelle und ist nur noch ein Schatten mit Werkzeugkoffer — für zwei Fronten gleichzeitig reicht auch er nicht. Und Bjorg? Bjorg hat um siebzehn Uhr gesagt: "Ich würd ja helfen, aber mein Rücken." Sein Stuhl ist leer.
 
-Draußen tickt der Countdown weiter. Drinnen tickt etwas anderes.`,
-    involvedCharacters: ['kollege'],
+Draußen tickt der Countdown weiter. Drinnen tickt etwas anderes. Die Nacht ist verdammt lang, wenn man sie fast allein verbringt.`,
+    involvedCharacters: ['jens', 'henry', 'kollege'],
     tags: ['story', 'chapter10', 'act3', 'crisis', 'emotional'],
     choices: [
       {
@@ -2243,7 +2249,7 @@ Draußen tickt der Countdown weiter. Drinnen tickt etwas anderes.`,
 
 Die Gruppe signiert ihre Loader mit einem Wort: FENRIS. Professionell, wiedererkennbar, arrogant. Und der nächtliche Exfil-Slot — seit Monaten, immer dieselbe Zeit: 23:47. Stefans Zahl. "Check die Logs um 23:47", stand in seiner letzten Nachricht.
 
-Bjorg legt zwei Fenster nebeneinander. Der Exfil-Slot liegt exakt im wöchentlichen Fernwartungsfenster des externen Wartungsdienstleisters. Das benutzte Konto: ein Uralt-Admin, älter als Stefan, nie deaktiviert.
+Jens legt zwei Fenster nebeneinander. Der Exfil-Slot liegt exakt im wöchentlichen Fernwartungsfenster des externen Wartungsdienstleisters. Das benutzte Konto: ein Uralt-Admin, älter als Stefan, nie deaktiviert.
 
 Er zieht das zugehörige Personenprofil hoch. Ein Gesicht, das ihr alle kennt. Viktor Brandt. Der freundliche Techniker, der montags die Drucker macht und über das Wetter redet.
 
@@ -2305,7 +2311,7 @@ Stefan. Er lebt. Seit dem inszenierten "Unfall" versteckt er sich bei seiner Sch
         id: 'bring_him_back',
         text: 'Ihn bitten zurückzukommen — als Zeuge, offiziell geschützt',
         effects: { relationships: { kollegen: 8 }, compliance: 5 },
-        resultText: 'Du schreibst zurück: Komm rein aus der Kälte, aber offiziell — mit Zeugenschutz, mit den Ermittlern im Rücken, nicht als Schatten. Lange keine Antwort. Dann: "Okay. Ich bin es leid, mich zu verstecken. Ich komme." Bjorg liest über deine Schulter mit und muss sich umdrehen.',
+        resultText: 'Du schreibst zurück: Komm rein aus der Kälte, aber offiziell — mit Zeugenschutz, mit den Ermittlern im Rücken, nicht als Schatten. Lange keine Antwort. Dann: "Okay. Ich bin es leid, mich zu verstecken. Ich komme." Jens liest über deine Schulter mit und muss sich umdrehen.',
         setsFlags: ['stefan_returns'],
       },
       {
@@ -2319,7 +2325,7 @@ Stefan. Er lebt. Seit dem inszenierten "Unfall" versteckt er sich bei seiner Sch
         id: 'take_his_files',
         text: 'Alles, was er hat, in die Beweismappe übernehmen',
         effects: { skills: { security: 5 } },
-        resultText: 'Stefan schickt vierzehn Monate akribischer Dokumentation — Screenshots, Logs, Zeitleisten, Namen. PROJEKT_X, vollständig. Zusammen mit euren eigenen Funden ergibt es eine Beweiskette, die nirgends mehr Löcher hat. "Er hat das alles die ganze Zeit gehabt", murmelt Bjorg. "Und keiner hat ihm zugehört."',
+        resultText: 'Stefan schickt vierzehn Monate akribischer Dokumentation — Screenshots, Logs, Zeitleisten, Namen. PROJEKT_X, vollständig. Zusammen mit euren eigenen Funden ergibt es eine Beweiskette, die nirgends mehr Löcher hat. "Er hat das alles die ganze Zeit gehabt", murmelt Jens. "Und keiner hat ihm zugehört." Er weiß, wie sich das anfühlt.',
         setsFlags: ['stefan_dossier_complete', 'found_evidence'],
       },
       {
@@ -2345,7 +2351,7 @@ Die 500 Bitcoin sind eine Show. Die Erpressung ist Lärm, damit niemand auf das 
 
 Die Abfallwirtschaft hängt als "vertrauenswürdiger Partner" an einer Koppel ins kommunale Verbundnetz. Über diese Koppel geht es weiter — zur Stadtwerke-Leitstelle. Wasser. Strom. Die Müllabfuhr war nie das Ziel. Sie war die Generalprobe und die Eintrittskarte.
 
-Bjorg zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein geplanter Task, aktiv, scharf. Uhrzeit der Ausführung: 23:47. Heute Nacht.
+Jens zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein geplanter Task, aktiv, scharf. Uhrzeit der Ausführung: 23:47. Heute Nacht.
 
 "Sie pivotieren", sagt er tonlos. "Heute Nacht springen sie von unserem Müll auf das Stromnetz. Und wir sind die offene Tür."`,
     involvedCharacters: ['kollege'],
@@ -2371,7 +2377,7 @@ Bjorg zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein
         id: 'set_honeypot',
         text: 'Eine Falle bauen: den Pivot in ein Honeynet umleiten',
         effects: { skills: { security: 7 }, stress: 8 },
-        resultText: 'Ihr baut in fieberhafter Eile ein Honeynet hinter der Koppel — eine perfekte Attrappe der Leitstelle, echt genug, um FENRIS glauben zu lassen, sie hätten es geschafft. Wenn sie heute Nacht springen, landen sie in einem Aquarium, und ihr schaut ihnen bei jedem Handgriff zu. "Riskant", sagt Bjorg und grinst zum ersten Mal seit Tagen, "aber sowas von geil."',
+        resultText: 'Ihr baut in fieberhafter Eile ein Honeynet hinter der Koppel — eine perfekte Attrappe der Leitstelle, echt genug, um FENRIS glauben zu lassen, sie hätten es geschafft. Wenn sie heute Nacht springen, landen sie in einem Aquarium, und ihr schaut ihnen bei jedem Handgriff zu. "Riskant", sagt Henry und grinst zum ersten Mal seit Tagen, "aber sowas von geil."',
         setsFlags: ['honeypot_set'],
       },
     ],
@@ -2389,7 +2395,7 @@ Bjorg zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein
 
 Die Erpresser haben nachgelegt: Zahlt bis Mitternacht, oder wir leaken die Bürgerdaten. Der Restore steht bei achtzig Prozent. Und heute Nacht, um 23:47, kommt der Pivot aufs Stromnetz.
 
-Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Bjorg mit versteinerter Miene. Es ist deine Weiche.`,
+Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Jens mit versteinerter Miene. Nur Bjorg fehlt — der hat "in der Zeit leider einen Termin". Es ist deine Weiche.`,
     involvedCharacters: ['chef', 'kaemmerer', 'kollege'],
     tags: ['story', 'chapter11', 'act3', 'truth', 'decision'],
     choices: [
@@ -2397,7 +2403,7 @@ Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Bjorg mit versteinerter M
         id: 'no_ransom',
         text: 'Nicht zahlen. Wiederherstellen, verteidigen, durchziehen.',
         effects: { skills: { security: 4 }, relationships: { kollegen: 8 } },
-        resultText: '"Wir zahlen nicht", sagst du, und es wird sehr still. "Zahlen finanziert die nächste Welle, garantiert nichts, und ihre „Entschlüsselungs-Garantie“ ist das Papier nicht wert, auf dem sie nicht steht. Wir ziehen den Restore durch und wir stoppen den Pivot." Bjorg atmet aus. Der Kämmerer klappt seinen Laptop zu. "Dann auf Ihre Verantwortung." — "Ja. Auf meine."',
+        resultText: '"Wir zahlen nicht", sagst du, und es wird sehr still. "Zahlen finanziert die nächste Welle, garantiert nichts, und ihre „Entschlüsselungs-Garantie“ ist das Papier nicht wert, auf dem sie nicht steht. Wir ziehen den Restore durch und wir stoppen den Pivot." Jens atmet aus. Der Kämmerer klappt seinen Laptop zu. "Dann auf Ihre Verantwortung." — "Ja. Auf meine."',
         setsFlags: ['no_ransom', 'final_resolve'],
         teachingMoment: 'BSI und LKA raten von Lösegeldzahlungen ab: Sie finanzieren das nächste Verbrechen, machen zum lohnenden Ziel und garantieren keine funktionierende Entschlüsselung. Vorbereitung (Backups, IR-Plan) ist die einzige verlässliche Antwort.',
       },
@@ -2412,7 +2418,7 @@ Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Bjorg mit versteinerter M
         id: 'recommend_payment',
         text: 'Dem Kämmerer nachgeben und die Zahlung empfehlen',
         effects: { relationships: { kaemmerer: 10, kollegen: -10 } },
-        resultText: 'Du gibst nach. "Betriebswirtschaftlich haben Sie recht." Der Kämmerer nickt zufrieden. Bjorg verlässt wortlos den Raum. Die 500 BTC gehen raus — und die versprochene Entschlüsselung ist ein halbgares Tool, das die Hälfte der Dateien schrottet, während der Pivot aufs Stromnetz völlig unberührt weiterläuft. Du wusstest es. Du hast es trotzdem getan.',
+        resultText: 'Du gibst nach. "Betriebswirtschaftlich haben Sie recht." Der Kämmerer nickt zufrieden. Jens verlässt wortlos den Raum. Die 500 BTC gehen raus — und die versprochene Entschlüsselung ist ein halbgares Tool, das die Hälfte der Dateien schrottet, während der Pivot aufs Stromnetz völlig unberührt weiterläuft. Du wusstest es. Du hast es trotzdem getan.',
         setsFlags: ['recommended_payment', 'ignored_warnings'],
       },
     ],
@@ -2445,7 +2451,7 @@ Nicht mehr alles auf einmal ist zu schaffen. Ihr müsst priorisieren, ein letzte
         id: 'citizens_first',
         text: 'Bürgerservices zuerst — morgen früh muss die Müllabfuhr fahren',
         effects: { relationships: { fachabteilung: 10, gf: 5 } },
-        resultText: 'Ihr priorisiert das, was die Stadt am Morgen sieht: Disposition, Tourenplanung, Bürgertelefon. Um sechs Uhr rollt der erste Wagen wieder vom Hof — und die Fahrer, die drei Tage lang mit Zetteln gekämpft haben, applaudieren spontan Richtung IT-Fenster. Bjorg winkt verlegen zurück. "Das", sagt er, "habe ich beim Energieversorger nie erlebt."',
+        resultText: 'Ihr priorisiert das, was die Stadt am Morgen sieht: Disposition, Tourenplanung, Bürgertelefon. Um sechs Uhr rollt der erste Wagen wieder vom Hof — und die Fahrer, die drei Tage lang mit Zetteln gekämpft haben, applaudieren spontan Richtung IT-Fenster. Jens winkt verlegen zurück. "Das", sagt er, "habe ich beim Energieversorger nie erlebt."',
         setsFlags: ['citizens_first'],
       },
       {
@@ -2478,7 +2484,7 @@ Zum ersten Mal seit Tagen seid ihr nicht mehr allein. Die Frage ist nur, wie du 
         id: 'orchestrate',
         text: 'Orchestrieren: jede und jeden an die eigene Stärke setzen',
         effects: { skills: { softSkills: 6 } },
-        resultText: 'Du verteilst die Aufgaben nach Stärke: das BSI übernimmt die Forensik, das Nachbarwerk die Signaturen und das gemeinsame Monitoring, Stefan die Rekonstruktion der Timeline, Bjorg die technische Front. Plötzlich läuft alles parallel statt hintereinander. So fühlt sich ein funktionierender Krisenstab an.',
+        resultText: 'Du verteilst die Aufgaben nach Stärke: das BSI übernimmt die Forensik, das Nachbarwerk die Signaturen und das gemeinsame Monitoring, Stefan die Rekonstruktion der Timeline, Jens die technische Führung, Henry alles, was zwei Hände braucht. Bjorg bekommt die Aufgabe, Kaffee zu holen — und beschwert sich, dass das "nicht sein Aufgabenbereich" sei. Plötzlich läuft alles parallel statt hintereinander. So fühlt sich ein funktionierender Krisenstab an.',
         setsFlags: ['orchestrated_allies'],
         teachingMoment: 'Krisenstab-Führung heißt delegieren, nicht alles selbst machen. Wer im Incident jede Aufgabe an sich zieht, wird zum Flaschenhals — führen heißt, die richtigen Leute an die richtigen Stellen zu setzen.',
       },
@@ -2528,14 +2534,14 @@ Auf dem Monitor zuckt die Koppel-Anzeige. Ein Verbindungsversuch. Dann noch eine
         id: 'improvise',
         text: 'Improvisieren, als Brandts ZWEITER Zugang aufwacht',
         effects: { skills: { troubleshooting: 6 }, stress: 10 },
-        resultText: 'Plötzlich ein zweiter Alarm — Brandt hatte einen Reserve-Zugang, und natürlich, NATÜRLICH läuft er über den Drucker im dritten Stock. Ihr improvisiert wie die Wilden: Bjorg kappt den Drucker vom Netz, du schließt die Lücke von Hand, alles in vier atemlosen Minuten. Am Ende steht ihr keuchend da. "Der Drucker", sagt Bjorg ungläubig. "Es war die ganze Zeit der verdammte Drucker."',
+        resultText: 'Plötzlich ein zweiter Alarm — Brandt hatte einen Reserve-Zugang, und natürlich, NATÜRLICH läuft er über den Drucker im dritten Stock. Ihr improvisiert wie die Wilden: Henry kappt den Drucker vom Netz, du schließt die Lücke von Hand, alles in vier atemlosen Minuten. Am Ende steht ihr keuchend da. "Der Drucker", sagt Henry ungläubig. "Es war die ganze Zeit der verdammte Drucker." Aus dem Off, triumphierend: Bjorg. "SAG ICH DOCH! Ich fass die Dinger nie an!"',
         setsFlags: ['improvised_win', 'climax_resolved'],
       },
       {
         id: 'hard_cut',
-        text: 'Not-Aus: Bjorg trennt die Koppel physisch — mit dem Seitenschneider',
+        text: 'Not-Aus: Henry trennt die Koppel physisch — mit dem Seitenschneider',
         effects: { skills: { netzwerk: 4 } },
-        resultText: 'Keine Zeit für Eleganz. Bjorg rennt in den Technikraum, ihr hört ein metallisches Knacken, und die Koppel-Anzeige geht schlagartig auf tot. Er kommt zurück, hält ein durchtrenntes Kabel hoch wie eine Trophäe. "Segmentierung", sagt er, "auf die altmodische Art." Der Pivot-Versuch verläuft im Nichts. Ihr habt gewonnen — mit einem Werkzeug aus dem Baumarkt.',
+        resultText: 'Keine Zeit für Eleganz. Henry rennt in den Technikraum, ihr hört ein metallisches Knacken, und die Koppel-Anzeige geht schlagartig auf tot. Er kommt zurück, hält ein durchtrenntes Kabel hoch wie eine Trophäe. "Segmentierung", sagt er, "auf die altmodische Art." Der Pivot-Versuch verläuft im Nichts. Ihr habt gewonnen — mit einem Werkzeug aus dem Baumarkt.',
         setsFlags: ['hard_cut', 'climax_resolved'],
       },
     ],
