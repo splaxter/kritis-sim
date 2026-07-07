@@ -55,3 +55,18 @@ describe('KRITIS late-game pool (weeks 13-24)', () => {
     expect(thin, `weeks with a thin pool:\n${table}`).toEqual([]);
   });
 });
+
+describe('NIS2 Nachaudit arc (weeks 15-22)', () => {
+  const byId = new Map(allEvents.map((e) => [e.id, e]));
+  it('the arc exists and is wired announcement -> day -> result', () => {
+    const ank = byId.get('evt_nis2_nachaudit_ankuendigung');
+    const tag = byId.get('evt_nis2_nachaudit_tag');
+    const erg = byId.get('evt_nis2_nachaudit_ergebnis');
+    expect(ank, 'announcement missing').toBeTruthy();
+    expect(tag?.requires?.flags).toContain('nachaudit_announced');
+    expect(erg?.requires?.events).toContain('evt_nis2_nachaudit_tag');
+    // announcement is reachable without prior-arc flags (works for every first-audit outcome)
+    expect((ank!.requires?.flags ?? []).filter((f) => f !== 'kritis_mode')).toEqual([]);
+    expect(ank!.weekRange[0]).toBeGreaterThanOrEqual(13);
+  });
+});
