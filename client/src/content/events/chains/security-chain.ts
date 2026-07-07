@@ -23,7 +23,7 @@ export const securityChainEvents: GameEvent[] = [
 "Versehentlich Link geklickt" - 3 Meldungen
 "Was soll ich mit dieser DHL-Mail machen?" - 12 Meldungen
 
-{kollege} schaut auf seinen Monitor. "Das ist eine Kampagne. Schau mal - alle Mails kommen von 'dhl-paket-service.com'."
+Jens schaut auf seinen Monitor. "Das ist eine Kampagne. Schau mal - alle Mails kommen von 'dhl-paket-service.com'."
 
 Der Sophos-Dashboard zeigt: 47 geblockte Mails. Aber wie viele sind durchgekommen?`,
     involvedCharacters: ['kollege', 'chef'],

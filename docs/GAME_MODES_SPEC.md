@@ -66,25 +66,25 @@ Only these modes are visible in the mode selection screen:
 
 ---
 
-## 2. Learning Mode (Lernmodus) — NEW
+## 2. Learning Mode (Lernmodus)
 
-**Target Audience:** IT professionals wanting to learn KRITIS/BSI concepts, training participants
+**Target Audience:** Players who want structured terminal practice, IT trainees, and training participants
 
 **Icon:** `🎓`
 
-**Philosophy:** Educational focus with real-world context. Every event teaches something. Mentor mode always active. BSI references shown.
+**Philosophy:** Guided training path with forgiving values. Players learn through 31 lessons in 8 hub-selectable tracks (Linux CLI, Windows GUI apps, Blackout incident) rather than broad random scenario pressure.
 
 ### Configuration
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
 | Duration | 12 weeks | Focused learning arc |
-| Starting Skills | 25 | Moderate starting point |
-| Starting Stress | 20 | Realistic baseline |
+| Starting Skills | 15 | Lower baseline so progress comes from practice |
+| Starting Stress | 10 | Low pressure for training |
 | Starting Budget | 15,000€ | Standard budget |
 | Starting Compliance | 50% | Room to learn both directions |
-| Effect Multiplier | 1.0x | Realistic consequences |
-| Stress Decay | 1.0x | Normal recovery |
+| Effect Multiplier | 0.8x | Forgiving consequences while learning |
+| Stress Decay | 1.5x | Stress recovers faster |
 | Max Scenario Difficulty | 4 | Include challenging scenarios |
 
 ### Features
@@ -95,36 +95,35 @@ Only these modes are visible in the mode selection screen:
 | Timer | No | Think carefully |
 | Combo Scoring | No | Learning, not competing |
 | Mentor Notes | **Always** | Cannot be disabled |
-| BSI References | Yes | Show regulation citations |
-| Decision Review | Yes | End-of-week summaries |
-| Knowledge Tracker | Yes | Track learned concepts |
+| CLI-only content | **Yes** | Only terminal-backed training events are selected |
+| BSI References | Scenario-dependent | Shown when content provides a reference |
+| Decision Review | Not implemented | Candidate future feature |
+| Knowledge Tracker | Not implemented | Candidate future feature |
 
 ### Starting Relationships
 
 | NPC | Value | Description |
 |-----|-------|-------------|
-| Chef | +5 | Slightly supportive |
-| Kämmerer | -5 | Slight tension (realistic) |
-| Kollegen | +10 | Helpful team |
+| Chef | +10 | Supportive training environment |
+| Kämmerer | 0 | Neutral |
+| Kollegen | +15 | Jens helps you learn |
 
 ### Game Over Thresholds
 
 | Condition | Threshold | Notes |
 |-----------|-----------|-------|
-| Stress | 100 | Standard |
-| Compliance | 10% | Some buffer |
-| Chef Relationship | -80 | Some buffer |
+| Stress | 120 | Very forgiving |
+| Compliance | 0% | Forgiving |
+| Chef Relationship | -100 | Forgiving |
 
 ### Special Behaviors
 
-- **Mentor Notes always visible** after every event result
-- **BSI/NIS2 references** shown for compliance-related events
-- **Concept tracking:** "You learned about: Patch Management, WSUS, ..."
-- **Weekly review:** Summary of decisions and their real-world implications
-- **Pause & Explain:** Option to pause and get detailed explanations
-- **No permadeath:** Can retry failed events with explanation
+- **Mentor mode enabled by default** through game state initialization
+- **CLI-only event selection** via the mode feature flag
+- **31 lessons across 8 tracks** (16 CLI, 10 Windows-GUI, 5 Blackout) shown through the learning hub
+- **Fast stress recovery** to keep attention on practice rather than survival pressure
 
-### Learning Objectives Tracked
+### Learning Objectives Covered
 
 ```
 □ Patch Management (WSUS, Testing, Rollback)
@@ -288,24 +287,14 @@ Act 3: Resolution (Weeks 9-12)
 
 ---
 
-## Hidden Modes (3)
+## Hidden Modes (1)
 
 These modes exist in code but are not shown in the selection screen.
-
-### Intermediate (Standard)
-- **Status:** Hidden
-- **Reason:** Overlaps with Learning mode
-- **May return:** As "Classic" mode later
 
 ### Hard (Schwer)
 - **Status:** Hidden
 - **Reason:** KRITIS mode covers difficulty
 - **May return:** As "Hardcore" variant
-
-### Arcade
-- **Status:** Hidden
-- **Reason:** Focus on narrative/educational modes first
-- **May return:** As quick-play option later
 
 ---
 
@@ -316,16 +305,22 @@ These modes exist in code but are not shown in the selection screen.
 1. 📚 Einsteiger (Beginner) — recommended for new players
 2. 🎓 Lernmodus (Learning) — recommended for IT training
 3. 📖 Story (Adventure) — narrative experience
-4. 🏛️ KRITIS — full simulation
+4. 💼 Standard (Intermediate) — classic baseline experience
+5. 🏛️ KRITIS — full simulation
 ```
 
 ### Type Definition Update
 ```typescript
-// Current
-export type GameModeId = 'beginner' | 'learning' | 'arcade' | 'kritis' | 'intermediate' | 'hard' | 'adventure';
+export type GameModeId =
+  | 'beginner'
+  | 'learning'
+  | 'story'
+  | 'kritis'
+  | 'intermediate'
+  | 'hard';
 
 // Visible modes filter
-export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'adventure', 'kritis'];
+export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'intermediate', 'kritis'];
 ```
 
 ### Feature Flags per Mode
@@ -336,19 +331,17 @@ export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'adventure',
 | timerEnabled | ✗ | ✗ | ✗ | ✗ |
 | comboScoringEnabled | ✗ | ✗ | ✗ | ✗ |
 | mentorModeEnabled | ✓ | **forced** | optional | optional |
-| chainEventsEnabled | ✗ | ✓ | ✓ | ✓ |
-| bsiReferencesShown | ✗ | ✓ | ✗ | ✓ |
-| terminalTutorial | ✓ | ✓ | ✓ | ✗ |
+| cliOnly | ✗ | ✓ | ✗ | ✗ |
+| bsiReferencesShown | content-dependent | content-dependent | content-dependent | content-dependent |
+| terminalTutorial | content-dependent | ✓ | content-dependent | content-dependent |
 | storyBeats | ✗ | ✗ | ✓ | ✗ |
-| characterMemory | ✗ | ✗ | ✓ | ✓ |
+| characterMemory | ✗ | ✗ | ✓ | ✗ |
 
 ---
 
-## Migration Path
+## Current Implementation Checklist
 
-1. Add `learning` mode to `GameModeId` type
-2. Add `learning` config to `GAME_MODES`
-3. Add `VISIBLE_MODES` array
-4. Update `GameModeSelectModal` to filter by `VISIBLE_MODES`
-5. Update `getAllGameModes()` to optionally filter
-6. Test all 4 modes work correctly
+1. `learning` exists in `GameModeId`
+2. `learning` exists in `GAME_MODES`
+3. `VISIBLE_MODES` exposes `beginner`, `learning`, `story`, and `kritis`
+4. Hidden modes remain available in config for saved games or future reactivation

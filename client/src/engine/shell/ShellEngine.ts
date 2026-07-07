@@ -92,35 +92,123 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: '', exitCode: 0 };
     }
 
-    // Handle pipes
-    if (trimmed.includes('|')) {
-      return this.executePipeline(trimmed);
-    }
-
-    // Handle command chaining
-    if (trimmed.includes('&&') || trimmed.includes('||') || trimmed.includes(';')) {
-      return this.executeChain(trimmed);
-    }
-
-    // Single command execution
-    return this.executeSingle(trimmed);
+    // Command chaining (;, &&, ||) has the lowest precedence, so split it first.
+    // A single segment with no operators falls through to executePipeline.
+    return this.executeChain(trimmed);
   }
 
-  private executeSingle(input: string): CommandResult {
-    // Expand aliases
+  private executeChain(input: string): CommandResult {
+    // Split into segments, recording the operator that PRECEDES each segment.
+    const segments = this.splitChain(input);
+
+    let lastResult: CommandResult = { output: '', exitCode: 0 };
+    const outputs: string[] = [];
+    let executedAny = false;
+
+    for (const { cmd, operator } of segments) {
+      // Short-circuit based on the operator before this segment.
+      if (operator === '&&' && lastResult.exitCode !== 0) {
+        continue;
+      }
+      if (operator === '||' && lastResult.exitCode === 0) {
+        continue;
+      }
+
+      lastResult = this.executePipeline(cmd);
+      executedAny = true;
+      if (lastResult.output) {
+        outputs.push(lastResult.output);
+      }
+      if (lastResult.error) {
+        outputs.push(lastResult.error);
+      }
+    }
+
+    // Single command (no chaining): preserve the raw result, including its
+    // error field, so callers can render stderr separately from stdout.
+    if (segments.length === 1 && executedAny) {
+      return lastResult;
+    }
+
+    return {
+      output: outputs.join('\n'),
+      exitCode: lastResult.exitCode,
+    };
+  }
+
+  private executePipeline(input: string): CommandResult {
+    const stages = this.splitPipes(input);
+
+    let stdin = '';
+    let result: CommandResult = { output: '', exitCode: 0 };
+
+    for (let i = 0; i < stages.length; i++) {
+      result = this.executeStage(stages[i], stdin);
+
+      if (result.exitCode !== 0) {
+        this.state.exitCode = result.exitCode;
+        return result;
+      }
+
+      stdin = result.output;
+    }
+
+    this.state.exitCode = result.exitCode;
+    return result;
+  }
+
+  /**
+   * Run a single simple command: expand aliases/env vars, apply I/O
+   * redirection (`<`, `>`, `>>`), then execute. `pipedStdin` is the output of
+   * the previous pipeline stage (overridden by an explicit `< file`).
+   */
+  private executeStage(input: string, pipedStdin: string): CommandResult {
     const expanded = this.expandAliases(input);
-
-    // Expand environment variables
     const withEnv = this.expandEnvVars(expanded);
+    const { command: cmdString, redirects } = this.parseRedirection(withEnv);
 
-    // Parse command
-    const parsed = this.parseCommand(withEnv);
+    let stdin = pipedStdin;
 
-    // Execute
-    return this.executeCommand(parsed.command, parsed);
+    // Input redirection: `< file` feeds the file as stdin.
+    const inRedirect = redirects.find(r => r.type === '<');
+    if (inRedirect) {
+      const path = this.vfs.resolvePath(inRedirect.file);
+      const read = this.vfs.readFile(path);
+      if (!read.ok) {
+        return { output: '', exitCode: 1, error: `bash: ${inRedirect.file}: ${read.error}` };
+      }
+      stdin = read.value;
+    }
+
+    const parsed = this.parseCommand(cmdString);
+    const result = this.executeCommand(parsed.command, parsed, stdin);
+
+    // Output redirection: `>` truncates, `>>` appends. Only stdout is
+    // redirected; stderr (result.error) still flows to the terminal.
+    const outRedirects = redirects.filter(r => r.type === '>' || r.type === '>>');
+    if (outRedirects.length > 0) {
+      // bash applies multiple redirects but only the last one ends up with the
+      // content; earlier targets are created/truncated empty.
+      for (let i = 0; i < outRedirects.length; i++) {
+        const rd = outRedirects[i];
+        const isLast = i === outRedirects.length - 1;
+        const content = isLast ? this.ensureTrailingNewline(result.output) : '';
+        const path = this.vfs.resolvePath(rd.file);
+        const write = rd.type === '>>'
+          ? this.vfs.appendFile(path, content)
+          : this.vfs.writeFile(path, content);
+        if (!write.ok) {
+          return { output: '', exitCode: 1, error: `bash: ${rd.file}: ${write.error}` };
+        }
+      }
+      // stdout was redirected; nothing prints, but stderr/exit code remain.
+      return { output: '', exitCode: result.exitCode, error: result.error };
+    }
+
+    return result;
   }
 
-  executeCommand(name: string, args: ParsedArgs): CommandResult {
+  executeCommand(name: string, args: ParsedArgs, stdin?: string): CommandResult {
     const command = this.commands.get(name);
 
     if (!command) {
@@ -134,6 +222,7 @@ export class ShellEngine implements ShellEngineInterface {
     const ctx: ExecutionContext = {
       vfs: this.vfs,
       env: { ...this.state.env },
+      stdin,
       shell: this.state,
       cwd: this.vfs.getCurrentPath(),
       user: this.vfs.getUser(),
@@ -152,103 +241,167 @@ export class ShellEngine implements ShellEngineInterface {
     }
   }
 
-  private executePipeline(input: string): CommandResult {
-    const stages = input.split('|').map(s => s.trim());
-    let stdin = '';
+  // ============================================================================
+  // Quote-aware operator splitting
+  // ============================================================================
 
-    for (let i = 0; i < stages.length; i++) {
-      const expanded = this.expandAliases(stages[i]);
-      const withEnv = this.expandEnvVars(expanded);
-      const parsed = this.parseCommand(withEnv);
+  /** Split on `;`, `&&`, `||` outside quotes, tagging each segment with the operator before it. */
+  private splitChain(input: string): { cmd: string; operator: string }[] {
+    const segments: { cmd: string; operator: string }[] = [];
+    let current = '';
+    let pendingOp = '';
+    let quote: string | null = null;
 
-      const command = this.commands.get(parsed.command);
-      if (!command) {
-        return {
-          output: '',
-          exitCode: 127,
-          error: `${parsed.command}: command not found`,
-        };
+    for (let i = 0; i < input.length; i++) {
+      const char = input[i];
+
+      if (quote) {
+        current += char;
+        if (char === quote) quote = null;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        current += char;
+        continue;
       }
 
-      const ctx: ExecutionContext = {
-        vfs: this.vfs,
-        env: { ...this.state.env },
-        stdin,
-        shell: this.state,
-        cwd: this.vfs.getCurrentPath(),
-        user: this.vfs.getUser(),
-      };
-
-      const result = command.execute(parsed, ctx);
-
-      if (result.exitCode !== 0) {
-        this.state.exitCode = result.exitCode;
-        return result;
+      if (char === ';') {
+        segments.push({ cmd: current.trim(), operator: pendingOp });
+        pendingOp = ';';
+        current = '';
+        continue;
+      }
+      if (char === '&' && input[i + 1] === '&') {
+        segments.push({ cmd: current.trim(), operator: pendingOp });
+        pendingOp = '&&';
+        current = '';
+        i++;
+        continue;
+      }
+      if (char === '|' && input[i + 1] === '|') {
+        segments.push({ cmd: current.trim(), operator: pendingOp });
+        pendingOp = '||';
+        current = '';
+        i++;
+        continue;
       }
 
-      stdin = result.output;
+      current += char;
     }
 
-    this.state.exitCode = 0;
-    return { output: stdin, exitCode: 0 };
+    segments.push({ cmd: current.trim(), operator: pendingOp });
+    return segments.filter(s => s.cmd.length > 0);
   }
 
-  private executeChain(input: string): CommandResult {
-    // Split by ;, &&, || while preserving the operators
-    const parts: { cmd: string; operator: string }[] = [];
+  /** Split on a single `|` (not `||`) outside quotes. */
+  private splitPipes(input: string): string[] {
+    const parts: string[] = [];
     let current = '';
+    let quote: string | null = null;
+
+    for (let i = 0; i < input.length; i++) {
+      const char = input[i];
+
+      if (quote) {
+        current += char;
+        if (char === quote) quote = null;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        current += char;
+        continue;
+      }
+
+      if (char === '|') {
+        // `||` is a chain operator handled upstream, not a pipe.
+        if (input[i + 1] === '|') {
+          current += '||';
+          i++;
+          continue;
+        }
+        parts.push(current.trim());
+        current = '';
+        continue;
+      }
+
+      current += char;
+    }
+
+    parts.push(current.trim());
+    const stages = parts.filter(s => s.length > 0);
+    return stages.length > 0 ? stages : [''];
+  }
+
+  /**
+   * Extract `<`, `>`, `>>` redirections from a simple command, returning the
+   * command with redirections stripped plus the list of redirect targets.
+   * Quote-aware so `echo ">"` is not treated as a redirect.
+   */
+  parseRedirection(input: string): { command: string; redirects: { type: '<' | '>' | '>>'; file: string }[] } {
+    const redirects: { type: '<' | '>' | '>>'; file: string }[] = [];
+    let command = '';
+    let quote: string | null = null;
     let i = 0;
 
     while (i < input.length) {
-      if (input[i] === ';') {
-        parts.push({ cmd: current.trim(), operator: ';' });
-        current = '';
+      const char = input[i];
+
+      if (quote) {
+        command += char;
+        if (char === quote) quote = null;
         i++;
-      } else if (input[i] === '&' && input[i + 1] === '&') {
-        parts.push({ cmd: current.trim(), operator: '&&' });
-        current = '';
-        i += 2;
-      } else if (input[i] === '|' && input[i + 1] === '|') {
-        parts.push({ cmd: current.trim(), operator: '||' });
-        current = '';
-        i += 2;
-      } else {
-        current += input[i];
-        i++;
-      }
-    }
-    if (current.trim()) {
-      parts.push({ cmd: current.trim(), operator: '' });
-    }
-
-    let lastResult: CommandResult = { output: '', exitCode: 0 };
-    const outputs: string[] = [];
-
-    for (let j = 0; j < parts.length; j++) {
-      const { cmd, operator } = parts[j];
-      const prevOperator = j > 0 ? parts[j - 1].operator : '';
-
-      // Check if we should execute based on previous result
-      if (prevOperator === '&&' && lastResult.exitCode !== 0) {
         continue;
       }
-      if (prevOperator === '||' && lastResult.exitCode === 0) {
+      if (char === '"' || char === "'") {
+        quote = char;
+        command += char;
+        i++;
         continue;
       }
 
-      lastResult = this.executeSingle(cmd);
-      if (lastResult.output) {
-        outputs.push(lastResult.output);
+      if (char === '>' || char === '<') {
+        let type: '<' | '>' | '>>' = char as '<' | '>';
+        i++;
+        if (char === '>' && input[i] === '>') {
+          type = '>>';
+          i++;
+        }
+        // Skip whitespace between operator and filename.
+        while (input[i] === ' ') i++;
+        // Read the filename token (quote-aware, stops at space or next operator).
+        let file = '';
+        let fileQuote: string | null = null;
+        while (i < input.length) {
+          const fc = input[i];
+          if (fileQuote) {
+            if (fc === fileQuote) { fileQuote = null; i++; continue; }
+            file += fc;
+            i++;
+            continue;
+          }
+          if (fc === '"' || fc === "'") { fileQuote = fc; i++; continue; }
+          if (fc === ' ' || fc === '>' || fc === '<') break;
+          file += fc;
+          i++;
+        }
+        if (file) {
+          redirects.push({ type, file });
+        }
+        continue;
       }
-      if (lastResult.error) {
-        outputs.push(lastResult.error);
-      }
+
+      command += char;
+      i++;
     }
 
-    return {
-      output: outputs.join('\n'),
-      exitCode: lastResult.exitCode,
-    };
+    return { command: command.trim(), redirects };
+  }
+
+  private ensureTrailingNewline(text: string): string {
+    if (text === '' || text.endsWith('\n')) return text;
+    return text + '\n';
   }
 
   // ============================================================================
@@ -256,7 +409,16 @@ export class ShellEngine implements ShellEngineInterface {
   // ============================================================================
 
   parseCommand(input: string): ParsedArgs {
-    const tokens = this.tokenize(input);
+    const richTokens = this.tokenizeRich(input);
+    // Glob-expand unquoted tokens containing wildcards (skip the command name).
+    const tokens: string[] = [];
+    richTokens.forEach((tok, index) => {
+      if (index > 0 && !tok.quoted && /[*?]/.test(tok.value)) {
+        tokens.push(...this.expandGlob(tok.value));
+      } else {
+        tokens.push(tok.value);
+      }
+    });
     const command = tokens[0] || '';
     const positional: string[] = [];
     const flags: Record<string, boolean> = {};
@@ -316,16 +478,39 @@ export class ShellEngine implements ShellEngineInterface {
   }
 
   private tokenize(input: string): string[] {
-    const tokens: string[] = [];
+    return this.tokenizeRich(input).map(t => t.value);
+  }
+
+  /**
+   * Like tokenize, but records whether each token was (at least partly) quoted.
+   * Quoted tokens are exempt from glob expansion, matching shell behaviour
+   * (e.g. `grep "a*b" file` must not expand `a*b`).
+   */
+  private tokenizeRich(input: string): { value: string; quoted: boolean }[] {
+    const tokens: { value: string; quoted: boolean }[] = [];
     let current = '';
+    let started = false;
+    let quotedSoFar = false;
     let inQuote: string | null = null;
     let escape = false;
+
+    const flush = () => {
+      if (started) {
+        tokens.push({ value: current, quoted: quotedSoFar });
+        current = '';
+        started = false;
+        quotedSoFar = false;
+      }
+    };
 
     for (let i = 0; i < input.length; i++) {
       const char = input[i];
 
       if (escape) {
         current += char;
+        started = true;
+        // A backslash-escaped wildcard is literal, like a quoted one.
+        if (char === '*' || char === '?') quotedSoFar = true;
         escape = false;
         continue;
       }
@@ -336,6 +521,8 @@ export class ShellEngine implements ShellEngineInterface {
       }
 
       if (char === '"' || char === "'") {
+        started = true;
+        quotedSoFar = true;
         if (inQuote === char) {
           inQuote = null;
         } else if (!inQuote) {
@@ -347,21 +534,31 @@ export class ShellEngine implements ShellEngineInterface {
       }
 
       if (char === ' ' && !inQuote) {
-        if (current) {
-          tokens.push(current);
-          current = '';
-        }
+        flush();
         continue;
       }
 
       current += char;
+      started = true;
     }
 
-    if (current) {
-      tokens.push(current);
-    }
-
+    flush();
     return tokens;
+  }
+
+  /** Expand a glob pattern to matching paths, preserving the directory prefix. */
+  private expandGlob(token: string): string[] {
+    const matches = this.vfs.glob(token);
+    // VFS.glob returns the original pattern unchanged when nothing matches;
+    // in that case bash leaves the literal pattern in place.
+    if (matches.length === 1 && matches[0] === token) {
+      return [token];
+    }
+    // glob() returns absolute paths; re-attach the pattern's directory prefix
+    // so `*.txt` expands to bare names and `logs/*.log` keeps the `logs/` part.
+    const slash = token.lastIndexOf('/');
+    const prefix = slash >= 0 ? token.slice(0, slash + 1) : '';
+    return matches.map(m => prefix + this.vfs.basename(m)).sort();
   }
 
   private expandAliases(input: string): string {

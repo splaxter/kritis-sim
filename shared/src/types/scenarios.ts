@@ -2,6 +2,7 @@
 // Scenarios are more detailed than Events, with BSI references and real-world lessons
 
 import { TerminalContext } from './terminal';
+import { GuiContext } from './gui';
 
 export type ScenarioOutcome =
   | 'PERFECT'
@@ -33,6 +34,7 @@ export interface ScenarioChoice {
   triggersEvent?: string;
   followupEvent?: string;
   terminalCommand?: boolean; // If true, opens terminal for this choice
+  guiCommand?: boolean; // If true, opens the scenario's guiContext (Windows-style GUI level)
   requiresSkill?: {
     skill: string;
     threshold: number;
@@ -52,6 +54,7 @@ export interface Scenario {
   involvedNpcs?: string[]; // NPC IDs involved in this scenario
   tags?: string[];
   terminalContext?: TerminalContext; // Terminal challenge for this scenario
+  guiContext?: GuiContext; // Windows-style GUI challenge for this scenario
 }
 
 export interface ScenarioPack {

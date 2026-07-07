@@ -344,5 +344,30 @@ describe('eventEngine', () => {
       // c4: security >= 80, state has 30 (hidden)
       expect(visible.map((c) => c.id)).toEqual(['c1', 'c2']);
     });
+
+    it('returns a synthetic neutral fallback when no authored choice is visible', () => {
+      const event = createEvent({
+        choices: [
+          {
+            id: 'rewarding-choice',
+            text: 'Unearned reward',
+            effects: { compliance: 15, budget: 5000 },
+            resultText: 'Should not be returned',
+            unlocks: ['missing_flag'],
+          },
+        ],
+      });
+      const state = createGameState({ flags: {} });
+
+      const visible = getVisibleChoices(event, state);
+
+      expect(visible).toHaveLength(1);
+      expect(visible[0]).toMatchObject({
+        id: '__continue__',
+        text: 'Weiter',
+        effects: {},
+      });
+      expect(visible[0].resultText).not.toBe('Should not be returned');
+    });
   });
 });

@@ -7,12 +7,11 @@
     "shared"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:client": "npm run dev -w client",
-    "dev:server": "npm run dev -w server",
+    "dev": "npm run dev -w client",
     "build": "npm run build -w shared && npm run build -w client && npm run build -w server",
     "start": "npm run start -w server",
     "test": "npm run build -w shared && vitest run",
+    "test:client": "npm run build -w shared && vitest run --root client --config vitest.config.ts",
     "test:watch": "npm run build -w shared && vitest",
     "test:coverage": "npm run build -w shared && vitest run --coverage",
     "test:e2e": "npm run build && playwright test",
@@ -23,12 +22,9 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/supertest": "^7.2.0",
     "@vitest/coverage-v8": "^4.1.0",
-    "concurrently": "^8.2.2",
     "happy-dom": "^20.8.4",
     "jsdom": "^28.1.0",
-    "supertest": "^7.2.2",
     "typescript": "^5.4.0",
     "vitest": "^4.1.0"
   }

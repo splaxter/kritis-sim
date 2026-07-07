@@ -1,17 +1,22 @@
 # KRITIS Admin Simulator
 
+[![CI](https://github.com/splaxter/kritis-sim/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/splaxter/kritis-sim/actions/workflows/ci.yml)
+
 A text-based IT administration simulation game where you play as a sysadmin at a German municipal waste management company. Survive your 12-week probation period while dealing with broken printers, clueless bosses, and... a mysterious cyber threat?
 
 ## Game Modes
 
+The mode selection screen currently exposes five modes:
+
 | Mode | Description |
 |------|-------------|
 | **Einsteiger** | For beginners - helpful hints and forgiving values |
-| **Standard** | Classic experience - balanced challenge |
-| **Schwer** | For pros - stricter consequences |
-| **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
-| **Arcade** | Fast fun - 8 weeks, 30-second timer, combo scoring |
+| **Lernmodus** | Security training - 31 lessons across 8 tracks: Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings) and the 5-level "Blackout" incident |
 | **Story: Die Probezeit** | Linear narrative with sidequests and multiple endings |
+| **Standard** | The classic baseline experience - balanced challenge, 1.0x effects |
+| **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
+
+Additionally, a `Schwer` (hard) mode still exists in code as a hidden configuration. An unused Arcade mode (timer + combo scoring) was removed in 2026-07; recover it from git history if ever needed.
 
 ## Adventure Mode: "Die Probezeit"
 
@@ -21,7 +26,7 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 
 ### Features
 - **12 chapters** across 3 acts with branching story beats
-- **15+ sidequests** that unlock dialogue options and change NPC behavior
+- **Optional sidequests** that unlock hidden dialogue options
 - **Character memory** - NPCs remember your choices
 - **3 endings** based on relationships, completed sidequests, and key decisions
 
@@ -35,7 +40,7 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS
-- **Backend:** Express + TypeScript + SQLite (sql.js)
+- **Server:** Minimal Express static server (health check + SPA serving; game state lives in browser localStorage)
 - **Shared:** TypeScript types and game configuration
 - **Testing:** Vitest + Playwright (E2E)
 
@@ -67,10 +72,7 @@ npm run build
 │   │   │   └── packs/      # Content packs (scenarios)
 │   │   ├── engine/         # Game logic
 │   │   └── hooks/          # React hooks
-├── server/                 # Express backend
-│   └── src/
-│       ├── db/             # SQLite database
-│       └── routes/         # API routes
+├── server/                 # Minimal static file server (health check + SPA)
 ├── shared/                 # Shared types and config
 │   └── src/
 │       ├── config/         # Game mode configurations
@@ -104,7 +106,9 @@ The game supports extensible content packs for scenarios:
 
 - **KRITIS Infrastructure** - Critical infrastructure scenarios
 - **AMSE IT** - Vendor management scenarios
-- *More coming soon...*
+- **Cloud365** - Microsoft 365 and Azure scenarios
+- **Telekom Business** - WAN provider and SLA scenarios
+- **Internal Organization** - office politics, budget, team, and compliance scenarios
 
 ## Contributing
 

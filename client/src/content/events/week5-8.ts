@@ -123,7 +123,7 @@ Wie reagierst du?`,
     title: 'Linux-Migration: Die Planung',
     description: `Die alten CentOS-Server müssen weg. CentOS 7 ist End-of-Life, und ihr habt noch 12 Produktivsysteme darauf laufen.
 
-{kollege} breitet die Übersicht aus: "Fileserver, Monitoring, zwei Webserver, der alte Mailrelay, und... oh je, das SCADA-Gateway."
+Jens breitet die Übersicht aus: "Fileserver, Monitoring, zwei Webserver, der alte Mailrelay, und... oh je, das SCADA-Gateway."
 
 Die {gf} will wissen: Wie lange, wie teuer, welches Risiko?
 
@@ -153,7 +153,7 @@ Wie gehst du die Planung an?`,
           relationships: { kollegen: 5 },
           stress: 5,
         },
-        resultText: '{kollege} nickt. "Rocky ist binärkompatibel. Sollte die einfachste Option sein." Für die meisten Server stimmt das.',
+        resultText: 'Jens nickt. "Rocky ist binärkompatibel. Sollte die einfachste Option sein." Für die meisten Server stimmt das.',
         teachingMoment: 'Rocky Linux und AlmaLinux sind RHEL-kompatible CentOS-Nachfolger.',
       },
       {
@@ -164,7 +164,7 @@ Wie gehst du die Planung an?`,
           budget: -8000,
           stress: -5,
         },
-        resultText: 'Der {kaemmerer} tobt: "8000 Euro für etwas, das ihr selbst könnt?!" {kollege} schaut enttäuscht.',
+        resultText: 'Der {kaemmerer} tobt: "8000 Euro für etwas, das ihr selbst könnt?!" Jens schaut enttäuscht.',
       },
       {
         id: 'postpone',
@@ -287,6 +287,18 @@ Du hast: Eine veraltete PowerPoint von 2019, YouTube-Videos über Ransomware, un
           stress: 5,
         },
         resultText: 'Nach 20 Minuten schläft die erste Reihe. {gf} schaut enttäuscht. Die Schulung wird als "Pflichtveranstaltung" abgehakt.',
+      },
+      {
+        id: 'solid_basics',
+        text: 'Ehrlich und einfach: Die fünf wichtigsten Regeln an echten Beispielen erklären',
+        effects: {
+          skills: { softSkills: 4, security: 2 },
+          relationships: { gf: 5, fachabteilung: 3 },
+          stress: 8,
+        },
+        resultText: 'Keine Show, aber Substanz: Du zeigst echte Phishing-Mails aus dem eigenen Postfach und drei klare Regeln. Die Leute nicken — das bleibt hängen.',
+        choiceTags: ['solid', 'honest'],
+        teachingMoment: 'Man braucht keine Live-Demo für eine gute Schulung. Wenige, konkrete, alltagsnahe Regeln schlagen eine aufgehübschte Folienschlacht.',
       },
       {
         id: 'fake_phishing',
@@ -493,13 +505,13 @@ Problem: Die letzte Netzwerkdoku ist von 2021. Seitdem hat sich "einiges" geänd
       },
       {
         id: 'ask_colleague',
-        text: '{kollege} fragen - der kennt das Netzwerk besser',
+        text: 'Jens fragen - der kennt das Netzwerk besser',
         effects: {
           relationships: { kollegen: 10, chef: -5 },
           skills: { netzwerk: 3 },
           stress: 5,
         },
-        resultText: '{kollege} hilft aus und erklärt die Topologie. Du lernst viel, aber {chef} meint: "Du solltest das selbst können."',
+        resultText: 'Jens hilft aus und erklärt die Topologie. Du lernst viel, aber {chef} meint: "Du solltest das selbst können."',
       },
     ],
     terminalContext: {
@@ -556,7 +568,7 @@ Host: 192.168.1.51 - UNKNOWN (!)
     title: 'Teambuilding: Escape Room',
     description: `{chef} hat für die IT-Abteilung einen Escape Room gebucht. "Cyber-Heist" - ihr müsst einen fiktiven Hackerangriff stoppen.
 
-{kollege} ist skeptisch: "Teambuilding? Ich hab noch 20 Tickets offen."
+Henry ist skeptisch: "Teambuilding? Ich hab noch 20 Tickets offen." Bjorg dagegen ist begeistert: "Escape Room! Kennste? Da bin ich dabei — das zählt ja als Arbeitszeit!"
 
 Aber {chef} besteht darauf: "Wir arbeiten alle zu viel. Eine Auszeit tut uns gut."
 
@@ -585,7 +597,7 @@ Im Escape Room: Du stehst vor einem Terminal. Die Rätsel basieren auf echten IT
           relationships: { kollegen: 5 },
           stress: -10,
         },
-        resultText: 'Du knackst die Terminal-Rätsel in Rekordzeit. {kollege}: "Okay, du bist gut." Ihr schafft es mit 5 Minuten Restzeit.',
+        resultText: 'Du knackst die Terminal-Rätsel in Rekordzeit. Henry: "Okay, du bist gut." Ihr schafft es mit 5 Minuten Restzeit.',
       },
       {
         id: 'hang_back',
@@ -603,7 +615,7 @@ Im Escape Room: Du stehst vor einem Terminal. Die Rätsel basieren auf echten IT
           relationships: { kollegen: -10, chef: -5 },
           stress: 5,
         },
-        resultText: 'Du löst zwar viele Rätsel, aber das Team fühlt sich übergangen. {kollege} murmelt: "Teamplayer sieht anders aus."',
+        resultText: 'Du löst zwar viele Rätsel, aber das Team fühlt sich übergangen. Henry murmelt: "Teamplayer sieht anders aus."',
         teachingMoment: 'Im Team geht es nicht darum, der Beste zu sein, sondern das Beste herauszuholen.',
       },
     ],
@@ -676,6 +688,18 @@ Problem: Ihr habt keinen Plan B. Der Vertrag enthält ein SLA von 99.5% - aber w
           stress: 25,
         },
         resultText: 'Du googelst verzweifelt, rufst Kollegen an, schaust in alten Dokumenten. Nach 4 Stunden ist der Vendor von selbst wieder online. Du hast nur Zeit verbrannt.',
+      },
+      {
+        id: 'structured_escalation',
+        text: 'Strukturiert reagieren: Störung dokumentieren, Fachabteilungen informieren, Vendor-Support eskalieren',
+        effects: {
+          skills: { softSkills: 4 },
+          relationships: { gf: 5, fachabteilung: 8 },
+          stress: 12,
+        },
+        resultText: 'Du schreibst eine knappe Störungsmeldung, informierst die Fachabteilungen und eskalierst beim Vendor mit Vertrags-Referenz. Technisch löst es nichts, aber alle wissen Bescheid — und die SLA-Verletzung ist dokumentiert.',
+        choiceTags: ['solid', 'communicate'],
+        teachingMoment: 'Ohne tiefes Technik-Wissen ist sauberes Eskalieren und Kommunizieren die solide Wahl — und dokumentiert zugleich die SLA-Verletzung für später.',
       },
     ],
     tags: ['crisis', 'vendor', 'linux', 'softskills'],
@@ -1180,12 +1204,12 @@ Deine Rolle: Technische Planung und Umsetzung der IT-Zone.`,
       },
       {
         id: 'delegate_to_colleague',
-        text: 'Vorschlagen, dass {kollege} die Führung übernimmt - er hat mehr Erfahrung',
+        text: 'Vorschlagen, dass Jens die Führung übernimmt - er hat mehr Erfahrung',
         effects: {
           relationships: { chef: -10, kollegen: 15 },
           stress: -10,
         },
-        resultText: '{chef} ist enttäuscht: "Ich dachte, du willst dich entwickeln." {kollege} übernimmt, aber du hast eine Chance verpasst.',
+        resultText: '{chef} ist enttäuscht: "Ich dachte, du willst dich entwickeln." Jens übernimmt, aber du hast eine Chance verpasst.',
       },
     ],
     tags: ['security', 'netzwerk', 'project', 'planning'],

@@ -9,15 +9,33 @@ import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
-import { getNextStoryContent } from './engine/adventureEngine';
+import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, calculateAdventureEnding, getEndingStats } from './engine/adventureEngine';
+import { getActBreakBody } from './content/adventure/actBreaks';
+import { EndingScreen } from './components/EndingScreen';
 import { adventureStoryEvents } from './content/adventure/story-events';
+import { adventureSidequestEvents } from './content/adventure/sidequest-events';
 import { IntroScreen } from './components/IntroScreen';
+// Statically imported (not lazy): IntroScreen already pulls LegalPages into the
+// eager bundle, so a dynamic import here only produces a Vite "both statically
+// and dynamically imported" warning without any split benefit.
+import { LegalPages } from './components/LegalPages';
 import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
 import { StoryBackground } from './components/StoryBackground';
+import { LearningHub } from './components/LearningHub';
+import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
+import { useAutosave } from './hooks/useAutosave';
+import { readAutosave, AutosaveEnvelope } from './engine/autosave';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
 const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
+// ⚠️ DEV-ONLY preview harness — NOT for production. Lets us eyeball GUI levels at
+// ?preview=<id> without fighting RNG/game-state. The import() lives inside the
+// import.meta.env.DEV ternary so the chunk is fully eliminated from prod builds.
+// Safe to delete (this line + the guarded block below + DevGuiPreview.tsx).
+const DevGuiPreview = import.meta.env.DEV
+  ? lazy(() => import('./components/WindowsLevel/DevGuiPreview').then(m => ({ default: m.DevGuiPreview })))
+  : null;
 
 // Get or create player ID from localStorage
 function getPlayerId(): string {
@@ -31,6 +49,11 @@ function getPlayerId(): string {
 function AppContent() {
   const game = useGame();
   const [playerId] = useState(getPlayerId);
+  // Autosave found at boot → offered as "Weiter spielen?" on the menu.
+  // Read exactly once; readAutosave never throws and discards corrupt data.
+  const [resumeSave, setResumeSave] = useState<AutosaveEnvelope | null>(
+    () => readAutosave(playerId)
+  );
   const [showIntro, setShowIntro] = useState(true);
   const [saveLoadModal, setSaveLoadModal] = useState<{ show: boolean; mode: 'save' | 'load' }>({
     show: false,
@@ -38,6 +61,7 @@ function AppContent() {
   });
   const [showModeSelect, setShowModeSelect] = useState(false);
   const [menuIndex, setMenuIndex] = useState(0);
+  const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
   const [characters] = useState({
     chef: 'Bert',
@@ -56,11 +80,21 @@ function AppContent() {
   // Get all available scenarios
   const allScenarios = useMemo(() => getAllScenarios(), []);
 
+  // Write autosave on every meaningful transition; clear on run end.
+  useAutosave(playerId, game.state, game.phase);
+
   // Handle load game
   const handleLoadGame = useCallback((state: import('@kritis/shared').GameState) => {
     game.loadState(state);
     setSaveLoadModal({ show: false, mode: 'load' });
   }, [game]);
+
+  // Resume the run offered as "Weiter spielen?" on the menu.
+  const handleResume = useCallback(() => {
+    if (!resumeSave) return;
+    game.loadState(resumeSave.gameState);
+    setResumeSave(null); // consumed; the running game re-autosaves from here
+  }, [game, resumeSave]);
 
   // Keyboard shortcuts for save/load
   useKeyboardShortcuts({
@@ -76,7 +110,24 @@ function AppContent() {
     if (game.phase === 'playing' && !game.currentEvent && !game.currentScenario) {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
-        const combinedEvents = [...allEvents, ...adventureStoryEvents];
+        const combinedEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
+
+        // Campaign fully played → real ending screen. Must run BEFORE the
+        // act-break check: after ch12 the engine would otherwise re-serve beat 0
+        // of the final chapter forever.
+        if (isAdventureModeComplete(game.state)) {
+          game.endStoryAct();
+          return;
+        }
+
+        // Entered a chapter that isn't fully authored → act-break "Fortsetzung
+        // folgt" ending, BEFORE serving any of its (possibly partial) content and
+        // instead of empty day-skips to a false victory.
+        if (isAtAuthoredStoryEnd(game.state, combinedEvents, allScenarios)) {
+          game.endStoryAct();
+          return;
+        }
+
         const result = getNextStoryContent(game.state, combinedEvents, allScenarios);
 
         if (result.content) {
@@ -97,6 +148,12 @@ function AppContent() {
       // Check if we're in CLI-only mode (learning mode)
       const modeConfig = getGameModeConfig(game.state.gameMode);
       const cliOnly = modeConfig.features.cliOnly === true;
+
+      // Learning mode: NEVER auto-serve a level. The Learning Hub renders
+      // instead and the player explicitly picks their next lesson.
+      if (cliOnly) {
+        return;
+      }
 
       // Standard mode: probabilistic content selection
       // Use scenarios ~30% of the time after week 1, increasing with progression
@@ -139,25 +196,64 @@ function AppContent() {
     return Math.abs(hash);
   }
 
+  // Learning mode: player picked a level in the hub. Remember its track (so the
+  // hub's recommendation stays within it) then serve that level.
+  const handlePickLearningLevel = useCallback((level: GameEvent) => {
+    const trackId = getTrackOfLevel(level.id)?.id;
+    if (trackId) game.setLearningTrack(trackId);
+    game.setEvent(level);
+  }, [game]);
+
+  // Learning result-screen CTAs: continue within the track, return to the hub,
+  // or jump into the finale. State timing: the just-completed level is already
+  // in completedEvents by the time the result renders (closeTerminal/makeChoice
+  // record it), so getNextInTrack/isFinaleUnlocked read the post-completion state.
+  const handleNextLesson = useCallback((next: GameEvent) => {
+    const trackId = getTrackOfLevel(next.id)?.id;
+    if (trackId) game.setLearningTrack(trackId);
+    game.setEvent(next);
+  }, [game]);
+
+  const handleBackToHub = useCallback(() => {
+    game.clearCurrentContent();
+  }, [game]);
+
+  const handleStartFinale = useCallback(() => {
+    const finale = allEvents.find((e) => e.id === 'learn_11_final_boss');
+    if (finale) {
+      const trackId = getTrackOfLevel(finale.id)?.id;
+      if (trackId) game.setLearningTrack(trackId);
+      game.setEvent(finale);
+    }
+  }, [game]);
+
   // Handle mode selection and start game
   const handleModeSelect = useCallback((mode: GameModeId) => {
     setShowModeSelect(false);
     game.startNewGame(undefined, mode);
   }, [game]);
 
-  // Main menu keyboard navigation
-  const menuItems = ['new', 'load'] as const;
+  // Main menu keyboard navigation ('continue' only when an autosave exists)
+  const menuItems: readonly ('continue' | 'new' | 'load')[] = resumeSave
+    ? ['continue', 'new', 'load']
+    : ['new', 'load'];
 
   useEffect(() => {
-    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro) return;
+    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMenuIndex(prev => (prev - 1 + menuItems.length) % menuItems.length);
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         setMenuIndex(prev => (prev + 1) % menuItems.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (menuItems[menuIndex] === 'new') {
+        const item = menuItems[menuIndex % menuItems.length];
+        if (item === 'continue') {
+          handleResume();
+        } else if (item === 'new') {
           setShowModeSelect(true);
         } else {
           setSaveLoadModal({ show: true, mode: 'load' });
@@ -167,7 +263,33 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro]);
+  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume]);
+
+  // ESC to close legal modal
+  useEffect(() => {
+    if (!legalPage) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setLegalPage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [legalPage]);
+
+  // ⚠️ DEV-ONLY: GUI level preview harness (?preview=<id>). Not shipped to prod.
+  if (import.meta.env.DEV && DevGuiPreview) {
+    const previewId = new URLSearchParams(window.location.search).get('preview');
+    if (previewId) {
+      return (
+        <Suspense fallback={<div className="p-8 text-terminal-green">Preview wird geladen…</div>}>
+          <DevGuiPreview previewId={previewId} />
+        </Suspense>
+      );
+    }
+  }
 
   // Show intro screen on first load
   if (showIntro) {
@@ -187,33 +309,77 @@ function AppContent() {
             <p>Deine IT-Skills entscheiden, ob du bleibst oder fliegst.</p>
           </div>
 
+          {resumeSave && (
+            <button
+              onClick={handleResume}
+              onMouseEnter={() => setMenuIndex(menuItems.indexOf('continue'))}
+              className={`w-full p-4 border transition-colors text-lg mb-2 ${
+                menuIndex === menuItems.indexOf('continue')
+                  ? 'border-terminal-green bg-terminal-bg-highlight'
+                  : 'border-terminal-border hover:border-terminal-green'
+              }`}
+            >
+              {menuIndex === menuItems.indexOf('continue') ? '> ' : '  '}[ WEITER SPIELEN ]
+              <div className="text-xs text-terminal-green-dim mt-1">
+                Woche {resumeSave.gameState.currentWeek}, Tag {resumeSave.gameState.currentDay}
+                {' — '}{getGameModeConfig(resumeSave.gameState.gameMode).name}
+              </div>
+            </button>
+          )}
           <button
             onClick={() => setShowModeSelect(true)}
-            onMouseEnter={() => setMenuIndex(0)}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('new'))}
             className={`w-full p-4 border transition-colors text-lg mb-2 ${
-              menuIndex === 0
+              menuIndex === menuItems.indexOf('new')
                 ? 'border-terminal-green bg-terminal-bg-highlight'
                 : 'border-terminal-border hover:border-terminal-green'
             }`}
           >
-            {menuIndex === 0 ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
+            {menuIndex === menuItems.indexOf('new') ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
           </button>
           <button
             onClick={() => setSaveLoadModal({ show: true, mode: 'load' })}
-            onMouseEnter={() => setMenuIndex(1)}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('load'))}
             className={`w-full p-3 border transition-colors ${
-              menuIndex === 1
+              menuIndex === menuItems.indexOf('load')
                 ? 'border-terminal-info bg-terminal-bg-highlight text-terminal-green'
                 : 'border-terminal-border text-terminal-green-dim hover:border-terminal-info'
             }`}
           >
-            {menuIndex === 1 ? '> ' : '  '}[ SPIEL LADEN ]
+            {menuIndex === menuItems.indexOf('load') ? '> ' : '  '}[ SPIEL LADEN ]
           </button>
 
           <div className="text-terminal-green-dim text-xs mt-4">
             [↑↓] Navigieren  [Enter] Auswählen
           </div>
+
+          {/* Legal footer */}
+          <div className="mt-6 pt-4 border-t border-terminal-border flex justify-center gap-4 text-xs text-terminal-green-muted">
+            <button
+              onClick={() => setLegalPage('impressum')}
+              className="hover:text-terminal-green underline"
+            >
+              Impressum
+            </button>
+            <span>|</span>
+            <button
+              onClick={() => setLegalPage('datenschutz')}
+              className="hover:text-terminal-green underline"
+            >
+              Datenschutz
+            </button>
+          </div>
         </div>
+
+        {/* Legal Pages Modal */}
+        <Suspense fallback={null}>
+          {legalPage && (
+            <LegalPages
+              initialPage={legalPage}
+              onClose={() => setLegalPage(null)}
+            />
+          )}
+        </Suspense>
 
         {/* Game Mode Selection Modal */}
         <Suspense fallback={null}>
@@ -241,6 +407,71 @@ function AppContent() {
     );
   }
 
+  if (game.phase === 'storyEnding') {
+    const menuModal = (
+      <Suspense fallback={null}>
+        {showModeSelect && (
+          <GameModeSelectModal
+            onSelect={handleModeSelect}
+            onClose={() => setShowModeSelect(false)}
+          />
+        )}
+      </Suspense>
+    );
+
+    // Campaign fully completed → real stats-driven ending screen.
+    if (isAdventureModeComplete(game.state)) {
+      return (
+        <>
+          <EndingScreen
+            ending={calculateAdventureEnding(game.state)}
+            stats={getEndingStats(game.state)}
+            onBackToMenu={() => setShowModeSelect(true)}
+          />
+          {menuModal}
+        </>
+      );
+    }
+
+    // Otherwise: an unauthored future chapter → act-break "Fortsetzung folgt".
+    const completedAct = getLastCompletedAct(game.state);
+    const body = getActBreakBody(completedAct);
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">
+          <div className="text-center text-terminal-green text-xl font-bold mb-6 tracking-widest">
+            AKT {completedAct} — ENDE
+          </div>
+          <div className="text-terminal-green-dim leading-relaxed space-y-4 text-[15px]">
+            {body.map((p, i) => (
+              <p
+                key={i}
+                className={
+                  p.tagline
+                    ? 'text-center text-terminal-green tracking-widest py-2 whitespace-pre-line'
+                    : p.emphasis
+                      ? 'text-terminal-green font-semibold whitespace-pre-line'
+                      : p.note
+                        ? 'text-sm text-terminal-green-muted whitespace-pre-line'
+                        : 'whitespace-pre-line'
+                }
+              >
+                {p.text}
+              </p>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowModeSelect(true)}
+            className="w-full mt-8 p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
+          >
+            [ ZURÜCK ZUM MENÜ ]
+          </button>
+        </div>
+        {menuModal}
+      </div>
+    );
+  }
+
   if (game.phase === 'gameover') {
     const modeConfig = getGameModeConfig(game.state.gameMode);
     const isVictory = game.gameOverReason === 'probezeit_complete';
@@ -259,15 +490,6 @@ function AppContent() {
             {game.gameOverReason === 'bsi_bussgeld' && 'BSI-Compliance zu niedrig. Massive Bußgelder.'}
             {game.gameOverReason === 'probezeit_complete' && `Du hast die ${modeConfig.gameLength.totalWeeks} Wochen überstanden!`}
           </p>
-
-          {/* Show arcade score if applicable */}
-          {game.state.gameMode === 'arcade' && game.state.arcadeScore !== undefined && (
-            <div className="mb-4 p-3 border border-terminal-info">
-              <div className="text-terminal-info text-lg">
-                ARCADE SCORE: {game.state.arcadeScore.toLocaleString('de-DE')}
-              </div>
-            </div>
-          )}
 
           {/* Mode info */}
           <div className="text-terminal-green-dim text-sm mb-6">
@@ -295,6 +517,52 @@ function AppContent() {
     );
   }
 
+  // Learning mode (cliOnly): when no level is active, render the hub instead of
+  // GameScreen's "no content" fallback. The player picks their next lesson here;
+  // we never auto-serve in learning mode.
+  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
+
+  // Learning result-screen CTAs. Only in learning mode, on the result of a level.
+  // Computed against the post-completion state: the just-finished level is
+  // already recorded in completedEvents by makeChoice/closeTerminal, but we build
+  // `stateAfter` explicitly (idempotent) so getNextInTrack/isFinaleUnlocked never
+  // depend on subtle ordering of when completion lands in state.
+  let learningResultCtas: import('./components/ResultScreen').LearningResultCtas | undefined;
+  if (learningCliOnly && game.phase === 'result' && game.currentEvent) {
+    const completedId = game.currentEvent.id;
+    const stateAfter = game.state.completedEvents.includes(completedId)
+      ? game.state
+      : { ...game.state, completedEvents: [...game.state.completedEvents, completedId] };
+
+    const track = getTrackOfLevel(completedId);
+    const next = track ? getNextInTrack(track, stateAfter, allEvents) : null;
+
+    const finaleEvent = allEvents.find((e) => e.id === 'learn_11_final_boss');
+    const finaleDone = finaleEvent ? stateAfter.completedEvents.includes(finaleEvent.id) : true;
+    const offerFinale =
+      isFinaleUnlocked(stateAfter) && completedId !== 'learn_11_final_boss' && !finaleDone;
+
+    learningResultCtas = {
+      onNextLesson: next ? () => handleNextLesson(next) : undefined,
+      nextLessonTrackTitle: next ? getTrackOfLevel(next.id)?.title : undefined,
+      onBackToHub: handleBackToHub,
+      onStartFinale: offerFinale ? handleStartFinale : undefined,
+    };
+  }
+  if (
+    game.phase === 'playing' &&
+    learningCliOnly &&
+    !game.currentEvent &&
+    !game.currentScenario
+  ) {
+    return (
+      <>
+        <StoryBackground />
+        <LearningHub state={game.state} onPick={handlePickLearningLevel} />
+      </>
+    );
+  }
+
   return (
     <>
       {/* Persistent story mode background */}
@@ -306,25 +574,30 @@ function AppContent() {
         contentType={game.contentType}
         currentEvent={game.currentEvent}
         currentScenario={game.currentScenario}
+        learningResultCtas={learningResultCtas}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
         characters={characters}
         onChoice={(choice) => {
-          if (choice.terminalCommand && game.currentEvent?.terminalContext) {
+          const opensTerminal = choice.terminalCommand && game.currentEvent?.terminalContext;
+          const opensGui = choice.guiCommand && game.currentEvent?.guiContext;
+          if (opensTerminal || opensGui) {
             game.openTerminal(choice);
           } else {
             game.makeChoice(choice);
           }
         }}
         onScenarioChoice={(choice) => {
-          if (choice.terminalCommand && game.currentScenario?.terminalContext) {
+          const opensTerminal = choice.terminalCommand && game.currentScenario?.terminalContext;
+          const opensGui = choice.guiCommand && game.currentScenario?.guiContext;
+          if (opensTerminal || opensGui) {
             game.openScenarioTerminal(choice);
           } else {
             game.makeScenarioChoice(choice);
           }
         }}
         onContinue={game.continueGame}
-        onTerminalSolved={() => game.closeTerminal(true)}
+        onTerminalSolved={(skillGain, setsFlags) => game.closeTerminal(true, skillGain, setsFlags)}
         onTerminalCancel={() => game.closeTerminal(false)}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}

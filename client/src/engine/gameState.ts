@@ -36,12 +36,6 @@ export function createInitialState(seed?: string, mode: GameModeId = 'beginner')
       fachabteilung: 0,
       kollegen: config.startingRelationships.kollegen,
     },
-    // Initialize arcade fields if arcade mode
-    ...(mode === 'arcade' ? {
-      arcadeScore: 0,
-      comboMultiplier: 1,
-      comboStreak: 0,
-    } : {}),
     // Initialize story state if story mode
     ...(mode === 'story' ? {
       isStoryMode: true,
@@ -50,6 +44,10 @@ export function createInitialState(seed?: string, mode: GameModeId = 'beginner')
     // Initialize KRITIS mode flag for special events
     ...(mode === 'kritis' ? {
       flags: { kritis_mode: true },
+    } : {}),
+    // Initialize learning state for learning mode (topic-selection progress)
+    ...(mode === 'learning' ? {
+      learningState: {},
     } : {}),
     // Chain system - always initialize
     decisions: [],

@@ -17,13 +17,13 @@ export const colleagueChainEvents: GameEvent[] = [
     probability: 0.85,
     category: 'team',
     title: 'Falscher Klick',
-    description: `{kollege} kommt blass zu dir.
+    description: `Henry kommt blass zu dir.
 
 "Ich hab Mist gebaut. In Baramundi. Ich wollte nur EIN Software-Paket deployen, aber ich hab... ich hab es auf ALLE Clients gepusht."
 
 Du schaust auf den Bildschirm. 347 Rechner installieren gerade eine Test-Version eines Druckertreibers. Die Wasserwerke sind dabei.
 
-"Das darf {chef} nicht erfahren", fleht {kollege}. "Ich bin noch in der Probezeit. Bitte."
+"Das darf {chef} nicht erfahren", fleht Henry. "Ich bin noch in der Probezeit. Bitte."
 
 Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
     involvedCharacters: ['kollege', 'chef'],
@@ -33,7 +33,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         id: 'baramundi_cover',
         text: 'Den Rollout stoppen und gemeinsam einen Cleanup machen',
         effects: { relationships: { kollegen: 15 }, stress: 20, skills: { windows: 5 } },
-        resultText: 'Ihr stoppt den Job bei 31%. 108 Rechner sind betroffen. Ihr arbeitet die Nacht durch, um den alten Treiber wiederherzustellen. Um 5 Uhr morgens ist alles wieder normal. {kollege}: "Ich schulde dir was. Grosses."',
+        resultText: 'Ihr stoppt den Job bei 31%. 108 Rechner sind betroffen. Ihr arbeitet die Nacht durch, um den alten Treiber wiederherzustellen. Um 5 Uhr morgens ist alles wieder normal. Henry: "Ich schulde dir was. Grosses."',
         choiceTags: ['cover_up', 'loyal'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_loyalty',
@@ -45,7 +45,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         id: 'baramundi_report',
         text: '{chef} informieren - das ist zu gross, um es zu verstecken',
         effects: { relationships: { kollegen: -20, chef: 10 }, stress: 10, compliance: 5 },
-        resultText: '{chef} kommt sofort. "Wer? {kollege}? Verstehe." {kollege} wird zum Gespraech gebeten. Als er zurueckkommt, redet er nicht mehr mit dir.',
+        resultText: '{chef} kommt sofort. "Wer? Henry? Verstehe." Henry wird zum Gespraech gebeten. Als er zurueckkommt, redet er nicht mehr mit dir.',
         choiceTags: ['report', 'honest'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_resentment',
@@ -65,7 +65,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         id: 'baramundi_let_run',
         text: 'Abwarten - vielleicht ist der Treiber ja gar nicht so schlimm',
         effects: { stress: 5, relationships: { fachabteilung: -15, kollegen: -5 } },
-        resultText: 'Der Treiber ist schlimm. Sehr schlimm. 47 Drucker funktionieren nicht mehr. Die Fachabteilungen kochen vor Wut. {kollege}: "Warum hast du nichts gemacht?!"',
+        resultText: 'Der Treiber ist schlimm. Sehr schlimm. 47 Drucker funktionieren nicht mehr. Die Fachabteilungen kochen vor Wut. Henry: "Warum hast du nichts gemacht?!"',
         choiceTags: ['passive', 'negligent'],
       },
     ],
@@ -120,7 +120,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
     title: 'Schulden werden bezahlt',
     description: `{chef} ist nicht im Haus. Du hast einen kritischen Server-Ausfall - der Exchange ist down, und du findest den Fehler nicht.
 
-{kollege} kommt vorbei. "Brauchst du Hilfe?"
+Henry kommt vorbei. "Brauchst du Hilfe?"
 
 Er setzt sich neben dich. "Exchange? Lass mich mal schauen. Ich hab sowas schon dreimal gesehen."
 
@@ -132,21 +132,21 @@ Er erinnert sich an die Nacht mit dem Baramundi-Desaster. Jetzt ist er an der Re
         id: 'loyalty_accept',
         text: 'Dankbar die Hilfe annehmen',
         effects: { relationships: { kollegen: 10 }, stress: -15, skills: { windows: 5 } },
-        resultText: '{kollege} findet das Problem in 20 Minuten - ein korruptes Transaction Log. "Klassiker", sagt er. "Jetzt sind wir quitt." Aber ihr wisst beide: Das ist mehr als Schulden abzahlen.',
+        resultText: 'Henry findet das Problem in 20 Minuten - ein korruptes Transaction Log. "Klassiker", sagt er. "Jetzt sind wir quitt." Aber ihr wisst beide: Das ist mehr als Schulden abzahlen.',
         teachingMoment: 'Ein gutes Team ist mehr wert als jede Technologie. Investiere in Beziehungen.',
       },
       {
         id: 'loyalty_proud',
         text: '"Danke, aber ich schaff das alleine."',
         effects: { relationships: { kollegen: -5 }, stress: 10 },
-        resultText: '{kollege} zuckt die Schultern. "Wie du willst." Du brauchst noch 2 Stunden fuer das Problem, das er in 20 Minuten geloest haette.',
+        resultText: 'Henry zuckt die Schultern. "Wie du willst." Du brauchst noch 2 Stunden fuer das Problem, das er in 20 Minuten geloest haette.',
         choiceTags: ['proud', 'stubborn'],
       },
       {
         id: 'loyalty_learn',
         text: '"Zeig mir, wie du das machst - ich will lernen."',
         effects: { relationships: { kollegen: 15 }, skills: { windows: 8, troubleshooting: 5 }, stress: -10 },
-        resultText: '{kollege} erklaert jeden Schritt. "Event Log hier, dann ESEUTIL..." Du schreibst mit. "Beim naechsten Mal machst du das alleine", sagt er mit einem Laecheln.',
+        resultText: 'Henry erklaert jeden Schritt. "Event Log hier, dann ESEUTIL..." Du schreibst mit. "Beim naechsten Mal machst du das alleine", sagt er mit einem Laecheln.',
         teachingMoment: 'Die beste Lernmethode: Einem Experten ueber die Schulter schauen.',
       },
     ],
@@ -164,7 +164,7 @@ Er erinnert sich an die Nacht mit dem Baramundi-Desaster. Jetzt ist er an der Re
     title: 'Vergiftete Atmosphaere',
     description: `Seit dem Baramundi-Vorfall ist die Stimmung im Buero anders.
 
-{kollege} redet nur noch das Noetigste mit dir. Tickets, die normalerweise als Team geloest wurden, macht jetzt jeder fuer sich. Als du eine Frage stellst, sagt er: "Google es."
+Henry redet nur noch das Noetigste mit dir. Tickets, die normalerweise als Team geloest wurden, macht jetzt jeder fuer sich. Als du eine Frage stellst, sagt er: "Google es."
 
 Heute Morgen hoerst du ihn zu einem anderen Kollegen sagen: "Pass auf, was du ihm erzaehlst. Er laeuft direkt zum Chef."
 
@@ -174,10 +174,10 @@ Du hattest nur getan, was richtig war... oder?`,
     choices: [
       {
         id: 'resentment_confront',
-        text: '{kollege} direkt ansprechen: "Koennen wir das klaeren?"',
+        text: 'Henry direkt ansprechen: "Koennen wir das klaeren?"',
         requires: { skill: 'softSkills', threshold: 35 },
         effects: { relationships: { kollegen: 5 }, stress: 10, skills: { softSkills: 5 } },
-        resultText: 'Es wird ein schwieriges Gespraech. "Ich musste es melden - 347 Rechner waren betroffen." {kollege}: "Ich weiss. Macht es trotzdem nicht leichter." Aber die Luft ist etwas leichter danach.',
+        resultText: 'Es wird ein schwieriges Gespraech. "Ich musste es melden - 347 Rechner waren betroffen." Henry: "Ich weiss. Macht es trotzdem nicht leichter." Aber die Luft ist etwas leichter danach.',
         teachingMoment: 'Konflikte ansprechen ist unangenehm, aber Schweigen macht es schlimmer.',
       },
       {
@@ -191,14 +191,14 @@ Du hattest nur getan, was richtig war... oder?`,
         id: 'resentment_chef',
         text: '{chef} um Rat fragen - das belastet das Team',
         effects: { relationships: { chef: 5, kollegen: -10 }, stress: 5 },
-        resultText: '{chef} seufzt. "Professionelle Erwachsene sollten das unter sich klaeren." Nicht hilfreich, und {kollege} hoert davon.',
+        resultText: '{chef} seufzt. "Professionelle Erwachsene sollten das unter sich klaeren." Nicht hilfreich, und Henry hoert davon.',
         choiceTags: ['escalate'],
       },
       {
         id: 'resentment_apologize',
         text: 'Sich entschuldigen: "Es tut mir leid, wie ich das gehandhabt habe."',
         effects: { relationships: { kollegen: 10 }, stress: -5, skills: { softSkills: 8 } },
-        resultText: '{kollege} ist ueberrascht. "Du... entschuldigst dich? Du hast doch nur deinen Job gemacht." "Ja, aber ich haette es anders kommunizieren koennen." Langsam taut er auf.',
+        resultText: 'Henry ist ueberrascht. "Du... entschuldigst dich? Du hast doch nur deinen Job gemacht." "Ja, aber ich haette es anders kommunizieren koennen." Langsam taut er auf.',
         teachingMoment: 'Man kann fuer die Art und Weise Verantwortung uebernehmen, auch wenn die Entscheidung richtig war.',
       },
     ],

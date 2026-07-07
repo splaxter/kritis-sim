@@ -1,19 +1,19 @@
+import { relationshipBand, BAND_CLASS } from './bands';
+
 interface RelationshipBarProps {
   name: string;
   value: number;
   color?: string;
+  /** Pre-computed band class (chef uses its lose-condition band); falls back to the generic band. */
+  valueColorClass?: string;
 }
 
-export function RelationshipBar({ name, value, color }: RelationshipBarProps) {
+export function RelationshipBar({ name, value, color, valueColorClass }: RelationshipBarProps) {
   const normalized = ((value + 100) / 200) * 100;
   const blocks = Math.floor(normalized / 10);
   const sign = value >= 0 ? '+' : '';
 
-  const barColor = value < -30
-    ? 'text-terminal-danger'
-    : value > 30
-      ? 'text-terminal-success'
-      : 'text-terminal-green';
+  const barColor = valueColorClass ?? BAND_CLASS[relationshipBand(value)];
 
   return (
     <div className="flex items-center gap-2 text-sm">

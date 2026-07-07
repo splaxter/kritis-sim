@@ -1,15 +1,17 @@
 // client/src/components/GameScreen/index.tsx
 import { useEffect, lazy, Suspense } from 'react';
-import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice } from '@kritis/shared';
+import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
-import { ResultScreen } from '../ResultScreen';
+import { ResultScreen, LearningResultCtas } from '../ResultScreen';
 import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
 
 // Lazy load Terminal - only needed when entering terminal mode
 const Terminal = lazy(() => import('../Terminal').then(m => ({ default: m.Terminal })));
+// Lazy load Windows GUI level - pulls in Fluent UI, only needed for GUI levels
+const WindowsLevel = lazy(() => import('../WindowsLevel').then(m => ({ default: m.WindowsLevel })));
 
 interface GameScreenProps {
   state: GameState;
@@ -23,10 +25,12 @@ interface GameScreenProps {
   onChoice: (choice: EventChoice) => void;
   onScenarioChoice: (choice: ScenarioChoice) => void;
   onContinue: () => void;
-  onTerminalSolved: () => void;
+  onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[]) => void;
   onTerminalCancel: () => void;
   onSave?: () => void;
   onLoad?: () => void;
+  /** learning mode only: explicit next-step CTAs on the result screen */
+  learningResultCtas?: LearningResultCtas;
 }
 
 export function GameScreen({
@@ -45,6 +49,7 @@ export function GameScreen({
   onTerminalCancel,
   onSave,
   onLoad,
+  learningResultCtas,
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
 
@@ -63,29 +68,51 @@ export function GameScreen({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [phase, onContinue, onTerminalCancel]);
 
-  // Get terminal context from either event or scenario
+  // Get terminal / GUI context from either event or scenario
   const terminalContext = currentEvent?.terminalContext || currentScenario?.terminalContext;
+  const guiContext = currentEvent?.guiContext || currentScenario?.guiContext;
 
-  if (phase === 'terminal' && terminalContext) {
+  // Learning-mode header shows a progress counter. With the track system a level
+  // id no longer encodes a global "lesson N" (GUI levels have no number, tracks
+  // are non-linear), so derive the current lesson from how many learning levels
+  // are already done: the active one is "next" → completed + 1.
+  const completedLearningLevels = state.completedEvents.filter((id) =>
+    id.startsWith('learn_') || id.startsWith('gui_')
+  ).length;
+  const currentLessonNumber = completedLearningLevels + 1;
+
+  if (phase === 'terminal' && (terminalContext || guiContext)) {
     return (
       <div className="min-h-screen p-4 flex flex-col relative z-10">
         <div className="mb-4">
-          <StatsBar state={state} />
+          <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
         </div>
         <div className="flex-1">
           <Suspense
             fallback={
               <div className="border border-terminal-border p-4 text-center">
-                <div className="text-terminal-green animate-pulse">Terminal wird geladen...</div>
+                <div className="text-terminal-green animate-pulse">Wird geladen...</div>
               </div>
             }
           >
-            <Terminal
-              context={terminalContext}
-              onSolved={onTerminalSolved}
-              onCancel={onTerminalCancel}
-              gameMode={state.gameMode}
-            />
+            {guiContext ? (
+              <WindowsLevel
+                context={guiContext}
+                onSolved={onTerminalSolved}
+                onCancel={onTerminalCancel}
+                gameMode={state.gameMode}
+                briefingOverride={
+                  guiContext.briefingVariants?.find((v) => state.flags[v.flag])?.briefing
+                }
+              />
+            ) : (
+              <Terminal
+                context={terminalContext!}
+                onSolved={onTerminalSolved}
+                onCancel={onTerminalCancel}
+                gameMode={state.gameMode}
+              />
+            )}
           </Suspense>
         </div>
       </div>
@@ -150,6 +177,7 @@ export function GameScreen({
                     mentorNote={currentEvent?.mentorNote}
                     mentorModeEnabled={state.mentorModeEnabled}
                     isStoryMode={true}
+                    learningCtas={learningResultCtas}
                   />
                 </div>
               </div>
@@ -174,12 +202,12 @@ export function GameScreen({
           {phase === 'playing' && !currentEvent && !currentScenario && (
             <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
               <div className="bg-black/85 backdrop-blur-md border border-terminal-green/40 rounded-lg p-8 text-center">
-                <div className="text-gray-300 mb-4">Kein Ereignis verfugbar.</div>
+                <div className="text-gray-300 mb-4">Kein Ereignis verfügbar.</div>
                 <button
                   onClick={onContinue}
                   className="px-6 py-3 bg-terminal-green/20 border border-terminal-green rounded hover:bg-terminal-green/30 transition-colors"
                 >
-                  [ENTER] Nachster Tag
+                  [ENTER] Nächster Tag
                 </button>
               </div>
             </div>
@@ -193,7 +221,7 @@ export function GameScreen({
   return (
     <div className="min-h-screen p-4 flex flex-col">
       <div className="mb-4">
-        <StatsBar state={state} />
+        <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
       </div>
 
       <div className="flex-1">
@@ -223,6 +251,7 @@ export function GameScreen({
             characters={characters}
             mentorNote={currentEvent?.mentorNote}
             mentorModeEnabled={state.mentorModeEnabled}
+            learningCtas={learningResultCtas}
           />
         )}
 
@@ -238,12 +267,12 @@ export function GameScreen({
         {/* No content available */}
         {phase === 'playing' && !currentEvent && !currentScenario && (
           <div className="border border-terminal-border p-8 text-center">
-            <div className="text-terminal-green-dim mb-4">Kein Ereignis verfugbar.</div>
+            <div className="text-terminal-green-dim mb-4">Kein Ereignis verfügbar.</div>
             <button
               onClick={onContinue}
               className="p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
             >
-              [ENTER] Nachster Tag
+              [ENTER] Nächster Tag
             </button>
           </div>
         )}

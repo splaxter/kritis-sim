@@ -70,7 +70,7 @@ Die Buchhaltung dreht durch. {kaemmerer} ruft persoenlich an:
 
 "Wir koennen keine Rechnungen freigeben! Die Lieferanten drohen mit Mahnungen! FIX. THAT. NOW."
 
-Du kennst ELO nicht gut. {kollege} kennt es besser. Der ELO-Support kostet 180 Euro pro Stunde.`,
+Du kennst ELO nicht gut. Jens kennt es besser. Der ELO-Support kostet 180 Euro pro Stunde.`,
     involvedCharacters: ['kollege', 'kaemmerer'],
     mentorNote: 'Systeme die du nicht kennst: Nicht heldenhaft selbst fixen. Herstellersupport nutzen und dabei LERNEN. Jedes Ticket das der Support loest, dokumentierst du als Runbook fuer naechstes Mal.',
     choices: [
@@ -104,9 +104,9 @@ Du kennst ELO nicht gut. {kollege} kennt es besser. Der ELO-Support kostet 180 E
       },
       {
         id: 'ask_colleague',
-        text: '{kollege} fragen - er kennt ELO besser',
+        text: 'Jens fragen - er kennt ELO besser',
         effects: { relationships: { kollegen: 5 }, stress: 5 },
-        resultText: '{kollege} schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem geloest.',
+        resultText: 'Jens schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem geloest.',
         choiceTags: ['teamwork'],
       },
     ],
@@ -309,6 +309,14 @@ Der ELO-Support ist jetzt definitiv noetig.`,
         effects: { relationships: { kaemmerer: -10 }, budget: -500, stress: 10 },
         resultText: 'Der Support braucht 3 Stunden und 500 Euro. Aber ELO laeuft wieder. {kaemmerer} ist nicht happy, aber er respektiert die Ehrlichkeit.',
         teachingMoment: 'Fehler eingestehen ist schwer, aber wichtig. Vertuschen macht es schlimmer.',
+      },
+      {
+        id: 'cover_up',
+        text: 'Selbst heimlich weiterpfuschen und {kaemmerer} nichts vom Fehler sagen',
+        effects: { relationships: { kaemmerer: -20 }, stress: 25, compliance: -5 },
+        resultText: 'Du bastelst stundenlang heimlich weiter. ELO bleibt kaputt, {kaemmerer} merkt, dass du etwas verschweigst - und ist jetzt doppelt sauer: ueber den Ausfall UND die Vertuschung.',
+        choiceTags: ['cover_up', 'risky'],
+        teachingMoment: 'Vertuschen kostet am Ende mehr als der Fehler selbst: Vertrauen verloren und Problem weiter ungeloest.',
       },
     ],
     tags: ['story', 'chain_consequence', 'failure'],

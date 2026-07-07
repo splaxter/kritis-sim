@@ -2,6 +2,23 @@
 import { EventChoice, EventEffects } from '@kritis/shared';
 import { MentorNote } from '../MentorNote';
 
+/**
+ * Learning-mode next-step CTAs. When present, the result screen shows ONE
+ * explicit primary action (no auto-switch) plus a secondary "back to hub".
+ * Computed by the caller against the post-completion state (the just-finished
+ * level is already in completedEvents).
+ */
+export interface LearningResultCtas {
+  /** track has a next playable level → primary "Nächste Lektion" */
+  onNextLesson?: () => void;
+  /** title of the next lesson's track, shown in parentheses on the CTA */
+  nextLessonTrackTitle?: string;
+  /** finale unlocked and not yet the finale/done → "Finale starten" */
+  onStartFinale?: () => void;
+  /** always available secondary (and the primary when the track is complete) */
+  onBackToHub: () => void;
+}
+
 interface ResultScreenProps {
   choice: EventChoice;
   onContinue: () => void;
@@ -9,9 +26,11 @@ interface ResultScreenProps {
   mentorNote?: string;
   mentorModeEnabled?: boolean;
   isStoryMode?: boolean;
+  /** learning mode only: explicit next-step CTAs instead of plain "Weiter" */
+  learningCtas?: LearningResultCtas;
 }
 
-export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode }: ResultScreenProps) {
+export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas }: ResultScreenProps) {
   const replaceCharacterNames = (text: string): string => {
     let result = text;
     for (const [role, name] of Object.entries(characters)) {
@@ -84,6 +103,51 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
     return items;
   };
 
+  // Learning-mode next-step CTAs: exactly one primary action + secondary hub.
+  // Primary is "Nächste Lektion" if the track continues, else "Zurück zum
+  // Lernpfad". "Finale starten" is offered additionally when unlocked.
+  const renderLearningCtas = (ctas: LearningResultCtas) => {
+    const hasNext = !!ctas.onNextLesson;
+    return (
+      <div className="space-y-2">
+        {hasNext ? (
+          <button
+            onClick={ctas.onNextLesson}
+            className="w-full p-3 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-center"
+          >
+            Nächste Lektion{ctas.nextLessonTrackTitle ? ` (${ctas.nextLessonTrackTitle})` : ''}
+          </button>
+        ) : (
+          <button
+            onClick={ctas.onBackToHub}
+            className="w-full p-3 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-center"
+          >
+            Zurück zum Lernpfad
+          </button>
+        )}
+
+        {ctas.onStartFinale && (
+          <button
+            onClick={ctas.onStartFinale}
+            className="w-full p-3 border border-terminal-info hover:bg-terminal-bg-highlight transition-colors text-center"
+          >
+            Finale starten
+          </button>
+        )}
+
+        {/* Always a secondary "back to hub" (skip if it's already the primary). */}
+        {hasNext && (
+          <button
+            onClick={ctas.onBackToHub}
+            className="w-full p-2 border border-terminal-border text-terminal-green-dim hover:border-terminal-green transition-colors text-center text-sm"
+          >
+            Zurück zum Lernpfad
+          </button>
+        )}
+      </div>
+    );
+  };
+
   // Story mode styling
   if (isStoryMode) {
     return (
@@ -121,12 +185,16 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
           </div>
         </div>
 
-        <button
-          onClick={onContinue}
-          className="w-full py-3 bg-terminal-green/20 border border-terminal-green rounded hover:bg-terminal-green/30 transition-colors text-center text-white"
-        >
-          Weiter [Enter]
-        </button>
+        {learningCtas ? (
+          renderLearningCtas(learningCtas)
+        ) : (
+          <button
+            onClick={onContinue}
+            className="w-full py-3 bg-terminal-green/20 border border-terminal-green rounded hover:bg-terminal-green/30 transition-colors text-center text-white"
+          >
+            Weiter [Enter]
+          </button>
+        )}
       </div>
     );
   }
@@ -167,12 +235,16 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
         </div>
       </div>
 
-      <button
-        onClick={onContinue}
-        className="w-full p-3 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-center"
-      >
-        [ENTER] Weiter
-      </button>
+      {learningCtas ? (
+        renderLearningCtas(learningCtas)
+      ) : (
+        <button
+          onClick={onContinue}
+          className="w-full p-3 border border-terminal-green hover:bg-terminal-bg-highlight transition-colors text-center"
+        >
+          [ENTER] Weiter
+        </button>
+      )}
     </div>
   );
 }

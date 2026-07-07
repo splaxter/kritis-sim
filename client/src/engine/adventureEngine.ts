@@ -12,6 +12,7 @@ import {
   CharacterMemory,
   createInitialAdventureState,
   EndingType,
+  StoryPath,
   calculateEndingScore,
   determineEnding,
 } from '@kritis/shared';
@@ -100,7 +101,34 @@ export function getNextStoryContent(
   const advState = state.storyState;
   const currentBeat = chapter.storyBeats[advState.currentBeatIndex];
 
-  // Check if we have a pending story beat
+  // (a) An active sidequest with a pending authored event serves FIRST — before
+  // the story beat — so a quest the player started actually plays through. Quest
+  // chains are ≤3 events, so the main story pauses at most 3 days (intended pacing).
+  const activeSidequestId = advState.activeSidequests[0];
+  if (activeSidequestId) {
+    const sidequest = adventureSidequests.find(sq => sq.id === activeSidequestId);
+    if (sidequest) {
+      const progress = advState.sidequestProgress[activeSidequestId] || 0;
+      if (progress < sidequest.events.length) {
+        const content = findContent(sidequest.events[progress], allEvents, allScenarios);
+        if (content) {
+          return { content, type: 'sidequest' };
+        }
+      }
+    }
+  }
+
+  // (b) Otherwise maybe START a new sidequest (seeded 30% gate — deterministic,
+  // matching the game's simpleHash convention instead of Math.random).
+  const startable = pickSidequestToStart(state);
+  if (startable) {
+    const content = findContent(startable.events[0], allEvents, allScenarios);
+    if (content) {
+      return { content, type: 'sidequest' };
+    }
+  }
+
+  // (c) Otherwise serve the current story beat.
   if (currentBeat) {
     // Determine which event to use based on branch condition
     let eventId = currentBeat.eventId;
@@ -114,40 +142,81 @@ export function getNextStoryContent(
     }
   }
 
-  // Check for available sidequests (30% chance to insert between story beats)
-  const availableSidequests = getAvailableSidequests(state);
-  if (availableSidequests.length > 0) {
-    // Check if there's an active sidequest in progress
-    const activeSidequest = advState.activeSidequests[0];
-    if (activeSidequest) {
-      const sidequest = adventureSidequests.find(sq => sq.id === activeSidequest);
-      if (sidequest) {
-        const progress = advState.sidequestProgress[activeSidequest] || 0;
-        if (progress < sidequest.events.length) {
-          const content = findContent(sidequest.events[progress], allEvents, allScenarios);
-          if (content) {
-            return { content, type: 'sidequest' };
-          }
-        }
-      }
-    }
-
-    // Maybe start a new sidequest (30% chance)
-    if (Math.random() < 0.3) {
-      const randomSidequest = availableSidequests[Math.floor(Math.random() * availableSidequests.length)];
-      const content = findContent(randomSidequest.events[0], allEvents, allScenarios);
-      if (content) {
-        return { content, type: 'sidequest' };
-      }
-    }
-  }
-
-  // If no more beats, chapter is complete
+  // (d) If no more beats, chapter is complete.
   if (!currentBeat) {
     return { content: null, type: 'chapter_complete' };
   }
 
   return { content: null, type: 'story' };
+}
+
+/**
+ * Deterministically decide whether to start a new sidequest this step (and which).
+ * Replaces the old untestable Math.random() < 0.3 gate with a seeded hash so a
+ * given state always yields the same answer (game-wide seeded-determinism convention).
+ * Returns null ~70% of the time, or when no sidequest is available/startable.
+ */
+export function pickSidequestToStart(state: GameState): SidequestDefinition | null {
+  const available = getAvailableSidequests(state);
+  if (available.length === 0) return null;
+
+  const hash = simpleHash(
+    state.seed + state.currentWeek + state.currentDay + state.completedEvents.length + 'sq'
+  );
+  if (hash % 100 >= 30) return null;
+  return available[hash % available.length];
+}
+
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * True when the player has run out of AUTHORED story content: the current
+ * chapter's next beat references an event/scenario that doesn't exist yet
+ * (i.e. we've advanced into a chapter that hasn't been written). This is the
+ * trigger for the act-break "Fortsetzung folgt" ending instead of letting the
+ * day-loop skip to a false victory. Derived, not hardcoded — the boundary moves
+ * automatically when more chapters are authored.
+ */
+export function isAtAuthoredStoryEnd(
+  state: GameState,
+  events: GameEvent[],
+  scenarios: Scenario[]
+): boolean {
+  if (!state.storyState) return false;
+  const chapter = getCurrentChapter(state);
+  if (!chapter) return false; // no current chapter = past the whole campaign (real completion)
+  // The whole chapter must be authored before we play ANY of it — otherwise a
+  // partially-written chapter (e.g. beat 1 exists, beat 2 doesn't) would let the
+  // player play a fragment and then hit the act-break mid-chapter. A chapter is
+  // unauthored if any beat references content that exists on neither its primary
+  // nor its alternate path. Checked on chapter entry, before serving content.
+  return chapter.storyBeats.some((beat) => {
+    const primary = findContent(beat.eventId, events, scenarios);
+    const alt = beat.alternateEventId ? findContent(beat.alternateEventId, events, scenarios) : null;
+    return !primary && !alt;
+  });
+}
+
+/**
+ * The act the player just COMPLETED (the act of the most recently completed
+ * chapter). Used to title/select the act-break copy. At an act-break the current
+ * chapter is the unauthored one we just entered, so the last completed chapter
+ * is the boundary's predecessor. Falls back to 2 (the only act that can break
+ * today) if there's no completed chapter yet.
+ */
+export function getLastCompletedAct(state: GameState): number {
+  const completed = state.storyState?.completedChapters ?? [];
+  const lastId = completed[completed.length - 1];
+  const chapter = lastId ? getChapter(lastId) : undefined;
+  return chapter?.act ?? 2;
 }
 
 function findContent(
@@ -369,20 +438,51 @@ export function updateCharacterMemory(
 // ENDING CALCULATION
 // ============================================
 
+/**
+ * Canonical ending flags read by calculateEndingScore. Nothing in the game
+ * ever WRITES storyState.endingFlags — instead we DERIVE them from played
+ * content (state.flags + characterMemory) at read time, merged with anything
+ * already stored (forward-compat + old saves).
+ */
+const ENDING_FLAG_SOURCES: Record<string, string[]> = {
+  saved_early: ['saved_early', 'isolated_systems', 'used_legacy_script', 'contained_damage', 'cut_interconnect', 'attack_repelled'],
+  found_evidence: ['found_evidence', 'has_stefan_dossier', 'knows_full_timeline', 'evidence_secured', 'secured_evidence', 'insider_evidence', 'evidence_complete'],
+  team_prepared: ['team_prepared', 'restore_tested', 'ir_ready', 'crown_jewels_isolated', 'shift_plan', 'coordinated_defense'],
+  trusted_by_all: ['trusted_by_all'],
+  burned_bridges: ['burned_bridges'],
+  ignored_warnings: ['ignored_warnings'],
+  blamed_others: ['blamed_others'],
+};
+
+export function deriveEndingFlags(state: GameState): string[] {
+  const flags = new Set<string>(state.storyState?.endingFlags ?? []);
+  for (const [canonical, sources] of Object.entries(ENDING_FLAG_SOURCES)) {
+    if (sources.some((f) => state.flags[f])) flags.add(canonical);
+  }
+  const trusted = Object.values(state.storyState?.characterMemory ?? {})
+    .filter((m) => m.trustLevel >= 50).length;
+  if (trusted >= 2) flags.add('trusted_by_all');
+  return [...flags];
+}
+
+export function deriveStoryPath(state: GameState): StoryPath {
+  if (state.flags['chose_official_route']) return 'official';
+  if (state.flags['going_solo'] || state.flags['wants_solo']) return 'underground';
+  return state.storyState?.storyPath ?? 'neutral';
+}
+
 export function calculateAdventureEnding(state: GameState): EndingType {
   if (!state.storyState) {
     return 'neutral';
   }
 
-  const advState = state.storyState;
-
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
-    advState.completedSidequests,
-    advState.endingFlags
+    state.storyState.completedSidequests,
+    deriveEndingFlags(state)
   );
 
-  return determineEnding(score, advState.completedSidequests.length, advState.storyPath);
+  return determineEnding(score, state.storyState.completedSidequests.length, deriveStoryPath(state));
 }
 
 export function getEndingStats(state: GameState): {
@@ -391,6 +491,7 @@ export function getEndingStats(state: GameState): {
   totalSidequests: number;
   charactersHelped: string[];
   storyPath: string;
+  endingFlags: string[];
 } {
   if (!state.storyState) {
     return {
@@ -399,6 +500,7 @@ export function getEndingStats(state: GameState): {
       totalSidequests: adventureSidequests.length,
       charactersHelped: [],
       storyPath: 'neutral',
+      endingFlags: [],
     };
   }
 
@@ -408,10 +510,12 @@ export function getEndingStats(state: GameState): {
     .filter(([_, memory]) => memory.trustLevel >= 50)
     .map(([npcId]) => npcId);
 
+  const endingFlags = deriveEndingFlags(state);
+
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
     advState.completedSidequests,
-    advState.endingFlags
+    endingFlags
   );
 
   return {
@@ -419,7 +523,8 @@ export function getEndingStats(state: GameState): {
     sidequestsCompleted: advState.completedSidequests.length,
     totalSidequests: adventureSidequests.length,
     charactersHelped,
-    storyPath: advState.storyPath,
+    storyPath: deriveStoryPath(state),
+    endingFlags,
   };
 }
 
@@ -506,30 +611,6 @@ export function hasAbility(state: GameState, ability: string): boolean {
 }
 
 /**
- * Get NPC behavior state based on completed sidequests
- */
-export function getNpcBehaviorState(state: GameState, npcId: string): string | null {
-  if (!state.storyState) return null;
-
-  const completedSidequests = state.storyState.completedSidequests;
-
-  // Check sidequests in reverse order (latest completed takes priority)
-  for (let i = completedSidequests.length - 1; i >= 0; i--) {
-    const sqId = completedSidequests[i];
-    const sidequest = adventureSidequests.find(sq => sq.id === sqId);
-    if (!sidequest?.storyEffects?.changesNpcBehavior) continue;
-
-    for (const change of sidequest.storyEffects.changesNpcBehavior) {
-      if (change.npcId === npcId) {
-        return change.newState;
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Get sidequest rewards to apply when completing a sidequest
  */
 export function getSidequestRewards(sidequestId: string): {
@@ -568,32 +649,6 @@ export function findSidequestByEvent(eventId: string): SidequestDefinition | nul
  */
 export function isSidequestEvent(eventId: string): boolean {
   return findSidequestByEvent(eventId) !== null;
-}
-
-/**
- * Get dynamic story beats added by completed sidequests
- */
-export function getAddedStoryBeats(
-  state: GameState,
-  chapterId: string
-): StoryBeat[] {
-  if (!state.storyState) return [];
-
-  const addedBeats: StoryBeat[] = [];
-  const completedSidequests = state.storyState.completedSidequests;
-
-  for (const sqId of completedSidequests) {
-    const sidequest = adventureSidequests.find(sq => sq.id === sqId);
-    if (!sidequest?.storyEffects?.addsStoryBeat) continue;
-
-    for (const addition of sidequest.storyEffects.addsStoryBeat) {
-      if (addition.chapterId === chapterId) {
-        addedBeats.push(addition.beat);
-      }
-    }
-  }
-
-  return addedBeats;
 }
 
 // ============================================

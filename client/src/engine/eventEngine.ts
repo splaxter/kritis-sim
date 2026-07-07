@@ -10,10 +10,11 @@ export function getAvailableEvents(
   const cliOnly = modeConfig.features.cliOnly;
 
   return events.filter((event) => {
-    // CLI-only mode (learning): only show events with terminal context AND requiredModes
+    // CLI-only mode (learning): only show hands-on levels (terminal OR Windows-GUI)
+    // that are explicitly designed for learning mode.
     if (cliOnly) {
-      // Must have terminal context
-      if (!event.terminalContext) {
+      // Must have a terminal challenge or a GUI challenge
+      if (!event.terminalContext && !event.guiContext) {
         return false;
       }
       // Must be explicitly designed for learning mode
@@ -80,29 +81,79 @@ export function selectNextEvent(
   state: GameState,
   seed: string
 ): GameEvent | null {
-  // PRIORITY 1: Activated chain events (consequences from past decisions)
-  const chainEvents = getActivatedChainEvents(state, events);
-  if (chainEvents.length > 0) {
-    // Return the highest priority chain event
-    return chainEvents[0];
+  // Chain throttle: serve at most ONE chain consequence per in-game week.
+  // Pending consequences cluster in weeks 5–12; without a throttle they fire on
+  // consecutive days and pile up. We detect "a chain event already resolved
+  // this week" from the decision log (every completed event records its week),
+  // then hold the rest — they stay pending and resurface in a later week.
+  // cliOnly modes (learning) only serve hands-on terminal/GUI levels. Chain
+  // consequences (regular event cards) must NOT leak in via PRIORITY 1 — a
+  // "red thread" in learning is built from prerequisites + callback copy, not
+  // the chainTrigger system. This keeps the learning contract intact and makes
+  // it structurally impossible to mis-author a chainTrigger chain there.
+  const cliOnly = getGameModeConfig(state.gameMode).features.cliOnly === true;
+
+  const chainIds = new Set(events.filter((e) => e.isChainEvent).map((e) => e.id));
+  const servedChainThisWeek = state.decisions.some(
+    (d) => d.week === state.currentWeek && chainIds.has(d.eventId)
+  );
+
+  // PRIORITY 1: Activated chain events (consequences from past decisions),
+  // unless one already fired this week (throttle) or we're in a cliOnly mode.
+  if (!cliOnly && !servedChainThisWeek) {
+    const chainEvents = getActivatedChainEvents(state, events);
+    if (chainEvents.length > 0) {
+      // Highest chainPriority first; the rest wait for a later week.
+      return chainEvents[0];
+    }
   }
 
   // PRIORITY 2: Regular event selection (existing logic)
   const available = getAvailableEvents(events, state);
   if (available.length === 0) return null;
 
+  const byId = new Map(events.map((e) => [e.id, e]));
+  let pool = available;
+
+  // Reinforce the throttle: once a chain consequence has fired this week, keep
+  // chain events out of the regular pool too. If that leaves nothing available,
+  // the day stays quiet (return null) instead of serving a second chain — the
+  // held consequences simply resurface next week. This makes "at most one chain
+  // per week" a hard guarantee, matching the chosen "hold the rest a week" rule.
+  if (servedChainThisWeek) {
+    pool = pool.filter((e) => !e.isChainEvent);
+    if (pool.length === 0) return null;
+  }
+
+  // Anti-clustering: allow at most MAX_CONSECUTIVE_GUI Windows-style GUI levels
+  // in a row (so an intentional related pair — e.g. bruteforce → persistence —
+  // is fine, but GUI levels can't monopolize the queue). Once that many GUI
+  // levels have been served consecutively, prefer non-GUI content while any
+  // remains. GUI levels only exist in learning mode, so this is a no-op
+  // elsewhere.
+  const MAX_CONSECUTIVE_GUI = 2;
+  let trailingGui = 0;
+  for (let i = state.completedEvents.length - 1; i >= 0; i--) {
+    if (byId.get(state.completedEvents[i])?.guiContext) trailingGui++;
+    else break;
+  }
+  if (trailingGui >= MAX_CONSECUTIVE_GUI) {
+    const nonGui = pool.filter((e) => !e.guiContext);
+    if (nonGui.length > 0) pool = nonGui;
+  }
+
   // Include completed events count so selection varies as you progress through a day
   const hashInput = seed + state.currentWeek + state.currentDay + state.completedEvents.length;
   const hash = simpleHash(hashInput);
-  const index = hash % available.length;
-  return available[index];
+  const index = hash % pool.length;
+  return pool[index];
 }
 
 export function getVisibleChoices(
   event: GameEvent,
   state: GameState
 ): EventChoice[] {
-  return event.choices.filter((choice) => {
+  const visibleChoices = (event.choices ?? []).filter((choice) => {
     // Check if this is a sidequest-unlocked choice (marked with unlocks array)
     if (choice.unlocks && choice.unlocks.length > 0) {
       // This choice requires specific unlocks - check if any are met
@@ -145,6 +196,20 @@ export function getVisibleChoices(
 
     return true;
   });
+
+  if (visibleChoices.length > 0) {
+    return visibleChoices;
+  }
+
+  return [
+    {
+      id: '__continue__',
+      text: 'Weiter',
+      effects: {},
+      resultText:
+        'Es gibt hier keine freigeschaltete Entscheidung. Du nimmst die Lage zur Kenntnis und machst weiter.',
+    },
+  ];
 }
 
 function simpleHash(str: string): number {

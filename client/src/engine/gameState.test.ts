@@ -128,15 +128,6 @@ describe('gameState', () => {
       expect(state.compliance).toBe(40);
     });
 
-    it('creates arcade mode with arcade-specific fields', () => {
-      const state = createInitialState(undefined, 'arcade');
-
-      expect(state.gameMode).toBe('arcade');
-      expect(state.arcadeScore).toBe(0);
-      expect(state.comboMultiplier).toBe(1);
-      expect(state.comboStreak).toBe(0);
-    });
-
     it('creates kritis mode with 24 week configuration', () => {
       const state = createInitialState(undefined, 'kritis');
 
@@ -152,18 +143,23 @@ describe('gameState', () => {
 
       expect(state.gameMode).toBe('learning');
       expect(state.mentorModeEnabled).toBe(true);
-      expect(state.skills.netzwerk).toBe(25);
-      expect(state.stress).toBe(20);
+      expect(state.skills.netzwerk).toBe(15); // Learning starts lower, learn through practice
+      expect(state.stress).toBe(10); // Low stress for learning
       expect(state.budget).toBe(15000);
       expect(state.compliance).toBe(50);
     });
 
-    it('enables mentor mode for beginner, disables for arcade', () => {
+    it('learning mode initializes learningState', () => {
+      const s = createInitialState(undefined, 'learning');
+      expect(s.learningState).toBeDefined();
+    });
+
+    it('enables mentor mode for beginner, disables for intermediate', () => {
       const beginnerState = createInitialState(undefined, 'beginner');
-      const arcadeState = createInitialState(undefined, 'arcade');
+      const intermediateState = createInitialState(undefined, 'intermediate');
 
       expect(beginnerState.mentorModeEnabled).toBe(true);
-      expect(arcadeState.mentorModeEnabled).toBe(false);
+      expect(intermediateState.mentorModeEnabled).toBe(false);
     });
   });
 
@@ -738,16 +734,6 @@ describe('gameState', () => {
 
       it('triggers after week 24 (kritis mode)', () => {
         const state = createGameState({ currentWeek: 25, gameMode: 'kritis' });
-
-        const result = checkGameOver(state);
-
-        expect(result.isOver).toBe(true);
-        expect(result.reason).toBe('probezeit_complete');
-        expect(result.isVictory).toBe(true);
-      });
-
-      it('triggers after week 8 (arcade mode)', () => {
-        const state = createGameState({ currentWeek: 9, gameMode: 'arcade' });
 
         const result = checkGameOver(state);
 

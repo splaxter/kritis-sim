@@ -299,7 +299,7 @@ interface TerminalCommand {
 ```typescript
 const apacheDownContext: TerminalContext = {
   type: 'linux',
-  hostname: 'awrm-web01',
+  hostname: 'warm-web01',
   username: 'admin',
   currentPath: '~',
 

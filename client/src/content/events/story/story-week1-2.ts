@@ -21,7 +21,7 @@ export const storyWeek1to2Events: GameEvent[] = [
 
 Er schaut auf die Uhr. "Ich muss zu einem Termin. Fang einfach an."
 
-{kollege} sitzt am Schreibtisch nebenan und tippt konzentriert.`,
+Jens sitzt am Schreibtisch nebenan und tippt konzentriert.`,
     involvedCharacters: ['chef', 'kollege', 'gf'],
     mentorNote: 'Am ersten Tag: Frag deinen Kollegen. Er kennt die Prioritaeten besser als der Chef sie kommuniziert. Ausserdem baust du so frueh eine wichtige Beziehung auf.',
     choices: [
@@ -43,9 +43,9 @@ Er schaut auf die Uhr. "Ich muss zu einem Termin. Fang einfach an."
       },
       {
         id: 'ask_colleague',
-        text: '{kollege} fragen, was wichtiger ist',
+        text: 'Jens fragen, was wichtiger ist',
         effects: { relationships: { kollegen: 10 }, skills: { softSkills: 3 } },
-        resultText: '{kollege} laechelt. "Wenn die GF meckert, ist das Prio 1. Docusnap laeuft eh seit Wochen nicht, ein Tag mehr macht auch nichts." Er zeigt dir, wo die APs haengen.',
+        resultText: 'Jens laechelt. "Wenn die GF meckert, ist das Prio 1. Docusnap laeuft eh seit Wochen nicht, ein Tag mehr macht auch nichts." Er zeigt dir, wo die APs haengen.',
         choiceTags: ['social', 'learning'],
         teachingMoment: 'Erfahrene Kollegen kennen die inoffiziellen Prioritaeten. Fragen zeigt keine Schwaeche, sondern Lernbereitschaft.',
       },
@@ -67,7 +67,7 @@ Was du siehst, laesst dich innehalten: Kabel haengen kreuz und quer, nichts ist 
 
 Auf einem Post-it steht: "NICHT ANFASSEN!!! - M.K. 2019"
 
-{kollege} kommt vorbei und grinst: "Ja, das ist... historisch gewachsen."`,
+Jens kommt vorbei: "Ja, das ist... historisch gewachsen." Er sagt es ohne zu laecheln.`,
     involvedCharacters: ['kollege'],
     mentorNote: 'Fotodokumentation am ersten Tag ist Gold wert. Du glaubst nicht, wie schnell du vergisst, wie es vorher aussah. Ausserdem: Wenn du etwas kaputt machst, hast du Beweis, dass es vorher schon Chaos war.',
     choices: [
@@ -95,9 +95,9 @@ Auf einem Post-it steht: "NICHT ANFASSEN!!! - M.K. 2019"
       },
       {
         id: 'ask_history',
-        text: '{kollege} nach der Geschichte fragen',
+        text: 'Jens nach der Geschichte fragen',
         effects: { relationships: { kollegen: 5 }, skills: { softSkills: 3 } },
-        resultText: '{kollege} seufzt. "Das war alles schon so, als ich kam. Der Vorgaenger von meinem Vorgaenger hat das verbockt. M.K. - das war Markus, der ist 2019 gegangen. Niemand traut sich ran."',
+        resultText: 'Jens seufzt. "Das war alles schon so, als ich kam. Der Vorgaenger von meinem Vorgaenger hat das verbockt. M.K. - das war Markus, der ist 2019 gegangen. Niemand traut sich ran."',
         choiceTags: ['social', 'learning'],
         teachingMoment: 'Die Geschichte zu kennen hilft, Fehler nicht zu wiederholen - und zu verstehen, warum manche Dinge so sind wie sie sind.',
       },

@@ -23,7 +23,7 @@ export const trustChainEvents: GameEvent[] = [
 
 Du blinzelst. Das war DEINE Analyse. DEIN Plan. Du hast drei Naechte daran gearbeitet.
 
-{kollege} schaut dich von der Seite an und zieht eine Augenbraue hoch.`,
+Jens schaut dich von der Seite an und zieht eine Augenbraue hoch.`,
     involvedCharacters: ['chef', 'kollege', 'kaemmerer'],
     mentorNote: 'Befoerderungen haengen oft davon ab, wer sichtbar ist - nicht nur, wer arbeitet. Dokumentiere deine Erfolge, kommuniziere sie proaktiv. "Managing up" ist eine wichtige Faehigkeit, aber Integritaet geht vor.',
     choices: [
@@ -31,7 +31,7 @@ Du blinzelst. Das war DEINE Analyse. DEIN Plan. Du hast drei Naechte daran gearb
         id: 'credit_accept',
         text: 'Nichts sagen - er ist der Chef, er darf das',
         effects: { stress: 10, relationships: { chef: 5, kollegen: -5 } },
-        resultText: 'Du schlueckst deinen Aerger runter. {kollege} schuettelt fast unmerklich den Kopf. Nach dem Meeting sagt er: "Ich haette das nicht durchgehen lassen."',
+        resultText: 'Du schlueckst deinen Aerger runter. Jens schuettelt fast unmerklich den Kopf. Nach dem Meeting sagt er: "Ich haette das nicht durchgehen lassen."',
         choiceTags: ['passive', 'doormat'],
         chainTriggers: [{
           targetEventId: 'evt_chef_asks_more',
@@ -87,7 +87,7 @@ Du blinzelst. Das war DEINE Analyse. DEIN Plan. Du hast drei Naechte daran gearb
 
 Er laechelt kumpelhaft. Oder ist das ein Haifischlächeln?
 
-{kollege} tippt demonstrativ laut auf seiner Tastatur.`,
+Jens tippt demonstrativ laut auf seiner Tastatur.`,
     involvedCharacters: ['chef', 'kollege'],
     mentorNote: 'Wenn du einmal nachgibst, wird oft mehr verlangt. Grenzen setzen ist wichtig - aber die Art und Weise entscheidet, ob du als "schwierig" oder als "selbstbewusst" wahrgenommen wirst.',
     choices: [
@@ -95,7 +95,7 @@ Er laechelt kumpelhaft. Oder ist das ein Haifischlächeln?
         id: 'more_accept',
         text: 'Seufzen und den Bericht schreiben',
         effects: { stress: 15, relationships: { chef: 5, kollegen: -10 } },
-        resultText: 'Du schreibst den Bericht. Er ist gut. Dein Name taucht nirgends auf. {kollege}: "Du weisst, dass er das immer wieder machen wird, oder?"',
+        resultText: 'Du schreibst den Bericht. Er ist gut. Dein Name taucht nirgends auf. Jens: "Du weisst, dass er das immer wieder machen wird, oder?"',
         choiceTags: ['pushover'],
       },
       {
@@ -115,9 +115,9 @@ Er laechelt kumpelhaft. Oder ist das ein Haifischlächeln?
       },
       {
         id: 'more_redirect',
-        text: '"Vielleicht kann {kollege} helfen? Er kennt die Historie besser."',
+        text: '"Vielleicht kann Jens helfen? Er kennt die Historie besser."',
         effects: { relationships: { kollegen: -10, chef: 0 }, stress: 5 },
-        resultText: '{kollege} schiesst dir einen giftigen Blick zu. "Nein danke, ICH habe Prinzipien." Unangenehm.',
+        resultText: 'Jens schiesst dir einen giftigen Blick zu. "Nein danke, ICH habe Prinzipien." Unangenehm.',
         choiceTags: ['redirect'],
       },
     ],
@@ -137,7 +137,7 @@ Er laechelt kumpelhaft. Oder ist das ein Haifischlächeln?
 
 Meetings, an denen du teilnehmen solltest? Du wirst nicht eingeladen. Emails werden nicht beantwortet. Als du ihn auf dem Flur gruessst, nickt er nur kurz und geht weiter.
 
-{kollege} bemerkt es auch: "Seit deiner Aktion im Meeting laeuft das irgendwie anders, oder?"`,
+Jens bemerkt es auch: "Seit deiner Aktion im Meeting laeuft das irgendwie anders, oder?"`,
     involvedCharacters: ['chef', 'kollege'],
     mentorNote: 'Workplace Icing ist eine passive-aggressive Taktik. Dokumentiere die fehlende Kommunikation, suche aktiv andere Kommunikationswege, und wenn es eskaliert: HR einschalten. Das ist kein professionelles Verhalten.',
     choices: [
@@ -165,9 +165,9 @@ Meetings, an denen du teilnehmen solltest? Du wirst nicht eingeladen. Emails wer
       },
       {
         id: 'cold_ally',
-        text: 'Bei {kollege} und anderen Allianzen aufbauen',
+        text: 'Bei Jens und anderen Allianzen aufbauen',
         effects: { relationships: { kollegen: 10, fachabteilung: 5 }, stress: 5, skills: { softSkills: 5 } },
-        resultText: 'Du konzentrierst dich auf die Beziehungen, die funktionieren. {kollege}: "Gut gemacht. Einen Chef kann man ueberleben, wenn man die anderen auf seiner Seite hat."',
+        resultText: 'Du konzentrierst dich auf die Beziehungen, die funktionieren. Jens: "Gut gemacht. Einen Chef kann man ueberleben, wenn man die anderen auf seiner Seite hat."',
         teachingMoment: 'Ein starkes Netzwerk macht dich weniger abhaengig von einzelnen Personen.',
       },
     ],

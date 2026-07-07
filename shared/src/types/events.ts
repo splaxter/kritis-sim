@@ -1,6 +1,7 @@
 import { Skills, SkillCheck } from './skills';
 import { Relationships } from './gameState';
 import { TerminalContext } from './terminal';
+import { GuiContext } from './gui';
 import { GameModeId } from './gameMode';
 
 export type EventCategory =
@@ -41,6 +42,8 @@ export interface EventChoice {
   resultText: string;
   teachingMoment?: string;
   terminalCommand?: boolean;
+  /** If true, this choice opens the event's guiContext (Windows-style GUI level). */
+  guiCommand?: boolean;
   terminalSolution?: string;
   triggersEvent?: string;
   setsFlags?: string[];
@@ -69,6 +72,7 @@ export interface GameEvent {
   involvedCharacters: string[];
   choices: EventChoice[];
   terminalContext?: TerminalContext;
+  guiContext?: GuiContext;
   tags: string[];
   // Chain system
   chainTriggers?: ChainTrigger[];  // Triggers defined at event level

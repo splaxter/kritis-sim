@@ -1,6 +1,6 @@
 /**
  * Game Mode Configurations
- * Defines all 5 game modes with their specific settings
+ * Defines visible and hidden game modes with their specific settings
  */
 
 import { GameModeConfig, GameModeId, VISIBLE_MODES } from '../types/gameMode';
@@ -38,15 +38,13 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
   learning: {
     id: 'learning',
     name: 'Lernmodus',
-    description: 'CLI-Training: 11 progressive Terminal-Lektionen von Basics bis Incident Response.',
+    description: 'Security-Training: 31 Lektionen in 8 Tracks — Linux-Terminal, Windows-GUI (Task-Manager, Event Viewer, UAC & Co.) und der Blackout-Incident.',
     icon: '🎓',
     startingStats: {
       skills: 15,  // Start lower, learn through practice
@@ -57,7 +55,7 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     startingRelationships: {
       chef: 10,
       kaemmerer: 0,
-      kollegen: 15,  // Bjorg helps you learn
+      kollegen: 15,  // Jens helps you learn
     },
     difficulty: {
       maxScenarioDifficulty: 4,
@@ -75,8 +73,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
       cliOnly: true,  // Only CLI/terminal events
     },
   },
@@ -113,8 +109,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
@@ -150,8 +144,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 
@@ -187,46 +179,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: false,
-      timerEnabled: false,
-      comboScoringEnabled: false,
-    },
-  },
-
-  arcade: {
-    id: 'arcade',
-    name: 'Arcade',
-    description: 'Schneller Spaß: 8 Wochen, 30 Sekunden Timer und Combo-Scoring!',
-    icon: '🕹️',
-    startingStats: {
-      skills: 25,
-      stress: 10,
-      budget: 8000,
-      compliance: 50,
-    },
-    startingRelationships: {
-      chef: 5,
-      kaemmerer: 0,
-      kollegen: 15,
-    },
-    difficulty: {
-      maxScenarioDifficulty: 5,
-      effectMultiplier: 1.0,
-      stressDecayRate: 1.2,
-    },
-    gameLength: {
-      totalWeeks: 8,
-      daysPerWeek: 5,
-    },
-    thresholds: {
-      stressGameOver: 100,
-      complianceGameOver: 0,
-      chefRelationshipGameOver: -100,
-    },
-    features: {
-      showHints: false,
-      timerEnabled: true,
-      timerSeconds: 30,
-      comboScoringEnabled: true,
     },
   },
 
@@ -262,8 +214,6 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     features: {
       showHints: true,
-      timerEnabled: false,
-      comboScoringEnabled: false,
     },
   },
 };

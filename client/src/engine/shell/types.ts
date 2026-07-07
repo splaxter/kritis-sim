@@ -227,7 +227,7 @@ export interface VirtualFilesystemInterface {
 export interface ShellEngineInterface {
   // Execution
   execute(input: string): CommandResult;
-  executeCommand(name: string, args: ParsedArgs): CommandResult;
+  executeCommand(name: string, args: ParsedArgs, stdin?: string): CommandResult;
 
   // Completion
   complete(input: string, cursorPos: number): Completion[];

@@ -90,7 +90,7 @@ Wie reagierst du?`,
 
 Netzwerkkabel haengen kreuz und quer, nichts ist beschriftet, und mittendrin ein Switch mit blinkenden LEDs - manche blinken ROT.
 
-{kollege} steht daneben: "Ja, das ist... historisch gewachsen. Der Vorgaenger hatte ein eigenes System. Leider hat er es nicht dokumentiert."
+Jens steht daneben: "Ja, das ist... historisch gewachsen. Der Vorgaenger hatte ein eigenes System. Leider hat er es nicht dokumentiert."
 
 Einer der VLANs fuer die Wasserwerke scheint Probleme zu haben.
 
@@ -253,7 +253,6 @@ Pruefungstermin: In 4 Wochen"
         },
         resultText:
           'Du oeffnest das Asset-Management-System. Die letzte Aktualisierung war... vor 3 Jahren. Die Haelfte der Eintraege stimmt nicht mehr.',
-        triggersEvent: 'evt_license_cleanup',
       },
       {
         id: 'powershell_audit',
@@ -311,7 +310,7 @@ Affected systems: 3 of 12 systems not backed up"
 
 Das ist das erste Mal, dass du dich mit dem Backup-System beschaeftigst.
 
-{kollege} meint: "Das passiert manchmal. Aber bei KRITIS sollten wir das schnell fixen."`,
+Henry meint: "Das passiert manchmal. Aber bei KRITIS sollten wir das schnell fixen."`,
     involvedCharacters: ['kollege'],
     choices: [
       {
@@ -552,7 +551,7 @@ Wie reagierst du?`,
       },
       {
         id: 'ask_for_support',
-        text: '"Kann ich das zusammen mit {kollege} machen, um von seiner Erfahrung zu lernen?"',
+        text: '"Kann ich das zusammen mit Jens machen, um von seiner Erfahrung zu lernen?"',
         effects: {
           relationships: { chef: 5, kollegen: 10 },
           stress: 10,
@@ -729,7 +728,7 @@ Drive C: 95% used (4.7GB free of 100GB)"
 
 Das ist der Datenbankserver fuer die Abrechnungssoftware.
 
-{kollege}: "Der ist schon wieder voll? Letzte Woche hab ich da noch 20GB freigemacht..."`,
+Henry: "Der ist schon wieder voll? Letzte Woche hab ich da noch 20GB freigemacht..."`,
     involvedCharacters: ['kollege'],
     choices: [
       {
@@ -778,7 +777,7 @@ Das ist der Datenbankserver fuer die Abrechnungssoftware.
           stress: 5,
         },
         resultText:
-          '{kollege} prueft die DB-Einstellungen. "Transaction Log Backup wurde nie eingerichtet. Das ist ein Fehler aus der Erstinstallation."',
+          'Jens prueft die DB-Einstellungen. "Transaction Log Backup wurde nie eingerichtet. Das ist ein Fehler aus der Erstinstallation."',
         teachingMoment:
           'SQL Server Transaction Logs muessen regelmaessig gesichert werden, damit sie truncated werden koennen.',
       },
@@ -1000,7 +999,7 @@ Dies ist dein erster grosser Ausfall. 150 Mitarbeiter koennen nicht arbeiten.`,
           relationships: { chef: 20, fachabteilung: 10 },
         },
         resultText:
-          'Du schickst eine Info-Mail an alle ("Stoerung bekannt, wir arbeiten daran"), dann gehst du mit {kollege} systematisch die moeglichen Ursachen durch. Nach 45 Minuten: Der Storage-Controller hatte einen Fehler. Failover auf den Backup-Controller, alles laeuft wieder.',
+          'Du schickst eine Info-Mail an alle ("Stoerung bekannt, wir arbeiten daran"), dann gehst du mit Jens systematisch die moeglichen Ursachen durch. Nach 45 Minuten: Der Storage-Controller hatte einen Fehler. Failover auf den Backup-Controller, alles laeuft wieder.',
         teachingMoment:
           'Bei Ausfaellen: 1. Kommunizieren, 2. Diagnostizieren, 3. Beheben, 4. Dokumentieren. Ruhe bewahren ist die halbe Miete.',
         setsFlags: ['first_outage_handled_well'],
@@ -1200,7 +1199,7 @@ Er macht eine Pause.
     title: 'Die Bereitschaft',
     description: `{chef} kommt mit einem Diensthandy zu dir.
 
-"Ab naechster Woche bist du in der Rufbereitschaft. Wochenend-Rotation mit {kollege}. Bei KRITIS-Betrieben ist das Pflicht - die Wasserversorgung muss 24/7 ueberwacht werden."
+"Ab naechster Woche bist du in der Rufbereitschaft. Wochenend-Rotation mit Jens und Henry. Bei KRITIS-Betrieben ist das Pflicht - die Wasserversorgung muss 24/7 ueberwacht werden."
 
 Er gibt dir das Handy und eine Liste.
 
@@ -1240,7 +1239,7 @@ Er gibt dir das Handy und eine Liste.
           stress: 5,
         },
         resultText:
-          '{chef}: "Deshalb bist du mit {kollege} im Team. Er ist telefonisch erreichbar, wenn du nicht weiterkommst. Learning by doing."',
+          '{chef}: "Deshalb bist du mit Jens im Team. Er ist telefonisch erreichbar, wenn du nicht weiterkommst. Learning by doing."',
       },
       {
         id: 'mention_gf',

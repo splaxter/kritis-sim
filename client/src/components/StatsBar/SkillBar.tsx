@@ -1,3 +1,5 @@
+import { skillTierClass } from './bands';
+
 interface SkillBarProps {
   name: string;
   value: number;
@@ -7,12 +9,14 @@ interface SkillBarProps {
 export function SkillBar({ name, value, maxValue = 100 }: SkillBarProps) {
   const percentage = (value / maxValue) * 100;
   const blocks = Math.floor(percentage / 10);
+  // Calm 3-tier (muted → green → success); skills can't end the run, so no red.
+  const tier = skillTierClass(value);
 
   return (
     <div className="flex items-center gap-2 text-sm">
       <span className="w-28 text-terminal-green-dim">{name}</span>
       <div className="flex-1 flex items-center gap-1">
-        <span className="font-mono">
+        <span className={`font-mono ${tier}`}>
           {'█'.repeat(blocks)}
           {'░'.repeat(10 - blocks)}
         </span>

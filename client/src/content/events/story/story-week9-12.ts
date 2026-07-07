@@ -39,9 +39,9 @@ Du denkst an die letzten Wochen: Die Krisen, die Erfolge, die Konflikte. Wie wir
       },
       {
         id: 'ask_colleague',
-        text: '{kollege} fragen, wie das bei ihm war',
+        text: 'Jens fragen, wie das bei ihm war',
         effects: { relationships: { kollegen: 5 } },
-        resultText: '{kollege} lacht. "Bei mir wollten sie vor allem wissen, ob ich mit dem {chef} klarkomme. Und ob ich die Technik verstehe. Entspann dich - du machst das gut."',
+        resultText: 'Jens lacht — kurz, aber immerhin. "Bei mir wollten sie vor allem wissen, ob ich mit dem {chef} klarkomme. Und ob ich die Technik verstehe. Entspann dich - du machst das gut."',
         choiceTags: ['social', 'learning'],
       },
     ],

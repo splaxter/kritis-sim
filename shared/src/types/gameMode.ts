@@ -3,10 +3,13 @@
  * Defines the different game modes and their configurations
  */
 
-export type GameModeId = 'beginner' | 'learning' | 'story' | 'kritis' | 'intermediate' | 'hard' | 'arcade';
+export type GameModeId = 'beginner' | 'learning' | 'story' | 'kritis' | 'intermediate' | 'hard';
 
 // Modes visible in the selection screen
-export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'kritis'];
+export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'intermediate', 'kritis'];
+
+// Steered default for newcomers — pre-selected and badged in the mode picker.
+export const RECOMMENDED_MODE_ID: GameModeId = 'beginner';
 
 export interface GameModeStartingStats {
   skills: number;
@@ -40,9 +43,6 @@ export interface GameModeThresholds {
 
 export interface GameModeFeatures {
   showHints: boolean;
-  timerEnabled: boolean;
-  timerSeconds?: number;
-  comboScoringEnabled: boolean;
   /** If true, only show events with terminalContext (CLI-only mode) */
   cliOnly?: boolean;
 }

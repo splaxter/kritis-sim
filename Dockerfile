@@ -29,16 +29,11 @@ RUN addgroup -g 1001 -S nodejs && \
 
 # Copy built files
 COPY --from=builder --chown=nodejs:nodejs /app/server/dist ./server/dist
-COPY --from=builder --chown=nodejs:nodejs /app/server/src/db/schema.sql ./server/dist/db/
 COPY --from=builder --chown=nodejs:nodejs /app/client/dist ./client/dist
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/server/package.json ./server/
 
-# Create data directory with proper ownership
-RUN mkdir -p /data && chown nodejs:nodejs /data
-
 ENV NODE_ENV=production
-ENV DATABASE_PATH=/data/kritis.db
 
 # Switch to non-root user
 USER nodejs

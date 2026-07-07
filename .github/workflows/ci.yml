@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Typecheck & unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # shared is a composite project referenced by client and server;
+      # building it is also its typecheck (composite forbids --noEmit).
+      - name: Build shared workspace
+        run: npm run build -w shared
+
+      - name: Typecheck client
+        run: npx tsc --noEmit -p client/tsconfig.json
+
+      - name: Typecheck server
+        run: npx tsc --noEmit -p server/tsconfig.json
+
+      # Mirrors `npm test` minus the redundant shared rebuild.
+      - name: Unit tests (node)
+        run: npx vitest run
+
+      # Mirrors `npm run test:client` — jsdom *.browser.test.tsx suite.
+      - name: Unit tests (client/jsdom)
+        run: npx vitest run --root client --config vitest.config.ts
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright OS deps (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Build all workspaces
+        run: npm run build
+
+      # playwright.config.ts starts the production server itself
+      # (webServer: NODE_ENV=production npm start, health check on
+      # /api/health) and is CI-aware (workers: 1, retries: 2).
+      - name: Run e2e tests
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
