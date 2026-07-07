@@ -9,7 +9,7 @@ The mode selection screen currently exposes four modes:
 | Mode | Description |
 |------|-------------|
 | **Einsteiger** | For beginners - helpful hints and forgiving values |
-| **Lernmodus** | CLI training - 11 progressive terminal lessons from basics to incident response |
+| **Lernmodus** | Security training - 31 lessons across 8 tracks: Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings) and the 5-level "Blackout" incident |
 | **Story: Die Probezeit** | Linear narrative with sidequests and multiple endings |
 | **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
 

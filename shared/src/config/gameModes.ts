@@ -46,7 +46,7 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
   learning: {
     id: 'learning',
     name: 'Lernmodus',
-    description: 'CLI-Training: 11 progressive Terminal-Lektionen von Basics bis Incident Response.',
+    description: 'Security-Training: 31 Lektionen in 8 Tracks — Linux-Terminal, Windows-GUI (Task-Manager, Event Viewer, UAC & Co.) und der Blackout-Incident.',
     icon: '🎓',
     startingStats: {
       skills: 15,  // Start lower, learn through practice

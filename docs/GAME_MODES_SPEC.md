@@ -72,7 +72,7 @@ Only these modes are visible in the mode selection screen:
 
 **Icon:** `🎓`
 
-**Philosophy:** CLI-first training path with forgiving values. Players learn through 11 progressive terminal lessons rather than broad random scenario pressure.
+**Philosophy:** Guided training path with forgiving values. Players learn through 31 lessons in 8 hub-selectable tracks (Linux CLI, Windows GUI apps, Blackout incident) rather than broad random scenario pressure.
 
 ### Configuration
 
@@ -120,7 +120,7 @@ Only these modes are visible in the mode selection screen:
 
 - **Mentor mode enabled by default** through game state initialization
 - **CLI-only event selection** via the mode feature flag
-- **11 progressive terminal lessons** shown through the learning path
+- **31 lessons across 8 tracks** (16 CLI, 10 Windows-GUI, 5 Blackout) shown through the learning hub
 - **Fast stress recovery** to keep attention on practice rather than survival pressure
 
 ### Learning Objectives Covered
