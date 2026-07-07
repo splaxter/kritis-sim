@@ -26,7 +26,6 @@ Last updated: 2026-03-15
 
 | Item | Location | Description |
 |------|----------|-------------|
-| Zod validation tests | `server/src/routes/saves.test.ts` | Marked as `.todo()` - requires integrating validation into testApp.ts |
 | Adventure engine unit tests | `client/src/engine/` | Core logic works, tested via integration, but dedicated unit tests would help |
 
 ### Code Quality (Minor)
@@ -41,7 +40,6 @@ Last updated: 2026-03-15
 
 | Item | Description |
 |------|-------------|
-| Test app router duplication | `server/src/test/testApp.ts` duplicates route logic - could import actual routes |
 | Content validation at build time | Currently runtime - could add pre-build validation step |
 
 ---
@@ -71,14 +69,6 @@ Last updated: 2026-03-15
 ---
 
 ## How to Address Remaining Items
-
-### Zod validation tests
-```bash
-# In server/src/test/testApp.ts, import and use validateGameState:
-import { validateGameState } from '../validation/gameStateSchema.js';
-
-# Then add validation in createSavesRouter() PUT handler
-```
 
 ### Magic numbers
 ```typescript

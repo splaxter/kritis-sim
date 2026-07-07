@@ -40,7 +40,7 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 ## Tech Stack
 
 - **Frontend:** React + TypeScript + Vite + Tailwind CSS
-- **Backend:** Express + TypeScript + SQLite (sql.js)
+- **Server:** Minimal Express static server (health check + SPA serving; game state lives in browser localStorage)
 - **Shared:** TypeScript types and game configuration
 - **Testing:** Vitest + Playwright (E2E)
 
@@ -72,10 +72,7 @@ npm run build
 │   │   │   └── packs/      # Content packs (scenarios)
 │   │   ├── engine/         # Game logic
 │   │   └── hooks/          # React hooks
-├── server/                 # Express backend
-│   └── src/
-│       ├── db/             # SQLite database
-│       └── routes/         # API routes
+├── server/                 # Minimal static file server (health check + SPA)
 ├── shared/                 # Shared types and config
 │   └── src/
 │       ├── config/         # Game mode configurations
