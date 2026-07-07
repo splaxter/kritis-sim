@@ -333,10 +333,15 @@ describe('Sidequest Serving', () => {
 });
 
 describe('Ending Gate', () => {
-  it('grants the good ending with 2 of 3 sidequests at high score', () => {
-    expect(determineEnding(75, 2, 'official')).toBe('good');
+  // Act 3 removed the sidequest hard-gate: the good ending is score-only
+  // (>= 65), because the sidequest layer ships separately and the campaign must
+  // resolve without it. Sidequests still contribute +10 each to the score.
+  it('grants the good ending on score alone (no sidequests required)', () => {
+    expect(determineEnding(75, 0, 'official')).toBe('good');
+    expect(determineEnding(65, 0, 'official')).toBe('good');
   });
-  it('still requires sidequest engagement for the good ending', () => {
-    expect(determineEnding(75, 1, 'official')).not.toBe('good');
+  it('falls to neutral / bad on lower scores regardless of sidequests', () => {
+    expect(determineEnding(64, 3, 'official')).toBe('neutral');
+    expect(determineEnding(34, 3, 'official')).toBe('bad');
   });
 });

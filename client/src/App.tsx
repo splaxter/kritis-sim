@@ -9,8 +9,9 @@ import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
-import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct } from './engine/adventureEngine';
+import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, calculateAdventureEnding, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
+import { EndingScreen } from './components/EndingScreen';
 import { adventureStoryEvents } from './content/adventure/story-events';
 import { adventureSidequestEvents } from './content/adventure/sidequest-events';
 import { IntroScreen } from './components/IntroScreen';
@@ -93,6 +94,14 @@ function AppContent() {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
         const combinedEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
+
+        // Campaign fully played → real ending screen. Must run BEFORE the
+        // act-break check: after ch12 the engine would otherwise re-serve beat 0
+        // of the final chapter forever.
+        if (isAdventureModeComplete(game.state)) {
+          game.endStoryAct();
+          return;
+        }
 
         // Entered a chapter that isn't fully authored → act-break "Fortsetzung
         // folgt" ending, BEFORE serving any of its (possibly partial) content and
@@ -360,6 +369,32 @@ function AppContent() {
   }
 
   if (game.phase === 'storyEnding') {
+    const menuModal = (
+      <Suspense fallback={null}>
+        {showModeSelect && (
+          <GameModeSelectModal
+            onSelect={handleModeSelect}
+            onClose={() => setShowModeSelect(false)}
+          />
+        )}
+      </Suspense>
+    );
+
+    // Campaign fully completed → real stats-driven ending screen.
+    if (isAdventureModeComplete(game.state)) {
+      return (
+        <>
+          <EndingScreen
+            ending={calculateAdventureEnding(game.state)}
+            stats={getEndingStats(game.state)}
+            onBackToMenu={() => setShowModeSelect(true)}
+          />
+          {menuModal}
+        </>
+      );
+    }
+
+    // Otherwise: an unauthored future chapter → act-break "Fortsetzung folgt".
     const completedAct = getLastCompletedAct(game.state);
     const body = getActBreakBody(completedAct);
     return (
@@ -393,6 +428,7 @@ function AppContent() {
             [ ZURÜCK ZUM MENÜ ]
           </button>
         </div>
+        {menuModal}
       </div>
     );
   }

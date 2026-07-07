@@ -1,0 +1,106 @@
+import { EndingType } from '@kritis/shared';
+import { ADVENTURE_ENDINGS } from '../../content/adventure/endings';
+
+interface EndingStats {
+  score: number;
+  sidequestsCompleted: number;
+  totalSidequests: number;
+  charactersHelped: string[];
+  storyPath: string;
+  endingFlags: string[];
+}
+
+interface EndingScreenProps {
+  ending: EndingType;
+  stats: EndingStats;
+  onBackToMenu: () => void;
+}
+
+const CHARACTER_LABELS: Record<string, string> = {
+  chef: 'Chef Bert',
+  kollegen: 'Bjorg & Kollegen',
+  kollege: 'Bjorg',
+  gf: 'Geschäftsführung',
+  kaemmerer: 'Kämmerer',
+  fachabteilung: 'Fachabteilungen',
+};
+
+const PATH_LABELS: Record<string, string> = {
+  official: 'Der offizielle Weg',
+  underground: 'Der Alleingang',
+  neutral: 'Der pragmatische Weg',
+};
+
+const FLAG_LABELS: Record<string, string> = {
+  saved_early: 'Früh eingedämmt — Systeme rechtzeitig geschützt',
+  found_evidence: 'Beweise gesichert — lückenlose Beweiskette',
+  team_prepared: 'Team vorbereitet — Krise gemeinsam gestemmt',
+  trusted_by_all: 'Vertrauen verdient — das Team stand hinter dir',
+};
+
+// Only the positive, "earned" flags are shown as achievements.
+const EARNED_FLAG_ORDER = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all'];
+
+export function EndingScreen({ ending, stats, onBackToMenu }: EndingScreenProps) {
+  const text = ADVENTURE_ENDINGS[ending];
+  const earned = EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f));
+  const helped = stats.charactersHelped.map((c) => CHARACTER_LABELS[c] ?? c);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">
+        <div className="text-center text-terminal-green text-xl font-bold mb-2 tracking-widest">
+          PROBEZEIT BEENDET — {text.title.toUpperCase()}
+        </div>
+        <div className="text-center text-terminal-green-muted text-sm mb-6 tracking-wide">
+          {text.title}
+        </div>
+
+        <div className="text-terminal-green-dim leading-relaxed space-y-4 text-[15px]">
+          {text.paragraphs.map((p, i) => (
+            <p key={i} className="whitespace-pre-line">
+              {p}
+            </p>
+          ))}
+          <p className="text-terminal-green font-semibold whitespace-pre-line pt-2 border-t border-terminal-green/20">
+            {text.epilogue}
+          </p>
+        </div>
+
+        {/* Bilanz */}
+        <div className="mt-8 border border-terminal-green/30 p-4 text-sm text-terminal-green-dim space-y-2">
+          <div className="text-terminal-green tracking-widest mb-2">— BILANZ —</div>
+          <div>
+            Score: <span className="text-terminal-green">{stats.score}</span>/100
+          </div>
+          <div>Weg: {PATH_LABELS[stats.storyPath] ?? stats.storyPath}</div>
+          <div>
+            Verbündete:{' '}
+            {helped.length > 0 ? helped.join(', ') : 'Du hast diesen Weg weitgehend allein bestritten.'}
+          </div>
+          {stats.sidequestsCompleted > 0 && (
+            <div>
+              Nebenaufträge: {stats.sidequestsCompleted}/{stats.totalSidequests}
+            </div>
+          )}
+          {earned.length > 0 && (
+            <div className="pt-2 space-y-1">
+              {earned.map((f) => (
+                <div key={f} className="text-terminal-green">
+                  ✓ {FLAG_LABELS[f]}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onBackToMenu}
+          className="w-full mt-8 p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
+        >
+          [ ZURÜCK ZUM MENÜ ]
+        </button>
+      </div>
+    </div>
+  );
+}
