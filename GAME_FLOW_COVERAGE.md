@@ -8,7 +8,6 @@
 | Standard | 12 | No | No | 1.0x effects | Baseline experience |
 | Schwer | 12 | No | No | 1.5x effects | Stricter thresholds |
 | KRITIS | 24 | No | No | 1.3x effects | Extended campaign |
-| Arcade | 8 | 30s | No | 1.0x effects | Combo scoring |
 | Adventure | 12 | No | Yes | 1.0x effects | Linear story, sidequests |
 
 ---
@@ -75,19 +74,6 @@
 | Stress Decay Rate | 0.8x | Slower recovery |
 
 **Note:** Description mentions "NIS2-Audits und Kettenreaktionen" - these are thematic, not special mechanics.
-
-### Arcade
-**Target:** Fast-paced fun, replayability
-
-| Setting | Value | Effect |
-|---------|-------|--------|
-| Total Weeks | 8 | Short campaign |
-| Timer | 30 seconds | Per decision |
-| Combo Scoring | Yes | Streak multipliers |
-| Starting Stress | 10 | Low to allow mistakes |
-| Stress Decay Rate | 1.2x | Forgiving |
-| Chef Relationship | +5 | Friendly start |
-| Kollegen Relationship | +15 | Team support |
 
 ### Adventure (Story Mode)
 **Target:** Narrative-driven experience
@@ -303,9 +289,6 @@
 - Multiple endings
 - KRITIS mode NIS2 audits (4 events: announcement → documentation → audit day → result)
 - KRITIS mode chain reactions (6 events: cooling/power failures cascading into crises)
-
-### Partially Implemented
-- Arcade combo system exists but visual feedback could be enhanced
 
 ### Future Expansion Points
 - More content packs

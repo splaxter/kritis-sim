@@ -16,7 +16,7 @@ The mode selection screen currently exposes five modes:
 | **Standard** | The classic baseline experience - balanced challenge, 1.0x effects |
 | **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
 
-Additional modes (`Schwer`, `Arcade`) still exist in code as hidden/legacy configurations, but are not shown in the current mode selection screen.
+Additionally, a `Schwer` (hard) mode still exists in code as a hidden configuration. An unused Arcade mode (timer + combo scoring) was removed in 2026-07; recover it from git history if ever needed.
 
 ## Adventure Mode: "Die Probezeit"
 

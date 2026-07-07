@@ -287,7 +287,7 @@ Act 3: Resolution (Weeks 9-12)
 
 ---
 
-## Hidden Modes (2)
+## Hidden Modes (1)
 
 These modes exist in code but are not shown in the selection screen.
 
@@ -295,11 +295,6 @@ These modes exist in code but are not shown in the selection screen.
 - **Status:** Hidden
 - **Reason:** KRITIS mode covers difficulty
 - **May return:** As "Hardcore" variant
-
-### Arcade
-- **Status:** Hidden
-- **Reason:** Focus on narrative/educational modes first
-- **May return:** As quick-play option later
 
 ---
 
@@ -322,8 +317,7 @@ export type GameModeId =
   | 'story'
   | 'kritis'
   | 'intermediate'
-  | 'hard'
-  | 'arcade';
+  | 'hard';
 
 // Visible modes filter
 export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'intermediate', 'kritis'];
