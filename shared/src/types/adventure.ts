@@ -250,7 +250,7 @@ export function determineEnding(
   completedSidequests: number,
   storyPath: StoryPath
 ): EndingType {
-  if (score >= 70 && completedSidequests >= 3) {
+  if (score >= 70 && completedSidequests >= 2) {
     return 'good';
   } else if (score >= 40 || (score >= 30 && completedSidequests >= 2)) {
     return 'neutral';

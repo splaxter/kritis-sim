@@ -16,7 +16,7 @@ import {
   getNextStoryContent,
   pickSidequestToStart,
 } from './adventureEngine';
-import { GameEvent, GameState, SidequestDefinition, createInitialAdventureState } from '@kritis/shared';
+import { GameEvent, GameState, SidequestDefinition, createInitialAdventureState, determineEnding } from '@kritis/shared';
 
 function createTestState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -329,5 +329,14 @@ describe('Sidequest Serving', () => {
     const a = pickSidequestToStart(state);
     const b = pickSidequestToStart(state);
     expect(a?.id).toBe(b?.id); // includes the both-null case
+  });
+});
+
+describe('Ending Gate', () => {
+  it('grants the good ending with 2 of 3 sidequests at high score', () => {
+    expect(determineEnding(75, 2, 'hero')).toBe('good');
+  });
+  it('still requires sidequest engagement for the good ending', () => {
+    expect(determineEnding(75, 1, 'hero')).not.toBe('good');
   });
 });
