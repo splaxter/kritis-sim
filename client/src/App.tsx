@@ -23,6 +23,8 @@ import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBac
 import { StoryBackground } from './components/StoryBackground';
 import { LearningHub } from './components/LearningHub';
 import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
+import { useAutosave } from './hooks/useAutosave';
+import { readAutosave, AutosaveEnvelope } from './engine/autosave';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
@@ -47,6 +49,11 @@ function getPlayerId(): string {
 function AppContent() {
   const game = useGame();
   const [playerId] = useState(getPlayerId);
+  // Autosave found at boot → offered as "Weiter spielen?" on the menu.
+  // Read exactly once; readAutosave never throws and discards corrupt data.
+  const [resumeSave, setResumeSave] = useState<AutosaveEnvelope | null>(
+    () => readAutosave(playerId)
+  );
   const [showIntro, setShowIntro] = useState(true);
   const [saveLoadModal, setSaveLoadModal] = useState<{ show: boolean; mode: 'save' | 'load' }>({
     show: false,
@@ -73,11 +80,21 @@ function AppContent() {
   // Get all available scenarios
   const allScenarios = useMemo(() => getAllScenarios(), []);
 
+  // Write autosave on every meaningful transition; clear on run end.
+  useAutosave(playerId, game.state, game.phase);
+
   // Handle load game
   const handleLoadGame = useCallback((state: import('@kritis/shared').GameState) => {
     game.loadState(state);
     setSaveLoadModal({ show: false, mode: 'load' });
   }, [game]);
+
+  // Resume the run offered as "Weiter spielen?" on the menu.
+  const handleResume = useCallback(() => {
+    if (!resumeSave) return;
+    game.loadState(resumeSave.gameState);
+    setResumeSave(null); // consumed; the running game re-autosaves from here
+  }, [game, resumeSave]);
 
   // Keyboard shortcuts for save/load
   useKeyboardShortcuts({
@@ -216,8 +233,10 @@ function AppContent() {
     game.startNewGame(undefined, mode);
   }, [game]);
 
-  // Main menu keyboard navigation
-  const menuItems = ['new', 'load'] as const;
+  // Main menu keyboard navigation ('continue' only when an autosave exists)
+  const menuItems = resumeSave
+    ? (['continue', 'new', 'load'] as const)
+    : (['new', 'load'] as const);
 
   useEffect(() => {
     if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
@@ -231,7 +250,10 @@ function AppContent() {
         setMenuIndex(prev => (prev + 1) % menuItems.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (menuItems[menuIndex] === 'new') {
+        const item = menuItems[menuIndex % menuItems.length];
+        if (item === 'continue') {
+          handleResume();
+        } else if (item === 'new') {
           setShowModeSelect(true);
         } else {
           setSaveLoadModal({ show: true, mode: 'load' });
@@ -241,7 +263,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage]);
+  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume]);
 
   // ESC to close legal modal
   useEffect(() => {
@@ -287,27 +309,44 @@ function AppContent() {
             <p>Deine IT-Skills entscheiden, ob du bleibst oder fliegst.</p>
           </div>
 
+          {resumeSave && (
+            <button
+              onClick={handleResume}
+              onMouseEnter={() => setMenuIndex(menuItems.indexOf('continue'))}
+              className={`w-full p-4 border transition-colors text-lg mb-2 ${
+                menuIndex === menuItems.indexOf('continue')
+                  ? 'border-terminal-green bg-terminal-bg-highlight'
+                  : 'border-terminal-border hover:border-terminal-green'
+              }`}
+            >
+              {menuIndex === menuItems.indexOf('continue') ? '> ' : '  '}[ WEITER SPIELEN ]
+              <div className="text-xs text-terminal-green-dim mt-1">
+                Woche {resumeSave.gameState.currentWeek}, Tag {resumeSave.gameState.currentDay}
+                {' — '}{getGameModeConfig(resumeSave.gameState.gameMode).name}
+              </div>
+            </button>
+          )}
           <button
             onClick={() => setShowModeSelect(true)}
-            onMouseEnter={() => setMenuIndex(0)}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('new'))}
             className={`w-full p-4 border transition-colors text-lg mb-2 ${
-              menuIndex === 0
+              menuIndex === menuItems.indexOf('new')
                 ? 'border-terminal-green bg-terminal-bg-highlight'
                 : 'border-terminal-border hover:border-terminal-green'
             }`}
           >
-            {menuIndex === 0 ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
+            {menuIndex === menuItems.indexOf('new') ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
           </button>
           <button
             onClick={() => setSaveLoadModal({ show: true, mode: 'load' })}
-            onMouseEnter={() => setMenuIndex(1)}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('load'))}
             className={`w-full p-3 border transition-colors ${
-              menuIndex === 1
+              menuIndex === menuItems.indexOf('load')
                 ? 'border-terminal-info bg-terminal-bg-highlight text-terminal-green'
                 : 'border-terminal-border text-terminal-green-dim hover:border-terminal-info'
             }`}
           >
-            {menuIndex === 1 ? '> ' : '  '}[ SPIEL LADEN ]
+            {menuIndex === menuItems.indexOf('load') ? '> ' : '  '}[ SPIEL LADEN ]
           </button>
 
           <div className="text-terminal-green-dim text-xs mt-4">
