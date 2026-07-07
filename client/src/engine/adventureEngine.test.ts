@@ -334,9 +334,9 @@ describe('Sidequest Serving', () => {
 
 describe('Ending Gate', () => {
   it('grants the good ending with 2 of 3 sidequests at high score', () => {
-    expect(determineEnding(75, 2, 'hero')).toBe('good');
+    expect(determineEnding(75, 2, 'official')).toBe('good');
   });
   it('still requires sidequest engagement for the good ending', () => {
-    expect(determineEnding(75, 1, 'hero')).not.toBe('good');
+    expect(determineEnding(75, 1, 'official')).not.toBe('good');
   });
 });
