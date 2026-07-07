@@ -2017,4 +2017,218 @@ Wie fahrt ihr diese Krise?`,
       },
     ],
   },
+
+  // ─── Kapitel 10: 72 Stunden ───
+
+  {
+    id: 'adv_backup_check',
+    title: 'Der Keller-Server unter Feuer',
+    category: 'story',
+    weekRange: [10, 10],
+    probability: 1,
+    description: `Der Keller. Die zugemauerte Tür, hinter der Stefan seinen Server versteckt hat. Er läuft. Offline, verstaubt, und mit Ständen bis vor drei Tagen — bevor der Angriff losbrach.
+
+Bjorg streichelt tatsächlich das Gehäuse. "Du wunderschönes, verstaubtes Ding", murmelt er. "Stefan, du paranoider Genius."
+
+Aber jetzt beginnt die eigentliche Arbeit: Ihr müsst diese Daten zurück ins Produktivsystem bekommen, während der Countdown auf den Monitoren oben weiterläuft. Und ein Backup ist nur so gut wie das Restore, das man daraus fährt.
+
+Wie geht ihr vor?`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter10', 'act3', 'crisis', 'technical'],
+    choices: [
+      {
+        id: 'verify_then_restore',
+        text: 'Integrität prüfen, dann Kronjuwelen zuerst restoren',
+        effects: { skills: { security: 5, troubleshooting: 4 } },
+        resultText: 'Ihr prüft die Hashes, bevor irgendetwas eingespielt wird — nicht dass der Angreifer auch hier war. Sauber. Dann restauriert ihr nach Kritikalität: erst die Bürgerdaten und die Abrechnung, dann der Rest. Systematisch, ruhig, richtig. Um Mitternacht läuft das erste Fachverfahren wieder.',
+        setsFlags: ['backup_verified', 'saved_early'],
+        teachingMoment: 'Restore-Reihenfolge nach Kritikalität, und immer erst die Integrität prüfen: Ein Backup, das man ungeprüft einspielt, kann die Kompromittierung gleich mit zurückholen.',
+      },
+      {
+        id: 'rushed_restore',
+        text: 'Keine Zeit für Feinheiten — sofort alles zurückspielen, Vollgas',
+        effects: { stress: 10, skills: { troubleshooting: 3 } },
+        resultText: 'Ihr knallt alles auf einmal zurück. Es funktioniert — bis auf zwei Systeme, die ihr euch mit inkonsistenten Ständen gegenseitig zerschießt und dann von Hand wieder auseinanderfummeln müsst. Am Ende steht es. Aber schneller wäre es mit Plan gewesen.',
+        setsFlags: ['rushed_restore', 'contained_damage'],
+      },
+      {
+        id: 'forensic_copy_first',
+        text: 'Erst eine forensische Kopie ziehen, dann restoren',
+        effects: { skills: { security: 6 } },
+        resultText: 'Bevor irgendetwas angefasst wird, zieht ihr ein Image — für die Ermittler, und für euch selbst. "Wenn wir wissen wollen, WIE die reingekommen sind", sagst du, "brauchen wir die Spuren, bevor wir sie überschreiben." Bjorg nickt anerkennend. Die Kopie wandert in den Tresor. Sie wird später mehr wert sein, als du gerade ahnst.',
+        setsFlags: ['forensic_copy', 'found_evidence'],
+        teachingMoment: 'Beweissicherung vor Wiederherstellung: Wer sofort restauriert, vernichtet die forensischen Spuren. Erst sichern (Image/Kopie), dann wiederherstellen.',
+      },
+    ],
+  },
+
+  {
+    id: 'adv_no_backup',
+    title: 'Der Tresor ist leer',
+    category: 'story',
+    weekRange: [10, 10],
+    probability: 1,
+    description: `Ihr öffnet den Backup-Schrank wie eine Schatztruhe. Drin: Enttäuschung.
+
+Die regulären Backups liegen auf dem Backup-Server. Der Backup-Server hängt im selben Netz. Der Angreifer hatte Admin. Die Backups sind — natürlich — mitverschlüsselt. Bleiben die Bänder im Schrank. Drei Monate alt.
+
+Chef Bert steht hilflos daneben. "Aber... wir haben doch dieses NAS gekauft? Das teure?"
+
+Bjorg, ohne aufzublicken: "Das NAS ist AUCH verschlüsselt, Bert. Das NAS war im Netz. Alles war im Netz."
+
+Stille. Der Countdown oben tickt. Ihr müsst mit dem arbeiten, was ihr habt.`,
+    involvedCharacters: ['chef', 'kollege'],
+    tags: ['story', 'chapter10', 'act3', 'crisis'],
+    choices: [
+      {
+        id: 'accept_old_backups',
+        text: 'Die 3-Monats-Bänder akzeptieren und die Lücke analog überbrücken',
+        effects: { skills: { troubleshooting: 4 }, relationships: { fachabteilung: 5 } },
+        resultText: 'Ihr spielt die alten Bänder ein und rekonstruiert die letzten drei Monate mit dem, was die Fachabteilungen noch auf Papier und in E-Mail-Postfächern haben. Mühsam, aber es trägt. Frau Weber taucht mit einem Karton voller Durchschläge auf: "Ich hebe immer alles auf. Immer." Zum ersten Mal ist ihr Papierfetisch ein Segen.',
+        setsFlags: ['old_backups', 'analog_bridge'],
+        teachingMoment: '3-2-1-Regel: drei Kopien, zwei Medien, eine davon offline/off-site. Eine einzige Offline-Kopie hätte hier den Unterschied zwischen drei Tagen und drei Monaten Datenverlust gemacht.',
+      },
+      {
+        id: 'stall_attackers',
+        text: 'Zeit schinden: zum Schein auf die Erpresser eingehen',
+        effects: { stress: 12, skills: { softSkills: 3 } },
+        resultText: 'Du öffnest den Kontakt-Chat der Erpresser und beginnst zu verhandeln — "wir brauchen mehr Zeit, die Zahlung intern freizugeben". Jede Stunde, die sie mit dir reden, ist eine Stunde, in der ihr am Wiederaufbau arbeitet. Es fühlt sich schmutzig an. Aber die Uhr läuft jetzt auch für dich.',
+        setsFlags: ['stalling_attackers'],
+      },
+      {
+        id: 'request_rebuild_help',
+        text: 'Wiederaufbau-Hilfe anfordern (BSI / Nachbar-Stadtwerk)',
+        effects: { relationships: { gf: 5 } },
+        resultText: 'Du rufst um Unterstützung — Leute, die schon einmal ein Haus aus der Asche wieder hochgezogen haben. Am Nachmittag stehen zwei zusätzliche Hände im Serverraum und ein erfahrener Incident-Responder am Telefon. "Ohne Backup ist es kein Restore mehr", sagt er. "Es ist Wiederaufbau. Aber das kriegen wir hin."',
+        setsFlags: ['rebuild_help'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_mayor_call',
+    title: 'Der Bürgermeister ruft an',
+    category: 'story',
+    weekRange: [10, 10],
+    probability: 1,
+    description: `Chef Berts Telefon klingelt. Er schaut aufs Display und wird eine Nuance blasser. "Der Bürgermeister."
+
+Er nimmt ab, sagt dreimal "Jawohl", einmal "Also, technisch gesehen—" und hält dir dann wortlos den Hörer hin. Aus der Muschel: "—und die Presse steht bereits vor dem Rathaus! 'Hackerangriff legt Müllabfuhr lahm!' Wissen Sie, was die aus sowas machen? WERTSTOFFHOF-GATE!"
+
+Durch die Jalousie siehst du auf den Parkplatz: Ein Übertragungswagen rangiert zwischen die Restmülltonnen.
+
+Bjorg flüstert: "Sag ihm nichts von den 500 Bitcoin. Sag ihm UM GOTTES WILLEN nichts von den Bitcoin."
+
+Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: Wie schlimm ist es, und wann fährt die Müllabfuhr wieder?"`,
+    involvedCharacters: ['chef', 'kollege'],
+    tags: ['story', 'chapter10', 'act3', 'crisis', 'communication'],
+    choices: [
+      {
+        id: 'honest_briefing',
+        text: 'Ehrlich briefen: klare Lage, klarer Plan, realistischer Zeitrahmen',
+        effects: { relationships: { gf: 10, chef: 8 }, compliance: 10, skills: { softSkills: 5 } },
+        resultText:
+          'Du sagst die Wahrheit: was steht, was liegt, was ihr tut, und dass die Tonnen übermorgen wieder geleert werden — im Notbetrieb, auf Papier. Stille am anderen Ende. Dann: "Endlich mal jemand, der nicht rumeiert. Was brauchen Sie von mir?" Du hast gerade einen Verbündeten im Rathaus gewonnen.',
+        setsFlags: ['honest_briefing', 'mayor_ally'],
+        teachingMoment:
+          'Krisenkommunikation nach oben: Lage, Maßnahmen, Prognose — ehrlich und ohne Fachjargon. Vertrauen entsteht durch Klarheit, nicht durch Beschwichtigung.',
+      },
+      {
+        id: 'downplay',
+        text: 'Beschwichtigen: "Ein technischer Defekt, wir haben alles im Griff"',
+        effects: { stress: -5, relationships: { gf: 5 } },
+        resultText:
+          'Der Bürgermeister ist fürs Erste beruhigt und wiederholt deine Formulierung wortwörtlich vor laufender Kamera. Bjorg schaut dich an. Ihr wisst beide: Wenn rauskommt, was es wirklich ist — und es WIRD rauskommen —, fällt "technischer Defekt" euch auf die Füße.',
+        setsFlags: ['downplayed_crisis'],
+      },
+      {
+        id: 'blame_vendor',
+        text: 'Die Schuld weiterreichen: "Der externe Dienstleister hat da was verbockt"',
+        effects: { relationships: { gf: 8, kollegen: -10 }, stress: -5 },
+        resultText:
+          'Der Bürgermeister hat seinen Schuldigen, die Pressemitteilung schreibt sich von selbst. Nur: Es stimmt nicht — noch nicht, ihr habt keine Beweise. Bjorg sagt leise: "Genau so hat es bei uns damals auch angefangen. Erst zeigt jeder auf jeden, dann arbeitet keiner mehr zusammen."',
+        setsFlags: ['blamed_others'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_thomas_helps',
+    title: 'Bjorgs Revanche',
+    category: 'story',
+    weekRange: [10, 10],
+    probability: 1,
+    description: `Es ist die zweite Nacht, und Bjorg ist ein anderer Mensch.
+
+Vor zehn Jahren beim Energieversorger hat man ihn nicht gehört — bis es zu spät war, bis die Lichter ausgingen und alle plötzlich wussten, dass der komische Linux-Typ die ganze Zeit recht gehabt hatte. Diese Nacht hat ihn nie losgelassen.
+
+Jetzt kennt er diese Sorte Nacht auswendig. Er weiß, welche Fehler man um drei Uhr macht. Er weiß, wann man eine Pause erzwingen muss und wann man durchziehen kann. Er bewegt sich durch die Krise wie durch ein vertrautes, hässliches Zimmer.
+
+Der Mann, dem damals niemand zugehört hat, ist jetzt der, auf den alle hören. Und er schaut dich an: "Sag mir, wo du mich brauchst."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter10', 'act3', 'crisis', 'emotional'],
+    choices: [
+      {
+        id: 'give_him_lead',
+        text: 'Ihm die technische Einsatzleitung geben',
+        effects: { relationships: { kollegen: 15 }, skills: { softSkills: 3 } },
+        resultText: 'Du sagst es vor versammeltem Krisenstab: "Bjorg führt die technische Wiederherstellung. Was er sagt, gilt." Für einen Moment sieht er aus, als hätte ihm das seit zehn Jahren jemand sagen müssen. Dann nickt er, krempelt die Ärmel hoch, und der Serverraum wird zu seinem Kommandostand. Ihr habt selten so gut funktioniert.',
+        setsFlags: ['bjorg_lead', 'coordinated_defense'],
+      },
+      {
+        id: 'shoulder_to_shoulder',
+        text: 'Seite an Seite — ihr teilt euch die Front',
+        effects: { skills: { security: 4, linux: 3 }, relationships: { kollegen: 8 } },
+        resultText: 'Ihr arbeitet Schulter an Schulter, zwei Terminals nebeneinander, und irgendwann läuft es ohne Worte: Er wirft dir einen Blick zu, du kennst den Befehl schon. "Weißt du", sagt er gegen fünf Uhr, "so hätte ich das damals gebraucht. Jemanden neben mir." Ihr sagt beide nichts weiter. Müsst ihr auch nicht.',
+        setsFlags: ['shoulder_to_shoulder'],
+      },
+      {
+        id: 'ground_him',
+        text: 'Ihn bremsen, als er sich übernimmt',
+        effects: { skills: { softSkills: 5 } },
+        resultText: 'Gegen zwei Uhr merkst du es: Er will zehn Jahre alte Schuld in einer einzigen Nacht abtragen, und er brennt sich dabei aus. Du schickst ihn für vier Stunden nach Hause. Er geht — unter Protest — und kommt mit klarem Kopf und einer Tüte Brötchen zurück. "Danke", sagt er nur, und meint mehr als die vier Stunden.',
+        setsFlags: ['bjorg_grounded'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_alone_in_crisis',
+    title: 'Ohne Vertrauen ist die Nacht länger',
+    category: 'story',
+    weekRange: [10, 10],
+    probability: 1,
+    description: `Bjorg arbeitet neben dir. Aber nicht mit dir.
+
+Ihr habt nie die Brücke gebaut — oder du hast sie abgebrochen, irgendwann zwischen einem misstrauischen Blick und einem Wort zu viel. Jetzt sitzt ihr im selben Raum, tippt an denselben Systemen, und redet in kurzen, sachlichen Sätzen aneinander vorbei.
+
+Er weiß Dinge über dieses Netz, die dir helfen würden. Du weißt Dinge über den Angriff, die ihm helfen würden. Aber zwischen euch steht diese Wand, und die Nacht ist verdammt lang.
+
+Draußen tickt der Countdown weiter. Drinnen tickt etwas anderes.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter10', 'act3', 'crisis', 'emotional'],
+    choices: [
+      {
+        id: 'late_reconciliation',
+        text: 'Über den Schatten springen und ihn jetzt einweihen',
+        effects: { relationships: { kollegen: 10 }, stress: -5 },
+        resultText: 'Du drehst deinen Stuhl zu ihm und legst alles auf den Tisch — was du weißt, was du vermutest, wo du unsicher bist. Er schaut dich lange an. Dann rückt er seinen Stuhl heran. "Okay", sagt er. "Fangen wir nochmal von vorne an." Es ist spät für einen Neuanfang. Aber nicht zu spät.',
+        setsFlags: ['late_reconciliation'],
+      },
+      {
+        id: 'lone_wolf',
+        text: 'Allein durchziehen — vertrau niemandem, wie Stefan es getan hat',
+        effects: { skills: { security: 4 }, stress: 15 },
+        resultText: 'Du machst es allein. Kopf runter, Terminal auf, niemandem Rechenschaft. Du kommst voran — und du verpasst zwei Dinge, die vier Augen sofort gesehen hätten: einen halb wiederhergestellten Dienst, der offen ins Netz hängt, und eine Fehlermeldung, die alles erklärt hätte. Stefan hat auch allein gearbeitet. Man hat ihn in einem inszenierten Autounfall fast umgebracht.',
+        setsFlags: ['lone_wolf', 'burned_bridges'],
+      },
+      {
+        id: 'divided_labor',
+        text: 'Die Arbeit strikt aufteilen — professionell, distanziert',
+        effects: { skills: { troubleshooting: 3 } },
+        resultText: 'Ihr teilt euch die Systeme auf wie zwei Handwerker, die sich nicht mögen, aber denselben Job haben. Es funktioniert, mechanisch. Am Morgen ist die Hälfte wiederhergestellt und keiner von euch hat ein Wort zu viel gesagt. Effizient. Und einsam.',
+        setsFlags: ['divided_labor'],
+      },
+    ],
+  },
 ];
