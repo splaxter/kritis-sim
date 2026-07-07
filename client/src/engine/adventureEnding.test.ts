@@ -5,11 +5,39 @@ import {
   calculateAdventureEnding,
   deriveEndingFlags,
   deriveStoryPath,
+  getNextStoryContent,
+  advanceStoryBeat,
+  isAdventureModeComplete,
 } from './adventureEngine';
+import { allEvents } from '../content/events';
+import { adventureStoryEvents } from '../content/adventure/story-events';
+import { adventureSidequestEvents } from '../content/adventure/sidequest-events';
+import { getAllScenarios } from '../content/packs';
 
 function storyState(overrides: Partial<GameState> = {}): GameState {
   const base = createInitialState('TEST-SEED', 'story');
   return { ...base, storyState: createInitialAdventureState(), ...overrides };
+}
+
+const walkEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
+const walkScenarios = getAllScenarios();
+
+/** Walk every beat of every chapter with the given flags; return served content ids. */
+function walkCampaign(flags: Record<string, boolean>): string[] {
+  let state = storyState({ flags });
+  const served: string[] = [];
+  let guard = 0;
+  while (!isAdventureModeComplete(state) && guard++ < 200) {
+    const { content } = getNextStoryContent(state, walkEvents, walkScenarios);
+    expect(
+      content,
+      `beat ${state.storyState!.currentChapter}/${state.storyState!.currentBeatIndex} must resolve`
+    ).not.toBeNull();
+    served.push(content!.id);
+    state = { ...state, storyState: advanceStoryBeat(state) };
+  }
+  expect(guard).toBeLessThan(200); // no infinite loop; campaign completes
+  return served;
 }
 
 describe('determineEnding thresholds', () => {
@@ -84,5 +112,45 @@ describe('calculateAdventureEnding (integration of derivation)', () => {
     s.relationships.chef = -40;
     s.relationships.kollegen = -20;
     expect(calculateAdventureEnding(s)).toBe('bad');
+  });
+});
+
+describe('campaign paths reach all three endings', () => {
+  it('hero path: branch flags set, full chain playable, ending = good', () => {
+    const served = walkCampaign({
+      found_basement_server: true,
+      thomas_ally: true,
+      chose_official_route: true,
+    });
+    expect(served).toContain('adv_backup_check');
+    expect(served).toContain('adv_thomas_helps');
+
+    // Build the hero final profile and assert the good ending.
+    const s = storyState({
+      flags: { isolated_systems: true, has_stefan_dossier: true, restore_tested: true },
+    });
+    s.relationships.chef = 40;
+    s.relationships.kollegen = 60;
+    s.storyState!.characterMemory = {
+      chef: { npcId: 'chef', interactions: 5, trustLevel: 60, memorableEvents: [], currentArc: 'friend' },
+      kollegen: { npcId: 'kollegen', interactions: 9, trustLevel: 80, memorableEvents: [], currentArc: 'ally' },
+    };
+    expect(calculateAdventureEnding(s)).toBe('good');
+  });
+
+  it('alternate path: no basement server, no Bjorg trust => alternates play', () => {
+    const served = walkCampaign({});
+    expect(served).toContain('adv_no_backup');
+    expect(served).toContain('adv_alone_in_crisis');
+  });
+
+  it('bad profile resolves to bad, neutral profile to neutral', () => {
+    const bad = storyState({ flags: { burned_bridges: true, blamed_others: true } });
+    bad.relationships.chef = -40;
+    bad.relationships.kollegen = -20;
+    expect(calculateAdventureEnding(bad)).toBe('bad');
+
+    const neutral = storyState({ flags: { has_stefan_dossier: true } });
+    expect(calculateAdventureEnding(neutral)).toBe('neutral');
   });
 });

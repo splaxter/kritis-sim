@@ -171,3 +171,33 @@ describe('campaign (story mode) consistency', () => {
     expect(dupes, `duplicate adventure event ids (2nd definition is dead):\n${dupes.join('\n')}`).toEqual([]);
   });
 });
+
+describe('Act 3 choice design rules', () => {
+  const act3Chapters = adventureChapters.filter((c) => c.act === 3);
+  const beatEventIds = new Set<string>();
+  for (const ch of act3Chapters) {
+    for (const b of ch.storyBeats) {
+      beatEventIds.add(b.eventId);
+      if (b.alternateEventId) beatEventIds.add(b.alternateEventId);
+    }
+  }
+
+  it('every Act-3 beat event has >= 2 ungated options (no requires, not hidden)', () => {
+    const violations: string[] = [];
+    for (const e of adventureStoryEvents.filter((e) => beatEventIds.has(e.id))) {
+      const ungated = (e.choices ?? []).filter((c) => !c.hidden && !c.requires);
+      if (ungated.length < 2) violations.push(`${e.id}: ${ungated.length} ungated`);
+    }
+    expect(violations, violations.join('\n')).toEqual([]);
+  });
+
+  it('every Act-3 choice carries consequence text (resultText non-empty)', () => {
+    const missing: string[] = [];
+    for (const e of adventureStoryEvents.filter((e) => beatEventIds.has(e.id))) {
+      for (const c of e.choices ?? []) {
+        if (!c.resultText || c.resultText.trim().length === 0) missing.push(`${e.id}/${c.id}`);
+      }
+    }
+    expect(missing, missing.join('\n')).toEqual([]);
+  });
+});
