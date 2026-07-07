@@ -415,15 +415,6 @@ function AppContent() {
             {game.gameOverReason === 'probezeit_complete' && `Du hast die ${modeConfig.gameLength.totalWeeks} Wochen überstanden!`}
           </p>
 
-          {/* Show arcade score if applicable */}
-          {game.state.gameMode === 'arcade' && game.state.arcadeScore !== undefined && (
-            <div className="mb-4 p-3 border border-terminal-info">
-              <div className="text-terminal-info text-lg">
-                ARCADE SCORE: {game.state.arcadeScore.toLocaleString('de-DE')}
-              </div>
-            </div>
-          )}
-
           {/* Mode info */}
           <div className="text-terminal-green-dim text-sm mb-6">
             Modus: {modeConfig.icon} {modeConfig.name}

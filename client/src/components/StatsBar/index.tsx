@@ -102,15 +102,6 @@ export function StatsBar({ state, currentLessonNumber, totalLessons }: StatsBarP
           </span>
         </div>
         <div className="flex items-center gap-4">
-          {/* Arcade score display */}
-          {state.gameMode === 'arcade' && state.arcadeScore !== undefined && (
-            <span className="text-terminal-info">
-              Score: {state.arcadeScore.toLocaleString('de-DE')}
-              {state.comboMultiplier && state.comboMultiplier > 1 && (
-                <span className="text-terminal-warning ml-1">x{state.comboMultiplier}</span>
-              )}
-            </span>
-          )}
           <span className="text-terminal-green-dim">
             Woche {state.currentWeek}/{totalWeeks} | {DAYS[state.currentDay]}
           </span>
