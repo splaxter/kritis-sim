@@ -13,8 +13,10 @@ import {
   findSidequestByEvent,
   advanceStoryBeat,
   getStoryProgress,
+  getNextStoryContent,
+  pickSidequestToStart,
 } from './adventureEngine';
-import { GameState, SidequestDefinition, createInitialAdventureState } from '@kritis/shared';
+import { GameEvent, GameState, SidequestDefinition, createInitialAdventureState } from '@kritis/shared';
 
 function createTestState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -270,5 +272,62 @@ describe('Sidequest Event Detection', () => {
   it('returns null for non-sidequest event', () => {
     const sidequest = findSidequestByEvent('adv_welcome');
     expect(sidequest).toBeNull();
+  });
+});
+
+describe('Sidequest Serving', () => {
+  const stubEvent = (id: string): GameEvent => ({
+    id,
+    title: id,
+    category: 'story',
+    weekRange: [1, 12],
+    probability: 1,
+    description: id,
+    involvedCharacters: [],
+    tags: [],
+    choices: [],
+  });
+
+  it('serves the active sidequest event BEFORE the current story beat', () => {
+    const state = createTestState({
+      storyState: {
+        ...createInitialAdventureState(),
+        currentChapter: 'ch03_first_crisis',
+        currentBeatIndex: 0,
+        activeSidequests: ['sq_haunted_printer'],
+        sidequestProgress: { sq_haunted_printer: 1 },
+      },
+    });
+    const events = [stubEvent('adv_printer_emergency'), stubEvent('adv_sq_printer_2')];
+    const result = getNextStoryContent(state, events, []);
+    expect(result.type).toBe('sidequest');
+    expect((result.content as GameEvent).id).toBe('adv_sq_printer_2');
+  });
+
+  it('falls back to the story beat when no sidequest is active or startable', () => {
+    const state = createTestState({
+      relationships: { chef: 0, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 0 },
+      skills: { netzwerk: 0, linux: 0, windows: 0, security: 0, troubleshooting: 0, softSkills: 0 },
+      storyState: {
+        ...createInitialAdventureState(),
+        currentChapter: 'ch01_first_day',
+        currentBeatIndex: 0,
+      },
+    });
+    const events = [stubEvent('adv_welcome')];
+    expect(getNextStoryContent(state, events, []).type).toBe('story');
+  });
+
+  it('pickSidequestToStart is deterministic for a given state', () => {
+    const state = createTestState({
+      storyState: {
+        ...createInitialAdventureState(),
+        currentChapter: 'ch03_first_crisis',
+        currentBeatIndex: 0,
+      },
+    });
+    const a = pickSidequestToStart(state);
+    const b = pickSidequestToStart(state);
+    expect(a?.id).toBe(b?.id); // includes the both-null case
   });
 });

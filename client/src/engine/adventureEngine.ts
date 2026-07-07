@@ -100,7 +100,34 @@ export function getNextStoryContent(
   const advState = state.storyState;
   const currentBeat = chapter.storyBeats[advState.currentBeatIndex];
 
-  // Check if we have a pending story beat
+  // (a) An active sidequest with a pending authored event serves FIRST — before
+  // the story beat — so a quest the player started actually plays through. Quest
+  // chains are ≤3 events, so the main story pauses at most 3 days (intended pacing).
+  const activeSidequestId = advState.activeSidequests[0];
+  if (activeSidequestId) {
+    const sidequest = adventureSidequests.find(sq => sq.id === activeSidequestId);
+    if (sidequest) {
+      const progress = advState.sidequestProgress[activeSidequestId] || 0;
+      if (progress < sidequest.events.length) {
+        const content = findContent(sidequest.events[progress], allEvents, allScenarios);
+        if (content) {
+          return { content, type: 'sidequest' };
+        }
+      }
+    }
+  }
+
+  // (b) Otherwise maybe START a new sidequest (seeded 30% gate — deterministic,
+  // matching the game's simpleHash convention instead of Math.random).
+  const startable = pickSidequestToStart(state);
+  if (startable) {
+    const content = findContent(startable.events[0], allEvents, allScenarios);
+    if (content) {
+      return { content, type: 'sidequest' };
+    }
+  }
+
+  // (c) Otherwise serve the current story beat.
   if (currentBeat) {
     // Determine which event to use based on branch condition
     let eventId = currentBeat.eventId;
@@ -114,40 +141,39 @@ export function getNextStoryContent(
     }
   }
 
-  // Check for available sidequests (30% chance to insert between story beats)
-  const availableSidequests = getAvailableSidequests(state);
-  if (availableSidequests.length > 0) {
-    // Check if there's an active sidequest in progress
-    const activeSidequest = advState.activeSidequests[0];
-    if (activeSidequest) {
-      const sidequest = adventureSidequests.find(sq => sq.id === activeSidequest);
-      if (sidequest) {
-        const progress = advState.sidequestProgress[activeSidequest] || 0;
-        if (progress < sidequest.events.length) {
-          const content = findContent(sidequest.events[progress], allEvents, allScenarios);
-          if (content) {
-            return { content, type: 'sidequest' };
-          }
-        }
-      }
-    }
-
-    // Maybe start a new sidequest (30% chance)
-    if (Math.random() < 0.3) {
-      const randomSidequest = availableSidequests[Math.floor(Math.random() * availableSidequests.length)];
-      const content = findContent(randomSidequest.events[0], allEvents, allScenarios);
-      if (content) {
-        return { content, type: 'sidequest' };
-      }
-    }
-  }
-
-  // If no more beats, chapter is complete
+  // (d) If no more beats, chapter is complete.
   if (!currentBeat) {
     return { content: null, type: 'chapter_complete' };
   }
 
   return { content: null, type: 'story' };
+}
+
+/**
+ * Deterministically decide whether to start a new sidequest this step (and which).
+ * Replaces the old untestable Math.random() < 0.3 gate with a seeded hash so a
+ * given state always yields the same answer (game-wide seeded-determinism convention).
+ * Returns null ~70% of the time, or when no sidequest is available/startable.
+ */
+export function pickSidequestToStart(state: GameState): SidequestDefinition | null {
+  const available = getAvailableSidequests(state);
+  if (available.length === 0) return null;
+
+  const hash = simpleHash(
+    state.seed + state.currentWeek + state.currentDay + state.completedEvents.length + 'sq'
+  );
+  if (hash % 100 >= 30) return null;
+  return available[hash % available.length];
+}
+
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash = hash & hash;
+  }
+  return Math.abs(hash);
 }
 
 /**
