@@ -3,7 +3,7 @@ import { GameEvent } from '@kritis/shared';
 /**
  * Tutorial Events for Beginner Mode
  * These events only appear in beginner mode and teach basic terminal commands
- * Bjorg guides the player through fundamental IT admin tasks
+ * Jens guides the player through fundamental IT admin tasks
  */
 
 export const tutorialEvents: GameEvent[] = [
@@ -18,7 +18,7 @@ export const tutorialEvents: GameEvent[] = [
     },
     category: 'team',
     title: 'Terminal-Grundlagen: Navigation',
-    description: `{kollege} kommt zu deinem Schreibtisch rüber.
+    description: `Jens kommt zu deinem Schreibtisch rüber. Von sich aus. Das passiert nicht oft.
 
 "Hey, hast du kurz Zeit? Bevor es richtig losgeht, zeig ich dir mal die wichtigsten Terminal-Befehle. Die wirst du hier ständig brauchen."
 
@@ -27,9 +27,9 @@ Er zeigt auf deinen Bildschirm. "Öffne mal das Terminal, dann fangen wir an."`,
     choices: [
       {
         id: 'ready',
-        text: 'Danke Bjorg, das ist sehr hilfreich!',
+        text: 'Danke Jens, das ist sehr hilfreich!',
         effects: { relationships: { kollegen: 5 }, skills: { linux: 5 } },
-        resultText: '{kollege} nickt zufrieden. "Perfekt! Das sind die Grundlagen. Die restlichen Befehle zeig ich dir morgen."',
+        resultText: 'Jens nickt zufrieden. "Perfekt! Das sind die Grundlagen. Die restlichen Befehle zeig ich dir morgen."',
         terminalCommand: true,
       },
     ],
@@ -84,10 +84,10 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
         },
       ],
       hints: [
-        '💡 Bjorg: "Okay, fangen wir an. Tippe `pwd` um zu sehen, wo du gerade bist."',
-        '💡 Bjorg: "Super! Jetzt `ls` um die Dateien und Ordner hier zu sehen."',
-        '💡 Bjorg: "Mit `cd Dokumente` wechselst du in einen Ordner. Probier mal!"',
-        '💡 Bjorg: "Und mit `cd ..` gehst du wieder zurück. Einfach, oder?"',
+        '💡 Jens: "Okay, fangen wir an. Tippe `pwd` um zu sehen, wo du gerade bist."',
+        '💡 Jens: "Super! Jetzt `ls` um die Dateien und Ordner hier zu sehen."',
+        '💡 Jens: "Mit `cd Dokumente` wechselst du in einen Ordner. Probier mal!"',
+        '💡 Jens: "Und mit `cd ..` gehst du wieder zurück. Einfach, oder?"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -103,7 +103,7 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
     },
     category: 'team',
     title: 'Terminal-Grundlagen: Dateien lesen',
-    description: `{kollege} kommt wieder vorbei mit zwei Kaffeetassen.
+    description: `Jens kommt wieder vorbei, mit zwei Kaffeetassen.
 
 "Na, bereit für Lektion zwei? Heute zeig ich dir, wie du Dateien liest - ohne sie in einem Editor öffnen zu müssen. Das spart Zeit."
 
@@ -114,7 +114,7 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
         id: 'ready',
         text: 'Perfekt, ich hab mir Notizen gemacht!',
         effects: { relationships: { kollegen: 5 }, skills: { linux: 5 } },
-        resultText: '{kollege} grinst. "Ein Notizenmacher! Gefällt mir. Morgen dann grep - das wird richtig nützlich."',
+        resultText: 'Jens grinst — kurz, aber echt. "Ein Notizenmacher! Gefällt mir. Morgen dann grep - das wird richtig nützlich."',
         terminalCommand: true,
       },
     ],
@@ -173,10 +173,10 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
         },
       ],
       hints: [
-        '💡 Bjorg: "Schau mal in den logs-Ordner. Tippe `ls` um zu sehen was da ist."',
-        '💡 Bjorg: "Mit `cat dateiname` zeigst du den Inhalt einer Datei an. Probier `cat system.log`"',
-        '💡 Bjorg: "Bei langen Dateien hilft `head -3 datei` für die ersten 3 Zeilen."',
-        '💡 Bjorg: "Und `tail -2 datei` zeigt die letzten 2 Zeilen. Super für aktuelle Logs!"',
+        '💡 Jens: "Schau mal in den logs-Ordner. Tippe `ls` um zu sehen was da ist."',
+        '💡 Jens: "Mit `cat dateiname` zeigst du den Inhalt einer Datei an. Probier `cat system.log`"',
+        '💡 Jens: "Bei langen Dateien hilft `head -3 datei` für die ersten 3 Zeilen."',
+        '💡 Jens: "Und `tail -2 datei` zeigt die letzten 2 Zeilen. Super für aktuelle Logs!"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -192,7 +192,7 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
     },
     category: 'team',
     title: 'Terminal-Grundlagen: Suchen',
-    description: `{kollege} schaut von seinem Monitor auf.
+    description: `Jens schaut von seinem Monitor auf.
 
 "Hey, ich hab ein echtes Problem für dich. Irgendwo in den Logs ist eine Fehlermeldung versteckt, und ich brauch sie für ein Ticket. Die Logs sind aber riesig."
 
@@ -203,7 +203,7 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         id: 'ready',
         text: 'grep ist ja wirklich mächtig!',
         effects: { relationships: { kollegen: 5 }, skills: { linux: 5 } },
-        resultText: '{kollege} nickt enthusiastisch. "Das war nur die Spitze des Eisbergs. Warte bis du grep mit Regex kombinierst!"',
+        resultText: 'Jens nickt — für seine Verhältnisse fast enthusiastisch. "Das war nur die Spitze des Eisbergs. Warte bis du grep mit Regex kombinierst!"',
         terminalCommand: true,
       },
     ],
@@ -262,10 +262,10 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         },
       ],
       hints: [
-        '💡 Bjorg: "Versuch mal `grep ERROR error.log` um nach Fehlern zu suchen."',
-        '💡 Bjorg: "Mit `-i` ist die Suche case-insensitive: `grep -i failed auth.log`"',
-        '💡 Bjorg: "Mit `-c` zählst du die Treffer: `grep -c ERROR error.log`"',
-        '💡 Bjorg: "Und `-r` sucht rekursiv in allen Dateien: `grep -r ERROR .`"',
+        '💡 Jens: "Versuch mal `grep ERROR error.log` um nach Fehlern zu suchen."',
+        '💡 Jens: "Mit `-i` ist die Suche case-insensitive: `grep -i failed auth.log`"',
+        '💡 Jens: "Mit `-c` zählst du die Treffer: `grep -c ERROR error.log`"',
+        '💡 Jens: "Und `-r` sucht rekursiv in allen Dateien: `grep -r ERROR .`"',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -281,18 +281,18 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
     },
     category: 'team',
     title: 'Terminal-Grundlagen: Netzwerk',
-    description: `{kollege} ruft von seinem Platz: "Hey, der Mailserver antwortet nicht. Kannst du mal checken ob er überhaupt erreichbar ist?"
+    description: `Jens ruft von seinem Platz — was allein schon ein Ereignis ist: "Hey, der Mailserver antwortet nicht. Kannst du mal checken ob er überhaupt erreichbar ist?"
 
 Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch gelesen hast.
 
-"Die Adresse ist mail.warm.local", fügt Bjorg hinzu.`,
+"Die Adresse ist mail.warm.local", fügt er hinzu.`,
     involvedCharacters: ['kollege'],
     choices: [
       {
         id: 'ready',
         text: 'Server ist erreichbar - war wohl nur ein Timeout!',
         effects: { relationships: { kollegen: 10 }, skills: { netzwerk: 5 } },
-        resultText: '{kollege} gibt dir einen Daumen hoch. "Gut gemacht! Das sind die wichtigsten Diagnose-Tools. Den Rest lernst du on the job."',
+        resultText: 'Jens gibt dir einen Daumen hoch. "Gut gemacht! Das sind die wichtigsten Diagnose-Tools. Den Rest lernst du on the job."',
         terminalCommand: true,
       },
     ],
@@ -358,10 +358,10 @@ Address: 192.168.1.50`,
         },
       ],
       hints: [
-        '💡 Bjorg: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
-        '💡 Bjorg: "Tipp: Mit `ping -c 3` begrenzt du auf 3 Pakete, sonst läuft es ewig."',
-        '💡 Bjorg: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
-        '💡 Bjorg: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
+        '💡 Jens: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
+        '💡 Jens: "Tipp: Mit `ping -c 3` begrenzt du auf 3 Pakete, sonst läuft es ewig."',
+        '💡 Jens: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
+        '💡 Jens: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux', 'network'],

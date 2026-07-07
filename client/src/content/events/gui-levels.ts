@@ -23,7 +23,7 @@ export const guiLevelEvents: GameEvent[] = [
 Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Mach den Task-Manager auf. Irgendein Prozess frisst die ganze CPU.
+[NACHRICHT VON: jens] "Mach den Task-Manager auf. Irgendein Prozess frisst die ganze CPU.
                         Finde ihn. Beende ihn. Aber Finger weg von den System-Prozessen."
 \`\`\`
 
@@ -68,9 +68,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Sortier im Kopf nach CPU. Welcher Prozess sticht mit ~94% raus?"',
-        '🤖 Bjorg: "Ein legitimer Prozess hat einen verifizierten Herausgeber. „kein verifizierter Herausgeber" ist ein Warnsignal."',
-        '🤖 Bjorg: "xmr-stak ist ein bekannter Monero-Miner. Wähl ihn aus und klick „Task beenden"."',
+        '🤖 Jens: "Sortier im Kopf nach CPU. Welcher Prozess sticht mit ~94% raus?"',
+        '🤖 Jens: "Ein legitimer Prozess hat einen verifizierten Herausgeber. „kein verifizierter Herausgeber" ist ein Warnsignal."',
+        '🤖 Jens: "xmr-stak ist ein bekannter Monero-Miner. Wähl ihn aus und klick „Task beenden"."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'malware'],
@@ -89,7 +89,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Das SIEM hat um kurz nach 03:00 Uhr Alarm geschlagen: ungewöhnlich viele fehlgeschlagene Anmeldungen am Domänencontroller.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Mach die Ereignisanzeige auf, Sicherheitsprotokoll.
+[NACHRICHT VON: jens] "Mach die Ereignisanzeige auf, Sicherheitsprotokoll.
                         Jemand hat heute Nacht das Admin-Konto durchprobiert.
                         Die Frage ist: Hat er's geschafft? Finde den Beweis und meld ihn."
 \`\`\`
@@ -219,9 +219,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Filter oben auf „Überwachung fehlgeschlagen". Fällt dir ein Muster auf?"',
-        '🤖 Bjorg: "Alle Fehlversuche: Konto „Administrator", Quelle 10.0.0.66. Klassischer Brute-Force."',
-        '🤖 Bjorg: "Jetzt die entscheidende Frage: Gibt es eine ERFOLGREICHE Anmeldung (4624) von genau dieser IP? Such sie, wähl sie aus, melde sie."',
+        '🤖 Jens: "Filter oben auf „Überwachung fehlgeschlagen". Fällt dir ein Muster auf?"',
+        '🤖 Jens: "Alle Fehlversuche: Konto „Administrator", Quelle 10.0.0.66. Klassischer Brute-Force."',
+        '🤖 Jens: "Jetzt die entscheidende Frage: Gibt es eine ERFOLGREICHE Anmeldung (4624) von genau dieser IP? Such sie, wähl sie aus, melde sie."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'kritis', 'incident'],
@@ -240,7 +240,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Du hast einen E-Mail-Anhang heruntergeladen — angeblich eine Rechnung. Beim Doppelklick poppt sofort die Benutzerkontensteuerung auf und will Administratorrechte.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Stopp. Lies das Fenster GENAU, bevor du klickst.
+[NACHRICHT VON: jens] "Stopp. Lies das Fenster GENAU, bevor du klickst.
                         Herausgeber? Dateiendung? Woher kommt die Datei?
                         Im Zweifel: ablehnen. Ein Klick auf „Ja" gibt vollen Zugriff."
 \`\`\`
@@ -285,9 +285,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Schau auf „Verifizierter Herausgeber". Steht da „Unbekannt"? Schlechtes Zeichen."',
-        '🤖 Bjorg: "Und die Dateiendung: „.pdf.exe" — das ist KEIN PDF, das ist ein Programm."',
-        '🤖 Bjorg: "Unsigniert + getarnt + aus einer Mail. Klick „Nein"."',
+        '🤖 Jens: "Schau auf „Verifizierter Herausgeber". Steht da „Unbekannt"? Schlechtes Zeichen."',
+        '🤖 Jens: "Und die Dateiendung: „.pdf.exe" — das ist KEIN PDF, das ist ein Programm."',
+        '🤖 Jens: "Unsigniert + getarnt + aus einer Mail. Klick „Nein"."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'uac', 'phishing'],
@@ -306,7 +306,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Schon wieder ein Rechner am Anschlag — aber diesmal ist es nicht so offensichtlich. Diesmal versteckt sich der Schädling zwischen den System-Prozessen.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Aufgepasst, der hier ist gerissen. Er nennt sich fast genau wie ein
+[NACHRICHT VON: jens] "Aufgepasst, der hier ist gerissen. Er nennt sich fast genau wie ein
                         Windows-Prozess — ein Buchstabe vertauscht, und du killst aus Versehen
                         das echte System. Lies die Namen GENAU. Und nicht jeder Prozess mit
                         viel CPU ist böse — manchmal ist es nur der Virenscanner."
@@ -355,9 +355,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "MsMpEng.exe mit 41% — das ist der Defender beim Scannen. Legitim, Finger weg."',
-        '🤖 Bjorg: "Lies die Namen Buchstabe für Buchstabe. svchost… scvhost… Merkst du was?"',
-        '🤖 Bjorg: "Der echte svchost.exe ist kritisch und liegt nie unter C:\\Users\\Public\\Temp. Beende „scvhost.exe"."',
+        '🤖 Jens: "MsMpEng.exe mit 41% — das ist der Defender beim Scannen. Legitim, Finger weg."',
+        '🤖 Jens: "Lies die Namen Buchstabe für Buchstabe. svchost… scvhost… Merkst du was?"',
+        '🤖 Jens: "Der echte svchost.exe ist kritisch und liegt nie unter C:\\Users\\Public\\Temp. Beende „scvhost.exe"."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'malware', 'typosquatting'],
@@ -373,10 +373,10 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     category: 'training',
     involvedCharacters: [],
     title: 'GUI-Lektion: Die Hintertür',
-    description: `Der Brute-Force von letzter Nacht ist eingedämmt, das Konto gesperrt. Aber Bjorg ist nicht beruhigt.
+    description: `Der Brute-Force von letzter Nacht ist eingedämmt, das Konto gesperrt. Aber Jens ist nicht beruhigt.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Ein Angreifer, der einmal drin war, baut sich eine Hintertür — ein
+[NACHRICHT VON: jens] "Ein Angreifer, der einmal drin war, baut sich eine Hintertür — ein
                         eigenes Konto, damit er auch nach dem Passwort-Reset wieder reinkommt.
                         Such im Protokoll, was er NACH dem Einbruch gemacht hat. Irgendwo hat
                         er sich ein Konto angelegt und es zum Admin gemacht. DAS ist die Bombe."
@@ -496,9 +496,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Der Login von 03:17 kennen wir schon. Schau, was DANACH passiert ist — 03:19, 03:23, 03:31."',
-        '🤖 Bjorg: "Event 4720 = neues Konto. Es gibt zwei davon. Eins ist ein reguläres HR-Onboarding vom Vortag, eins kam mitten in der Nacht vom Angreifer."',
-        '🤖 Bjorg: "„helpdesk-svc$" wird Sekunden nach der Erstellung Administrator (4732). DAS ist die Hintertür — wähl es aus und melde es."',
+        '🤖 Jens: "Der Login von 03:17 kennen wir schon. Schau, was DANACH passiert ist — 03:19, 03:23, 03:31."',
+        '🤖 Jens: "Event 4720 = neues Konto. Es gibt zwei davon. Eins ist ein reguläres HR-Onboarding vom Vortag, eins kam mitten in der Nacht vom Angreifer."',
+        '🤖 Jens: "„helpdesk-svc$" wird Sekunden nach der Erstellung Administrator (4732). DAS ist die Hintertür — wähl es aus und melde es."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'kritis', 'incident', 'persistence'],
@@ -517,7 +517,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Du installierst gerade das vom Rechenzentrum freigegebene Archiv-Tool, das auf der internen Software-Liste steht. Du hast es selbst aus dem firmeneigenen Software-Portal gestartet. Sofort meldet sich die Benutzerkontensteuerung.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Letztes Mal hast du richtig abgelehnt. Aber pass auf: Sicherheit
+[NACHRICHT VON: jens] "Letztes Mal hast du richtig abgelehnt. Aber pass auf: Sicherheit
                         heißt nicht „immer Nein". Wenn du JEDE Abfrage wegklickst, kann
                         keiner mehr arbeiten — und die Leute schalten die UAC genervt ab.
                         Prüf das Fenster. Wenn alles sauber ist, lass es zu."
@@ -563,9 +563,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Schau zuerst auf „Verifizierter Herausgeber". Diesmal steht da ein echter Name — kein „Unbekannt"."',
-        '🤖 Bjorg: "Die Datei liegt in C:\\ProgramData\\SoftwarePortal\\Approved — also freigegeben, nicht aus einer Mail."',
-        '🤖 Bjorg: "Signiert + freigegeben + von dir gestartet. Das ist genau der Fall für „Ja"."',
+        '🤖 Jens: "Schau zuerst auf „Verifizierter Herausgeber". Diesmal steht da ein echter Name — kein „Unbekannt"."',
+        '🤖 Jens: "Die Datei liegt in C:\\ProgramData\\SoftwarePortal\\Approved — also freigegeben, nicht aus einer Mail."',
+        '🤖 Jens: "Signiert + freigegeben + von dir gestartet. Das ist genau der Fall für „Ja"."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'uac', 'judgement'],
@@ -584,7 +584,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Der Angreifer ist raus, das Hintertür-Konto deaktiviert. Aber er hat den Rechner „blind" gemacht: Microsoft Defender ist aus.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Bevor wir hier weitermachen: Der Kerl hat den Echtzeitschutz und die
+[NACHRICHT VON: jens] "Bevor wir hier weitermachen: Der Kerl hat den Echtzeitschutz und die
                         Firewall abgeschaltet. Und er konnte das nur, weil der Manipulationsschutz
                         aus war. Mach ALLE drei wieder an — sonst schaltet der nächste sie genauso
                         leicht wieder ab. Und lass die Sachen in Ruhe, die schon richtig stehen."
@@ -657,9 +657,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Drei Sachen sind rot/„Aktion nötig". Genau die hat der Angreifer abgeschaltet."',
-        '🤖 Bjorg: "Echtzeitschutz und Domänen-Firewall sind klar. Aber WARUM konnte er die abschalten?"',
-        '🤖 Bjorg: "Manipulationsschutz war aus. Mach den auch an — sonst war die ganze Mühe umsonst."',
+        '🤖 Jens: "Drei Sachen sind rot/„Aktion nötig". Genau die hat der Angreifer abgeschaltet."',
+        '🤖 Jens: "Echtzeitschutz und Domänen-Firewall sind klar. Aber WARUM konnte er die abschalten?"',
+        '🤖 Jens: "Manipulationsschutz war aus. Mach den auch an — sonst war die ganze Mühe umsonst."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'hardening', 'defender'],
@@ -677,7 +677,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Bei einer Routine-Prüfung der Dateiserver fällt dir der Finanz-Share auf. Du öffnest die Berechtigungen — und stockst.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Finanzdaten, und „Jeder" hat Vollzugriff? Das heißt: jeder im Haus
+[NACHRICHT VON: jens] "Finanzdaten, und „Jeder" hat Vollzugriff? Das heißt: jeder im Haus
                         kann Gehaltslisten lesen UND ändern. Räum das auf — aber nur das,
                         was wirklich zu weit offen ist. Buchhaltung und Admins brauchen ihren Zugriff."
 \`\`\`
@@ -741,9 +741,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Schau die Spalte „Berechtigung" an — welcher Eintrag gibt ALLEN Vollzugriff?"',
-        '🤖 Bjorg: "„Jeder" (Everyone) auf einem Finanz-Share = jeder im Netz darf lesen und schreiben. Das gehört weg."',
-        '🤖 Bjorg: "Wähl „Jeder" aus und „Entfernen". Buchhaltung und Administratoren lässt du in Ruhe."',
+        '🤖 Jens: "Schau die Spalte „Berechtigung" an — welcher Eintrag gibt ALLEN Vollzugriff?"',
+        '🤖 Jens: "„Jeder" (Everyone) auf einem Finanz-Share = jeder im Netz darf lesen und schreiben. Das gehört weg."',
+        '🤖 Jens: "Wähl „Jeder" aus und „Entfernen". Buchhaltung und Administratoren lässt du in Ruhe."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'acl', 'least-privilege'],
@@ -765,7 +765,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Du prüfst den Personal-Share — diesmal hat niemand „Jeder" eingetragen. Sauber, oder? Trotzdem stutzt du: Warum kann praktisch das halbe Haus die Personalakten ändern?
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Kein „Jeder" diesmal, gut. Aber schau GENAU hin: „Authentifizierte
+[NACHRICHT VON: jens] "Kein „Jeder" diesmal, gut. Aber schau GENAU hin: „Authentifizierte
                         Benutzer" — das ist jeder, der sich überhaupt anmelden kann. Auf
                         Personaldaten mit Schreibrecht ist das fast dasselbe wie „Jeder",
                         nur subtiler. Personal-RW braucht den Zugriff, die anderen nicht."
@@ -838,9 +838,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Diesmal gibt es kein „Jeder". Trotzdem ist eine Gruppe in Wahrheit fast genauso weit gefasst — welche?"',
-        '🤖 Bjorg: "„Authentifizierte Benutzer" heißt: jedes Konto, das sich anmelden kann. Auf Personaldaten mit Schreibrecht ist das viel zu breit."',
-        '🤖 Bjorg: "Wähl „Authentifizierte Benutzer" aus und „Entfernen". Personal-RW, Personalleitung und Administratoren bleiben."',
+        '🤖 Jens: "Diesmal gibt es kein „Jeder". Trotzdem ist eine Gruppe in Wahrheit fast genauso weit gefasst — welche?"',
+        '🤖 Jens: "„Authentifizierte Benutzer" heißt: jedes Konto, das sich anmelden kann. Auf Personaldaten mit Schreibrecht ist das viel zu breit."',
+        '🤖 Jens: "Wähl „Authentifizierte Benutzer" aus und „Entfernen". Personal-RW, Personalleitung und Administratoren bleiben."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'acl', 'least-privilege'],
@@ -862,7 +862,7 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
     description: `Die Bürger-Hotline meldet: Mehrere Sachbearbeiter bekommen seit dem Morgen TLS-/Zertifikatswarnungen auf \`portal.stadt.local\`. Das Monitoring ist grün — Ping und Port 443 antworten.
 
 \`\`\`
-[NACHRICHT VON: bjorg] "Wenn der Server wirklich down wäre, hätten wir einen
+[NACHRICHT VON: jens] "Wenn der Server wirklich down wäre, hätten wir einen
                         Dienst-Absturz im Log. Haben wir aber nicht. Schau ins
                         System-Protokoll — und lies bei den Zertifikats-Meldungen
                         den Hostnamen UND das Ablaufdatum genau."
@@ -953,9 +953,9 @@ Ein Kollege meldet: „Mein Rechner ist seit heute Morgen brutal langsam."
         },
       ],
       hints: [
-        '🤖 Bjorg: "Kein Dienst-Absturz im Log = der Server läuft. Was löst TLS-Warnungen aus, OHNE dass etwas abstürzt?"',
-        '🤖 Bjorg: "Such eine Zertifikats-Meldung (CertificateServicesClient), keine rote Fehlermeldung. Und prüf: gilt sie für portal.stadt.local?"',
-        '🤖 Bjorg: "Die Warnung zu portal.stadt.local — Gültig bis heute Nacht. Das ist die Ursache. Auswählen und „Als Vorfall melden"."',
+        '🤖 Jens: "Kein Dienst-Absturz im Log = der Server läuft. Was löst TLS-Warnungen aus, OHNE dass etwas abstürzt?"',
+        '🤖 Jens: "Such eine Zertifikats-Meldung (CertificateServicesClient), keine rote Fehlermeldung. Und prüf: gilt sie für portal.stadt.local?"',
+        '🤖 Jens: "Die Warnung zu portal.stadt.local — Gültig bis heute Nacht. Das ist die Ursache. Auswählen und „Als Vorfall melden"."',
       ],
     },
     tags: ['learning', 'gui', 'windows', 'security', 'certificates', 'tls', 'detection'],

@@ -80,7 +80,7 @@ Chef Bert steht plötzlich hinter dir. "Was ist ein NIS2?"`,
 - "Risikomanagement" existiert als leerer Ordner
 - Schulungsnachweise? "Ich glaube, Stefan hatte da mal was..."
 
-Bjorg schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."`,
+Jens schaut über deine Schulter. "Willkommen in der Realität kommunaler IT." Aus der Ecke ruft Bjorg: "Doku? Da bin ich raus, ich bin mehr der Praktiker!" Er tippt seit einer Stunde an einer einzigen Mail.`,
     involvedCharacters: ['kollege'],
     tags: ['kritis', 'nis2', 'documentation'],
     choices: [
@@ -100,7 +100,7 @@ Bjorg schaut über deine Schulter. "Willkommen in der Realität kommunaler IT."`
       },
       {
         id: 'ask_for_help',
-        text: 'Bjorg und die Fachabteilungen um Hilfe bitten',
+        text: 'Jens, Henry und die Fachabteilungen um Hilfe bitten',
         effects: { relationships: { kollegen: 10, fachabteilung: 5 }, stress: 5 },
         resultText: 'Gemeinsam geht es schneller. Jede Abteilung liefert ihren Teil. Teamwork.',
         setsFlags: ['documentation_teamwork', 'team_prepared'],
@@ -275,7 +275,7 @@ Du bist jetzt blind UND ohne Backup. Wenn jetzt noch etwas passiert...`,
       },
       {
         id: 'work_parallel',
-        text: 'Bjorg und ich arbeiten parallel an beidem',
+        text: 'Henry und ich arbeiten parallel an beidem',
         effects: { relationships: { kollegen: 10 }, stress: 20 },
         resultText: 'Ihr arbeitet die Nacht durch. Am Morgen läuft beides wieder - provisorisch, aber stabil.',
         setsFlags: ['backup_restored_temporary', 'monitoring_restored_temporary', 'team_crisis_handled'],

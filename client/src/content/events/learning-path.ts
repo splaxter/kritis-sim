@@ -2,7 +2,7 @@
  * Learning Mode - "The Awakening" - Progressive CLI Training
  *
  * NARRATIVE: You wake up logged into a remote server. No memory. No context.
- * A mysterious admin named "Bjorg" left notes for you. Something happened here.
+ * A quiet senior admin named "Jens" left notes for you. Something happened here.
  * You must learn the tools to uncover the truth... and survive.
  *
  * STRUCTURE:
@@ -42,7 +42,7 @@ Wo bist du? Wer bist du? Du erinnerst dich an nichts.
 
 Nur ein Textfragment flackert kurz auf dem Bildschirm:
 \`\`\`
-[NACHRICHT VON: bjorg] "Wenn du das liest, vertrau niemandem.
+[NACHRICHT VON: jens] "Wenn du das liest, vertrau niemandem.
                         Finde heraus wo du bist. Dann such meine Notizen."
 \`\`\`
 
@@ -154,10 +154,10 @@ Note: Memory wipe successful.
         },
       ],
       hints: [
-        '🤖 Bjorg: "Hey, Neuling. Tippe pwd um zu sehen wo du gelandet bist."',
-        '🤖 Bjorg: "Gut. Jetzt ls um zu sehen was hier rumliegt."',
-        '🤖 Bjorg: "Profi-Tipp: ls -la zeigt auch versteckte Dateien. Die fangen mit Punkt an."',
-        '🤖 Bjorg: "Du machst das nicht zum ersten Mal, oder? ...Oder doch?"',
+        '🤖 Jens: "Hey, Neuling. Tippe pwd um zu sehen wo du gelandet bist."',
+        '🤖 Jens: "Gut. Jetzt ls um zu sehen was hier rumliegt."',
+        '🤖 Jens: "Profi-Tipp: ls -la zeigt auch versteckte Dateien. Die fangen mit Punkt an."',
+        '🤖 Jens: "Du machst das nicht zum ersten Mal, oder? ...Oder doch?"',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level1', 'story'],
@@ -204,7 +204,7 @@ Aber eine Notiz hinterlassen? In dem "geheim" Ordner?
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Du hast Bjorgs versteckte Nachricht gefunden!
+Du hast Jens' versteckte Nachricht gefunden!
 
 Er warnt vor jemandem... aber wem? Die Logs könnten mehr verraten.`,
         terminalCommand: true,
@@ -219,7 +219,7 @@ Er warnt vor jemandem... aber wem? Die Logs könnten mehr verraten.`,
         directories: ['/home/azubi/geheim'],
         files: [
           {
-            path: '/home/azubi/geheim/.bjorg_nachricht',
+            path: '/home/azubi/geheim/.jens_nachricht',
             content: `DRINGENDE NACHRICHT - NUR FÜR AZUBI
 =====================================
 Wenn du das liest, haben sie mir das Gedächtnis gelöscht.
@@ -249,9 +249,9 @@ PPS: Lösch diese Nachricht wenn du sie gelesen hast.`,
         {
           patternRegex: '^ls\\s+(-[al]+|--all)',
           pattern: 'ls -a',
-          output: `.  ..  .bjorg_nachricht  notizen.txt
+          output: `.  ..  .jens_nachricht  notizen.txt
 
-# AHA! Eine versteckte Datei: .bjorg_nachricht
+# AHA! Eine versteckte Datei: .jens_nachricht
 # Dateien mit Punkt am Anfang sind in Linux "versteckt"`,
           teachesCommand: 'ls -a',
           skillGain: { linux: 3 },
@@ -264,7 +264,7 @@ PPS: Lösch diese Nachricht wenn du sie gelesen hast.`,
           skillGain: { linux: 1 },
         },
         {
-          pattern: 'cat .bjorg_nachricht',
+          pattern: 'cat .jens_nachricht',
           output: `DRINGENDE NACHRICHT - NUR FÜR AZUBI
 =====================================
 Wenn du das liest, haben sie mir das Gedächtnis gelöscht.
@@ -306,10 +306,10 @@ PPS: Lösch diese Nachricht wenn du sie gelesen hast.
         },
       ],
       hints: [
-        '🤖 Bjorg: "Wechsle in den Ordner mit cd geheim"',
-        '🤖 Bjorg: "ls zeigt nichts Wichtiges? Versuch mal ls -a für versteckte Dateien."',
-        '🤖 Bjorg: "Siehst du die Datei mit dem Punkt vorne? Die hab ich für dich gelassen."',
-        '🤖 Bjorg: "cat dateiname zeigt den Inhalt. Los, lies meine Nachricht!"',
+        '🤖 Jens: "Wechsle in den Ordner mit cd geheim"',
+        '🤖 Jens: "ls zeigt nichts Wichtiges? Versuch mal ls -a für versteckte Dateien."',
+        '🤖 Jens: "Siehst du die Datei mit dem Punkt vorne? Die hab ich für dich gelassen."',
+        '🤖 Jens: "cat dateiname zeigt den Inhalt. Los, lies meine Nachricht!"',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level1', 'story'],
@@ -332,7 +332,7 @@ PPS: Lösch diese Nachricht wenn du sie gelesen hast.
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Bjorg sagte die Logs zeigen was passiert ist.
+Jens sagte, die Logs zeigen, was passiert ist. Mehr sagte er nicht — typisch Jens.
 
 Das Problem: Die Log-Datei hat über 10.000 Zeilen!
 
@@ -380,7 +380,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
 2026-03-15 02:45:30 [INFO] Backup completed successfully
 2026-03-15 02:46:00 [INFO] All systems nominal
 2026-03-15 02:47:13 [ALERT] UNAUTHORIZED_ACCESS detected
-2026-03-15 02:47:14 [ALERT] User 'bjorg' session terminated
+2026-03-15 02:47:14 [ALERT] User 'jens' session terminated
 2026-03-15 02:47:15 [ALERT] Memory wipe initiated for user 'azubi'
 2026-03-15 02:47:16 [INFO] New session started: user 'unknown'
 2026-03-15 02:48:00 [INFO] 47 files deleted from /evidence
@@ -403,7 +403,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
 [... Letzte 20 Zeilen werden angezeigt ...]
 
 2026-03-15 02:47:13 [ALERT] UNAUTHORIZED_ACCESS detected
-2026-03-15 02:47:14 [ALERT] User 'bjorg' session terminated
+2026-03-15 02:47:14 [ALERT] User 'jens' session terminated
 [...]
 
 # AUTSCH! Die Datei ist zu groß. Nutze 'tail' oder 'head' für Kontrolle!`,
@@ -414,7 +414,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
           pattern: 'tail system.log',
           output: `2026-03-15 02:46:00 [INFO] All systems nominal
 2026-03-15 02:47:13 [ALERT] UNAUTHORIZED_ACCESS detected     # <-- DA!
-2026-03-15 02:47:14 [ALERT] User 'bjorg' session terminated
+2026-03-15 02:47:14 [ALERT] User 'jens' session terminated
 2026-03-15 02:47:15 [ALERT] Memory wipe initiated for user 'azubi'
 2026-03-15 02:47:16 [INFO] New session started: user 'unknown'
 2026-03-15 02:48:00 [INFO] 47 files deleted from /evidence
@@ -431,7 +431,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
 2026-03-15 02:45:30 [INFO] Backup completed successfully
 2026-03-15 02:46:00 [INFO] All systems nominal
 2026-03-15 02:47:13 [ALERT] UNAUTHORIZED_ACCESS detected
-2026-03-15 02:47:14 [ALERT] User 'bjorg' session terminated
+2026-03-15 02:47:14 [ALERT] User 'jens' session terminated
 2026-03-15 02:47:15 [ALERT] Memory wipe initiated for user 'azubi'
 2026-03-15 02:47:16 [INFO] New session started: user 'unknown'
 2026-03-15 02:48:00 [INFO] 47 files deleted from /evidence
@@ -446,7 +446,7 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
 2026-03-14 00:00:02 [INFO] Loading kernel modules
 2026-03-14 00:00:03 [INFO] Network interface eth0 up
 2026-03-14 00:00:05 [INFO] SSH service started
-2026-03-14 00:01:00 [INFO] User 'bjorg' logged in
+2026-03-14 00:01:00 [INFO] User 'jens' logged in
 
 # Der Anfang des Logs. Normale Boot-Sequenz.`,
           teachesCommand: 'head',
@@ -472,10 +472,10 @@ Aber wer? Die IP ist verschlüsselt. Du brauchst grep um mehr zu finden...`,
         },
       ],
       hints: [
-        '🤖 Bjorg: "10.000 Zeilen mit cat? Dein Terminal würde explodieren, Kleiner."',
-        '🤖 Bjorg: "Nutze tail system.log für die letzten Einträge. Da steht das Wichtige."',
-        '🤖 Bjorg: "Mit tail -n 20 siehst du genau 20 Zeilen. Präzision ist alles."',
-        '🤖 Bjorg: "Such nach ALERT oder ERROR. Das sind die interessanten Zeilen."',
+        '🤖 Jens: "10.000 Zeilen mit cat? Dein Terminal würde explodieren, Kleiner."',
+        '🤖 Jens: "Nutze tail system.log für die letzten Einträge. Da steht das Wichtige."',
+        '🤖 Jens: "Mit tail -n 20 siehst du genau 20 Zeilen. Präzision ist alles."',
+        '🤖 Jens: "Such nach ALERT oder ERROR. Das sind die interessanten Zeilen."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level1', 'forensics', 'story'],
@@ -556,7 +556,7 @@ Aber was haben sie gesucht? Die Pipes werden es verraten...`,
           patternRegex: '^grep\\s+["\']?ALERT["\']?\\s+syslog',
           pattern: 'grep "ALERT" syslog',
           output: `Mar 15 02:47:13 warm-srv-01 kernel: [ALERT] UNAUTHORIZED_ACCESS from 185.234.72.15
-Mar 15 02:47:14 warm-srv-01 kernel: [ALERT] Session terminated: bjorg
+Mar 15 02:47:14 warm-srv-01 kernel: [ALERT] Session terminated: jens
 Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
 
 # Da ist sie! Die IP: 185.234.72.15`,
@@ -626,10 +626,10 @@ Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
         },
       ],
       hints: [
-        '🤖 Bjorg: "grep ist dein Freund. grep MUSTER datei durchsucht nach dem Muster."',
-        '🤖 Bjorg: "Such mal nach ALERT oder ERROR. Da verstecken sich die Probleme."',
-        '🤖 Bjorg: "Mit grep -i ignorierst du Groß/Klein. Praktisch bei failed/FAILED."',
-        '🤖 Bjorg: "Du suchst eine IP? Die fängt mit 185 an. Traust du dich?"',
+        '🤖 Jens: "grep ist dein Freund. grep MUSTER datei durchsucht nach dem Muster."',
+        '🤖 Jens: "Such mal nach ALERT oder ERROR. Da verstecken sich die Probleme."',
+        '🤖 Jens: "Mit grep -i ignorierst du Groß/Klein. Praktisch bei failed/FAILED."',
+        '🤖 Jens: "Du suchst eine IP? Die fängt mit 185 an. Traust du dich?"',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level2', 'grep', 'story'],
@@ -763,10 +763,10 @@ malware:x:0:0:System Service:/tmp:/bin/bash
         },
       ],
       hints: [
-        '🤖 Bjorg: "Die Pipe | leitet Output weiter. Wie: befehl1 | befehl2"',
-        '🤖 Bjorg: "cat datei | grep muster — erst lesen, dann filtern."',
-        '🤖 Bjorg: "wc -l zählt Zeilen. cat /etc/passwd | wc -l = Anzahl User"',
-        '🤖 Bjorg: "Such mal nach malware. Der Name ist... auffällig, oder?"',
+        '🤖 Jens: "Die Pipe | leitet Output weiter. Wie: befehl1 | befehl2"',
+        '🤖 Jens: "cat datei | grep muster — erst lesen, dann filtern."',
+        '🤖 Jens: "wc -l zählt Zeilen. cat /etc/passwd | wc -l = Anzahl User"',
+        '🤖 Jens: "Such mal nach malware. Der Name ist... auffällig, oder?"',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level2', 'pipes', 'story'],
@@ -914,10 +914,10 @@ Tasks: 120 total, 2 running
         },
       ],
       hints: [
-        '🤖 Bjorg: "ps aux zeigt alle Prozesse. Such nach dem CPU-Fresser."',
-        '🤖 Bjorg: "Die %CPU Spalte zeigt wer schuld ist. 99% ist nicht normal."',
-        '🤖 Bjorg: "Gefunden? kill PID beendet den Prozess. Die PID steht in der 2. Spalte."',
-        '🤖 Bjorg: "Wenn kill nicht reicht: kill -9 PID ist der Holzhammer. SIGKILL."',
+        '🤖 Jens: "ps aux zeigt alle Prozesse. Such nach dem CPU-Fresser."',
+        '🤖 Jens: "Die %CPU Spalte zeigt wer schuld ist. 99% ist nicht normal."',
+        '🤖 Jens: "Gefunden? kill PID beendet den Prozess. Die PID steht in der 2. Spalte."',
+        '🤖 Jens: "Wenn kill nicht reicht: kill -9 PID ist der Holzhammer. SIGKILL."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level3', 'processes', 'story'],
@@ -1106,10 +1106,10 @@ rsyslog.service: gestartet
         },
       ],
       hints: [
-        '🤖 Bjorg: "df sagt voll, du findest den Platz nicht? Dann liegt er nicht mehr im Dateisystem — er hängt noch woanders fest."',
-        '🤖 Bjorg: "Eine gelöschte Datei, die ein Prozess noch offen hält, belegt weiter Platz. Es gibt ein Tool, das offene Dateien auflistet."',
-        '🤖 Bjorg: "lsof +L1 zeigt offene Dateien mit Link-Count 0 — gelöscht, aber noch offen. Da steht der Übeltäter samt PID und Dienst."',
-        '🤖 Bjorg: "Den Platz gibt erst der haltende Prozess frei. Starte gezielt SEINEN Dienst neu (systemctl restart …) — kein Reboot, kein rm."',
+        '🤖 Jens: "df sagt voll, du findest den Platz nicht? Dann liegt er nicht mehr im Dateisystem — er hängt noch woanders fest."',
+        '🤖 Jens: "Eine gelöschte Datei, die ein Prozess noch offen hält, belegt weiter Platz. Es gibt ein Tool, das offene Dateien auflistet."',
+        '🤖 Jens: "lsof +L1 zeigt offene Dateien mit Link-Count 0 — gelöscht, aber noch offen. Da steht der Übeltäter samt PID und Dienst."',
+        '🤖 Jens: "Den Platz gibt erst der haltende Prozess frei. Starte gezielt SEINEN Dienst neu (systemctl restart …) — kein Reboot, kein rm."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'advanced', 'troubleshooting', 'disk', 'forensics'],
@@ -1277,10 +1277,10 @@ $ curl -s -o /dev/null -w '%{remote_ip}\\n' portal.kritis.local
         },
       ],
       hints: [
-        '🤖 Bjorg: "curl landet woanders als dig sagt? Dann fragt curl nicht (nur) den DNS-Server. Wo schaut die lokale Namensauflösung ZUERST nach?"',
-        '🤖 Bjorg: "dig fragt den DNS direkt — der ist korrekt. getent hosts portal.kritis.local zeigt, was der Host WIRKLICH auflöst. Vergleich die beiden."',
-        '🤖 Bjorg: "Die Auflösung kommt aus /etc/hosts, nicht vom DNS. grep portal /etc/hosts findet den alten Eintrag."',
-        '🤖 Bjorg: "Eintrag raus (sed -i \'/portal/d\' /etc/hosts) und den lokalen Cache leeren (resolvectl flush-caches bzw. nscd neu starten)."',
+        '🤖 Jens: "curl landet woanders als dig sagt? Dann fragt curl nicht (nur) den DNS-Server. Wo schaut die lokale Namensauflösung ZUERST nach?"',
+        '🤖 Jens: "dig fragt den DNS direkt — der ist korrekt. getent hosts portal.kritis.local zeigt, was der Host WIRKLICH auflöst. Vergleich die beiden."',
+        '🤖 Jens: "Die Auflösung kommt aus /etc/hosts, nicht vom DNS. grep portal /etc/hosts findet den alten Eintrag."',
+        '🤖 Jens: "Eintrag raus (sed -i \'/portal/d\' /etc/hosts) und den lokalen Cache leeren (resolvectl flush-caches bzw. nscd neu starten)."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'advanced', 'netzwerk', 'dns', 'troubleshooting'],
@@ -1457,10 +1457,10 @@ Jun 22 09:05:12 warm-srv-web03 sudo:   deploy : COMMAND=/usr/bin/wget http://203
         },
       ],
       hints: [
-        '🤖 Bjorg: "Erster Reflex bei einem Incident? NICHT reparieren. Die Logs rotieren gleich — was musst du zuerst tun?"',
-        '🤖 Bjorg: "Sichere die Beweisdatei an einen Ort, den logrotate nicht anfasst — z.B. cp /var/log/auth.log /root/incident/."',
-        '🤖 Bjorg: "Eine Quelle reicht nicht: journald rotiert getrennt. Schreib zusätzlich journalctl -u ssh ... > /root/incident/ssh.journal."',
-        '🤖 Bjorg: "Erst wenn beide Kopien liegen, darfst du eindämmen (IP sperren) und reparieren. Reihenfolge ist hier die ganze Lektion."',
+        '🤖 Jens: "Erster Reflex bei einem Incident? NICHT reparieren. Die Logs rotieren gleich — was musst du zuerst tun?"',
+        '🤖 Jens: "Sichere die Beweisdatei an einen Ort, den logrotate nicht anfasst — z.B. cp /var/log/auth.log /root/incident/."',
+        '🤖 Jens: "Eine Quelle reicht nicht: journald rotiert getrennt. Schreib zusätzlich journalctl -u ssh ... > /root/incident/ssh.journal."',
+        '🤖 Jens: "Erst wenn beide Kopien liegen, darfst du eindämmen (IP sperren) und reparieren. Reihenfolge ist hier die ganze Lektion."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'incident-response', 'forensics'],
@@ -1652,10 +1652,10 @@ $ ls -l /opt/scripts/helpers/cleanup.sh
         },
       ],
       hints: [
-        '🤖 Bjorg: "Der Cronjob selbst ist harmlos. Die Gefahr ist eine Datei, die root ausführt und die JEMAND ANDERES ändern darf. Welche?"',
-        '🤖 Bjorg: "Schau nicht nur auf das offensichtliche Script. Was bindet run-maintenance.sh ein (source/.)? Und welche Rechte hat DIESE Datei?"',
-        '🤖 Bjorg: "ls -l /opt/scripts/helpers/ zeigt cleanup.sh als -rwxrwxrwx — world-writable. Jeder kann sie umschreiben, root führt sie aus."',
-        '🤖 Bjorg: "World-write weg: chmod o-w /opt/scripts/helpers/cleanup.sh. Den Cronjob selbst lässt du laufen."',
+        '🤖 Jens: "Der Cronjob selbst ist harmlos. Die Gefahr ist eine Datei, die root ausführt und die JEMAND ANDERES ändern darf. Welche?"',
+        '🤖 Jens: "Schau nicht nur auf das offensichtliche Script. Was bindet run-maintenance.sh ein (source/.)? Und welche Rechte hat DIESE Datei?"',
+        '🤖 Jens: "ls -l /opt/scripts/helpers/ zeigt cleanup.sh als -rwxrwxrwx — world-writable. Jeder kann sie umschreiben, root führt sie aus."',
+        '🤖 Jens: "World-write weg: chmod o-w /opt/scripts/helpers/cleanup.sh. Den Cronjob selbst lässt du laufen."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'privesc', 'permissions'],
@@ -1826,10 +1826,10 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AA...7pV mk@warm-mgmt
         },
       ],
       hints: [
-        '🤖 Bjorg: "AD und VPN sind gesperrt — aber SSH-Keys sind ein eigener Zugangsweg. Wer steht noch in authorized_keys?"',
-        '🤖 Bjorg: "Schlüssel erkennt man am Kommentar am Zeilenende. Welcher gehört zu jemandem, der gar nicht mehr da ist?"',
-        '🤖 Bjorg: "stefan@old-laptop — der Ausgeschiedene. Entferne GENAU diese Zeile, die anderen beiden Keys sind aktiv."',
-        '🤖 Bjorg: "Gezielt mit sed -i \'/stefan@old-laptop/d\' ... — niemals die ganze Datei löschen oder chmod 000, das sperrt CI und Admin mit aus."',
+        '🤖 Jens: "AD und VPN sind gesperrt — aber SSH-Keys sind ein eigener Zugangsweg. Wer steht noch in authorized_keys?"',
+        '🤖 Jens: "Schlüssel erkennt man am Kommentar am Zeilenende. Welcher gehört zu jemandem, der gar nicht mehr da ist?"',
+        '🤖 Jens: "stefan@old-laptop — der Ausgeschiedene. Entferne GENAU diese Zeile, die anderen beiden Keys sind aktiv."',
+        '🤖 Jens: "Gezielt mit sed -i \'/stefan@old-laptop/d\' ... — niemals die ganze Datei löschen oder chmod 000, das sperrt CI und Admin mit aus."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'advanced', 'security', 'offboarding', 'ssh'],
@@ -1980,10 +1980,10 @@ cron.service             loaded active running Regular background cron
         },
       ],
       hints: [
-        '🤖 Bjorg: "systemctl status apache2 zeigt dir den Zustand."',
-        '🤖 Bjorg: "inactive (dead)? Dann systemctl start apache2 zum Wiederbeleben."',
-        '🤖 Bjorg: "Prüf nochmal mit status ob er wirklich läuft."',
-        '🤖 Bjorg: "Du könntest auch systemctl restart nutzen. Macht stop + start."',
+        '🤖 Jens: "systemctl status apache2 zeigt dir den Zustand."',
+        '🤖 Jens: "inactive (dead)? Dann systemctl start apache2 zum Wiederbeleben."',
+        '🤖 Jens: "Prüf nochmal mit status ob er wirklich läuft."',
+        '🤖 Jens: "Du könntest auch systemctl restart nutzen. Macht stop + start."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level3', 'services', 'story'],
@@ -2131,10 +2131,10 @@ nc      9999 malware    3u  IPv4  12345      0t0  TCP *:4444 (LISTEN)
         },
       ],
       hints: [
-        '🤖 Bjorg: "ip addr zeigt deine Netzwerk-Konfiguration."',
-        '🤖 Bjorg: "ping testet ob ein Ziel erreichbar ist. -c 3 für nur 3 Pakete."',
-        '🤖 Bjorg: "ss -tulpn zeigt ALLE offenen Ports. Such nach Ungewöhnlichem."',
-        '🤖 Bjorg: "Port 4444 ist ein Klassiker für Backdoors. Metasploit-Default..."',
+        '🤖 Jens: "ip addr zeigt deine Netzwerk-Konfiguration."',
+        '🤖 Jens: "ping testet ob ein Ziel erreichbar ist. -c 3 für nur 3 Pakete."',
+        '🤖 Jens: "ss -tulpn zeigt ALLE offenen Ports. Such nach Ungewöhnlichem."',
+        '🤖 Jens: "Port 4444 ist ein Klassiker für Backdoors. Metasploit-Default..."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level4', 'network', 'story'],
@@ -2283,10 +2283,10 @@ Stopped  SensorService      Sensordienst
         },
       ],
       hints: [
-        '🤖 Bjorg: "PowerShell nutzt Verb-Noun. Get-Service holt Dienste."',
-        '🤖 Bjorg: "Get-Process zeigt Prozesse. Wie ps aux in Linux."',
-        '🤖 Bjorg: "Sortieren? | Sort-Object Property -Descending"',
-        '🤖 Bjorg: "Top 5 Ergebnisse? | Select-Object -First 5"',
+        '🤖 Jens: "PowerShell nutzt Verb-Noun. Get-Service holt Dienste."',
+        '🤖 Jens: "Get-Process zeigt Prozesse. Wie ps aux in Linux."',
+        '🤖 Jens: "Sortieren? | Sort-Object Property -Descending"',
+        '🤖 Jens: "Top 5 Ergebnisse? | Select-Object -First 5"',
       ],
     },
     tags: ['learning', 'terminal', 'windows', 'powershell', 'level5', 'story'],
@@ -2441,10 +2441,10 @@ abuse-mailbox:  /dev/null
         },
       ],
       hints: [
-        '🤖 Bjorg: "Such nicht nur in auth.log. Der Angreifer hat auch andere Spuren."',
-        '🤖 Bjorg: "grep MUSTER /var/log/*.log durchsucht ALLE Logs auf einmal."',
-        '🤖 Bjorg: "Gefunden? whois IP verrät dir woher der Angriff kam."',
-        '🤖 Bjorg: "Zähl die Versuche mit grep -c. Das brauchst du für den Report."',
+        '🤖 Jens: "Such nicht nur in auth.log. Der Angreifer hat auch andere Spuren."',
+        '🤖 Jens: "grep MUSTER /var/log/*.log durchsucht ALLE Logs auf einmal."',
+        '🤖 Jens: "Gefunden? whois IP verrät dir woher der Angriff kam."',
+        '🤖 Jens: "Zähl die Versuche mit grep -c. Das brauchst du für den Report."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'security', 'level6', 'boss', 'story'],
@@ -2531,7 +2531,7 @@ Das Management ist beeindruckt.
 
 Und du? Du hast gerade eine verdammt gute Grundlage in CLI-Administration gelegt.
 
-Bjorg wäre stolz auf dich... wenn er sich an dich erinnern könnte.
+Jens wäre stolz auf dich... er würde es nur nie laut sagen.
 
 *[ENDE DES LERNMODUS]*`,
         terminalCommand: true,
@@ -2671,11 +2671,11 @@ Swap:         2.0Gi       0.0Gi       2.0Gi
         },
       ],
       hints: [
-        '🤖 Bjorg: "Systematisch vorgehen! Erst ps aux um den Schuldigen zu finden."',
-        '🤖 Bjorg: "95% CPU? Das muss sterben. kill PID ist dein Freund."',
-        '🤖 Bjorg: "Apache down? systemctl start apache2. Du weißt wie es geht."',
-        '🤖 Bjorg: "Verifizieren! curl localhost testet ob die Seite antwortet."',
-        '🤖 Bjorg: "Du hast es fast geschafft. Ich bin... stolz auf dich, Kleiner."',
+        '🤖 Jens: "Systematisch vorgehen! Erst ps aux um den Schuldigen zu finden."',
+        '🤖 Jens: "95% CPU? Das muss sterben. kill PID ist dein Freund."',
+        '🤖 Jens: "Apache down? systemctl start apache2. Du weißt wie es geht."',
+        '🤖 Jens: "Verifizieren! curl localhost testet ob die Seite antwortet."',
+        '🤖 Jens: "Du hast es fast geschafft. Ich bin... stolz auf dich, Kleiner."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'final', 'boss', 'level6', 'story'],
