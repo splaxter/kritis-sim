@@ -1908,27 +1908,26 @@ Deine Probezeit ist offiziell beendet.`,
     tags: ['story', 'chapter12', 'finale', 'ending'],
     choices: [
       {
-        id: 'good_ending',
-        text: '(Wenn alles gut lief)',
-        requires: { skill: 'security', threshold: 50 },
-        effects: {},
-        resultText: '"Sie bekommen einen unbefristeten Vertrag", sagt der Chef. "Und eine Gehaltserhöhung." Bjorg grinst. Ihr habt es geschafft.',
-        setsFlags: ['ending_good'],
+        id: 'credit_team',
+        text: '"Das war Teamarbeit. Bjorg, Stefan, das BSI, sogar die Kaffeemaschine."',
+        effects: { relationships: { kollegen: 10, chef: 5 } },
+        resultText: 'Du gibst das Lob weiter, an jeden im Raum und ein paar, die nicht da sind. Bjorg wird rot, Frau Weber tut, als hätte sie was im Auge, und der Chef nickt langsam. "Ein Team, das so redet", sagt er, "will man behalten." Manchmal ist die stärkste Führung die, die den Applaus verteilt.',
+        setsFlags: ['credit_shared'],
       },
       {
-        id: 'neutral_ending',
-        text: '(Wenn es okay lief)',
-        effects: {},
-        resultText: '"Wir verlängern Ihre Probezeit um drei Monate", sagt der Chef. "Es gibt noch einiges aufzuarbeiten." Immerhin: Du hast noch einen Job.',
-        setsFlags: ['ending_neutral'],
+        id: 'lessons_learned',
+        text: '"Wichtiger als Lob: dass wir aufschreiben, was schieflief — und es ändern."',
+        effects: { compliance: 10 },
+        resultText: 'Du legst kein Lorbeerkranz-Protokoll vor, sondern eine Liste: Was hat gefehlt, was hat gedauert, was darf nie wieder passieren. Offline-Backups. Kein Uralt-Adminkonto. Segmentierung auch zur Koppel. Der Chef seufzt — und unterschreibt jeden Punkt. "Dann machen wir es diesmal richtig."',
+        setsFlags: ['lessons_learned', 'team_prepared'],
+        teachingMoment: 'Lessons Learned sind Pflichtteil jeder Incident Response: Ohne strukturierte Nachbereitung wiederholt sich derselbe Vorfall. Der Bericht gehört genauso zum Prozess wie das Wiederherstellen.',
       },
       {
-        id: 'bad_ending',
-        text: '(Wenn es schlecht lief)',
-        requires: { skill: 'security', threshold: 10 },
-        effects: {},
-        resultText: '"Wir müssen uns leider trennen", sagt der Chef. "Mangelnde Eignung." Du packst deinen Schreibtisch. Aber das Wissen, das du hast... das bleibt.',
-        setsFlags: ['ending_bad'],
+        id: 'speak_truth',
+        text: '"Ich sage, was ich denke: Wir waren fast tot, weil monatelang niemand zuhören wollte."',
+        effects: { relationships: { chef: -5, gf: 5 } },
+        resultText: 'Du sprichst es aus, unbequem und klar: Stefan hat gewarnt, du hast gewarnt, und man hat weggehört, bis die Bildschirme rot waren. Es wird still. Der Chef schluckt. Der Bürgermeister nickt langsam. "Unbequem", sagt er. "Aber genau solche Leute brauchen wir." Wahrheit kostet — und zahlt sich manchmal aus.',
+        setsFlags: ['spoke_truth'],
       },
     ],
   },
@@ -2415,6 +2414,129 @@ Alle schauen dich an. Wieder. Der Chef, der Kämmerer, Bjorg mit versteinerter M
         effects: { relationships: { kaemmerer: 10, kollegen: -10 } },
         resultText: 'Du gibst nach. "Betriebswirtschaftlich haben Sie recht." Der Kämmerer nickt zufrieden. Bjorg verlässt wortlos den Raum. Die 500 BTC gehen raus — und die versprochene Entschlüsselung ist ein halbgares Tool, das die Hälfte der Dateien schrottet, während der Pivot aufs Stromnetz völlig unberührt weiterläuft. Du wusstest es. Du hast es trotzdem getan.',
         setsFlags: ['recommended_payment', 'ignored_warnings'],
+      },
+    ],
+  },
+
+  // ─── Kapitel 12: Probezeit beendet ───
+
+  {
+    id: 'adv_final_push',
+    title: 'Der letzte Endspurt',
+    category: 'story',
+    weekRange: [12, 12],
+    probability: 1,
+    description: `Die letzte Nacht. Der Restore auf der Zielgeraden.
+
+Pizzakartons stapeln sich neben den Servern, Frau Weber geht mit einer Kaffeekanne von Schreibtisch zu Schreibtisch wie eine Feldschwester, und auf den Monitoren kriechen Fortschrittsbalken der Vollendung entgegen. Es hat den Ton eines Films kurz vor dem Abspann — nur dass ihr noch nicht wisst, welcher.
+
+Nicht mehr alles auf einmal ist zu schaffen. Ihr müsst priorisieren, ein letztes Mal. Was zuerst?`,
+    involvedCharacters: ['kollege', 'fachabteilung'],
+    tags: ['story', 'chapter12', 'act3', 'finale'],
+    choices: [
+      {
+        id: 'crown_first',
+        text: 'Kronjuwelen zuerst — Wasser-Abrechnung, Bürgerdaten, Leitstellen-Anbindung',
+        effects: { skills: { security: 4, troubleshooting: 4 } },
+        resultText: 'Ihr fahrt die kritischsten Systeme zuerst hoch, sauber abgesichert, jedes einzeln geprüft, bevor es ans Netz darf. Die Dinge, deren Ausfall wirklich wehtut, stehen zuerst wieder — und stehen richtig. Der Rest kann warten. Kritikalität schlägt Bequemlichkeit.',
+        setsFlags: ['crown_first', 'crown_jewels_isolated'],
+      },
+      {
+        id: 'citizens_first',
+        text: 'Bürgerservices zuerst — morgen früh muss die Müllabfuhr fahren',
+        effects: { relationships: { fachabteilung: 10, gf: 5 } },
+        resultText: 'Ihr priorisiert das, was die Stadt am Morgen sieht: Disposition, Tourenplanung, Bürgertelefon. Um sechs Uhr rollt der erste Wagen wieder vom Hof — und die Fahrer, die drei Tage lang mit Zetteln gekämpft haben, applaudieren spontan Richtung IT-Fenster. Bjorg winkt verlegen zurück. "Das", sagt er, "habe ich beim Energieversorger nie erlebt."',
+        setsFlags: ['citizens_first'],
+      },
+      {
+        id: 'finalize_evidence',
+        text: 'Parallel die Beweiskette finalisieren',
+        effects: { compliance: 8, skills: { security: 4 } },
+        resultText: 'Während die Systeme hochfahren, schließt ihr die Beweismappe: lückenlose Timeline, Hashes über allen Artefakten, Stefans Dokumentation sauber eingeordnet. Was ihr den Ermittlern übergebt, hält vor Gericht. FENRIS und Brandt werden sich an dieser Mappe die Zähne ausbeißen.',
+        setsFlags: ['evidence_complete', 'found_evidence'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_allies_arrive',
+    title: 'Die Kavallerie',
+    category: 'story',
+    weekRange: [12, 12],
+    probability: 1,
+    description: `Und dann kommt Hilfe an. Mehr, als du erwartet hast.
+
+Frau Dr. Reinhardt vom BSI steht im Türrahmen, Aktenkoffer in der Hand: "Sie haben ein Aktenzeichen. Jetzt haben Sie auch Personal." Kurz darauf die IT-Leiterin des Nachbarwerks, mit einem Laptop voller Signaturen und, aus irgendeinem Grund, einer Tafel Schokolade für jeden. Und in der Tür, müde, mit Ostsee-Bräune und einem schiefen Lächeln: ein Mann, dessen Schreibtisch du geerbt hast.
+
+Frau Müller kommt mit drei Blechen Kuchen aus der Teeküche. "Für die Hacker-Jäger", verkündet sie und stellt sie mitten in den Serverraum, wo sie definitiv nicht hingehören.
+
+Zum ersten Mal seit Tagen seid ihr nicht mehr allein. Die Frage ist nur, wie du all diese Hände führst.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter12', 'act3', 'finale', 'payoff'],
+    choices: [
+      {
+        id: 'orchestrate',
+        text: 'Orchestrieren: jede und jeden an die eigene Stärke setzen',
+        effects: { skills: { softSkills: 6 } },
+        resultText: 'Du verteilst die Aufgaben nach Stärke: das BSI übernimmt die Forensik, das Nachbarwerk die Signaturen und das gemeinsame Monitoring, Stefan die Rekonstruktion der Timeline, Bjorg die technische Front. Plötzlich läuft alles parallel statt hintereinander. So fühlt sich ein funktionierender Krisenstab an.',
+        setsFlags: ['orchestrated_allies'],
+        teachingMoment: 'Krisenstab-Führung heißt delegieren, nicht alles selbst machen. Wer im Incident jede Aufgabe an sich zieht, wird zum Flaschenhals — führen heißt, die richtigen Leute an die richtigen Stellen zu setzen.',
+      },
+      {
+        id: 'ask_for_help',
+        text: 'Ehrlich abgeben: sagen, was ihr NICHT schafft, und loslassen',
+        effects: { stress: -8, relationships: { kollegen: 5 } },
+        resultText: 'Du tust etwas, das dir vor drei Wochen unmöglich schien: Du sagst laut, was ihr nicht könnt und nicht schafft, und bittest um Übernahme. Frau Dr. Reinhardt nickt anerkennend — "Das sagen die wenigsten rechtzeitig." Die Last verteilt sich auf viele Schultern, und zum ersten Mal seit Tagen atmest du wirklich durch.',
+        setsFlags: ['asked_for_help'],
+      },
+      {
+        id: 'keep_control',
+        text: 'Die Zügel behalten — Verbündete briefen, aber selbst führen',
+        effects: { skills: { security: 3 }, stress: 5 },
+        resultText: 'Du behältst den Überblick fest in der Hand, briefst jeden einzeln, entscheidest jede Weiche selbst. Es funktioniert — es ist DEIN Fall, und niemand kennt ihn besser. Aber gegen Morgen merkst du, wie schwer der Kopf wird, wenn alle Fäden durch eine Hand laufen. Kontrolle hat ihren Preis.',
+        setsFlags: ['kept_control'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_climax',
+    title: '23:47',
+    category: 'story',
+    weekRange: [12, 12],
+    probability: 1,
+    description: `23:44. Alle Monitore zeigen dieselbe Ansicht: die Verbundkoppel ins Stromnetz.
+
+Niemand redet. Frau Weber hat die Kaffeekanne abgestellt. Selbst Frau Müllers Kuchen bleibt unangetastet. 23:45. 23:46.
+
+Was auch immer ihr vorbereitet habt — jetzt zählt es. Der Pivot-Versuch kommt pünktlich. FENRIS war immer pünktlich.
+
+23:47.
+
+Auf dem Monitor zuckt die Koppel-Anzeige. Ein Verbindungsversuch. Dann noch einer. Sie sind da.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'chapter12', 'act3', 'finale', 'climax'],
+    choices: [
+      {
+        id: 'trigger_plan',
+        text: 'Den vorbereiteten Plan auslösen',
+        effects: { skills: { security: 5 } },
+        resultText: 'Du löst aus, was ihr vorbereitet habt. Der Verbindungsversuch läuft ins Leere — in die getrennte Koppel, in die Falle, gegen eine Wand, die vorher nicht da war. Ihr seht es live auf dem Schirm: FENRIS stößt gegen etwas Hartes und zieht sich zurück. Die Anzeige beruhigt sich. Das Stromnetz weiß nicht einmal, wie nah es dran war.',
+        setsFlags: ['attack_repelled', 'climax_resolved'],
+      },
+      {
+        id: 'improvise',
+        text: 'Improvisieren, als Brandts ZWEITER Zugang aufwacht',
+        effects: { skills: { troubleshooting: 6 }, stress: 10 },
+        resultText: 'Plötzlich ein zweiter Alarm — Brandt hatte einen Reserve-Zugang, und natürlich, NATÜRLICH läuft er über den Drucker im dritten Stock. Ihr improvisiert wie die Wilden: Bjorg kappt den Drucker vom Netz, du schließt die Lücke von Hand, alles in vier atemlosen Minuten. Am Ende steht ihr keuchend da. "Der Drucker", sagt Bjorg ungläubig. "Es war die ganze Zeit der verdammte Drucker."',
+        setsFlags: ['improvised_win', 'climax_resolved'],
+      },
+      {
+        id: 'hard_cut',
+        text: 'Not-Aus: Bjorg trennt die Koppel physisch — mit dem Seitenschneider',
+        effects: { skills: { netzwerk: 4 } },
+        resultText: 'Keine Zeit für Eleganz. Bjorg rennt in den Technikraum, ihr hört ein metallisches Knacken, und die Koppel-Anzeige geht schlagartig auf tot. Er kommt zurück, hält ein durchtrenntes Kabel hoch wie eine Trophäe. "Segmentierung", sagt er, "auf die altmodische Art." Der Pivot-Versuch verläuft im Nichts. Ihr habt gewonnen — mit einem Werkzeug aus dem Baumarkt.',
+        setsFlags: ['hard_cut', 'climax_resolved'],
       },
     ],
   },

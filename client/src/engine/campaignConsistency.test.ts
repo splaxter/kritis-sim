@@ -14,13 +14,12 @@ const scenarioIds = new Set(getAllScenarios().map((s) => s.id));
 const contentIds = new Set([...eventIds, ...scenarioIds]);
 const chapterIds = new Set(adventureChapters.map((c) => c.id));
 
-// ── DOCUMENTED CONTENT GAP (see audit report) ─────────────────────────────
-// The story campaign is authored through the chapters in FINISHED_CHAPTERS
-// (currently ch1–8). The remaining chapters exist in the chapter structure but
-// still reference adv_* events that were never written, so the campaign
-// soft-ends after the last finished chapter (App.skipToNextDay loops to a false
-// "victory"). These guards lock in the FINISHED part and TRACK the gap; they do
-// not bless it — finishing or rescoping the campaign is a product decision.
+// ── CAMPAIGN FULLY AUTHORED (Act 3 completed) ─────────────────────────────
+// Every chapter ch01–ch12 is now authored: all beat events (and their branch
+// alternates) exist, and the campaign resolves on a stats-driven ending screen
+// instead of a soft act-break. FINISHED_CHAPTERS therefore lists ALL chapters
+// and KNOWN_WIP_CHAPTERS computes to []. These guards no longer track a gap —
+// they lock in completeness and fail loudly if a beat reference ever regresses.
 const FINISHED_CHAPTERS = [
   'ch01_first_day',
   'ch02_settling_in',
@@ -33,6 +32,7 @@ const FINISHED_CHAPTERS = [
   'ch09_attack',
   'ch10_72_hours',
   'ch11_truth',
+  'ch12_finale',
 ];
 const KNOWN_WIP_CHAPTERS = adventureChapters.map((c) => c.id).filter((id) => !FINISHED_CHAPTERS.includes(id));
 const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger removed)
