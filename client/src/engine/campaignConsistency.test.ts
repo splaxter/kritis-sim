@@ -44,9 +44,7 @@ const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger re
 // them; it shrinks to [] once every kept quest's events exist. It can neither grow
 // silently (a new unauthored ref slips in) nor shrink silently (someone authors
 // one — then remove it from this list).
-const KNOWN_DANGLING_SIDEQUEST_EVENTS = [
-  'adv_sq_coffee_1', 'adv_sq_coffee_2', 'adv_sq_coffee_3',
-];
+const KNOWN_DANGLING_SIDEQUEST_EVENTS: string[] = [];
 
 const setFlags = new Set<string>(['kritis_mode']);
 for (const e of storyEvents) {

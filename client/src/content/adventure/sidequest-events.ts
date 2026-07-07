@@ -196,4 +196,111 @@ Du hast den Flaschenhals gefunden. Und gleichzeitig das größte Sicherheitsloch
       },
     ],
   },
+
+  // ── sq_coffee_machine ─────────────────────────────────────────────────
+  {
+    id: 'adv_sq_coffee_1',
+    title: 'Der Kaffeemaschinenflüsterer',
+    category: 'story',
+    weekRange: [2, 4],
+    probability: 1,
+    description: `Sie hat es wieder getan. Über Nacht, ohne dass jemand einen Knopf gedrückt hat: 47 Tassen Espresso. Der Pausenraum riecht wie ein italienisches Café um vier Uhr früh.
+
+**Frau Weber**: "Ich schwöre, wenn das so weitergeht, stelle ich meine eigene Thermoskanne hin. Filterkaffee. Von zu Hause." Im Pausenraum geht ein kollektives Stöhnen um. Die Moral im Haus hängt an dieser Maschine - und die Maschine spinnt.
+
+**Bjorg**: "Stefan hat gesagt, das Ding ist gefährlich. Ich dachte, er meint das Koffein."`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'sidequest', 'coffee', 'iot'],
+    choices: [
+      {
+        id: 'open_webui',
+        text: 'Das Webinterface der Maschine aufrufen',
+        effects: { skills: { security: 2 } },
+        resultText: 'Die Maschine hat einen eigenen Webserver. Login: "admin" / "admin". Natürlich. Im Menü: Firmware, Zeitpläne - und eine "Cloud-Anbindung", die niemand je konfiguriert hat. Sie ist an.',
+        setsFlags: ['coffee_webui_found'],
+      },
+      {
+        id: 'sniff_traffic',
+        text: 'Wireshark anwerfen und zuhören, WAS sie da nach draußen schickt',
+        effects: { skills: { netzwerk: 2, security: 2 } },
+        resultText: 'Alle paar Minuten funkt die Maschine nach Hause. Ziel: irgendein Server, weit weg. Für eine Kaffeemaschine redet sie erstaunlich viel.',
+        setsFlags: ['coffee_traffic_seen'],
+      },
+      {
+        id: 'drink_first',
+        text: 'Erst mal einen Kaffee trinken und in Ruhe nachdenken',
+        effects: { stress: -5 },
+        resultText: 'Du drückst auf Cappuccino. Die Maschine macht den besten Cappuccino, den du je aus einem Gerät bekommen hast - perfekte Crema, exakte Temperatur. Fast so, als wüsste sie, dass du gerade gegen sie ermittelst. Beunruhigend.',
+      },
+    ],
+  },
+
+  {
+    id: 'adv_sq_coffee_2',
+    title: 'Telemetrie mit Sahne',
+    category: 'story',
+    weekRange: [2, 4],
+    probability: 1,
+    description: `Du hast dir die Daten angesehen, die die Maschine "nach Hause" schickt. Angeblich "Nutzungsstatistiken für den Service".
+
+Aber es sind nicht nur Bohnenfüllstände. Es sind Uhrzeiten. Jede Tasse, gestempelt mit dem Zeitpunkt. Früh am Morgen, spät am Abend, das Wochenende leer.
+
+Das ist keine Kaffee-Statistik. Das ist ein Bewegungsprofil des Gebäudes. Wer den Datenstrom liest, weiß genau, wann Menschen im Haus sind - und wann nicht.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'sidequest', 'coffee', 'security'],
+    choices: [
+      {
+        id: 'isolate',
+        text: 'Die Cloud-Anbindung kappen und die Maschine ins Gäste-VLAN sperren',
+        effects: { skills: { security: 3, netzwerk: 2 } },
+        resultText: 'Du drehst der Maschine den Weg nach draußen zu und steckst sie in ein eigenes, isoliertes Segment. Sie kann weiter Kaffee kochen - aber niemandem mehr erzählen, wann du im Büro bist.',
+        setsFlags: ['coffee_isolated'],
+      },
+      {
+        id: 'mail_vendor',
+        text: 'Dem Hersteller eine sehr deutliche Support-Mail schreiben',
+        effects: { relationships: { fachabteilung: 5 } },
+        resultText: 'Die Antwort kommt nach zwei Tagen: "Die Übermittlung von Nutzungszeiten dient der Serviceoptimierung und ist ein Feature." Du liest den Satz dreimal. Ein Feature. Aha.',
+        setsFlags: ['coffee_vendor_mailed'],
+      },
+      {
+        id: 'show_thomas',
+        text: 'Bjorg das Bewegungsprofil zeigen',
+        effects: { relationships: { kollegen: 10 } },
+        resultText: 'Bjorg schaut auf den Bildschirm und wird blass. "Das ist... das ist genau das, wovor Stefan Angst hatte. Kleine Dinger. Überall. Die niemand ernst nimmt." Er schluckt. "Stefan hatte recht."',
+        setsFlags: ['coffee_thomas_told'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_sq_coffee_3',
+    title: 'Der beste Kaffee der Verwaltung',
+    category: 'story',
+    weekRange: [2, 4],
+    probability: 1,
+    description: `Eine Woche später. Die Maschine läuft offline, mit sauberer Firmware, in ihrem eigenen Netz-Segment. Keine mitternächtlichen Espresso-Orgien mehr, kein Funken nach draußen.
+
+Und sie kocht immer noch. Besser als je zuvor.
+
+Im Pausenraum hat sich herumgesprochen, wer "das mit der Kaffeemaschine" gefixt hat. Frau Weber hat dir inoffiziell den Titel verliehen: **Kaffeemaschinenflüsterer**. Es ist der erste Moment, seit du hier angefangen hast, in dem sich das Haus wie ein Team anfühlt.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'sidequest', 'coffee', 'team'],
+    choices: [
+      {
+        id: 'post_doku',
+        text: 'Eine kleine Doku für den Pausenraum aushängen',
+        effects: { skills: { softSkills: 3, security: 2 } },
+        resultText: 'Du hängst einen Zettel neben die Maschine: "So erkennt ihr Geräte, die zu viel reden." Halb Anleitung, halb Augenzwinkern. Zwei Kollegen aus der Buchhaltung lesen ihn tatsächlich - und fragen nach. Sicherheit fängt beim Kaffee an.',
+        setsFlags: ['coffee_doku_posted'],
+      },
+      {
+        id: 'enjoy_moment',
+        text: 'Den Moment einfach genießen - der erste echte Team-Erfolg',
+        effects: { relationships: { kollegen: 10 }, stress: -5 },
+        resultText: 'Ihr steht zu dritt am Fenster, jeder mit einer Tasse. Bjorg hebt seine wie zum Anstoßen. "Auf den Kaffeemaschinenflüsterer." Frau Weber lacht. Es ist klein. Aber es ist echt. Und du wirst dich daran erinnern, wenn es mal richtig hart wird.',
+        setsFlags: ['coffee_team_moment'],
+      },
+    ],
+  },
 ];
