@@ -287,14 +287,9 @@ Act 3: Resolution (Weeks 9-12)
 
 ---
 
-## Hidden Modes (3)
+## Hidden Modes (2)
 
 These modes exist in code but are not shown in the selection screen.
-
-### Intermediate (Standard)
-- **Status:** Hidden
-- **Reason:** Overlaps with Learning mode
-- **May return:** As "Classic" mode later
 
 ### Hard (Schwer)
 - **Status:** Hidden
@@ -315,7 +310,8 @@ These modes exist in code but are not shown in the selection screen.
 1. 📚 Einsteiger (Beginner) — recommended for new players
 2. 🎓 Lernmodus (Learning) — recommended for IT training
 3. 📖 Story (Adventure) — narrative experience
-4. 🏛️ KRITIS — full simulation
+4. 💼 Standard (Intermediate) — classic baseline experience
+5. 🏛️ KRITIS — full simulation
 ```
 
 ### Type Definition Update
@@ -330,7 +326,7 @@ export type GameModeId =
   | 'arcade';
 
 // Visible modes filter
-export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'kritis'];
+export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'intermediate', 'kritis'];
 ```
 
 ### Feature Flags per Mode

@@ -6,7 +6,7 @@
 export type GameModeId = 'beginner' | 'learning' | 'story' | 'kritis' | 'intermediate' | 'hard' | 'arcade';
 
 // Modes visible in the selection screen
-export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'kritis'];
+export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'intermediate', 'kritis'];
 
 // Steered default for newcomers — pre-selected and badged in the mode picker.
 export const RECOMMENDED_MODE_ID: GameModeId = 'beginner';

@@ -6,16 +6,17 @@ A text-based IT administration simulation game where you play as a sysadmin at a
 
 ## Game Modes
 
-The mode selection screen currently exposes four modes:
+The mode selection screen currently exposes five modes:
 
 | Mode | Description |
 |------|-------------|
 | **Einsteiger** | For beginners - helpful hints and forgiving values |
 | **Lernmodus** | Security training - 31 lessons across 8 tracks: Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings) and the 5-level "Blackout" incident |
 | **Story: Die Probezeit** | Linear narrative with sidequests and multiple endings |
+| **Standard** | The classic baseline experience - balanced challenge, 1.0x effects |
 | **KRITIS** | Realistic simulation - 24 weeks with NIS2 audits |
 
-Additional modes (`Standard`, `Schwer`, `Arcade`) still exist in code as hidden/legacy configurations, but are not shown in the current mode selection screen.
+Additional modes (`Schwer`, `Arcade`) still exist in code as hidden/legacy configurations, but are not shown in the current mode selection screen.
 
 ## Adventure Mode: "Die Probezeit"
 
