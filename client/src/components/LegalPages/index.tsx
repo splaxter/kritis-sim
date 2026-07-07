@@ -1,6 +1,29 @@
 // client/src/components/LegalPages/index.tsx
 import { useState } from 'react';
 
+// ═════════════════════════════════════════════════════════════════════
+// ⚠️  BETREIBER-DATEN — VOR PRODUKTIV-DEPLOYMENT AUSFÜLLEN!  ⚠️
+// Pflichtangaben nach § 5 TMG (Impressum) und Art. 13 DSGVO
+// (Verantwortliche Stelle). Solange hier TODO-Platzhalter stehen, ist
+// die Seite NICHT rechtskonform. Der Guard-Test in LegalPages.test.tsx
+// ist deshalb als `it.fails` markiert — nach dem Eintragen echter Daten
+// dort `it.fails` → `it` umstellen, damit er dauerhaft wacht.
+// ═════════════════════════════════════════════════════════════════════
+export const LEGAL_OWNER = {
+  name: 'TODO Vorname Nachname',
+  street: 'TODO Straße Hausnummer',
+  city: 'TODO PLZ Ort',
+  country: 'Deutschland',
+  email: 'TODO ihre-email@example.com',
+  /** Nach § 5 TMG optional — auf '' setzen, um die Zeile auszublenden. */
+  phone: 'TODO +49 XXX XXXXXXX',
+};
+
+/** True solange irgendein Feld noch einen TODO-Platzhalter trägt. */
+export const LEGAL_DATA_IS_PLACEHOLDER = Object.values(LEGAL_OWNER).some(
+  (v) => v.includes('TODO'),
+);
+
 interface LegalPagesProps {
   initialPage?: 'impressum' | 'datenschutz';
   onClose: () => void;
@@ -68,29 +91,30 @@ function Impressum() {
       <section>
         <h3 className="text-terminal-info mb-2">Angaben gemäß § 5 TMG</h3>
         <div className="text-terminal-green-dim">
-          {/* TODO: Fill in your actual information */}
-          <p className="text-terminal-warning mb-2">
-            [BITTE AUSFÜLLEN - Pflichtangaben nach § 5 TMG]
-          </p>
-          <p>Vorname Nachname</p>
-          <p>Straße Hausnummer</p>
-          <p>PLZ Ort</p>
-          <p>Deutschland</p>
+          {LEGAL_DATA_IS_PLACEHOLDER && (
+            <p className="text-terminal-warning mb-2">
+              [BITTE AUSFÜLLEN - Pflichtangaben nach § 5 TMG]
+            </p>
+          )}
+          <p>{LEGAL_OWNER.name}</p>
+          <p>{LEGAL_OWNER.street}</p>
+          <p>{LEGAL_OWNER.city}</p>
+          <p>{LEGAL_OWNER.country}</p>
         </div>
       </section>
 
       <section>
         <h3 className="text-terminal-info mb-2">Kontakt</h3>
         <div className="text-terminal-green-dim">
-          <p>E-Mail: ihre-email@example.com</p>
-          <p>Telefon: +49 XXX XXXXXXX (optional)</p>
+          <p>E-Mail: {LEGAL_OWNER.email}</p>
+          {LEGAL_OWNER.phone && <p>Telefon: {LEGAL_OWNER.phone} (optional)</p>}
         </div>
       </section>
 
       <section>
         <h3 className="text-terminal-info mb-2">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h3>
         <div className="text-terminal-green-dim">
-          <p>Vorname Nachname</p>
+          <p>{LEGAL_OWNER.name}</p>
           <p>Adresse wie oben</p>
         </div>
       </section>
@@ -168,13 +192,15 @@ function Datenschutz() {
       <section>
         <h3 className="text-terminal-info mb-2">2. Verantwortliche Stelle</h3>
         <div className="text-terminal-green-dim">
-          <p className="text-terminal-warning mb-2">
-            [BITTE AUSFÜLLEN - Gleiche Daten wie Impressum]
-          </p>
-          <p>Vorname Nachname</p>
-          <p>Straße Hausnummer</p>
-          <p>PLZ Ort</p>
-          <p>E-Mail: ihre-email@example.com</p>
+          {LEGAL_DATA_IS_PLACEHOLDER && (
+            <p className="text-terminal-warning mb-2">
+              [BITTE AUSFÜLLEN - Gleiche Daten wie Impressum]
+            </p>
+          )}
+          <p>{LEGAL_OWNER.name}</p>
+          <p>{LEGAL_OWNER.street}</p>
+          <p>{LEGAL_OWNER.city}</p>
+          <p>E-Mail: {LEGAL_OWNER.email}</p>
         </div>
       </section>
 
