@@ -6,6 +6,7 @@
 export { adventureChapters, TOTAL_CHAPTERS, TOTAL_STORY_BEATS } from './chapters';
 export { adventureSidequests, getSidequestById, TOTAL_SIDEQUESTS } from './sidequests';
 export { adventureStoryEvents } from './story-events';
+export { adventureSidequestEvents } from './sidequest-events';
 
 // Story summary for display
 export const STORY_INFO = {

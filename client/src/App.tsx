@@ -12,6 +12,7 @@ import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shar
 import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { adventureStoryEvents } from './content/adventure/story-events';
+import { adventureSidequestEvents } from './content/adventure/sidequest-events';
 import { IntroScreen } from './components/IntroScreen';
 // Statically imported (not lazy): IntroScreen already pulls LegalPages into the
 // eager bundle, so a dynamic import here only produces a Vite "both statically
@@ -91,7 +92,7 @@ function AppContent() {
     if (game.phase === 'playing' && !game.currentEvent && !game.currentScenario) {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
-        const combinedEvents = [...allEvents, ...adventureStoryEvents];
+        const combinedEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
 
         // Entered a chapter that isn't fully authored → act-break "Fortsetzung
         // folgt" ending, BEFORE serving any of its (possibly partial) content and

@@ -1,13 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { allEvents } from '../content/events';
 import { adventureStoryEvents } from '../content/adventure/story-events';
+import { adventureSidequestEvents } from '../content/adventure/sidequest-events';
 import { adventureChapters } from '../content/adventure/chapters';
 import { adventureSidequests } from '../content/adventure/sidequests';
 import { getAllScenarios } from '../content/packs';
 import { GameEvent } from '@kritis/shared';
 
 // ── id universes ──────────────────────────────────────────────────────────
-const storyEvents: GameEvent[] = [...allEvents, ...adventureStoryEvents];
+const storyEvents: GameEvent[] = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
 const eventIds = new Set(storyEvents.map((e) => e.id));
 const scenarioIds = new Set(getAllScenarios().map((s) => s.id));
 const contentIds = new Set([...eventIds, ...scenarioIds]);
@@ -46,7 +47,6 @@ const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger re
 const KNOWN_DANGLING_SIDEQUEST_EVENTS = [
   'adv_sq_coffee_1', 'adv_sq_coffee_2', 'adv_sq_coffee_3',
   'adv_sq_network_1', 'adv_sq_network_2',
-  'adv_sq_printer_1', 'adv_sq_printer_2', 'adv_sq_printer_3',
 ];
 
 const setFlags = new Set<string>(['kritis_mode']);
