@@ -245,16 +245,20 @@ export function calculateEndingScore(
   return Math.max(0, Math.min(100, score));
 }
 
+/**
+ * Ending selection. Sidequests contribute to `score` (+10 each in
+ * calculateEndingScore) but do NOT gate the good ending — the sidequest layer
+ * ships separately and the campaign must resolve without it.
+ * Thresholds: good >= 65, neutral >= 35, bad < 35 (score is clamped 0–100).
+ * `completedSidequests` stays in the signature for call-site stability but is
+ * intentionally unused.
+ */
 export function determineEnding(
   score: number,
   completedSidequests: number,
   storyPath: StoryPath
 ): EndingType {
-  if (score >= 70 && completedSidequests >= 2) {
-    return 'good';
-  } else if (score >= 40 || (score >= 30 && completedSidequests >= 2)) {
-    return 'neutral';
-  } else {
-    return 'bad';
-  }
+  if (score >= 65) return 'good';
+  if (score >= 35) return 'neutral';
+  return 'bad';
 }

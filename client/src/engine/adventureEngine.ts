@@ -12,6 +12,7 @@ import {
   CharacterMemory,
   createInitialAdventureState,
   EndingType,
+  StoryPath,
   calculateEndingScore,
   determineEnding,
 } from '@kritis/shared';
@@ -437,20 +438,51 @@ export function updateCharacterMemory(
 // ENDING CALCULATION
 // ============================================
 
+/**
+ * Canonical ending flags read by calculateEndingScore. Nothing in the game
+ * ever WRITES storyState.endingFlags — instead we DERIVE them from played
+ * content (state.flags + characterMemory) at read time, merged with anything
+ * already stored (forward-compat + old saves).
+ */
+const ENDING_FLAG_SOURCES: Record<string, string[]> = {
+  saved_early: ['saved_early', 'isolated_systems', 'used_legacy_script', 'contained_damage', 'cut_interconnect', 'attack_repelled'],
+  found_evidence: ['found_evidence', 'has_stefan_dossier', 'knows_full_timeline', 'evidence_secured', 'secured_evidence', 'insider_evidence', 'evidence_complete'],
+  team_prepared: ['team_prepared', 'restore_tested', 'ir_ready', 'crown_jewels_isolated', 'shift_plan', 'coordinated_defense'],
+  trusted_by_all: ['trusted_by_all'],
+  burned_bridges: ['burned_bridges'],
+  ignored_warnings: ['ignored_warnings'],
+  blamed_others: ['blamed_others'],
+};
+
+export function deriveEndingFlags(state: GameState): string[] {
+  const flags = new Set<string>(state.storyState?.endingFlags ?? []);
+  for (const [canonical, sources] of Object.entries(ENDING_FLAG_SOURCES)) {
+    if (sources.some((f) => state.flags[f])) flags.add(canonical);
+  }
+  const trusted = Object.values(state.storyState?.characterMemory ?? {})
+    .filter((m) => m.trustLevel >= 50).length;
+  if (trusted >= 2) flags.add('trusted_by_all');
+  return [...flags];
+}
+
+export function deriveStoryPath(state: GameState): StoryPath {
+  if (state.flags['chose_official_route']) return 'official';
+  if (state.flags['going_solo'] || state.flags['wants_solo']) return 'underground';
+  return state.storyState?.storyPath ?? 'neutral';
+}
+
 export function calculateAdventureEnding(state: GameState): EndingType {
   if (!state.storyState) {
     return 'neutral';
   }
 
-  const advState = state.storyState;
-
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
-    advState.completedSidequests,
-    advState.endingFlags
+    state.storyState.completedSidequests,
+    deriveEndingFlags(state)
   );
 
-  return determineEnding(score, advState.completedSidequests.length, advState.storyPath);
+  return determineEnding(score, state.storyState.completedSidequests.length, deriveStoryPath(state));
 }
 
 export function getEndingStats(state: GameState): {
@@ -459,6 +491,7 @@ export function getEndingStats(state: GameState): {
   totalSidequests: number;
   charactersHelped: string[];
   storyPath: string;
+  endingFlags: string[];
 } {
   if (!state.storyState) {
     return {
@@ -467,6 +500,7 @@ export function getEndingStats(state: GameState): {
       totalSidequests: adventureSidequests.length,
       charactersHelped: [],
       storyPath: 'neutral',
+      endingFlags: [],
     };
   }
 
@@ -476,10 +510,12 @@ export function getEndingStats(state: GameState): {
     .filter(([_, memory]) => memory.trustLevel >= 50)
     .map(([npcId]) => npcId);
 
+  const endingFlags = deriveEndingFlags(state);
+
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
     advState.completedSidequests,
-    advState.endingFlags
+    endingFlags
   );
 
   return {
@@ -487,7 +523,8 @@ export function getEndingStats(state: GameState): {
     sidequestsCompleted: advState.completedSidequests.length,
     totalSidequests: adventureSidequests.length,
     charactersHelped,
-    storyPath: advState.storyPath,
+    storyPath: deriveStoryPath(state),
+    endingFlags,
   };
 }
 
