@@ -126,4 +126,74 @@ Jemand wollte genau das herausfinden. Und du bist die Antwort.`,
       },
     ],
   },
+
+  // ── sq_network_optimization ───────────────────────────────────────────
+  {
+    id: 'adv_sq_network_1',
+    title: 'Der Flaschenhals',
+    category: 'story',
+    weekRange: [2, 12],
+    probability: 1,
+    description: `Es beginnt mit einem Ticket. Dann drei. Dann fünfzehn. "Netzwerk langsam." "Laufwerk hängt." "Kann keine Datei öffnen." Aus jeder Abteilung dasselbe.
+
+Du machst einen schnellen Test - und siehst es sofort: Das ist kein Bandbreitenproblem. Die Leitung nach draußen ist kerngesund. Das Problem sitzt *drinnen*. Das ist Topologie.
+
+Irgendwo im Haus kriecht der Datenverkehr durch einen Engpass, den niemand je geplant hat. Und du wirst ihn finden.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'sidequest', 'network', 'technical'],
+    choices: [
+      {
+        id: 'measure',
+        text: 'Systematisch messen - Port für Port, Segment für Segment',
+        effects: { skills: { netzwerk: 3, troubleshooting: 2 } },
+        resultText: 'Du misst dich durchs Gebäude. Die Zahlen ergeben ein klares Bild: Fast der gesamte Verkehr läuft über einen einzigen Punkt. Alles zieht sich dort zusammen wie durch einen Trichter.',
+        setsFlags: ['network_measured'],
+      },
+      {
+        id: 'find_netplan',
+        text: 'Den alten Netzwerkplan von Stefan suchen',
+        effects: { skills: { netzwerk: 2 } },
+        resultText: 'In einer vergessenen Freigabe findest du Stefans Plan - handschriftlich ergänzt. Am Rand eine Notiz, dick unterstrichen: "Alles hängt an EINEM Switch. Warum?!" Er war dir schon voraus.',
+        setsFlags: ['found_stefans_netplan'],
+      },
+      {
+        id: 'ask_thomas',
+        text: 'Bjorg fragen, wie das Netz eigentlich gewachsen ist',
+        effects: { relationships: { kollegen: 5 } },
+        resultText: '"Historisch gewachsen", sagt Bjorg und zuckt mit den Schultern, als wäre das eine vollständige Antwort. Auf Nachfrage: "Also... irgendwer hat irgendwann irgendwas angeschlossen. Seit zehn Jahren." Immerhin ehrlich.',
+        setsFlags: ['network_asked_thomas'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_sq_network_2',
+    title: 'Ein Netz, ein Switch, ein Problem',
+    category: 'story',
+    weekRange: [2, 12],
+    probability: 1,
+    description: `Der Flur-Schrank neben der Teeküche. Du öffnest ihn - und da steht er: ein billiger, unmanaged 24-Port-Switch, staubbedeckt, jeder Port belegt. Server, Buchhaltung, WLAN, Kaffeemaschine, der Drucker aus dem dritten Stock. Alles.
+
+Ein flaches Netz. Kein Segment, keine Trennung, keine Zonen. Jedes Gerät kann mit jedem anderen reden - und tut es auch. Wenn hier irgendwo etwas Bösartiges säße, hätte es freie Bahn durchs ganze Haus.
+
+Du hast den Flaschenhals gefunden. Und gleichzeitig das größte Sicherheitsloch der Behörde.`,
+    involvedCharacters: ['kollege'],
+    tags: ['story', 'sidequest', 'network', 'security'],
+    choices: [
+      {
+        id: 'plan_vlans',
+        text: 'VLANs planen und den Switch durch managed Hardware ersetzen',
+        effects: { skills: { netzwerk: 5, security: 3 } },
+        resultText: 'Du zeichnest die Zonen auf: Server getrennt von Büro, IoT-Kram in ein eigenes Segment. Der neue managed Switch macht Schluss mit dem flachen Netz. Und du weißt jetzt genau, wo die Schwachstellen sitzen - falls es je ernst wird.',
+        setsFlags: ['network_replanned'],
+      },
+      {
+        id: 'document_first',
+        text: 'Erst sauber dokumentieren, dann dem Chef ein Budget abringen',
+        effects: { relationships: { chef: 5 }, skills: { softSkills: 2 } },
+        resultText: 'Du legst dem Chef zwei Seiten hin: Ist-Zustand, Risiko, Kosten. Er versteht kein Wort der Technik - aber "ein Loch, durch das jeder überall hinkommt" versteht er. Er nickt. Und du weißt jetzt, wo jede Schwachstelle liegt.',
+        setsFlags: ['network_documented'],
+      },
+    ],
+  },
 ];

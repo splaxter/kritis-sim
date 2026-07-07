@@ -46,7 +46,6 @@ const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger re
 // one — then remove it from this list).
 const KNOWN_DANGLING_SIDEQUEST_EVENTS = [
   'adv_sq_coffee_1', 'adv_sq_coffee_2', 'adv_sq_coffee_3',
-  'adv_sq_network_1', 'adv_sq_network_2',
 ];
 
 const setFlags = new Set<string>(['kritis_mode']);
