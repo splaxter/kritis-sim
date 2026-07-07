@@ -234,9 +234,9 @@ function AppContent() {
   }, [game]);
 
   // Main menu keyboard navigation ('continue' only when an autosave exists)
-  const menuItems = resumeSave
-    ? (['continue', 'new', 'load'] as const)
-    : (['new', 'load'] as const);
+  const menuItems: readonly ('continue' | 'new' | 'load')[] = resumeSave
+    ? ['continue', 'new', 'load']
+    : ['new', 'load'];
 
   useEffect(() => {
     if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
