@@ -202,12 +202,12 @@ export function GameScreen({
           {phase === 'playing' && !currentEvent && !currentScenario && (
             <div className="relative z-10 min-h-screen flex items-center justify-center p-4">
               <div className="bg-black/85 backdrop-blur-md border border-terminal-green/40 rounded-lg p-8 text-center">
-                <div className="text-gray-300 mb-4">Kein Ereignis verfugbar.</div>
+                <div className="text-gray-300 mb-4">Kein Ereignis verfügbar.</div>
                 <button
                   onClick={onContinue}
                   className="px-6 py-3 bg-terminal-green/20 border border-terminal-green rounded hover:bg-terminal-green/30 transition-colors"
                 >
-                  [ENTER] Nachster Tag
+                  [ENTER] Nächster Tag
                 </button>
               </div>
             </div>
@@ -267,12 +267,12 @@ export function GameScreen({
         {/* No content available */}
         {phase === 'playing' && !currentEvent && !currentScenario && (
           <div className="border border-terminal-border p-8 text-center">
-            <div className="text-terminal-green-dim mb-4">Kein Ereignis verfugbar.</div>
+            <div className="text-terminal-green-dim mb-4">Kein Ereignis verfügbar.</div>
             <button
               onClick={onContinue}
               className="p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
             >
-              [ENTER] Nachster Tag
+              [ENTER] Nächster Tag
             </button>
           </div>
         )}

@@ -332,7 +332,7 @@ export function EventCard({ event, state, onChoice, characters = {}, arcade }: E
 
       <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted">
         {arcade?.enabled ? (
-          <span>[1-{visibleChoices.length}] Schnell auswahlen!</span>
+          <span>[1-{visibleChoices.length}] Schnell auswählen!</span>
         ) : (
           <span>{cardKind === 'decision' ? `[1-${visibleChoices.length}] / [Enter] Auswahlen   [S] Speichern` : '[Enter] Weiter   [S] Speichern'}</span>
         )}
