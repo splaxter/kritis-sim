@@ -1,5 +1,7 @@
 # KRITIS Admin Simulator
 
+[![CI](https://github.com/splaxter/kritis-sim/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/splaxter/kritis-sim/actions/workflows/ci.yml)
+
 A text-based IT administration simulation game where you play as a sysadmin at a German municipal waste management company. Survive your 12-week probation period while dealing with broken printers, clueless bosses, and... a mysterious cyber threat?
 
 ## Game Modes
