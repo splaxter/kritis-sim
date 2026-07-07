@@ -10,6 +10,7 @@ import { monitoringChainEvents } from './monitoring-chain';
 import { offboardingChainEvents } from './offboarding-chain';
 import { changeChainEvents } from './change-chain';
 import { auditPrepChainEvents } from './audit-prep-chain';
+import { supplyChainChainEvents } from './supply-chain-chain';
 
 export const chainEvents: GameEvent[] = [
   ...patchChainEvents,
@@ -23,6 +24,7 @@ export const chainEvents: GameEvent[] = [
   ...offboardingChainEvents,
   ...changeChainEvents,
   ...auditPrepChainEvents,
+  ...supplyChainChainEvents,
 ];
 
 // Re-export individual chains for testing/debugging
@@ -38,4 +40,5 @@ export {
   offboardingChainEvents,
   changeChainEvents,
   auditPrepChainEvents,
+  supplyChainChainEvents,
 };

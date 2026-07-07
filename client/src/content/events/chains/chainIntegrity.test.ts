@@ -48,4 +48,13 @@ describe('chain integrity', () => {
     expect(targets).toContain('evt_auditprep_payoff');
     expect(targets).toContain('evt_auditprep_blamage');
   });
+
+  it('the supply-chain red-thread wires start → payoff/kompromittiert', () => {
+    const start = allEvents.find((e) => e.id === 'evt_lieferkette_start');
+    expect(start, 'evt_lieferkette_start missing').toBeTruthy();
+    expect(start!.requiredModes).toEqual(['kritis']);
+    const targets = (start!.choices ?? []).flatMap((c) => (c.chainTriggers ?? []).map((t) => t.targetEventId));
+    expect(targets).toContain('evt_lieferkette_payoff');
+    expect(targets).toContain('evt_lieferkette_kompromittiert');
+  });
 });
