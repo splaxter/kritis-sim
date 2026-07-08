@@ -134,7 +134,6 @@ Die verschlüsselten Server sind das eine. Deine saubere, vom Netz getrennte Kop
       {
         id: 'payoff_report_first',
         text: 'Erst Vorfall dokumentieren und an BSI/GF melden, dann wiederherstellen',
-        requires: { skill: 'security', threshold: 35 },
         effects: { skills: { security: 5 }, relationships: { chef: 8, gf: 10 }, compliance: 15, stress: 6 },
         resultText:
           'Du meldest sauber nach NIS2, informierst die Geschäftsführung — und stellst parallel wieder her. Die Aufsicht lobt später die saubere Doku. {gf} merkt sich, wer hier den Kopf behalten hat.',

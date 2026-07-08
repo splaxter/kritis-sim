@@ -449,6 +449,14 @@ Alle 10 Minuten wird ein weiterer Rechner verschlüsselt. Du musst das stoppen.`
         teachingMoment: 'Manche Ransomware hat Kill-Switches. Immer prüfen!',
       },
       {
+        id: 'isolate_infected',
+        text: 'Betroffene Rechner sofort vom Netz nehmen, Rest im Auge behalten',
+        effects: { stress: 12, skills: { troubleshooting: 4 } },
+        resultText: 'Du ziehst die verschlüsselten Rechner am Switch aus dem Netz und beobachtest den Rest. Kein Wundermittel, aber die Welle verliert Tempo - genug Zeit, um die Kollegen zu alarmieren.',
+        setsFlags: ['ransomware_contained'],
+        teachingMoment: 'Erste Regel bei Ransomware: Ausbreitung eindämmen. Betroffene Systeme isolieren geht immer - auch ohne tiefes Spezialwissen.',
+      },
+      {
         id: 'pull_plug',
         text: 'Stecker ziehen - alles offline nehmen',
         effects: { stress: 20, relationships: { fachabteilung: -20 } },

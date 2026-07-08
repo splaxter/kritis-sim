@@ -142,7 +142,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     let prompt = getTermPrompt();
 
     term.writeln(`Connected to ${context.hostname}`);
-    term.writeln('\x1b[90mTipp: Tab für Autovervollständigung, ↑/↓ für History, H für Hinweise\x1b[0m');
+    term.writeln('\x1b[90mTipp: Tab für Autovervollständigung, ↑/↓ für History, ? für Hinweise\x1b[0m');
     term.writeln('');
 
     // Auto-show first hint only in beginner mode (not learning mode)
@@ -191,6 +191,11 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     let solved = false;
     let pendingSkillGain: Partial<Skills> = {};
 
+    // While a command "streams" its output line-by-line (e.g. ping printing one
+    // reply per interval), the terminal swallows input until it finishes.
+    let streaming = false;
+    let streamTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Tab completion state for cycling
     let tabCompletions: Completion[] = [];
     let tabIndex = -1;
@@ -221,9 +226,58 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       setCurrentLine(line);
     };
 
+    // A "reply/attempt" line of a ping-style command — the lines we want to
+    // pace out over time instead of dumping instantly.
+    const isPingReplyLine = (l: string) =>
+      /icmp_seq|bytes from|Request timeout|no answer|timed out|Destination.*Unreachable|packet loss/i.test(l);
+
+    // Emit a scenario command's output. For ping-like commands the reply lines
+    // are written one at a time with a short delay so it feels like a real
+    // ping "trying" the host; everything else is written instantly. `done`
+    // runs once all output is on screen (prompt/solution banner/etc.).
+    const emitScenarioOutput = (
+      output: string,
+      pingLike: boolean,
+      done: () => void
+    ) => {
+      const lines = output.split('\n');
+      if (!pingLike || !lines.some(isPingReplyLine)) {
+        for (const l of lines) term.writeln(l);
+        done();
+        return;
+      }
+      streaming = true;
+      let i = 0;
+      const step = () => {
+        if (i >= lines.length) {
+          streaming = false;
+          streamTimer = null;
+          done();
+          return;
+        }
+        const l = lines[i++];
+        if (isPingReplyLine(l)) {
+          streamTimer = setTimeout(() => {
+            term.writeln(l);
+            step();
+          }, 450);
+        } else {
+          term.writeln(l);
+          step();
+        }
+      };
+      step();
+    };
+
     term.onData((data) => {
       // Reset idle timer on any input
       resetIdleTimer();
+
+      // While output is streaming (e.g. ping), ignore keystrokes so the
+      // animation isn't interrupted or interleaved with a new command.
+      if (streaming) {
+        return;
+      }
 
       // After solving, swallow all input except Enter, which advances. This
       // keeps the solution on screen until the player confirms.
@@ -325,6 +379,12 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 const output = cmd.output;
                 scenarioMatch = true;
 
+                // Ping-style commands stream their reply lines over time.
+                const isPingLike =
+                  cmd.teachesCommand === 'ping' ||
+                  cmd.pattern.startsWith('ping') ||
+                  /^PING /.test(output);
+
                 // Track executed commands for solution checking
                 // Store both the pattern and teachesCommand for flexible matching
                 const newTeached = new Set(teachedCommandsRef.current);
@@ -342,32 +402,31 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                 }
 
                 if (cmd.isSolution) {
-                  // Show output first - split by newlines for proper rendering
-                  const outLines = output.split('\n');
-                  for (const outLine of outLines) {
-                    term.writeln(outLine);
-                  }
-                  term.writeln('');
+                  // Stream output (ping-style commands pace their reply lines),
+                  // then show the exit code + success banner.
+                  emitScenarioOutput(output, isPingLike, () => {
+                    term.writeln('');
 
-                  // Show realistic exit code
-                  term.writeln('\x1b[90m[Process completed with exit code 0]\x1b[0m');
-                  term.writeln('');
+                    // Show realistic exit code
+                    term.writeln('\x1b[90m[Process completed with exit code 0]\x1b[0m');
+                    term.writeln('');
 
-                  // Show success feedback
-                  term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
-                  term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
-                  term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
-                  term.writeln('');
+                    // Show success feedback
+                    term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
+                    term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
+                    term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
+                    term.writeln('');
 
-                  // Wait for the player to confirm with Enter (all modes) so the
-                  // solution stays readable instead of auto-advancing.
-                  term.writeln(
-                    gameMode === 'learning'
-                      ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
-                      : '\x1b[33m[ENTER] Weiter...\x1b[0m'
-                  );
-                  solved = true;
-                  pendingSkillGain = cmd.skillGain || {};
+                    // Wait for the player to confirm with Enter (all modes) so the
+                    // solution stays readable instead of auto-advancing.
+                    term.writeln(
+                      gameMode === 'learning'
+                        ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
+                        : '\x1b[33m[ENTER] Weiter...\x1b[0m'
+                    );
+                    solved = true;
+                    pendingSkillGain = cmd.skillGain || {};
+                  });
                   return; // Don't write prompt after solution
                 }
 
@@ -389,44 +448,43 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   return;
                 }
 
-                // Non-solution scenario command - show output
-                // Convert \n to \r\n for proper terminal rendering
-                const lines = output.split('\n');
-                for (const line of lines) {
-                  term.writeln(line);
-                }
-
-                // Check if all solution requirements are now met
-                const solution = checkSolutions(teachedCommandsRef.current);
-                if (solution) {
-                  term.writeln('');
-                  term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
-                  term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
-                  term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
-                  term.writeln('');
-                  // Show full result text for learning mode
-                  if (solution.resultText) {
-                    term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
+                // Non-solution scenario command - show output (ping-style
+                // commands stream their reply lines), then either the success
+                // banner (if this command completed a multi-step solution) or a
+                // fresh prompt.
+                emitScenarioOutput(output, isPingLike, () => {
+                  // Check if all solution requirements are now met
+                  const solution = checkSolutions(teachedCommandsRef.current);
+                  if (solution) {
                     term.writeln('');
+                    term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
+                    term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
+                    term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
+                    term.writeln('');
+                    // Show full result text for learning mode
+                    if (solution.resultText) {
+                      term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
+                      term.writeln('');
+                    }
+
+                    // Wait for the player to confirm with Enter (all modes) so the
+                    // solution stays readable instead of auto-advancing.
+                    term.writeln(
+                      gameMode === 'learning'
+                        ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
+                        : '\x1b[33m[ENTER] Weiter...\x1b[0m'
+                    );
+                    solved = true;
+                    pendingSkillGain = solution.skillGain || {};
+                    return;
                   }
 
-                  // Wait for the player to confirm with Enter (all modes) so the
-                  // solution stays readable instead of auto-advancing.
-                  term.writeln(
-                    gameMode === 'learning'
-                      ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
-                      : '\x1b[33m[ENTER] Weiter...\x1b[0m'
-                  );
-                  solved = true;
-                  pendingSkillGain = solution.skillGain || {};
-                  return;
-                }
-
-                line = '';
-                cursorPos = 0;
-                setCurrentLine('');
-                prompt = getTermPrompt();
-                term.write(prompt);
+                  line = '';
+                  cursorPos = 0;
+                  setCurrentLine('');
+                  prompt = getTermPrompt();
+                  term.write(prompt);
+                });
                 return;
               }
             }
@@ -658,9 +716,10 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
           }
           break;
 
-        case 'h': // H - show hint (but only if at start of line or alone)
-        case 'H':
-          // Show hint if line is empty, otherwise type the character
+        case '?': // ? - show hint (only when the line is empty, so it never
+                  // eats characters of a typed command). We use '?' instead of
+                  // 'h' precisely so commands like `help`, `head`, `history`
+                  // stay typeable — the [Hinweis] button works in every case.
           if (line.length === 0) {
             if (hintsUsedRef.current < context.hints.length) {
               const hint = context.hints[hintsUsedRef.current];
@@ -674,7 +733,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
               term.write(prompt);
             }
           } else {
-            // Typing h/H as part of command
+            // Typing '?' as part of a command (e.g. a glob)
             line = line.slice(0, cursorPos) + data + line.slice(cursorPos);
             cursorPos++;
             setCurrentLine(line);
@@ -724,6 +783,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
         container.removeEventListener('keydown', handleKeyDown);
       }
       if (idleTimer) clearTimeout(idleTimer);
+      if (streamTimer) clearTimeout(streamTimer);
       term.dispose();
     };
   }, [context, shell, isBeginnerMode]); // Depend on context, shell, and game mode
