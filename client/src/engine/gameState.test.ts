@@ -478,7 +478,7 @@ describe('gameState', () => {
     });
 
     describe('mode-based effect multiplier', () => {
-      it('applies 1.5x multiplier in hard mode for negative effects', () => {
+      it('applies 1.2x multiplier in hard mode for negative effects', () => {
         const state = createGameState({
           gameMode: 'hard',
           stress: 30,
@@ -486,16 +486,16 @@ describe('gameState', () => {
           relationships: { ...DEFAULT_GAME_STATE.relationships, chef: 20 },
         });
         const effects: EventEffects = {
-          stress: 10,      // Should become 15 (10 * 1.5)
-          compliance: -10, // Should become -15 (10 * 1.5)
-          relationships: { chef: -10 }, // Should become -15
+          stress: 10,      // Should become 12 (10 * 1.2)
+          compliance: -10, // Should become -12 (10 * 1.2)
+          relationships: { chef: -10 }, // Should become -12
         };
 
         const newState = applyEffects(state, effects);
 
-        expect(newState.stress).toBe(45); // 30 + 15
-        expect(newState.compliance).toBe(35); // 50 - 15
-        expect(newState.relationships.chef).toBe(5); // 20 - 15
+        expect(newState.stress).toBe(42); // 30 + 12
+        expect(newState.compliance).toBe(38); // 50 - 12
+        expect(newState.relationships.chef).toBe(8); // 20 - 12
       });
 
       it('applies 0.7x multiplier in beginner mode for negative effects', () => {
@@ -598,9 +598,32 @@ describe('gameState', () => {
 
       const newState = advanceDay(state);
 
-      expect(newState.stress).toBe(50);
+      // Day 4 -> 5 is a weekday: passive daily recovery applies (intermediate
+      // rate 1.0 => -4), but budget/completedEvents are untouched.
+      expect(newState.stress).toBe(46);
       expect(newState.budget).toBe(8000);
       expect(newState.completedEvents).toEqual(['evt1', 'evt2']);
+    });
+
+    it('applies passive daily stress recovery on a weekday', () => {
+      const state = createGameState({ currentDay: 2, stress: 30 });
+      const newState = advanceDay(state);
+      // intermediate rate 1.0: round(4 * 1.0) = 4
+      expect(newState.stress).toBe(26);
+    });
+
+    it('applies daily + weekend stress recovery on the week rollover', () => {
+      const state = createGameState({ currentDay: 5, stress: 30 });
+      const newState = advanceDay(state);
+      // intermediate rate 1.0: daily 4 + weekend bonus 4 = 8
+      expect(newState.currentWeek).toBe(2);
+      expect(newState.stress).toBe(22);
+    });
+
+    it('clamps stress recovery at 0', () => {
+      const state = createGameState({ currentDay: 5, stress: 3 });
+      const newState = advanceDay(state);
+      expect(newState.stress).toBe(0);
     });
   });
 
