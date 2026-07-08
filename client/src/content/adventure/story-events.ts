@@ -354,7 +354,7 @@ Jens steht hinter dir. "Stefan hat das auch gefunden", sagt er leise. "Drei Tage
         id: 'tell_chef',
         text: 'Sofort den Chef informieren',
         effects: { relationships: { chef: 5 } },
-        resultText: 'Chef Bert hört zu, nickt, und sagt: "Das ist bestimmt ein Fehlalarm. Unsere IT ist sicher." Du bist nicht überzeugt.',
+        resultText: 'Chef Bert hört aufmerksam zu. "Das nehme ich ernst. Aber bevor ich damit nach oben gehe, brauche ich Belastbares - Logs, keine Vermutungen." Vorsichtig, nicht ignorant. Nur: Bis die Beweise wasserdicht sind, tickt die Uhr weiter.',
         setsFlags: ['warned_chef', 'chef_dismissed'],
       },
     ],
@@ -413,11 +413,11 @@ Bjorg bleibt demonstrativ im Türrahmen: "Ich fass das Ding nicht an. Drucker si
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
-    description: `Chef Bert stürmt ins IT-Büro. "DIE PRÄSENTATION! Der Bürgermeister kommt in 30 MINUTEN und PowerPoint stürzt ab!"
+    description: `Chef Bert kommt zügig ins IT-Büro. "Der Bürgermeister ist in 30 Minuten da, und die Präsentation hängt sich beim Öffnen auf. Sieht mir nach Speicher aus - kannst du da ran? Du bist da schneller als ich."
 
-Bjorg ruft ihm hinterher: "Ich würde ja mitkommen, aber ich bin gleich in einem Termin!" Du gehst allein runter ins Chefbüro.
+Bjorg ruft ihm hinterher: "Ich würde ja helfen, aber ich bin gleich in einem Termin!" Du gehst mit Bert runter ins Chefbüro.
 
-Das Problem: Eine 150 MB PowerPoint-Datei mit 200 eingebetteten Excel-Tabellen. Sein Laptop hat 4 GB RAM und kämpft ums Überleben.
+Sein Verdacht stimmt: Eine 150 MB PowerPoint-Datei mit 200 eingebetteten Excel-Tabellen. Sein Laptop hat 4 GB RAM und kämpft ums Überleben.
 
 Aber du bemerkst noch etwas: Im Hintergrund läuft ein Prozess, den du nicht kennst. Er verbraucht 40% der CPU. "svchost_helper.exe".
 
@@ -436,7 +436,7 @@ Der gleiche Prozess aus den Logs.`,
         id: 'investigate_first',
         text: '"Moment, da läuft was Seltsames. Ich muss das prüfen."',
         effects: { relationships: { chef: -10 }, skills: { security: 5 } },
-        resultText: 'Der Chef explodiert fast. Aber du machst Screenshots. Der Prozess kommuniziert nach außen - während du zuschaust.',
+        resultText: 'Bert ist sichtlich angespannt - "Der Bürgermeister steht gleich vor der Tür!" - lässt dich aber machen, als das Wort "Sicherheitsvorfall" fällt. Du machst Screenshots. Der Prozess kommuniziert nach außen - während du zuschaust.',
         setsFlags: ['caught_malware_active', 'chef_angry'],
       },
       {
@@ -935,11 +935,11 @@ Bevor du irgendwem irgendwas zeigst, musst du diese Beweise schützen — und en
     category: 'story',
     weekRange: [6, 6],
     probability: 1,
-    description: `Du legst Chef Bert die Mappe auf den Schreibtisch. Er blättert, wird blasser, schiebt sie weg.
+    description: `Du legst Chef Bert die Mappe auf den Schreibtisch. Er blättert, und man sieht, dass er sofort begreift, was da steht. Genau das macht ihm zu schaffen.
 
-"Sehen Sie... das ist..." Er räuspert sich. "Das ist eine Nummer zu groß für uns. Wir sind ein kommunales Stadtwerk, kein Geheimdienst. Vielleicht ist das auch alles nur ein Missverständnis. Lassen Sie uns nichts überstürzen."
+Er lehnt sich zurück. "Das ist erheblich. Und heikel. Wenn ich das nach oben melde und es stellt sich als Missverständnis heraus, ist mein Wort nichts mehr wert — und Ihres auch nicht. Lassen Sie uns das erst wasserdicht machen, bevor wir es groß aufhängen."
 
-Jens neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du den offiziellen Weg — über den Chef, sauber, dokumentiert? Oder hat Bert gerade bewiesen, dass auf den Dienstweg kein Verlass ist?`,
+Jens neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du den offiziellen Weg — über den Chef, sauber, dokumentiert? Oder ist Berts Vorsicht ein Risiko, das du dir gerade nicht leisten kannst?`,
     involvedCharacters: ['chef', 'kollege'],
     tags: ['story', 'chapter6', 'act2', 'decision'],
     choices: [
@@ -953,16 +953,16 @@ Jens neben dir spannt sich an. Du spürst es: Das hier ist der Moment. Gehst du 
       },
       {
         id: 'go_solo',
-        text: 'Bert hat sich gerade disqualifiziert — das ziehst du mit Jens allein durch',
+        text: 'Berts Zögern ist dir zu riskant — das ziehst du mit Jens allein durch',
         effects: { relationships: { chef: -5 }, stress: 6 },
-        resultText: 'Du nickst freundlich und sagst nichts mehr. In Gedanken hast du Bert schon abgeschrieben. Wenn der Insider Zugang zur Führungsebene hat, ist Schweigen sicherer.',
+        resultText: 'Du nickst freundlich und sagst nichts mehr. In Gedanken hast du Bert erstmal außen vor gelassen. Wenn der Insider Zugang zur Führungsebene hat, ist Schweigen sicherer — auch wenn Berts Vorsicht vielleicht nur Vorsicht war.',
         setsFlags: ['distrust_chef', 'going_solo'],
       },
       {
         id: 'pressure_chef',
         text: 'Bert unter Druck setzen: "Wenn das rauskommt und wir nichts getan haben — wer haftet dann?"',
         effects: { relationships: { chef: -10 }, skills: { softSkills: 3 }, stress: 6 },
-        resultText: 'Bert wird wütend, dann nachdenklich, dann ausweichend. Er verspricht "drüber zu schlafen". Du weißt: Auf den ist kein Verlass. Du musst selbst handeln.',
+        resultText: 'Bert reagiert gereizt auf den Druck — "Drohen Sie mir nicht mit Haftung." Dann wird er nachdenklich. "Ich schlafe eine Nacht drüber." Ob das kluge Vorsicht ist oder gefährliches Zögern, musst du selbst einschätzen.',
         setsFlags: ['pressured_chef', 'going_solo'],
       },
     ],
@@ -1950,7 +1950,7 @@ Deine Probezeit ist offiziell beendet.`,
 
 Frau Müller hat einen Zettel an ihren roten Bildschirm geklebt — "KAPUTT!!" in Großbuchstaben — und tippt trotzdem weiter, aus Prinzip. Die Anrufe laufen im Sekundentakt auf: verärgerte Bürger, verwirrte Fahrer, ein Bestatter, der wissen will, ob die Beerdigung heute noch stattfindet. Die Disposition der Müllabfuhr steht. Achtundvierzig Wagen, kein Tourenplan.
 
-Und mitten durch die Gänge läuft Chef Bert — mit einer AUSGEDRUCKTEN Telefonliste, tatsächlich Papier, und dirigiert Leute an Positionen, als hätte er sein Leben lang nichts anderes gemacht. Im Analogen ist er plötzlich in seinem Element.
+Und mitten durch die Gänge läuft Chef Bert und dirigiert Leute an Positionen — ruhig, klar, eine ausgedruckte Telefonliste in der Hand. Wenn die Systeme stehen, führt man eben auf Papier weiter. Krisenkoordination kann er.
 
 "Wir kriegen das hin", ruft er dir zu. "Irgendwie kriegen wir das hin. Was brauchst du?"`,
     involvedCharacters: ['chef', 'fachabteilung'],
@@ -1975,7 +1975,7 @@ Und mitten durch die Gänge läuft Chef Bert — mit einer AUSGEDRUCKTEN Telefon
         id: 'support_bert_report',
         text: 'Chef Bert stützen und die BSI-Meldung sofort anstoßen',
         effects: { relationships: { chef: 10 }, compliance: 10 },
-        resultText: 'Du gehst mit Bert in sein Büro, ihr formuliert zusammen die Meldung. Er zögert kurz — "Ist das nicht... eine Nummer zu groß für uns?" — dann greift er zum Hörer und wird ganz ruhig: "Ja. Wir melden das. Offiziell. Guten Tag, hier spricht die Abfallwirtschaft, wir haben einen Sicherheitsvorfall nach §8b." Zum ersten Mal seit Wochen wirkt er wie ein Chef.',
+        resultText: 'Du gehst mit Bert in sein Büro, ihr formuliert zusammen die Meldung. Er atmet einmal durch — "Dann machen wir es richtig und sofort" — und greift zum Hörer, ganz ruhig: "Guten Tag, hier spricht die Abfallwirtschaft, wir haben einen Sicherheitsvorfall nach §8b." Keine Sekunde Zögern mehr.',
         setsFlags: ['crisis_reported', 'bsi_notified'],
         teachingMoment: '§8b BSIG (bzw. NIS2): KRITIS-Betreiber müssen erhebliche Störungen unverzüglich an das BSI melden — die Erstmeldung ist binnen 24 Stunden fällig, nicht erst wenn alles aufgeräumt ist.',
       },
@@ -2077,9 +2077,9 @@ Wie geht ihr vor?`,
 
 Die regulären Backups liegen auf dem Backup-Server. Der Backup-Server hängt im selben Netz. Der Angreifer hatte Admin. Die Backups sind — natürlich — mitverschlüsselt. Bleiben die Bänder im Schrank. Drei Monate alt.
 
-Chef Bert steht hilflos daneben. "Aber... wir haben doch dieses NAS gekauft? Das teure?"
+Chef Bert steht mit verschränkten Armen daneben, kiefermahlend. "Das teure NAS ist auch hin, oder? War ja im selben Netz."
 
-Jens, ohne aufzublicken: "Das NAS ist AUCH verschlüsselt, Bert. Das NAS war im Netz. Alles war im Netz."
+Jens, ohne aufzublicken: "Alles war im Netz, Bert. Genau das war das Problem."
 
 Stille. Der Countdown oben tickt. Ihr müsst mit dem arbeiten, was ihr habt.`,
     involvedCharacters: ['chef', 'kollege'],

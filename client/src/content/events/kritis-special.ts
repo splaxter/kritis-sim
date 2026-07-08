@@ -35,22 +35,22 @@ Bitte halten Sie folgende Dokumentation bereit:
 Mit freundlichen Grüßen,
 Bundesamt für Sicherheit in der Informationstechnik"
 
-Chef Bert steht plötzlich hinter dir. "Was ist ein NIS2?"`,
+Chef Bert liest über deine Schulter mit. "NIS2-Audit. Damit war zu rechnen. Die Frage ist nur: Wie gut stehen wir da?"`,
     involvedCharacters: ['chef'],
     tags: ['kritis', 'nis2', 'audit', 'compliance'],
     choices: [
       {
         id: 'explain_calmly',
-        text: 'Ruhig erklären: "Eine EU-Richtlinie für IT-Sicherheit. Wir müssen uns vorbereiten."',
+        text: 'Ruhig einordnen: "Machbar, wenn wir sofort anfangen. Ich priorisiere die Dokumentation."',
         effects: { relationships: { chef: 5 }, skills: { softSkills: 3 } },
-        resultText: 'Chef Bert nickt langsam. "Okay... und sind wir vorbereitet?" Du schluckst.',
+        resultText: 'Chef Bert nickt. "Gut. Dann leg los - und sag mir, was du von mir brauchst." Rückendeckung, keine Panik.',
         setsFlags: ['nis2_audit_announced', 'chef_informed'],
       },
       {
         id: 'panic',
-        text: '"Das ist... das ist nicht gut. Wir haben zwei Wochen."',
+        text: '"Das ist... das ist nicht gut. Wir haben nur zwei Wochen."',
         effects: { stress: 15, relationships: { chef: -5 } },
-        resultText: 'Chef Bert wird blass. "Zwei Wochen?! Für was?!" Die Panik breitet sich aus.',
+        resultText: 'Chef Bert bleibt ruhig, während du dich reinsteigerst. "Zwei Wochen sind knapp, aber nicht unmöglich. Erst der Plan, dann - meinetwegen - die Panik." Deine Nervosität steckt ihn nicht an.',
         setsFlags: ['nis2_audit_announced', 'panic_mode'],
       },
       {
@@ -121,7 +121,7 @@ Jens schaut über deine Schulter. "Willkommen in der Realität kommunaler IT." A
 
 "Guten Tag. Wir würden gerne mit Ihrer IT-Sicherheitsinfrastruktur beginnen."
 
-Chef Bert schwitzt. Bjorg hat sich krank gemeldet. Und der Drucker macht wieder seltsame Geräusche.
+Chef Bert ist angespannt, aber gefasst. Bjorg hat sich krank gemeldet. Und der Drucker macht wieder seltsame Geräusche.
 
 Die nächsten 4 Stunden werden interessant.`,
     involvedCharacters: ['chef'],
@@ -144,9 +144,9 @@ Die nächsten 4 Stunden werden interessant.`,
       },
       {
         id: 'deflect_to_chef',
-        text: 'Chef Bert die Führung überlassen',
+        text: 'Dich wegducken und Chef Bert allein vorn stehen lassen',
         effects: { relationships: { chef: -15 }, compliance: -10, stress: 10 },
-        resultText: '"Äh... der Server ist... das Ding da..." Chef Bert improvisiert. Schlecht. Sehr schlecht.',
+        resultText: 'Bert hält sich wacker und redet routiniert über Prozesse - aber die Auditoren wollen technische Details, und die kann nur die IT liefern. Dass du dich rausziehst, fällt auf: "Wer verantwortet die IT-Sicherheit hier eigentlich?" Bert fängt es nicht auf, und er nimmt dir das Wegducken übel.',
         setsFlags: ['audit_failed', 'chef_embarrassed'],
       },
     ],
@@ -189,7 +189,7 @@ Die Bewertung hängt von deinen vorherigen Entscheidungen ab...`,
         text: '[Wenn durchgefallen] "Das... das ist nicht gut."',
         unlocks: ['audit_failed'],
         effects: { compliance: -20, relationships: { chef: -10 }, budget: -10000 },
-        resultText: 'Bußgeld: 50.000€. Nachaudit in 3 Monaten. Chef Bert spricht nicht mehr mit dir.',
+        resultText: 'Bußgeld: 50.000€. Nachaudit in 3 Monaten. Chef Bert ist am Boden - aber er zeigt nicht auf dich: "Das geht auf uns alle. Da müssen wir gemeinsam durch." Gegen das Bußgeld hilft das nicht. Gegen das Alleinsein schon.',
         setsFlags: ['nis2_failed', 'bussgeld_erhalten'],
       },
     ],
@@ -683,7 +683,7 @@ Was du in den letzten Wochen getan hast, entscheidet jetzt, ob dieser Tag ein Tr
         text: 'Auf Zeit spielen, ausweichen, die kritischen Fragen umschiffen',
         effects: { compliance: -12, relationships: { chef: -12 }, stress: 20 },
         resultText:
-          'Du weichst aus, redest um den heißen Brei, verweist auf "läuft noch". Die Prüfer durchschauen es sofort — Ausweichen ist ihr täglich Brot. "Wir sehen keine Umsetzung der Auflagen aus der Erstprüfung." {chef} schaut dich nicht mehr an. Verschärfte Nachprüfung, enger Zeitrahmen. Zweimal dieselben Löcher — das verzeiht kein Prüfer.',
+          'Du weichst aus, redest um den heißen Brei, verweist auf "läuft noch". Die Prüfer durchschauen es sofort — Ausweichen ist ihr täglich Brot. "Wir sehen keine Umsetzung der Auflagen aus der Erstprüfung." {chef} sagt kein Wort, presst nur die Lippen zusammen — die Enttäuschung ist nicht zu übersehen. Verschärfte Nachprüfung, enger Zeitrahmen. Zweimal dieselben Löcher — das verzeiht kein Prüfer.',
         choiceTags: ['negligent', 'evasive'],
         setsFlags: ['nachaudit_failed'],
       },
