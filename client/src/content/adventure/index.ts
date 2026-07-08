@@ -81,8 +81,8 @@ export const STORY_CHARACTERS = [
     id: 'chef',
     name: 'Herr Bert',
     role: 'Dein Chef',
-    description: 'Alter Schule. Versteht IT nicht, aber sein Herz ist am rechten Fleck. Meistens.',
-    arcPotential: 'Vom Hindernis zum Mentor - oder zum Gegner',
+    description: 'Erfahrener Chef, der IT versteht und seinem Team den Rücken freihält. Pragmatisch, verlässlich - und wenn es brennt, ruhig.',
+    arcPotential: 'Vom verlässlichen Rückhalt zum echten Verbündeten - oder, wenn du sein Vertrauen verspielst, zum Gegner',
   },
   {
     id: 'stefan',
