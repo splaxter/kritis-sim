@@ -25,7 +25,7 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     difficulty: {
       maxScenarioDifficulty: 2,
       effectMultiplier: 0.7,
-      stressDecayRate: 1.5,
+      stressDecayRate: 1.2,
     },
     gameLength: {
       totalWeeks: 12,
@@ -60,7 +60,7 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     difficulty: {
       maxScenarioDifficulty: 4,
       effectMultiplier: 0.8,  // Forgiving for learning
-      stressDecayRate: 1.5,   // Stress recovers faster
+      stressDecayRate: 1.2,   // Stress recovers faster
     },
     gameLength: {
       totalWeeks: 12,
@@ -130,8 +130,8 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     difficulty: {
       maxScenarioDifficulty: 5,
-      effectMultiplier: 1.5,
-      stressDecayRate: 0.5,
+      effectMultiplier: 1.2,
+      stressDecayRate: 1.2,
     },
     gameLength: {
       totalWeeks: 12,
@@ -165,8 +165,8 @@ export const GAME_MODES: Record<GameModeId, GameModeConfig> = {
     },
     difficulty: {
       maxScenarioDifficulty: 5,
-      effectMultiplier: 1.3,
-      stressDecayRate: 0.8,
+      effectMultiplier: 1.1,
+      stressDecayRate: 1.2,
     },
     gameLength: {
       totalWeeks: 24,

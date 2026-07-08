@@ -115,15 +115,28 @@ export function applyEffects(state: GameState, effects: EventEffects): GameState
   return newState;
 }
 
-export function advanceDay(state: GameState): GameState {
-  const newDay = state.currentDay + 1;
-  if (newDay > 5) {
-    // Weekend - advance to next week and apply stress decay
-    const config = getGameModeConfig(state.gameMode);
-    const baseStressDecay = 5; // Base stress reduction per weekend
-    const stressDecay = Math.round(baseStressDecay * config.difficulty.stressDecayRate);
-    const newStress = Math.max(0, state.stress - stressDecay);
+// Stress recovers a little every day (passive) plus an extra chunk over the
+// weekend. Both scale with the mode's stressDecayRate. This continuous recovery
+// is what keeps the stress economy solvent: event stress income runs ~+12–30
+// per week, so a weekend-only trickle (the old 5×rate) guaranteed burnout in
+// the harder modes regardless of skill. See the balance analysis / gameMode
+// difficulty config.
+const PER_DAY_STRESS_DECAY = 4;   // passive recovery applied every advanceDay
+const WEEKEND_STRESS_BONUS = 4;   // extra recovery when the week rolls over
 
+export function advanceDay(state: GameState): GameState {
+  const config = getGameModeConfig(state.gameMode);
+  const rate = config.difficulty.stressDecayRate;
+  const newDay = state.currentDay + 1;
+  const isWeekend = newDay > 5;
+
+  const decay =
+    Math.round(PER_DAY_STRESS_DECAY * rate) +
+    (isWeekend ? Math.round(WEEKEND_STRESS_BONUS * rate) : 0);
+  const newStress = Math.max(0, state.stress - decay);
+
+  if (isWeekend) {
+    // Weekend - advance to next week
     return {
       ...state,
       currentDay: 1,
@@ -131,7 +144,7 @@ export function advanceDay(state: GameState): GameState {
       stress: newStress,
     };
   }
-  return { ...state, currentDay: newDay };
+  return { ...state, currentDay: newDay, stress: newStress };
 }
 
 export function checkGameOver(state: GameState): { isOver: boolean; reason?: string; isVictory?: boolean } {
