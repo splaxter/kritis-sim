@@ -7,8 +7,12 @@ import { createInitialState, applyEffects, advanceDay, checkGameOver } from './g
 import { getVisibleChoices } from './eventEngine';
 import { GameEvent, GameState, EventChoice } from '@kritis/shared';
 
-// Authored campaign so far (ch1–8). Update when more chapters land.
-const FINISHED = ['ch01_first_day', 'ch02_settling_in', 'ch03_first_crisis', 'ch04_the_file', 'ch05_coincidence', 'ch06_trust_no_one', 'ch07_escalation', 'ch08_calm_before'];
+// The campaign is fully authored (ch01–ch12); this walks the whole thing.
+const FINISHED = [
+  'ch01_first_day', 'ch02_settling_in', 'ch03_first_crisis', 'ch04_the_file',
+  'ch05_coincidence', 'ch06_trust_no_one', 'ch07_escalation', 'ch08_calm_before',
+  'ch09_attack', 'ch10_72_hours', 'ch11_truth', 'ch12_finale',
+];
 
 const byId = new Map<string, GameEvent>([...allEvents, ...adventureStoryEvents].map((e) => [e.id, e]));
 
@@ -74,7 +78,7 @@ function simulate(strat: Strategy): SimResult {
   return { gameOver: null, peakStress, perChapter, degenerateBeats };
 }
 
-describe('campaign pacing/difficulty (authored ch1–8, story mode)', () => {
+describe('campaign pacing/difficulty (authored ch1–12, story mode)', () => {
   it('the campaign is winnable with sensible play (default + cautious never game-over)', () => {
     for (const strat of ['first', 'calmest'] as Strategy[]) {
       const r = simulate(strat);

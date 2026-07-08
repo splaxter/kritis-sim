@@ -37,16 +37,15 @@ const FINISHED_CHAPTERS = [
 const KNOWN_WIP_CHAPTERS = adventureChapters.map((c) => c.id).filter((id) => !FINISHED_CHAPTERS.includes(id));
 const KNOWN_DANGLING_TRIGGERS: string[] = []; // (evt_license_cleanup trigger removed)
 
-// ── SIDEQUEST LAYER: rescoped to 3 authored quests ────────────────────────
+// ── SIDEQUEST LAYER: 6 authored quests ────────────────────────────────────
 // adventureSidequests is the LIVE source the engine scans (getAvailableSidequests
 // in adventureEngine.ts) — NOT chapters[].sidequests, which are all empty today.
-// The sidequest layer shipped 12 definitions with zero authored events. It is being
-// rescoped to 3 fully-authored quests (sq_haunted_printer, sq_network_optimization,
-// sq_coffee_machine) and the other 9 are cut (parked in docs/sidequest-backlog.md).
-// This pin tracks the still-unauthored events of the kept 3 while Tasks 4–6 author
-// them; it shrinks to [] once every kept quest's events exist. It can neither grow
-// silently (a new unauthored ref slips in) nor shrink silently (someone authors
-// one — then remove it from this list).
+// Six quests are fully authored with events that exist: sq_haunted_printer,
+// sq_network_optimization, sq_coffee_machine, plus sq_legacy_code, sq_predecessor_trail
+// and sq_external_contact — the three revived once Act 3 was completed (their hidden
+// payoff choices already existed in ch09/ch11). The remaining backlog quests stay
+// parked in docs/sidequest-backlog.md. This pin stays [] because every quest's events
+// resolve; it fails loudly if an unauthored event id is ever referenced.
 const KNOWN_DANGLING_SIDEQUEST_EVENTS: string[] = [];
 
 const setFlags = new Set<string>(['kritis_mode']);

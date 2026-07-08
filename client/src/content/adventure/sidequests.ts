@@ -57,6 +57,78 @@ export const adventureSidequests: SidequestDefinition[] = [
     },
   },
 
+  {
+    id: 'sq_legacy_code',
+    title: 'Archäologie im Code',
+    description: 'Ein uraltes Skript steuert die halbe Abfallwirtschaft - und niemand traut sich, es anzufassen. Stefan hat es geschrieben. Und offenbar mehr hineingebaut als nur Buchhaltung.',
+    triggerCondition: {
+      skills: [{ skill: 'linux', minValue: 40 }],
+      minChapter: 'ch03_first_crisis',
+      maxChapter: 'ch08_calm_before',
+    },
+    events: ['adv_sq_legacy_1', 'adv_sq_legacy_2', 'adv_sq_legacy_3'],
+    rewards: {
+      skills: { linux: 8, troubleshooting: 5 },
+      flags: ['legacy_master'],
+    },
+    storyEffects: {
+      // The kill-switch discovered here becomes a lifeline when the attack hits in ch09.
+      unlocksDialogue: [
+        { eventId: 'adv_initial_response', optionId: 'use_legacy_knowledge' },
+      ],
+    },
+  },
+
+  // ============================================
+  // DISCOVERY SIDEQUESTS
+  // Unlock by following the threads the story leaves lying around
+  // ============================================
+
+  {
+    id: 'sq_predecessor_trail',
+    title: 'Die Spur des Vorgängers',
+    description: 'Stefan hat Post-its hinterlassen, versteckte Dateien, kleine Brotkrumen. Je länger du hinschaust, desto klarer wird: Er wollte gefunden werden.',
+    triggerCondition: {
+      flags: ['found_mysterious_note'],
+      minChapter: 'ch04_the_file',
+      maxChapter: 'ch10_72_hours',
+    },
+    events: ['adv_sq_trail_1', 'adv_sq_trail_2', 'adv_sq_trail_3'],
+    rewards: {
+      skills: { security: 3, troubleshooting: 3 },
+      relationships: { kollegen: 10 },
+      flags: ['knows_predecessor_story', 'found_evidence'],
+    },
+    storyEffects: {
+      // Having reconstructed Stefan's trail lets you prove it to him in ch11.
+      unlocksDialogue: [
+        { eventId: 'adv_predecessor_truth', optionId: 'show_evidence' },
+      ],
+    },
+  },
+
+  {
+    id: 'sq_external_contact',
+    title: 'Der anonyme Tipp',
+    description: 'Eine verschlüsselte Nachricht von einem Unbekannten. Hilfe - oder eine Falle? Wer sich meldet, weiß Dinge, die er nicht wissen sollte.',
+    triggerCondition: {
+      flags: ['started_investigation'],
+      minChapter: 'ch05_coincidence',
+      maxChapter: 'ch10_72_hours',
+    },
+    events: ['adv_sq_contact_1', 'adv_sq_contact_2', 'adv_sq_contact_3'],
+    rewards: {
+      skills: { security: 4, softSkills: 3 },
+      flags: ['has_external_ally', 'insider_info'],
+    },
+    storyEffects: {
+      // The external ally is the reason you can trace Brandt's firm across the region in ch11.
+      unlocksDialogue: [
+        { eventId: 'adv_attacker_identity', optionId: 'reveal_source' },
+      ],
+    },
+  },
+
   // ============================================
   // ABSURD SIDEQUESTS
   // Comedy relief that still matters
