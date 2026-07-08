@@ -65,6 +65,24 @@ describe.each([
     setup: (s: GameState) => ({ ...s, relationships: { ...s.relationships, kollegen: 10 } }),
     payoff: { eventId: 'adv_team_rally', optionId: 'coffee_speech' },
   },
+  {
+    quest: 'sq_legacy_code',
+    chapter: 'ch03_first_crisis',
+    setup: (s: GameState) => ({ ...s, skills: { ...s.skills, linux: 40 } }),
+    payoff: { eventId: 'adv_initial_response', optionId: 'use_legacy_knowledge' },
+  },
+  {
+    quest: 'sq_predecessor_trail',
+    chapter: 'ch04_the_file',
+    setup: (s: GameState) => ({ ...s, flags: { ...s.flags, found_mysterious_note: true } }),
+    payoff: { eventId: 'adv_predecessor_truth', optionId: 'show_evidence' },
+  },
+  {
+    quest: 'sq_external_contact',
+    chapter: 'ch05_coincidence',
+    setup: (s: GameState) => ({ ...s, flags: { ...s.flags, started_investigation: true } }),
+    payoff: { eventId: 'adv_attacker_identity', optionId: 'reveal_source' },
+  },
 ])('sidequest end-to-end: $quest', ({ quest, chapter, setup, payoff }) => {
   it('triggers, serves every event in order, applies rewards, unlocks the payoff dialogue', () => {
     const def = getSidequestById(quest)!;
