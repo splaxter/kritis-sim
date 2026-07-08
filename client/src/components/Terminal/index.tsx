@@ -51,7 +51,7 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
             disabled={hintsRemaining === 0}
             className={hintsRemaining > 0 ? 'hover:underline' : 'text-terminal-green-muted'}
           >
-            [H] Hinweis ({hintsRemaining} übrig)
+            [?] Hinweis ({hintsRemaining} übrig)
           </button>
         </span>
         <span className="text-terminal-green-muted">

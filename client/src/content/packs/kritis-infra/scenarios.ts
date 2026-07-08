@@ -200,6 +200,7 @@ Ohne Sensorik fliegt die Anlage "blind". Die letzten Messwerte von PLC03 sind 5 
           output: `PING 10.0.0.12 (10.0.0.12) 56(84) bytes of data.
 64 bytes from 10.0.0.12: icmp_seq=1 ttl=64 time=0.5 ms
 64 bytes from 10.0.0.12: icmp_seq=2 ttl=64 time=0.4 ms
+64 bytes from 10.0.0.12: icmp_seq=3 ttl=64 time=0.4 ms
 
 # PLC ist erreichbar! Das Problem ist nicht das Netzwerk...`,
           skillGain: { netzwerk: 2, troubleshooting: 2 },
@@ -993,6 +994,7 @@ Current Status:
           output: `PING 192.168.10.50 (192.168.10.50) 56(84) bytes of data.
 64 bytes from 192.168.10.50: icmp_seq=1 ttl=64 time=1.2 ms
 64 bytes from 192.168.10.50: icmp_seq=2 ttl=64 time=0.9 ms
+64 bytes from 192.168.10.50: icmp_seq=3 ttl=64 time=1.0 ms
 
 # HMI ist erreichbar`,
           skillGain: { netzwerk: 1 },
@@ -1865,6 +1867,7 @@ Was ist das Problem?`,
           output: `PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
 64 bytes from 8.8.8.8: icmp_seq=1 ttl=116 time=12.3 ms
 64 bytes from 8.8.8.8: icmp_seq=2 ttl=116 time=11.8 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=116 time=12.1 ms
 
 # Internet-Konnektivität ist OK!`,
           skillGain: { netzwerk: 1 },
@@ -1893,6 +1896,11 @@ nameserver 8.8.8.8        # Fallback Google DNS
           patternRegex: 'ping.*192\\.168\\.1\\.2',
           output: `PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
 64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.3 ms
+64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.4 ms
+64 bytes from 192.168.1.2: icmp_seq=3 ttl=64 time=0.3 ms
+
+--- 192.168.1.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss
 
 # DNS-Server ist erreichbar (Layer 3)!`,
           skillGain: { netzwerk: 2 },
