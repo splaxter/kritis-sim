@@ -130,7 +130,6 @@ Ein Wartungsfenster ist abgestimmt, die {fachabteilung} ist vorgewarnt. Kein Not
       {
         id: 'migrate_document',
         text: 'Migration sauber dokumentieren und SRV-FILE01 geordnet ausmustern',
-        requires: { skill: 'troubleshooting', threshold: 30 },
         effects: { skills: { troubleshooting: 4 }, relationships: { chef: 6, kaemmerer: 8 }, compliance: 10, stress: 3 },
         resultText:
           'Du dokumentierst Konfiguration und Cutover und meldest die Altgeräte-Entsorgung. {kaemmerer} sieht: Die Investition war begründet und sauber umgesetzt. Das merkt er sich beim nächsten Antrag.',

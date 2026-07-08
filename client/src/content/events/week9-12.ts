@@ -100,6 +100,18 @@ Du bist sofort hellwach. Das könnte ein echter Sicherheitsvorfall sein - oder e
         resultText: 'Der Kämmerer ist zufrieden. Die Kollegen weniger - die geplante Linux-Schulung fällt aus.',
       },
       {
+        id: 'flat_cut',
+        text: 'Rasenmäher-Methode: bei allem pauschal 15% kürzen',
+        effects: {
+          budget: 4000,
+          compliance: -10,
+          stress: 5,
+          relationships: { kaemmerer: 5 }
+        },
+        resultText: 'Schnell erledigt, alle Posten gleich beschnitten - auch Backup-System und Firewall-Lizenzen. {kaemmerer} hakt es ab. Ob das bei der nächsten KRITIS-Prüfung gut aussieht? Das ist ein Problem für später.',
+        teachingMoment: 'Pauschale Kürzungen sind bequem, treffen aber auch die Posten, die man für Compliance eigentlich braucht.',
+      },
+      {
         id: 'negotiate_partial',
         text: 'Mit dem Kämmerer verhandeln - 10% statt 15%',
         requires: { skill: 'softSkills', threshold: 45 },
@@ -270,7 +282,6 @@ Sie haben Checklisten. Viele Checklisten. Und sie wollen alles sehen: Dokumentat
       {
         id: 'honest_gaps',
         text: 'Ehrlich Lücken zugeben und Maßnahmenplan präsentieren',
-        requires: { skill: 'security', threshold: 40 },
         effects: {
           skills: { security: 8, softSkills: 5 },
           compliance: 10,
@@ -634,7 +645,6 @@ Du hast das Wochenende Zeit. Was ist dein Fokus?`,
       {
         id: 'security_focus',
         text: 'Fokus auf IT-Sicherheit und KRITIS-Compliance',
-        requires: { skill: 'security', threshold: 45 },
         effects: {
           skills: { security: 5, softSkills: 5 },
           relationships: { chef: 10, gf: 5 },
