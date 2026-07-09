@@ -127,12 +127,13 @@ export function extractPathsFromPattern(pattern: string, output: string): SeedPa
         results.push({ path: positionals[0], kind: 'dir' });
       }
     } else if (DIR_ARG_COMMANDS.has(cmd)) {
+      const searchRoot = cmd === 'find' || cmd === 'du'; // args after root are flag values
       for (const p of positionals) {
         if (p === '-' || p === '~') continue;
-        // reject flag VALUES (e.g. find -type f -name "*.log" → 'f', '*.log')
-        if (/[*?]/.test(p)) continue;
-        if (!looksLikePath(p)) continue;
+        if (/[*?]/.test(p)) continue;                  // never seed a glob
+        if (searchRoot && !looksLikePath(p)) continue; // find/du: only real path roots
         results.push({ path: p, kind: 'dir' });
+        if (searchRoot) break;                          // find/du: root is positionals[0] only
       }
     } else if (FILE_ARG_COMMANDS.has(cmd)) {
       const args = SKIP_FIRST_ARG.has(cmd) ? positionals.slice(1) : positionals;

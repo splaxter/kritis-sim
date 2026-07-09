@@ -91,6 +91,12 @@ describe('extractPathsFromPattern', () => {
     ]);
   });
 
+  it('cd seeds a relative bareword directory', () => {
+    expect(extractPathsFromPattern('cd logs', '')).toEqual([
+      { path: 'logs', kind: 'dir' },
+    ]);
+  });
+
   it('grep: skips the regex arg, seeds the file arg', () => {
     expect(extractPathsFromPattern('grep "Failed password" /var/log/auth.log', 'x')).toEqual([
       { path: '/var/log/auth.log', kind: 'file' },
