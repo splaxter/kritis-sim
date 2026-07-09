@@ -207,30 +207,53 @@ function Datenschutz() {
       <section>
         <h3 className="text-terminal-info mb-2">3. Datenerfassung auf dieser Website</h3>
 
-        <h4 className="text-terminal-green mb-1 mt-4">Spieler-ID und Spielstände</h4>
-        <p className="text-terminal-green-dim mb-2">
-          Diese Anwendung speichert folgende Daten:
-        </p>
+        <h4 className="text-terminal-green mb-1 mt-4">Spieler-ID und Spielstände (nur im Browser)</h4>
         <ul className="text-terminal-green-dim list-disc list-inside space-y-1">
           <li>
-            <strong>Spieler-ID:</strong> Eine zufällig generierte ID wird in Ihrem Browser
-            (localStorage) gespeichert, um Spielstände zuordnen zu können. Diese ID enthält
-            keine persönlichen Informationen.
+            <strong>Spieler-ID:</strong> Eine zufällig generierte, pseudonyme ID wird in Ihrem
+            Browser (localStorage) gespeichert. Sie enthält keine persönlichen Informationen.
           </li>
           <li>
-            <strong>Spielstände:</strong> Ihr Spielfortschritt wird auf unserem Server
-            gespeichert, verknüpft mit Ihrer Spieler-ID.
+            <strong>Spielstände:</strong> Ihr Spielfortschritt (Speicherstände, Fortschritt)
+            wird ausschließlich lokal in Ihrem Browser gespeichert und <strong>nicht</strong> an
+            den Server übermittelt.
           </li>
         </ul>
         <p className="text-terminal-green-dim mt-2">
-          <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) –
-          Die Speicherung ist notwendig, um das Spiel bereitzustellen.
+          Der localStorage-Einsatz ist technisch notwendig und erfordert keine Einwilligung nach
+          § 25 TTDSG.
         </p>
 
-        <h4 className="text-terminal-green mb-1 mt-4">Cookies und localStorage</h4>
-        <p className="text-terminal-green-dim">
-          Diese Website verwendet localStorage zur Speicherung Ihrer Spieler-ID. Dies ist
-          technisch notwendig und erfordert keine Einwilligung nach § 25 TTDSG.
+        <h4 className="text-terminal-green mb-1 mt-4">Team-Statistik (Übermittlung an den Server)</h4>
+        <p className="text-terminal-green-dim mb-2">
+          Zur internen Auswertung, wer das Spiel wie gespielt hat, übermittelt die Anwendung
+          folgende Daten an unseren Server, verknüpft mit Ihrer pseudonymen Spieler-ID:
+        </p>
+        <ul className="text-terminal-green-dim list-disc list-inside space-y-1">
+          <li>
+            <strong>Optionaler Name:</strong> Wenn Sie im Menü freiwillig einen Namen angeben,
+            wird dieser gespeichert und in der Statistik angezeigt. Die Angabe ist optional; ohne
+            sie bleiben Sie unter „Spieler-…“ pseudonym.
+          </li>
+          <li>
+            <strong>Spielverläufe:</strong> Beginn und Abschluss von Durchläufen samt Modus,
+            Ergebnis (bestanden/Burnout/…), erreichter Woche, Punktzahl/Ende sowie den in diesem
+            Durchlauf getroffenen Entscheidungen.
+          </li>
+          <li>
+            <strong>Lernfortschritt:</strong> Welche Lernlektionen abgeschlossen wurden.
+          </li>
+        </ul>
+        <p className="text-terminal-green-dim mt-2">
+          <strong>Rechtsgrundlage:</strong> Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse
+          an interner Auswertung und Sicherheitsschulung des Teams). Es findet kein
+          Profiling und keine automatisierte Entscheidungsfindung statt.
+        </p>
+        <p className="text-terminal-green-dim mt-2">
+          <strong>Speicherdauer / Löschung:</strong> Die Daten werden gespeichert, solange die
+          interne Auswertung erforderlich ist. Sie können jederzeit die Löschung aller mit Ihrer
+          Spieler-ID verknüpften Daten verlangen – per E-Mail an die im Impressum genannte
+          Adresse.
         </p>
 
         <h4 className="text-terminal-green mb-1 mt-4">Server-Log-Dateien</h4>

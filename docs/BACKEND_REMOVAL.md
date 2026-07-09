@@ -22,9 +22,17 @@ single HTTP request — saves and player state are localStorage-only via
 (Docker HEALTHCHECK + Playwright webServer probe) and SPA serving of
 `client/dist`. The Coolify deployment was intentionally left untouched.
 
-## If meta-progression ever needs a backend
+## Update (2026-07-09): a new, minimal tracking backend exists
 
-The full schema, routes, and Zod validation live in git history:
+A small play-tracking backend was added — NOT a revival of the deleted one.
+Instead of sql.js + save-slot CRUD, it is an append-only NDJSON event log
+(`server/src/store.ts`) with a token-gated `/stats` page. It records run
+starts/completions and learning progress, not full game saves (those remain
+localStorage-only). See **`docs/TRACKING.md`**.
+
+## If meta-progression ever needs a full backend again
+
+The old schema, routes, and Zod validation live in git history:
 
     git show 187696f^:server/src/db/schema.sql
     git show 187696f^:server/src/routes/players.ts

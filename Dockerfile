@@ -34,6 +34,9 @@ COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/server/package.json ./server/
 
 ENV NODE_ENV=production
+# Persistent play-tracking event log lives here (mount a volume at /data).
+ENV DATA_DIR=/data
+RUN mkdir -p /data && chown nodejs:nodejs /data
 
 # Switch to non-root user
 USER nodejs
