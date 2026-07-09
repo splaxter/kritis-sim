@@ -4,6 +4,7 @@
  */
 
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion, CompletionContext, VFSNode } from '../../types';
+import { formatGrid } from '../../gridLayout';
 
 // ANSI color codes
 const COLORS = {
@@ -150,9 +151,9 @@ export const lsCommand: ShellCommand = {
       } else if (onePerLine) {
         outputs.push(...entries.map(e => colorizeEntry(e, colorize)));
       } else {
-        // Grid format
+        // Grid format — width-fitted columns like real ls
         const names = entries.map(e => colorizeEntry(e, colorize));
-        outputs.push(names.join('  '));
+        outputs.push(...formatGrid(names, ctx.termCols ?? 80));
       }
 
       if (recursive) {
@@ -173,7 +174,8 @@ export const lsCommand: ShellCommand = {
               } else if (onePerLine) {
                 outputs.push(...subEntries.map(e => colorizeEntry(e, colorize)));
               } else {
-                outputs.push(subEntries.map(e => colorizeEntry(e, colorize)).join('  '));
+                const subNames = subEntries.map(e => colorizeEntry(e, colorize));
+                outputs.push(...formatGrid(subNames, ctx.termCols ?? 80));
               }
             }
           }

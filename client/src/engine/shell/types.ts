@@ -91,6 +91,8 @@ export interface ExecutionContext {
    * only when interactive, plain parseable output when piped/redirected.
    */
   isTty?: boolean;
+  /** Terminal width in columns (for grid layouts); 80 when unknown. */
+  termCols?: number;
   /** Registry of all commands, so which/type/man/help can answer truthfully. */
   commands?: Map<string, ShellCommand>;
   /** Re-enter the shell (used by sudo/source to run nested commands). */

@@ -7,6 +7,7 @@ export * from './types';
 export * from './VirtualFilesystem';
 export * from './ShellEngine';
 export * from './templates';
+export * from './gridLayout';
 export { allLinuxCommands } from './commands/linux';
 export { allPowerShellCommands } from './commands/powershell';
 

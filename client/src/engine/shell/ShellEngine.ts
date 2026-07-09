@@ -20,6 +20,7 @@ export class ShellEngine implements ShellEngineInterface {
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
   private state: ShellState;
+  private termCols = 80;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -260,6 +261,7 @@ export class ShellEngine implements ShellEngineInterface {
       cwd: this.vfs.getCurrentPath(),
       user: this.vfs.getUser(),
       isTty,
+      termCols: this.termCols,
       commands: this.commands,
       execute: (input: string) => this.execute(input),
     };
@@ -1037,6 +1039,10 @@ export class ShellEngine implements ShellEngineInterface {
 
   getVfs(): VirtualFilesystemInterface {
     return this.vfs;
+  }
+
+  setTermCols(cols: number): void {
+    if (cols > 0) this.termCols = cols;
   }
 
   getEnv(): Record<string, string> {
