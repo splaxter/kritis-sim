@@ -10,10 +10,21 @@ interface EndingStats {
   endingFlags: string[];
 }
 
+/** Spoiler-light teaser of content this run didn't reach — nudges a replay. */
+interface ReplayTeaser {
+  endingsSeen: number;
+  totalEndings: number;
+  otherEndingTitles: string[];
+  missedSidequests: string[];
+  /** Short line about the trust fork the player did NOT take, if determinable. */
+  untakenForkHint?: string;
+}
+
 interface EndingScreenProps {
   ending: EndingType;
   stats: EndingStats;
   onBackToMenu: () => void;
+  replay?: ReplayTeaser;
 }
 
 const CHARACTER_LABELS: Record<string, string> = {
@@ -43,7 +54,7 @@ const FLAG_LABELS: Record<string, string> = {
 // Only the positive, "earned" flags are shown as achievements.
 const EARNED_FLAG_ORDER = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all'];
 
-export function EndingScreen({ ending, stats, onBackToMenu }: EndingScreenProps) {
+export function EndingScreen({ ending, stats, onBackToMenu, replay }: EndingScreenProps) {
   const text = ADVENTURE_ENDINGS[ending];
   const earned = EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f));
   const helped = stats.charactersHelped.map((c) => CHARACTER_LABELS[c] ?? c);
@@ -95,6 +106,35 @@ export function EndingScreen({ ending, stats, onBackToMenu }: EndingScreenProps)
             </div>
           )}
         </div>
+
+        {/* Was du nicht gesehen hast — replay teaser */}
+        {replay && (
+          <div className="mt-4 border border-terminal-green/20 p-4 text-sm text-terminal-green-dim space-y-2">
+            <div className="text-terminal-green-muted tracking-widest mb-1">
+              — WAS DU NICHT GESEHEN HAST —
+            </div>
+            <div>
+              Enden gesehen:{' '}
+              <span className="text-terminal-green">
+                {replay.endingsSeen}/{replay.totalEndings}
+              </span>
+            </div>
+            {replay.otherEndingTitles.length > 0 && (
+              <div>
+                Andere Ausgänge: {replay.otherEndingTitles.join(', ')}
+              </div>
+            )}
+            {replay.missedSidequests.length > 0 && (
+              <div>
+                Verpasste Nebenaufträge: {replay.missedSidequests.join(', ')}
+              </div>
+            )}
+            {replay.untakenForkHint && <div>{replay.untakenForkHint}</div>}
+            <div className="text-terminal-green-muted pt-1">
+              Ein anderer Weg, andere Entscheidungen — ein zweiter Durchlauf zeigt dir mehr.
+            </div>
+          </div>
+        )}
 
         <button
           onClick={onBackToMenu}

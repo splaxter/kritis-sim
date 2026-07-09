@@ -12,6 +12,8 @@ import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shar
 import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, calculateAdventureEnding, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
+import { ADVENTURE_ENDINGS } from './content/adventure/endings';
+import { adventureSidequests } from './content/adventure/sidequests';
 import { adventureStoryEvents } from './content/adventure/story-events';
 import { adventureSidequestEvents } from './content/adventure/sidequest-events';
 import { IntroScreen } from './components/IntroScreen';
@@ -25,6 +27,9 @@ import { LearningHub } from './components/LearningHub';
 import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
 import { useAutosave } from './hooks/useAutosave';
 import { readAutosave, AutosaveEnvelope } from './engine/autosave';
+import { buildRunSummary } from './engine/runSummary';
+import { readMeta, recordRun, MetaProgress, TOTAL_STORY_ENDINGS } from './engine/metaProgress';
+import { RunSummaryScreen } from './components/RunSummaryScreen';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
@@ -55,6 +60,8 @@ function AppContent() {
     () => readAutosave(playerId)
   );
   const [showIntro, setShowIntro] = useState(true);
+  // Cross-run meta (endings seen, runs played). Read once; updated when a run ends.
+  const [meta, setMeta] = useState<MetaProgress>(() => readMeta(playerId));
   const [saveLoadModal, setSaveLoadModal] = useState<{ show: boolean; mode: 'save' | 'load' }>({
     show: false,
     mode: 'save',
@@ -82,6 +89,18 @@ function AppContent() {
 
   // Write autosave on every meaningful transition; clear on run end.
   useAutosave(playerId, game.state, game.phase);
+
+  // Record the run into cross-run meta the moment it ends. Reads live state
+  // (not the autosave, which useAutosave clears on the same transition), and
+  // recordRun dedupes on the run seed so repeat renders count it exactly once.
+  useEffect(() => {
+    if (game.phase !== 'gameover' && game.phase !== 'storyEnding') return;
+    const s = game.state;
+    const storyComplete = s.isStoryMode && isAdventureModeComplete(s);
+    const ending = storyComplete ? calculateAdventureEnding(s) : undefined;
+    const score = storyComplete ? getEndingStats(s).score : undefined;
+    setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, ending, score }));
+  }, [game.phase, game.state, playerId]);
 
   // Handle load game
   const handleLoadGame = useCallback((state: import('@kritis/shared').GameState) => {
@@ -353,6 +372,12 @@ function AppContent() {
             [↑↓] Navigieren  [Enter] Auswählen
           </div>
 
+          {meta.runsCompleted > 0 && (
+            <div className="text-terminal-green-muted text-xs mt-3">
+              Durchläufe: {meta.runsCompleted} · Story-Enden: {meta.endingsSeen.length}/{TOTAL_STORY_ENDINGS}
+            </div>
+          )}
+
           {/* Legal footer */}
           <div className="mt-6 pt-4 border-t border-terminal-border flex justify-center gap-4 text-xs text-terminal-green-muted">
             <button
@@ -421,12 +446,32 @@ function AppContent() {
 
     // Campaign fully completed → real stats-driven ending screen.
     if (isAdventureModeComplete(game.state)) {
+      const ending = calculateAdventureEnding(game.state);
+      const completedSq = game.state.storyState?.completedSidequests ?? [];
+      const storyPath = getEndingStats(game.state).storyPath;
+      const replay = {
+        endingsSeen: meta.endingsSeen.length,
+        totalEndings: TOTAL_STORY_ENDINGS,
+        otherEndingTitles: (Object.keys(ADVENTURE_ENDINGS) as (keyof typeof ADVENTURE_ENDINGS)[])
+          .filter((k) => k !== ending)
+          .map((k) => ADVENTURE_ENDINGS[k].title),
+        missedSidequests: adventureSidequests
+          .filter((sq) => !completedSq.includes(sq.id))
+          .map((sq) => sq.title),
+        untakenForkHint:
+          storyPath === 'official'
+            ? 'Du bist den offiziellen Weg gegangen — es gab auch den Alleingang.'
+            : storyPath === 'underground'
+              ? 'Du hast im Alleingang ermittelt — es gab auch den offiziellen Weg.'
+              : undefined,
+      };
       return (
         <>
           <EndingScreen
-            ending={calculateAdventureEnding(game.state)}
+            ending={ending}
             stats={getEndingStats(game.state)}
             onBackToMenu={() => setShowModeSelect(true)}
+            replay={replay}
           />
           {menuModal}
         </>
@@ -474,36 +519,20 @@ function AppContent() {
 
   if (game.phase === 'gameover') {
     const modeConfig = getGameModeConfig(game.state.gameMode);
-    const isVictory = game.gameOverReason === 'probezeit_complete';
+    const summary = buildRunSummary(game.state, game.gameOverReason);
+    // On a defeat, nudge toward the low-pressure learning mode.
+    const learningTip = !summary.survived && game.state.gameMode !== 'learning';
 
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="border border-terminal-border p-8 text-center max-w-lg">
-          <h1 className="text-2xl mb-4">
-            {isVictory
-              ? '🎉 PROBEZEIT ÜBERSTANDEN!'
-              : '❌ GAME OVER'}
-          </h1>
-          <p className="text-terminal-green-dim mb-4">
-            {game.gameOverReason === 'burnout' && 'Du bist ausgebrannt. Die Arbeit war zu viel.'}
-            {game.gameOverReason === 'fired' && 'Dein Chef hat dich gefeuert.'}
-            {game.gameOverReason === 'bsi_bussgeld' && 'BSI-Compliance zu niedrig. Massive Bußgelder.'}
-            {game.gameOverReason === 'probezeit_complete' && `Du hast die ${modeConfig.gameLength.totalWeeks} Wochen überstanden!`}
-          </p>
-
-          {/* Mode info */}
-          <div className="text-terminal-green-dim text-sm mb-6">
-            Modus: {modeConfig.icon} {modeConfig.name}
-          </div>
-
-          <button
-            onClick={() => setShowModeSelect(true)}
-            className="w-full p-4 border border-terminal-green hover:bg-terminal-bg-highlight"
-          >
-            [ NOCHMAL VERSUCHEN ]
-          </button>
-        </div>
-
+      <>
+        <RunSummaryScreen
+          summary={summary}
+          modeName={modeConfig.name}
+          modeIcon={modeConfig.icon}
+          meta={meta}
+          learningTip={learningTip}
+          onRetry={() => setShowModeSelect(true)}
+        />
         {/* Game Mode Selection Modal */}
         <Suspense fallback={null}>
           {showModeSelect && (
@@ -513,7 +542,7 @@ function AppContent() {
             />
           )}
         </Suspense>
-      </div>
+      </>
     );
   }
 
