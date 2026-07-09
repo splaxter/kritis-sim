@@ -45,8 +45,11 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       vfsOverlay: context.vfsOverlay,
       env: context.env,
       templates,
+      commands: context.commands,
+      hints: context.hints,
+      taskText: context.taskText,
     });
-  }, [context.type, context.hostname, context.username, context.currentPath, context.vfsOverlay, context.env, context.templateIds]);
+  }, [context]);
 
   // Track teached commands ref for solution checking
   const teachedCommandsRef = useRef(teachedCommands);

@@ -174,3 +174,79 @@ describe('stubContent', () => {
     expect(stubContent('S7-1200_FW_4.6.2.upd').length).toBeGreaterThan(0);
   });
 });
+
+import { seedVfsFromScenario } from './scenarioSeed';
+import { createShellFromContext } from './index';
+
+describe('seedVfsFromScenario (via createShellFromContext)', () => {
+  const base = { type: 'linux' as const, hostname: 'srv', username: 'admin' };
+
+  it('a canned cat makes the file really exist with the canned content', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/var/log',
+      commands: [{ pattern: 'cat /var/log/tickets/t-1001.txt', output: 'Ticket 1001\nDrucker brennt' }],
+    });
+    expect(shell.execute('cat /var/log/tickets/t-1001.txt').output).toBe('Ticket 1001\nDrucker brennt');
+    // parent dir materialized too — cd works
+    expect(shell.execute('cd /var/log/tickets').exitCode).toBe(0);
+  });
+
+  it('a canned ls materializes the advertised entries in the target dir', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/backup',
+      commands: [{
+        pattern: 'ls -la /backup',
+        output: 'total 8\ndrwxr-xr-x 2 root root 4096 Jan  5 10:00 daily\n-rw-r--r-- 1 root root  812 Jan  5 10:00 backup_dc01.tar.gz',
+      }],
+    });
+    const vfs = shell.getVfs();
+    expect(vfs.exists('/backup/daily')).toBe(true);
+    expect(vfs.isFile('/backup/backup_dc01.tar.gz')).toBe(true);
+  });
+
+  it('a relative canned ls resolves against currentPath', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/home/azubi/logs',
+      commands: [{ pattern: 'ls', output: 'access.log  error.log  system.log' }],
+    });
+    expect(shell.getVfs().isFile('/home/azubi/logs/access.log')).toBe(true);
+    expect(shell.execute('cat error.log').exitCode).toBe(0);
+  });
+
+  it('never overwrites existing files (overlay wins over seed)', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/opt',
+      vfsOverlay: { files: [{ path: '/opt/real.txt', content: 'HAND AUTHORED' }] },
+      commands: [{ pattern: 'cat /opt/real.txt', output: 'CANNED' }],
+    });
+    expect(shell.execute('cat /opt/real.txt').output).toBe('HAND AUTHORED');
+  });
+
+  it('paths mentioned in hints and taskText exist', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/home/admin',
+      taskText: 'Der Eindringling hat Spuren in /var/log/intrusion.log hinterlassen.',
+      hints: ['Schau mal unter /opt/scada/logs nach.'],
+      commands: [],
+    });
+    expect(shell.getVfs().isFile('/var/log/intrusion.log')).toBe(true);
+    expect(shell.execute('cd /opt/scada/logs').exitCode).toBe(0);
+  });
+
+  it('ls-seeded files without canned cat get non-empty stub content', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/backup',
+      commands: [{ pattern: 'ls /backup', output: 'notes.log' }],
+    });
+    const out = shell.execute('cat /backup/notes.log').output;
+    expect(out.length).toBeGreaterThan(0);
+  });
+
+  it('windows contexts seed Get-Content paths', () => {
+    const shell = createShellFromContext({
+      type: 'windows', hostname: 'dc01', username: 'admin', currentPath: 'C:\\Users\\admin',
+      commands: [{ pattern: 'Get-Content C:\\Logs\\backup.log', output: 'Backup OK' }],
+    });
+    expect(shell.getVfs().isFile('C:\\Logs\\backup.log')).toBe(true);
+  });
+});

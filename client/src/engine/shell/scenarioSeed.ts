@@ -171,6 +171,58 @@ export function extractPathsFromText(text: string): SeedPath[] {
   return results;
 }
 
+import type { VirtualFilesystemInterface } from './types';
+
+export interface ScenarioSeedInput {
+  commands?: { pattern: string; output: string }[];
+  hints?: string[];
+  taskText?: string;
+}
+
+export function seedVfsFromScenario(vfs: VirtualFilesystemInterface, input: ScenarioSeedInput): void {
+  const seeds: SeedPath[] = [];
+  for (const cmd of input.commands || []) {
+    seeds.push(...extractPathsFromPattern(cmd.pattern, cmd.output));
+  }
+  const textSources = [...(input.hints || []), input.taskText || ''];
+  for (const text of textSources) {
+    seeds.push(...extractPathsFromText(text));
+  }
+
+  // Two passes: content-bearing cat seeds first so they win over stub seeds
+  // from ls listings / bare path mentions. Nothing ever overwrites an
+  // existing node (templates/overlays/base fs stay authoritative).
+  const ensureFile = (path: string, content?: string) => {
+    const resolved = vfs.resolvePath(path);
+    if (vfs.exists(resolved)) return;
+    const name = resolved.split(/[/\\]/).pop() || '';
+    vfs.addFile(resolved, content ?? stubContent(name));
+  };
+  const ensureDir = (path: string) => {
+    const resolved = vfs.resolvePath(path);
+    if (vfs.exists(resolved)) return;
+    vfs.addDirectory(resolved);
+  };
+
+  for (const seed of seeds) {
+    if (seed.kind === 'file' && seed.content !== undefined) ensureFile(seed.path, seed.content);
+  }
+  for (const seed of seeds) {
+    if (seed.kind === 'file' && seed.content === undefined) ensureFile(seed.path);
+    else if (seed.kind === 'dir') ensureDir(seed.path);
+    else if (seed.kind === 'listing' && seed.output) {
+      ensureDir(seed.path);
+      const dir = vfs.resolvePath(seed.path);
+      const sep = dir.includes('\\') ? '\\' : '/';
+      for (const entry of parseLsOutput(seed.output)) {
+        const full = dir.replace(/[/\\]$/, '') + sep + entry.name;
+        if (entry.isDir) ensureDir(full);
+        else ensureFile(full);
+      }
+    }
+  }
+}
+
 export function stubContent(name: string): string {
   const lower = name.toLowerCase();
   if (lower.endsWith('.log')) {

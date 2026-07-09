@@ -10,6 +10,7 @@ export * from './templates';
 export * from './gridLayout';
 export { allLinuxCommands } from './commands/linux';
 export { allPowerShellCommands } from './commands/powershell';
+export * from './scenarioSeed';
 
 import { ShellEngine } from './ShellEngine';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
@@ -17,6 +18,7 @@ import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
 import { VFSTemplate, applyTemplate } from './templates';
 import { VFSNode } from './types';
+import { seedVfsFromScenario } from './scenarioSeed';
 
 export interface CreateShellOptions {
   type: 'bash' | 'powershell';
@@ -92,6 +94,10 @@ export function createShellFromContext(context: {
   };
   env?: Record<string, string>;
   templates?: VFSTemplate[];
+  /** Canned scenario commands — used to auto-seed the VFS so quest paths exist. */
+  commands?: { pattern: string; output: string }[];
+  hints?: string[];
+  taskText?: string;
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -114,6 +120,16 @@ export function createShellFromContext(context: {
     vfs.addDirectory(startPath);
     vfs.setCurrentPath(startPath);
   }
+
+  // Materialize every path the scenario talks about (canned cat/ls outputs,
+  // hint/task mentions) so free exploration matches the story. Runs AFTER
+  // templates/overlay/currentPath are applied; its vfs.exists() guards mean it
+  // only fills gaps and never overwrites authored nodes.
+  seedVfsFromScenario(vfs, {
+    commands: context.commands,
+    hints: context.hints,
+    taskText: context.taskText,
+  });
 
   return shell;
 }
