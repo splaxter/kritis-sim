@@ -1,13 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
 
-// Regression guard for the main-menu keyboard handler (App.tsx ~line 216).
-// Historical bug: ArrowUp and ArrowDown shared one branch, so ArrowUp moved
-// DOWN. NOTE: with exactly 2 menu items (i+1)%2 === (i-1+2)%2, so this test
-// passes against the old code too — it pins the *semantics* so any future
-// third menu item keeps correct up/down behavior.
+// Regression guard for the main-menu keyboard handler. Historical bug: ArrowUp
+// and ArrowDown shared one branch, so ArrowUp moved DOWN. The menu now has three
+// items (New → Lernmodus → Laden), so wrap-around exercises real up/down deltas.
 describe('App — main menu arrow-key navigation', () => {
+  // Fresh localStorage → the first-run intro shows, so the Enter below dismisses
+  // it (rather than triggering a menu action on an already-visible menu).
+  beforeEach(() => localStorage.clear());
+
   // The selected item is rendered with a '> ' prefix inside the button.
   function markerOf(re: RegExp): string {
     return (screen.getByText(re).textContent ?? '').trimStart();
@@ -23,10 +25,14 @@ describe('App — main menu arrow-key navigation', () => {
     // Initially item 0 ("NEUES SPIEL STARTEN") is selected.
     expect(markerOf(/NEUES SPIEL STARTEN/)).toMatch(/^>/);
 
+    // ArrowDown → "LERNMODUS".
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    expect(markerOf(/LERNMODUS/)).toMatch(/^>/);
+    expect(markerOf(/NEUES SPIEL STARTEN/)).not.toMatch(/^>/);
+
     // ArrowDown → "SPIEL LADEN".
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     expect(markerOf(/SPIEL LADEN/)).toMatch(/^>/);
-    expect(markerOf(/NEUES SPIEL STARTEN/)).not.toMatch(/^>/);
 
     // ArrowDown again → wraps back to "NEUES SPIEL STARTEN".
     fireEvent.keyDown(window, { key: 'ArrowDown' });
@@ -36,8 +42,8 @@ describe('App — main menu arrow-key navigation', () => {
     fireEvent.keyDown(window, { key: 'ArrowUp' });
     expect(markerOf(/SPIEL LADEN/)).toMatch(/^>/);
 
-    // ArrowUp again → back to item 0.
+    // ArrowUp → "LERNMODUS".
     fireEvent.keyDown(window, { key: 'ArrowUp' });
-    expect(markerOf(/NEUES SPIEL STARTEN/)).toMatch(/^>/);
+    expect(markerOf(/LERNMODUS/)).toMatch(/^>/);
   });
 });

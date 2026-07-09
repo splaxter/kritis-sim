@@ -59,9 +59,41 @@ function AppContent() {
   const [resumeSave, setResumeSave] = useState<AutosaveEnvelope | null>(
     () => readAutosave(playerId)
   );
-  const [showIntro, setShowIntro] = useState(true);
+  // First-run only: the intro plays once, then we remember it. Returning
+  // players land straight on the menu.
+  const [showIntro, setShowIntro] = useState(() => {
+    try {
+      return localStorage.getItem('kritis_seen_intro') !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const dismissIntro = useCallback(() => {
+    try {
+      localStorage.setItem('kritis_seen_intro', '1');
+    } catch {
+      /* private mode — intro just replays next boot, harmless */
+    }
+    setShowIntro(false);
+  }, []);
   // Cross-run meta (endings seen, runs played). Read once; updated when a run ends.
   const [meta, setMeta] = useState<MetaProgress>(() => readMeta(playerId));
+  // One-time nudge toward learning mode after a free-play terminal challenge.
+  const [learningNudgeShown, setLearningNudgeShown] = useState(() => {
+    try {
+      return localStorage.getItem('kritis_learning_nudge_shown') === '1';
+    } catch {
+      return true;
+    }
+  });
+  const dismissLearningNudge = useCallback(() => {
+    try {
+      localStorage.setItem('kritis_learning_nudge_shown', '1');
+    } catch {
+      /* ignore */
+    }
+    setLearningNudgeShown(true);
+  }, []);
   const [saveLoadModal, setSaveLoadModal] = useState<{ show: boolean; mode: 'save' | 'load' }>({
     show: false,
     mode: 'save',
@@ -253,9 +285,9 @@ function AppContent() {
   }, [game]);
 
   // Main menu keyboard navigation ('continue' only when an autosave exists)
-  const menuItems: readonly ('continue' | 'new' | 'load')[] = resumeSave
-    ? ['continue', 'new', 'load']
-    : ['new', 'load'];
+  const menuItems: readonly ('continue' | 'new' | 'learning' | 'load')[] = resumeSave
+    ? ['continue', 'new', 'learning', 'load']
+    : ['new', 'learning', 'load'];
 
   useEffect(() => {
     if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
@@ -274,6 +306,8 @@ function AppContent() {
           handleResume();
         } else if (item === 'new') {
           setShowModeSelect(true);
+        } else if (item === 'learning') {
+          handleModeSelect('learning');
         } else {
           setSaveLoadModal({ show: true, mode: 'load' });
         }
@@ -282,7 +316,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume]);
+  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume, handleModeSelect]);
 
   // ESC to close legal modal
   useEffect(() => {
@@ -312,7 +346,7 @@ function AppContent() {
 
   // Show intro screen on first load
   if (showIntro) {
-    return <IntroScreen onEnter={() => setShowIntro(false)} />;
+    return <IntroScreen onEnter={dismissIntro} />;
   }
 
   if (game.phase === 'menu') {
@@ -355,6 +389,20 @@ function AppContent() {
             }`}
           >
             {menuIndex === menuItems.indexOf('new') ? '> ' : '  '}[ NEUES SPIEL STARTEN ]
+          </button>
+          <button
+            onClick={() => handleModeSelect('learning')}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('learning'))}
+            className={`w-full p-3 border transition-colors mb-2 ${
+              menuIndex === menuItems.indexOf('learning')
+                ? 'border-terminal-green bg-terminal-bg-highlight'
+                : 'border-terminal-border text-terminal-green-dim hover:border-terminal-green'
+            }`}
+          >
+            {menuIndex === menuItems.indexOf('learning') ? '> ' : '  '}[ LERNMODUS ]
+            <div className="text-xs text-terminal-green-dim mt-1">
+              Security-Training ohne Zeitdruck — Terminal &amp; Windows üben
+            </div>
           </button>
           <button
             onClick={() => setSaveLoadModal({ show: true, mode: 'load' })}
@@ -578,6 +626,18 @@ function AppContent() {
       onStartFinale: offerFinale ? handleStartFinale : undefined,
     };
   }
+  // One-time nudge: on the result of a free-play terminal challenge (not story,
+  // not learning mode), point the player at the low-pressure learning mode.
+  const learningNudge =
+    game.phase === 'result' &&
+    !learningNudgeShown &&
+    !learningCliOnly &&
+    !game.state.isStoryMode &&
+    game.contentType === 'event' &&
+    !!game.currentEvent?.terminalContext
+      ? { onDismiss: dismissLearningNudge }
+      : undefined;
+
   if (
     game.phase === 'playing' &&
     learningCliOnly &&
@@ -604,6 +664,7 @@ function AppContent() {
         currentEvent={game.currentEvent}
         currentScenario={game.currentScenario}
         learningResultCtas={learningResultCtas}
+        learningNudge={learningNudge}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
         characters={characters}
