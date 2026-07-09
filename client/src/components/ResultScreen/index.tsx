@@ -28,9 +28,11 @@ interface ResultScreenProps {
   isStoryMode?: boolean;
   /** learning mode only: explicit next-step CTAs instead of plain "Weiter" */
   learningCtas?: LearningResultCtas;
+  /** one-time free-play → learning nudge; dismissed permanently on click */
+  learningNudge?: { onDismiss: () => void };
 }
 
-export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas }: ResultScreenProps) {
+export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas, learningNudge }: ResultScreenProps) {
   const replaceCharacterNames = (text: string): string => {
     let result = text;
     for (const [role, name] of Object.entries(characters)) {
@@ -234,6 +236,23 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
           {renderEffects(choice.effects)}
         </div>
       </div>
+
+      {learningNudge && (
+        <div className="border border-terminal-info/50 p-4 mb-6 text-sm">
+          <div className="text-terminal-info mb-1">- TIPP -</div>
+          <div className="text-terminal-green-dim">
+            Terminal- und Windows-Aufgaben kannst du im <span className="text-terminal-green">Lernmodus</span> in
+            Ruhe üben — ohne Zeitdruck, mit Hinweisen und Schritt für Schritt. Du erreichst ihn
+            im Hauptmenü über <span className="text-terminal-green">[LERNMODUS]</span>.
+          </div>
+          <button
+            onClick={learningNudge.onDismiss}
+            className="mt-3 text-terminal-green-muted hover:text-terminal-green underline text-xs"
+          >
+            Verstanden, nicht mehr anzeigen
+          </button>
+        </div>
+      )}
 
       {learningCtas ? (
         renderLearningCtas(learningCtas)

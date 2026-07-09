@@ -31,6 +31,8 @@ interface GameScreenProps {
   onLoad?: () => void;
   /** learning mode only: explicit next-step CTAs on the result screen */
   learningResultCtas?: LearningResultCtas;
+  /** one-time free-play → learning nudge on the (standard) result screen */
+  learningNudge?: { onDismiss: () => void };
 }
 
 export function GameScreen({
@@ -50,6 +52,7 @@ export function GameScreen({
   onSave,
   onLoad,
   learningResultCtas,
+  learningNudge,
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
 
@@ -252,6 +255,7 @@ export function GameScreen({
             mentorNote={currentEvent?.mentorNote}
             mentorModeEnabled={state.mentorModeEnabled}
             learningCtas={learningResultCtas}
+            learningNudge={learningNudge}
           />
         )}
 
