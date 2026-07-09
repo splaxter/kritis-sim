@@ -5,7 +5,7 @@ import { allEvents } from './content/events';
 import { selectNextEvent } from './engine/eventEngine';
 import { selectNextScenario } from './engine/scenarioEngine';
 import { getAllScenarios } from './content/packs';
-import { useEffect, useState, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
@@ -30,6 +30,7 @@ import { readAutosave, AutosaveEnvelope } from './engine/autosave';
 import { buildRunSummary } from './engine/runSummary';
 import { readMeta, recordRun, MetaProgress, TOTAL_STORY_ENDINGS } from './engine/metaProgress';
 import { RunSummaryScreen } from './components/RunSummaryScreen';
+import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNamed } from './engine/telemetry';
 
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
@@ -78,6 +79,38 @@ function AppContent() {
   }, []);
   // Cross-run meta (endings seen, runs played). Read once; updated when a run ends.
   const [meta, setMeta] = useState<MetaProgress>(() => readMeta(playerId));
+  // Optional one-time display name for the team stats. Shown on the menu until
+  // the player either saves a name or explicitly skips.
+  const [nameInput, setNameInput] = useState('');
+  const [showNamePrompt, setShowNamePrompt] = useState(() => {
+    try {
+      return !localStorage.getItem('kritis_player_name') && !localStorage.getItem('kritis_name_skipped');
+    } catch {
+      return false;
+    }
+  });
+  const skipName = useCallback(() => {
+    try {
+      localStorage.setItem('kritis_name_skipped', '1');
+    } catch {
+      /* ignore */
+    }
+    setShowNamePrompt(false);
+  }, []);
+  const saveName = useCallback(() => {
+    const name = nameInput.trim().slice(0, 40);
+    if (!name) {
+      skipName();
+      return;
+    }
+    try {
+      localStorage.setItem('kritis_player_name', name);
+    } catch {
+      /* ignore */
+    }
+    trackPlayerNamed(playerId, name);
+    setShowNamePrompt(false);
+  }, [nameInput, playerId, skipName]);
   // One-time nudge toward learning mode after a free-play terminal challenge.
   const [learningNudgeShown, setLearningNudgeShown] = useState(() => {
     try {
@@ -122,17 +155,67 @@ function AppContent() {
   // Write autosave on every meaningful transition; clear on run end.
   useAutosave(playerId, game.state, game.phase);
 
-  // Record the run into cross-run meta the moment it ends. Reads live state
-  // (not the autosave, which useAutosave clears on the same transition), and
-  // recordRun dedupes on the run seed so repeat renders count it exactly once.
+  // Record the run into cross-run meta AND team telemetry the moment it ends.
+  // Reads live state (not the autosave, which useAutosave clears on the same
+  // transition). Both the meta recordRun and the telemetry send dedupe on the
+  // run seed so repeat renders fire each exactly once.
+  const sentCompletedSeed = useRef<string | null>(null);
   useEffect(() => {
     if (game.phase !== 'gameover' && game.phase !== 'storyEnding') return;
     const s = game.state;
     const storyComplete = s.isStoryMode && isAdventureModeComplete(s);
     const ending = storyComplete ? calculateAdventureEnding(s) : undefined;
-    const score = storyComplete ? getEndingStats(s).score : undefined;
+    const stats = storyComplete ? getEndingStats(s) : undefined;
+    const score = stats?.score;
     setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, ending, score }));
+
+    if (sentCompletedSeed.current !== s.seed) {
+      sentCompletedSeed.current = s.seed;
+      const summary = buildRunSummary(s, game.gameOverReason);
+      trackRunCompleted(playerId, s.seed, {
+        mode: s.gameMode,
+        outcome: summary.outcome,
+        weekReached: summary.weekReached,
+        totalWeeks: summary.totalWeeks,
+        survived: summary.survived,
+        score,
+        ending,
+        sidequestsCompleted: stats?.sidequestsCompleted,
+        decisions: s.decisions,
+      });
+    }
+  }, [game.phase, game.state, game.gameOverReason, playerId]);
+
+  // Emit run_started once when a brand-new run begins (week 1, day 1, nothing
+  // played yet). The seed ref makes it idempotent; resumed mid-run saves don't
+  // match the fresh-run shape, so they aren't miscounted as new starts.
+  const startedSeed = useRef<string | null>(null);
+  useEffect(() => {
+    const s = game.state;
+    const active = game.phase === 'playing' || game.phase === 'result' || game.phase === 'terminal';
+    const isFreshRun = s.currentWeek === 1 && s.currentDay === 1 && s.completedEvents.length === 0;
+    if (active && isFreshRun && startedSeed.current !== s.seed) {
+      startedSeed.current = s.seed;
+      trackRunStarted(playerId, s.seed, s.gameMode);
+    }
   }, [game.phase, game.state, playerId]);
+
+  // Emit lesson_completed as learning levels are finished. Baseline the already-
+  // completed set on first observation so resuming a save doesn't retro-fire.
+  const knownLessons = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    if (game.state.gameMode !== 'learning') return;
+    if (knownLessons.current === null) {
+      knownLessons.current = new Set(game.state.completedEvents);
+      return;
+    }
+    for (const id of game.state.completedEvents) {
+      if (knownLessons.current.has(id)) continue;
+      knownLessons.current.add(id);
+      const track = getTrackOfLevel(id);
+      if (track) trackLessonCompleted(playerId, id, track.id);
+    }
+  }, [game.state.completedEvents, game.state.gameMode, playerId]);
 
   // Handle load game
   const handleLoadGame = useCallback((state: import('@kritis/shared').GameState) => {
@@ -293,6 +376,8 @@ function AppContent() {
     if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't hijack keys while the name field (or any input) is focused.
+      if (e.target instanceof HTMLInputElement) return;
       if (e.key === 'ArrowUp') {
         e.preventDefault();
         setMenuIndex(prev => (prev - 1 + menuItems.length) % menuItems.length);
@@ -423,6 +508,44 @@ function AppContent() {
           {meta.runsCompleted > 0 && (
             <div className="text-terminal-green-muted text-xs mt-3">
               Durchläufe: {meta.runsCompleted} · Story-Enden: {meta.endingsSeen.length}/{TOTAL_STORY_ENDINGS}
+            </div>
+          )}
+
+          {showNamePrompt && (
+            <div className="mt-4 border border-terminal-green/30 p-3 text-left text-sm">
+              <div className="text-terminal-green-dim mb-2">
+                Wie heißt du?{' '}
+                <span className="text-terminal-green-muted">(optional — für die Team-Statistik)</span>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      saveName();
+                    }
+                  }}
+                  maxLength={40}
+                  placeholder="Dein Name"
+                  aria-label="Dein Name"
+                  className="flex-1 bg-terminal-bg-dark border border-terminal-border px-2 py-1 text-terminal-green outline-none focus:border-terminal-green"
+                />
+                <button
+                  onClick={saveName}
+                  className="border border-terminal-green px-3 py-1 hover:bg-terminal-bg-highlight"
+                >
+                  Speichern
+                </button>
+                <button
+                  onClick={skipName}
+                  className="border border-terminal-border px-3 py-1 text-terminal-green-dim hover:border-terminal-green"
+                >
+                  Überspringen
+                </button>
+              </div>
             </div>
           )}
 
