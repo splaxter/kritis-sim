@@ -105,13 +105,14 @@ export function createShellFromContext(context: {
     templates: context.templates,
   });
 
-  // Set the initial working directory
+  // Set the initial working directory. Content occasionally bakes a prompt
+  // character into the path ('/backup$', 'C:\>'), which would otherwise
+  // create a literal directory of that name — strip it defensively.
   const vfs = shell.getVfs();
-  if (context.currentPath) {
-    // Ensure the directory exists
-    vfs.addDirectory(context.currentPath);
-    // Navigate to it
-    vfs.setCurrentPath(context.currentPath);
+  const startPath = (context.currentPath || '').trim().replace(/[$>\s]+$/, '');
+  if (startPath) {
+    vfs.addDirectory(startPath);
+    vfs.setCurrentPath(startPath);
   }
 
   return shell;

@@ -157,7 +157,12 @@ export class VirtualFilesystem implements VirtualFilesystemInterface {
     }
 
     if (isWindows) {
-      return resolved.length > 0 ? resolved.join('\\') : 'C:\\';
+      if (resolved.length === 0) return 'C:\\';
+      // A bare drive letter is the drive root, e.g. 'C:\' (not 'C:').
+      if (resolved.length === 1 && /^[A-Z]:$/i.test(resolved[0])) {
+        return resolved[0] + '\\';
+      }
+      return resolved.join('\\');
     }
     return '/' + resolved.join('/');
   }

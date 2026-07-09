@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createShell } from './index';
+import { createShell, createShellFromContext } from './index';
 import { ShellEngine } from './ShellEngine';
 
 function bash(): ShellEngine {
@@ -529,5 +529,29 @@ describe('ping produces streamable output', () => {
     expect(r.output).toContain('100.0% packet loss');
     expect(r.output.split('\n').some(l => REPLY.test(l))).toBe(true);
     expect(r.exitCode).toBe(1);
+  });
+});
+
+describe('createShellFromContext currentPath sanitizing', () => {
+  it('strips a trailing prompt char from linux paths', () => {
+    const shell = createShellFromContext({
+      type: 'linux', hostname: 'h', username: 'admin', currentPath: '/backup$',
+    });
+    expect(shell.getVfs().getCurrentPath()).toBe('/backup');
+  });
+
+  it('strips the > from C:\\> style paths', () => {
+    const shell = createShellFromContext({
+      type: 'windows', hostname: 'h', username: 'admin', currentPath: 'C:\\>',
+    });
+    expect(shell.getVfs().getCurrentPath()).toBe('C:\\');
+  });
+
+  it('resolves ~ to the home directory instead of creating a literal ~ dir', () => {
+    const shell = createShellFromContext({
+      type: 'linux', hostname: 'h', username: 'admin', currentPath: '~$',
+    });
+    expect(shell.getVfs().getCurrentPath()).toBe('/home/admin');
+    expect(shell.getVfs().exists('/home/admin/~$')).toBe(false);
   });
 });

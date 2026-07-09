@@ -119,7 +119,7 @@ Was machst du?`,
       type: 'windows',
       hostname: 'WARM-PC-042',
       username: 'admin',
-      currentPath: 'C:\\>',
+      currentPath: 'C:\\',
       commands: [
         {
           pattern: 'Get-PrintJob',

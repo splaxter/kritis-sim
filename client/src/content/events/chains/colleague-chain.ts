@@ -73,7 +73,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
       type: 'linux',
       hostname: 'baramundi-srv',
       username: 'admin',
-      currentPath: '/opt/baramundi$',
+      currentPath: '/opt/baramundi',
       commands: [
         {
           pattern: 'bms job list',

@@ -47,7 +47,7 @@ export const amseScenarios: Scenario[] = [
       type: 'windows',
       hostname: 'WARM-PC-ADMIN',
       username: 'admin.mueller',
-      currentPath: 'C:\\Users\\admin.mueller>',
+      currentPath: 'C:\\Users\\admin.mueller',
       commands: [
         {
           pattern: 'Test-NetConnection',
@@ -434,7 +434,7 @@ Address:  10.10.1.10
       type: 'windows',
       hostname: 'WARM-PC-ADMIN',
       username: 'admin.mueller',
-      currentPath: 'C:\\Users\\admin.mueller>',
+      currentPath: 'C:\\Users\\admin.mueller',
       commands: [
         {
           pattern: 'ping',
