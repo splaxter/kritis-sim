@@ -35,6 +35,9 @@ jobs:
       - name: Typecheck server
         run: npx tsc --noEmit -p server/tsconfig.json
 
+      - name: Lint
+        run: npm run lint
+
       # Mirrors `npm test` minus the redundant shared rebuild.
       - name: Unit tests (node)
         run: npx vitest run
