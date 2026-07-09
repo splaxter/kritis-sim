@@ -1210,7 +1210,7 @@ export const getDateCommand: ShellCommand = {
 
     if (format) {
       // Simple format handling
-      let output = format
+      const output = format
         .replace(/yyyy/g, now.getFullYear().toString())
         .replace(/MM/g, (now.getMonth() + 1).toString().padStart(2, '0'))
         .replace(/dd/g, now.getDate().toString().padStart(2, '0'))

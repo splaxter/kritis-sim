@@ -112,7 +112,7 @@ describe('chain flow density (realistic)', () => {
       const totalWeeks = runs[0].totalWeeks;
 
       let chainsPerRunSum = 0;
-      let mid = { chains: 0, content: 0 }; // weeks 5-12
+      const mid = { chains: 0, content: 0 }; // weeks 5-12
       const weekChainMeans: number[] = [];
 
       for (let w = 1; w <= totalWeeks; w++) {
@@ -141,7 +141,7 @@ describe('chain flow density (realistic)', () => {
       );
     }
 
-    // eslint-disable-next-line no-console
+
     console.info('\n=== CHAIN FLOW DENSITY (realistic, 40 seeds/mode) ===\n' + report.join('\n') + '\n');
 
     // Throttle must hold in realistic play too: never more than one chain in a week.
