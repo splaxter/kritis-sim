@@ -7,4 +7,14 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      - DATA_DIR=/data
+      # Set STATS_TOKEN to enable /stats and /api/stats. Unset ⇒ those endpoints
+      # return 404 (the play-tracking write path stays open either way).
+      - STATS_TOKEN=${STATS_TOKEN:-}
+    volumes:
+      # Persist the play-tracking event log across restarts/redeploys.
+      - kritis-data:/data
     restart: unless-stopped
+
+volumes:
+  kritis-data:

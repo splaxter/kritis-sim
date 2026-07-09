@@ -23,7 +23,7 @@ Last updated: 2026-07-09
 | Item | Description |
 |------|-------------|
 | Content validation at build time | Currently runtime + test-time; a pre-build validation step could fail faster. |
-| Meta-progression backend | `metaProgress.ts` is localStorage-only (per browser). A backend would enable cross-device stats/achievements. The old server schema lives in git history — see `docs/BACKEND_REMOVAL.md`. |
+| Cross-device player meta | `metaProgress.ts` (endings seen, runs played) is still localStorage-only, per browser. The new tracking backend (`docs/TRACKING.md`) records team-wide play stats server-side, but per-player meta is not yet read back from it. |
 
 ---
 
