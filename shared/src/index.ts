@@ -11,4 +11,5 @@ export * from './types/npcs';
 export * from './types/scenarios';
 export * from './types/adventure';
 export * from './types/learning';
+export * from './types/telemetry';
 export * from './config/gameModes';
