@@ -1,12 +1,9 @@
 // client/src/config/legal.ts
 // ═════════════════════════════════════════════════════════════════════
-// ⚠️  BETREIBER-DATEN — VOR PRODUKTIV-DEPLOYMENT AUSFÜLLEN!  ⚠️
-// Pflichtangaben nach § 5 TMG (Impressum) und Art. 13 DSGVO
-// (Verantwortliche Stelle). Solange hier TODO-Platzhalter stehen, ist
-// die Seite NICHT rechtskonform. Der Guard-Test in
-// components/LegalPages/LegalPages.browser.test.tsx ist deshalb als
-// `it.fails` markiert — nach dem Eintragen echter Daten dort
-// `it.fails` → `it` umstellen, damit er dauerhaft wacht.
+// BETREIBER-DATEN — Pflichtangaben nach § 5 TMG (Impressum) und Art. 13
+// DSGVO (Verantwortliche Stelle). Der Guard-Test in
+// components/LegalPages/LegalPages.browser.test.tsx ist scharf geschaltet
+// und bricht den Build, falls je wieder ein TODO/XXX-Platzhalter einzieht.
 // ═════════════════════════════════════════════════════════════════════
 
 export interface LegalOwner {
@@ -20,12 +17,12 @@ export interface LegalOwner {
 }
 
 export const LEGAL_OWNER: LegalOwner = {
-  name: 'TODO Vorname Nachname',
-  street: 'TODO Straße Hausnummer',
-  city: 'TODO PLZ Ort',
+  name: 'Timo Klingenberger',
+  street: 'Schlehenweg 16',
+  city: '71364 Winnenden',
   country: 'Deutschland',
-  email: 'TODO ihre-email@example.com',
-  phone: 'TODO +49 XXX XXXXXXX',
+  email: 'hi@timoklinge.com',
+  phone: '',
 };
 
 /** True solange irgendein Feld noch einen TODO-Platzhalter trägt. */
