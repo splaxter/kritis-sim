@@ -22,7 +22,7 @@ interface UseGuiLevelResult {
   showHint: () => void;
 }
 
-const SOLVE_DELAY_MS = 1600;
+export const SOLVE_DELAY_MS = 1600;
 
 export function useGuiLevel({ context, onSolved }: UseGuiLevelArgs): UseGuiLevelResult {
   const [performed, setPerformed] = useState<string[]>([]);
