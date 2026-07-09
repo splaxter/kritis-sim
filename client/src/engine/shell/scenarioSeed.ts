@@ -28,6 +28,9 @@ const FILE_ARG_COMMANDS = new Set([
 ]);
 // First positional is a pattern/expression, not a file.
 const SKIP_FIRST_ARG = new Set(['grep', 'egrep', 'zgrep', 'awk', 'sed', 'select-string']);
+// Short options that consume the FOLLOWING token as their value — that value is
+// never a path (e.g. `tail -n 20 x.log` → 20 is a line count, not a file).
+const VALUE_OPTS = new Set(['-n', '-c', '-L', '-m', '-A', '-B', '-C']);
 
 const looksLikePath = (token: string): boolean =>
   token.includes('/') || /^[A-Za-z]:\\/.test(token) || /\.[A-Za-z0-9]{1,4}$/.test(token);
@@ -107,9 +110,16 @@ export function extractPathsFromPattern(pattern: string, output: string): SeedPa
     let rest = tokens.slice(1);
     const redirIdx = rest.findIndex(t => t === '>' || t === '>>' || t === '<');
     if (redirIdx !== -1) rest = rest.slice(0, redirIdx);
-    const positionals = rest
-      .filter(t => !t.startsWith('-'))
-      .map(stripQuotes);
+    const positionals: string[] = [];
+    for (let i = 0; i < rest.length; i++) {
+      const t = rest[i];
+      if (VALUE_OPTS.has(t)) { i++; continue; } // skip the option AND its value token
+      if (t.startsWith('-')) continue;          // other flags
+      const val = stripQuotes(t);
+      if (/^\d+$/.test(val)) continue;          // pure numbers are never filenames here
+      if (/[*?[\]]/.test(val)) continue;        // globs are not single real paths
+      positionals.push(val);
+    }
 
     if (CAT_COMMANDS.has(cmd)) {
       for (const p of positionals) {
@@ -157,6 +167,7 @@ export function extractPathsFromText(text: string): SeedPath[] {
   const push = (path: string) => {
     const clean = path.replace(/[.,;:!?)]+$/, '').replace(/\/+$/, '');
     if (clean.length < 2 || seen.has(clean)) return;
+    if (/[*?[\]]/.test(clean)) return; // never seed a glob pattern as a literal path
     seen.add(clean);
     results.push({ path: clean, kind: isDirLike(clean) ? 'dir' : 'file' });
   };
@@ -183,6 +194,9 @@ export function seedVfsFromScenario(vfs: VirtualFilesystemInterface, input: Scen
   const seeds: SeedPath[] = [];
   for (const cmd of input.commands || []) {
     seeds.push(...extractPathsFromPattern(cmd.pattern, cmd.output));
+    // Quest paths that appear only in canned OUTPUT (e.g. a process path from
+    // `ps aux`) must materialize too, so the player can inspect them.
+    seeds.push(...extractPathsFromText(cmd.output));
   }
   const textSources = [...(input.hints || []), input.taskText || ''];
   for (const text of textSources) {
@@ -194,12 +208,14 @@ export function seedVfsFromScenario(vfs: VirtualFilesystemInterface, input: Scen
   // existing node (templates/overlays/base fs stay authoritative).
   const ensureFile = (path: string, content?: string) => {
     const resolved = vfs.resolvePath(path);
+    if (/[*?]/.test(resolved)) return; // backstop: never create a glob-named node
     if (vfs.exists(resolved)) return;
     const name = resolved.split(/[/\\]/).pop() || '';
     vfs.addFile(resolved, content ?? stubContent(name));
   };
   const ensureDir = (path: string) => {
     const resolved = vfs.resolvePath(path);
+    if (/[*?]/.test(resolved)) return; // backstop: never create a glob-named node
     if (vfs.exists(resolved)) return;
     vfs.addDirectory(resolved);
   };

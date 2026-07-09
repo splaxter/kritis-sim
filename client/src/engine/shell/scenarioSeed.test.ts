@@ -114,6 +114,29 @@ describe('extractPathsFromPattern', () => {
     ]);
   });
 
+  it('value-taking options: -n VALUE is not seeded as a file (tail)', () => {
+    expect(extractPathsFromPattern('tail -n 20 system.log', 'out')).toEqual([
+      { path: 'system.log', kind: 'file', content: 'out' },
+    ]);
+  });
+
+  it('value-taking options: head -n VALUE only seeds the file', () => {
+    expect(extractPathsFromPattern('head -n 3 system.log', 'out')).toEqual([
+      { path: 'system.log', kind: 'file', content: 'out' },
+    ]);
+  });
+
+  it('value-taking options: grep -A VALUE drops the count and the regex', () => {
+    expect(extractPathsFromPattern('grep -A 3 "pat" /var/log/auth.log', 'x')).toEqual([
+      { path: '/var/log/auth.log', kind: 'file' },
+    ]);
+  });
+
+  it('glob paths in a pattern are not seeded as literal files', () => {
+    expect(extractPathsFromPattern('grep -i error /var/log/*.log', 'x')).toEqual([]);
+    expect(extractPathsFromPattern('cat /var/log/*.log', 'out')).toEqual([]);
+  });
+
   it('find: flag values are not seeded as junk directories', () => {
     expect(extractPathsFromPattern('find /var -type f -name "*.log"', '')).toEqual([
       { path: '/var', kind: 'dir' },
@@ -157,6 +180,11 @@ describe('extractPathsFromText', () => {
   it('keeps colon-adjacent paths (single colon is not a URL scheme)', () => {
     expect(extractPathsFromText('offener port:/etc/passwd'))
       .toEqual([{ path: '/etc/passwd', kind: 'file' }]);
+  });
+
+  it('rejects glob patterns from prose, keeps the real dir', () => {
+    expect(extractPathsFromText('durchsuche die *.log Dateien in /var/log'))
+      .toEqual([{ path: '/var/log', kind: 'dir' }]);
   });
 });
 
@@ -240,6 +268,19 @@ describe('seedVfsFromScenario (via createShellFromContext)', () => {
     });
     const out = shell.execute('cat /backup/notes.log').output;
     expect(out.length).toBeGreaterThan(0);
+  });
+
+  it('quest paths that appear only in command OUTPUT materialize', () => {
+    const shell = createShellFromContext({
+      ...base, currentPath: '/home/admin',
+      commands: [{
+        pattern: 'ps aux',
+        output: 'root  6666  99.0  0.1  /tmp/.hidden/miner.sh --pool xmr.pool.evil:3333',
+      }],
+    });
+    const vfs = shell.getVfs();
+    expect(vfs.exists(vfs.resolvePath('/tmp/.hidden/miner.sh'))).toBe(true);
+    expect(shell.execute('cat /tmp/.hidden/miner.sh').exitCode).toBe(0);
   });
 
   it('windows contexts seed Get-Content paths', () => {
