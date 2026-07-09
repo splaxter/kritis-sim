@@ -107,6 +107,24 @@ describe('extractPathsFromPattern', () => {
       { path: 'C:\\Logs\\backup.log', kind: 'file', content: 'out' },
     ]);
   });
+
+  it('find: flag values are not seeded as junk directories', () => {
+    expect(extractPathsFromPattern('find /var -type f -name "*.log"', '')).toEqual([
+      { path: '/var', kind: 'dir' },
+    ]);
+  });
+
+  it('redirect target terminates positional collection (not seeded)', () => {
+    expect(extractPathsFromPattern('cat report.txt > /tmp/out.txt', 'out')).toEqual([
+      { path: 'report.txt', kind: 'file', content: 'out' },
+    ]);
+  });
+
+  it('well-known dotless filenames seed as files, not dirs', () => {
+    expect(extractPathsFromPattern('chmod 600 /home/x/.ssh/id_rsa', '')).toEqual([
+      { path: '/home/x/.ssh/id_rsa', kind: 'file' },
+    ]);
+  });
 });
 
 describe('extractPathsFromText', () => {
@@ -128,6 +146,11 @@ describe('extractPathsFromText', () => {
       .toEqual([{ path: '/etc/ssh/sshd_config', kind: 'dir' }]);
     expect(extractPathsFromText('lies /opt/notes.txt'))
       .toEqual([{ path: '/opt/notes.txt', kind: 'file' }]);
+  });
+
+  it('keeps colon-adjacent paths (single colon is not a URL scheme)', () => {
+    expect(extractPathsFromText('offener port:/etc/passwd'))
+      .toEqual([{ path: '/etc/passwd', kind: 'file' }]);
   });
 });
 

@@ -32,8 +32,15 @@ const SKIP_FIRST_ARG = new Set(['grep', 'egrep', 'zgrep', 'awk', 'sed', 'select-
 const looksLikePath = (token: string): boolean =>
   token.includes('/') || /^[A-Za-z]:\\/.test(token) || /\.[A-Za-z0-9]{1,4}$/.test(token);
 
+// Well-known dotless filenames that should seed as files, not directories.
+const FILE_BASENAMES = new Set([
+  'id_rsa', 'id_ed25519', 'authorized_keys', 'known_hosts', 'makefile',
+  'dockerfile', 'passwd', 'shadow', 'hosts', 'sudoers', 'crontab',
+]);
+
 const isDirLike = (path: string): boolean => {
   const base = path.replace(/[/\\]+$/, '').split(/[/\\]/).pop() || '';
+  if (FILE_BASENAMES.has(base.toLowerCase())) return false;
   return base.indexOf('.') <= 0; // 'logs' → dir, '.ssh' → dir, 'x.log' → file
 };
 
@@ -69,7 +76,7 @@ export function parseLsOutput(output: string): { name: string; isDir: boolean }[
     }
 
     // PowerShell table: Mode column then name at the end
-    const psRow = line.match(/^([d-])[a-rhs-]{4,5}\s+\S+.*\s(\S+)$/);
+    const psRow = line.match(/^([d-])[darhsl-]{4,5}\s+\S+.*\s(\S+)$/);
     if (psRow && /^\d{2}[./]\d{2}[./]\d{4}/.test(line.slice(7).trimStart())) {
       entries.push({ name: psRow[2], isDir: psRow[1] === 'd' });
       continue;
@@ -95,11 +102,14 @@ export function extractPathsFromPattern(pattern: string, output: string): SeedPa
     let tokens = stage.split(/\s+/);
     if (tokens[0] === 'sudo') tokens = tokens.slice(1);
     const cmd = (tokens[0] || '').toLowerCase();
-    const positionals = tokens.slice(1)
+    // A redirect operator terminates positional collection — its target is a
+    // write destination, not a path the level is describing.
+    let rest = tokens.slice(1);
+    const redirIdx = rest.findIndex(t => t === '>' || t === '>>' || t === '<');
+    if (redirIdx !== -1) rest = rest.slice(0, redirIdx);
+    const positionals = rest
       .filter(t => !t.startsWith('-'))
-      .map(stripQuotes)
-      // stop at redirects
-      .filter(t => t !== '>' && t !== '>>' && t !== '<');
+      .map(stripQuotes);
 
     if (CAT_COMMANDS.has(cmd)) {
       for (const p of positionals) {
@@ -118,7 +128,11 @@ export function extractPathsFromPattern(pattern: string, output: string): SeedPa
       }
     } else if (DIR_ARG_COMMANDS.has(cmd)) {
       for (const p of positionals) {
-        if (p !== '-' && p !== '~') results.push({ path: p, kind: 'dir' });
+        if (p === '-' || p === '~') continue;
+        // reject flag VALUES (e.g. find -type f -name "*.log" → 'f', '*.log')
+        if (/[*?]/.test(p)) continue;
+        if (!looksLikePath(p)) continue;
+        results.push({ path: p, kind: 'dir' });
       }
     } else if (FILE_ARG_COMMANDS.has(cmd)) {
       const args = SKIP_FIRST_ARG.has(cmd) ? positionals.slice(1) : positionals;
@@ -131,7 +145,9 @@ export function extractPathsFromPattern(pattern: string, output: string): SeedPa
   return results;
 }
 
-const UNIX_PATH_RE = /(?<![\w:/])\/(?:[\w.\-+]+\/)*[\w.\-+]+\/?/g;
+// Allow a single ':' before the path (e.g. 'port:/etc/passwd') but exclude a
+// preceding word char or slash; the '://' scheme case is filtered positionally.
+const UNIX_PATH_RE = /(?<![\w/])\/(?:[\w.\-+]+\/)*[\w.\-+]+\/?/g;
 const WIN_PATH_RE = /[A-Za-z]:\\(?:[\w.\-+ ]+\\)*[\w.\-+]+/g;
 
 export function extractPathsFromText(text: string): SeedPath[] {
@@ -143,10 +159,12 @@ export function extractPathsFromText(text: string): SeedPath[] {
     seen.add(clean);
     results.push({ path: clean, kind: isDirLike(clean) ? 'dir' : 'file' });
   };
-  for (const m of text.match(UNIX_PATH_RE) || []) {
-    // skip URL remainders (the regex lookbehind already excludes '://', belt & braces)
-    if (text.includes('//' + m) || text.includes(':' + m)) continue;
-    push(m);
+  for (const m of text.matchAll(UNIX_PATH_RE)) {
+    const idx = m.index ?? 0;
+    // skip only the trailing slash of a scheme separator ('://'); a single ':'
+    // prefix is a legitimate path (e.g. 'port:/etc/passwd').
+    if (idx >= 2 && text[idx - 1] === '/' && text[idx - 2] === ':') continue;
+    push(m[0]);
   }
   for (const m of text.match(WIN_PATH_RE) || []) push(m);
   return results;
