@@ -5,6 +5,7 @@ import { FitAddon } from '@xterm/addon-fit';
 import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
 import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds } from '../../engine/shell';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
+import { buildPrompt } from './prompt';
 
 interface UseTerminalOptions {
   context: TerminalContext;
@@ -86,14 +87,14 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
   }, [shell]);
 
   const getPrompt = useCallback(() => {
-    // Use VFS current path for dynamic prompt
     const vfs = shellRef.current?.getVfs();
-    const currentPath = vfs?.getCurrentPath() || context.currentPath;
-
-    if (context.type === 'linux') {
-      return `${context.username}@${context.hostname}:${currentPath}$ `;
-    }
-    return `PS ${currentPath}> `;
+    return buildPrompt({
+      type: context.type,
+      username: context.username,
+      hostname: context.hostname,
+      path: vfs?.getCurrentPath() || context.currentPath,
+      home: vfs?.getEnv('HOME'),
+    });
   }, [context.type, context.username, context.hostname, context.currentPath]);
 
   const showHint = useCallback(() => {
@@ -133,11 +134,13 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     // Get initial prompt
     const getTermPrompt = () => {
       const vfs = shellRef.current?.getVfs();
-      const currentPath = vfs?.getCurrentPath() || context.currentPath;
-      if (context.type === 'linux') {
-        return `${context.username}@${context.hostname}:${currentPath}$ `;
-      }
-      return `PS ${currentPath}> `;
+      return buildPrompt({
+        type: context.type,
+        username: context.username,
+        hostname: context.hostname,
+        path: vfs?.getCurrentPath() || context.currentPath,
+        home: vfs?.getEnv('HOME'),
+      });
     };
 
     let prompt = getTermPrompt();
