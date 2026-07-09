@@ -7,6 +7,7 @@ import { ResultScreen, LearningResultCtas } from '../ResultScreen';
 import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
+import { extractTaskText } from './extractTaskText';
 
 // Lazy load Terminal - only needed when entering terminal mode
 const Terminal = lazy(() => import('../Terminal').then(m => ({ default: m.Terminal })));
@@ -84,6 +85,11 @@ export function GameScreen({
   ).length;
   const currentLessonNumber = completedLearningLevels + 1;
 
+  // Quest summary shown in the terminal's persistent task panel
+  const terminalTask =
+    extractTaskText(currentEvent?.description) ??
+    extractTaskText(currentScenario?.flavorText);
+
   if (phase === 'terminal' && (terminalContext || guiContext)) {
     return (
       <div className="min-h-screen p-4 flex flex-col relative z-10">
@@ -111,6 +117,7 @@ export function GameScreen({
             ) : (
               <Terminal
                 context={terminalContext!}
+                task={terminalTask}
                 onSolved={onTerminalSolved}
                 onCancel={onTerminalCancel}
                 gameMode={state.gameMode}

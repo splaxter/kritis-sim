@@ -85,6 +85,16 @@ export interface ExecutionContext {
   shell: ShellState;
   cwd: string;
   user: string;
+  /**
+   * True when stdout goes to the terminal (last pipeline stage, no redirect).
+   * Commands use this like real tools use isatty(): colors and grid layouts
+   * only when interactive, plain parseable output when piped/redirected.
+   */
+  isTty?: boolean;
+  /** Registry of all commands, so which/type/man/help can answer truthfully. */
+  commands?: Map<string, ShellCommand>;
+  /** Re-enter the shell (used by sudo/source to run nested commands). */
+  execute?: (input: string) => CommandResult;
 }
 
 export interface CompletionContext {
@@ -182,6 +192,7 @@ export interface VirtualFilesystemInterface {
   getCurrentPath(): string;
   setCurrentPath(path: string): Result<void>;
   getUser(): string;
+  setUser(user: string): void;
   getEnv(key: string): string | undefined;
   setEnv(key: string, value: string): void;
 
@@ -227,7 +238,7 @@ export interface VirtualFilesystemInterface {
 export interface ShellEngineInterface {
   // Execution
   execute(input: string): CommandResult;
-  executeCommand(name: string, args: ParsedArgs, stdin?: string): CommandResult;
+  executeCommand(name: string, args: ParsedArgs, stdin?: string, isTty?: boolean): CommandResult;
 
   // Completion
   complete(input: string, cursorPos: number): Completion[];

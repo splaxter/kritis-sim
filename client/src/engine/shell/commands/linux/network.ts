@@ -61,12 +61,15 @@ export const pingCommand: ShellCommand = {
                      { reachable: false, error: 'Destination Host Unreachable' };
 
     if (!response.reachable) {
-      const lines = [
-        `PING ${host} (${host}): 56 data bytes`,
-        '',
-        `--- ${host} ping statistics ---`,
-        `${count} packets transmitted, 0 received, 100% packet loss`,
-      ];
+      // Emit one timeout line per packet so the terminal can pace them out,
+      // making an unreachable host feel like it's actually being tried.
+      const lines = [`PING ${host} (${host}): 56 data bytes`];
+      for (let i = 0; i < count; i++) {
+        lines.push(`Request timeout for icmp_seq ${i}`);
+      }
+      lines.push('');
+      lines.push(`--- ${host} ping statistics ---`);
+      lines.push(`${count} packets transmitted, 0 packets received, 100.0% packet loss`);
       return { output: lines.join('\n'), exitCode: 1 };
     }
 

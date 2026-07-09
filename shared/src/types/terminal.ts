@@ -43,6 +43,12 @@ export interface TerminalContext {
   hostname: string;
   username: string;
   currentPath: string;
+  /**
+   * Short task summary shown in a persistent panel while the terminal is
+   * open. If omitted, the client falls back to the "**Deine Aufgabe:**"
+   * block of the event description / scenario flavor text.
+   */
+  taskText?: string;
   commands: TerminalCommand[];
   solutions: TerminalSolution[];
   hints: string[];

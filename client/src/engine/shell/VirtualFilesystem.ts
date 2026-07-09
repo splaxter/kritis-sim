@@ -93,6 +93,10 @@ export class VirtualFilesystem implements VirtualFilesystemInterface {
     return this.currentUser;
   }
 
+  setUser(user: string): void {
+    this.currentUser = user;
+  }
+
   getEnv(key: string): string | undefined {
     return this.env[key];
   }

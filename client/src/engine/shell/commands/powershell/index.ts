@@ -4,6 +4,7 @@
  */
 
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion, CompletionContext } from '../../types';
+import { HASHERS, toBytes } from '../linux/extended';
 
 // ============================================================================
 // Navigation Commands
@@ -118,7 +119,9 @@ export const getContentCommand: ShellCommand = {
   options: [
     { long: 'Path', description: 'Path to file', takesValue: true },
     { long: 'Head', description: 'Get first N lines', takesValue: true },
+    { long: 'TotalCount', description: 'Get first N lines', takesValue: true },
     { long: 'Tail', description: 'Get last N lines', takesValue: true },
+    { long: 'Raw', description: 'Return the entire file as a single string' },
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
@@ -134,15 +137,17 @@ export const getContentCommand: ShellCommand = {
     }
 
     let content = result.value;
+    const head = args.options['Head'] || args.options['TotalCount'] || args.options['First'];
+    const tail = args.options['Tail'] || args.options['Last'];
 
-    if (args.options['Head']) {
-      const n = parseInt(args.options['Head'], 10);
-      content = content.split('\n').slice(0, n).join('\n');
-    }
-
-    if (args.options['Tail']) {
-      const n = parseInt(args.options['Tail'], 10);
-      content = content.split('\n').slice(-n).join('\n');
+    if (head || tail) {
+      // Split into real lines; a trailing newline must not add a phantom line.
+      const lines = content.split('\n');
+      if (lines.length && lines[lines.length - 1] === '') lines.pop();
+      const sliced = head
+        ? lines.slice(0, parseInt(head, 10))
+        : lines.slice(-parseInt(tail as string, 10));
+      content = sliced.join('\n');
     }
 
     return { output: content, exitCode: 0 };
@@ -185,45 +190,78 @@ export const selectStringCommand: ShellCommand = {
     { long: 'Pattern', description: 'Pattern to search for', takesValue: true },
     { long: 'Path', description: 'Path to search', takesValue: true },
     { long: 'CaseSensitive', description: 'Case sensitive search' },
+    { long: 'SimpleMatch', description: 'Treat the pattern as a literal string' },
+    { long: 'NotMatch', description: 'Return lines that do NOT match' },
+    { long: 'Quiet', description: 'Return only True/False' },
+    { long: 'List', description: 'Return only the first match per file' },
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const pattern = args.options['Pattern'] || args.positional[0];
-    const paths = args.options['Path'] ? [args.options['Path']] : args.positional.slice(1);
-    const caseSensitive = args.flags['CaseSensitive'];
+    const paths = args.options['Path']
+      ? [args.options['Path']]
+      : args.positional.slice(1);
+    const caseSensitive = !!args.flags['CaseSensitive'];
+    const simple = !!args.flags['SimpleMatch'];
+    const notMatch = !!args.flags['NotMatch'];
+    const quiet = !!args.flags['Quiet'];
+    const listOnly = !!args.flags['List'];
+    // Colorize the match only on the terminal, not through a pipe/redirect.
+    const colorize = ctx.isTty !== false;
 
     if (!pattern) {
       return { output: '', exitCode: 1, error: 'Select-String : Cannot bind argument to parameter \'Pattern\' because it is null.' };
     }
 
-    const regex = new RegExp(pattern, caseSensitive ? 'g' : 'gi');
+    const source = simple ? pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : pattern;
+    let test: RegExp;
+    let highlight: RegExp;
+    try {
+      test = new RegExp(source, caseSensitive ? '' : 'i');
+      highlight = new RegExp(source, caseSensitive ? 'g' : 'gi');
+    } catch {
+      return { output: '', exitCode: 1, error: `Select-String : Invalid pattern '${pattern}'` };
+    }
+
+    const RED = '\x1b[31m';
+    const RESET = '\x1b[0m';
     const results: string[] = [];
+    let any = false;
 
-    // Handle stdin
-    if (paths.length === 0 && ctx.stdin) {
-      const lines = ctx.stdin.split('\n');
-      lines.forEach((line, i) => {
-        if (regex.test(line)) {
-          results.push(`stdin:${i + 1}:${line}`);
+    // Real Select-String prefixes `file:line:` only when searching files, and
+    // prints the bare line for pipeline (stdin) input.
+    const scan = (content: string, label: string | null): void => {
+      const lines = content.split('\n');
+      if (lines.length && lines[lines.length - 1] === '') lines.pop();
+      for (let i = 0; i < lines.length; i++) {
+        const hit = test.test(lines[i]);
+        if (hit === notMatch) continue;
+        any = true;
+        if (quiet) return;
+        const shown = colorize && !notMatch
+          ? lines[i].replace(highlight, m => `${RED}${m}${RESET}`)
+          : lines[i];
+        results.push(label ? `${label}:${i + 1}:${shown}` : shown);
+        if (listOnly) return;
+      }
+    };
+
+    if (paths.length === 0) {
+      scan(ctx.stdin ?? '', null);
+    } else {
+      for (const path of paths) {
+        const content = ctx.vfs.readFile(path);
+        if (!content.ok) {
+          return { output: '', exitCode: 1, error: `Select-String : Cannot find path '${path}' because it does not exist.` };
         }
-        regex.lastIndex = 0;
-      });
+        scan(content.value, ctx.vfs.basename(path));
+      }
     }
 
-    for (const path of paths) {
-      const content = ctx.vfs.readFile(path);
-      if (!content.ok) continue;
-
-      const lines = content.value.split('\n');
-      lines.forEach((line, i) => {
-        if (regex.test(line)) {
-          results.push(`${path}:${i + 1}:${line}`);
-        }
-        regex.lastIndex = 0;
-      });
+    if (quiet) {
+      return { output: any ? 'True' : 'False', exitCode: any ? 0 : 1 };
     }
-
-    return { output: results.join('\n'), exitCode: results.length > 0 ? 0 : 1 };
+    return { output: results.join('\n'), exitCode: any ? 0 : 1 };
   },
 
   getCompletions(partial: string, ctx: CompletionContext): Completion[] {
@@ -729,6 +767,307 @@ export const getServiceCommand: ShellCommand = {
 };
 
 // ============================================================================
+// Pipeline Commands (line-oriented emulation of the object pipeline)
+// ============================================================================
+
+export const sortObjectCommand: ShellCommand = {
+  name: 'Sort-Object',
+  aliases: ['sort'],
+  description: 'Sorts objects by property values',
+  usage: 'Sort-Object [-Descending] [-Unique]',
+  options: [
+    { long: 'Descending', description: 'Sort in descending order' },
+    { long: 'Unique', description: 'Eliminate duplicates' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (ctx.stdin === undefined) return { output: '', exitCode: 0 };
+    const descending = !!args.flags['Descending'];
+    const unique = !!args.flags['Unique'];
+
+    let lines = ctx.stdin.split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+
+    lines.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    if (descending) lines.reverse();
+    if (unique) lines = [...new Set(lines)];
+
+    return { output: lines.join('\n'), exitCode: 0 };
+  },
+};
+
+export const selectObjectCommand: ShellCommand = {
+  name: 'Select-Object',
+  aliases: ['select'],
+  description: 'Selects objects or object properties',
+  usage: 'Select-Object [-First <n>] [-Last <n>] [-Unique]',
+  options: [
+    { long: 'First', description: 'Select the first N objects', takesValue: true },
+    { long: 'Last', description: 'Select the last N objects', takesValue: true },
+    { long: 'Unique', description: 'Return only unique objects' },
+    { long: 'Skip', description: 'Skip the first N objects', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (ctx.stdin === undefined) return { output: '', exitCode: 0 };
+    let lines = ctx.stdin.split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+
+    if (args.options['Skip']) lines = lines.slice(parseInt(args.options['Skip'], 10));
+    if (args.options['First']) lines = lines.slice(0, parseInt(args.options['First'], 10));
+    if (args.options['Last']) lines = lines.slice(-parseInt(args.options['Last'], 10));
+    if (args.flags['Unique']) lines = [...new Set(lines)];
+
+    return { output: lines.join('\n'), exitCode: 0 };
+  },
+};
+
+export const measureObjectCommand: ShellCommand = {
+  name: 'Measure-Object',
+  aliases: ['measure'],
+  description: 'Calculates numeric properties and counts of objects',
+  usage: 'Measure-Object [-Line] [-Word] [-Character]',
+  options: [
+    { long: 'Line', description: 'Count lines' },
+    { long: 'Word', description: 'Count words' },
+    { long: 'Character', description: 'Count characters' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const content = ctx.stdin ?? '';
+    const lines = content === '' ? [] : content.replace(/\n$/, '').split('\n');
+    const line = !!args.flags['Line'];
+    const word = !!args.flags['Word'];
+    const char = !!args.flags['Character'];
+
+    if (line || word || char) {
+      const lineCount = lines.length;
+      const wordCount = lines.reduce((n, l) => n + (l.trim() ? l.trim().split(/\s+/).length : 0), 0);
+      const charCount = content.length;
+      const header = [
+        line ? 'Lines'.padStart(6) : '',
+        word ? 'Words'.padStart(6) : '',
+        char ? 'Characters'.padStart(11) : '',
+      ].filter(Boolean).join(' ');
+      const rule = [
+        line ? '-----'.padStart(6) : '',
+        word ? '-----'.padStart(6) : '',
+        char ? '----------'.padStart(11) : '',
+      ].filter(Boolean).join(' ');
+      const row = [
+        line ? String(lineCount).padStart(6) : '',
+        word ? String(wordCount).padStart(6) : '',
+        char ? String(charCount).padStart(11) : '',
+      ].filter(Boolean).join(' ');
+      return { output: `\n${header}\n${rule}\n${row}\n`, exitCode: 0 };
+    }
+
+    // Default: just the object count, in PowerShell's property-list format.
+    return {
+      output: `\nCount    : ${lines.length}\nAverage  : \nSum      : \nMaximum  : \nMinimum  : \nProperty : \n`,
+      exitCode: 0,
+    };
+  },
+};
+
+export const whereObjectCommand: ShellCommand = {
+  name: 'Where-Object',
+  aliases: ['where', '?'],
+  description: 'Selects objects from a collection based on their property values',
+  usage: "Where-Object { $_ -match 'pattern' }",
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (ctx.stdin === undefined) return { output: '', exitCode: 0 };
+    const lines = ctx.stdin.replace(/\n$/, '').split('\n');
+
+    // Support both `Where-Object { $_ -match 'x' }` and the simple comparison
+    // form `Where-Object Status -eq Running`. $_ / the property both map to the
+    // whole text line in this line-oriented emulation.
+    const raw = args.raw.replace(/^\s*(Where-Object|where|\?)\s*/i, '').trim();
+    const body = raw.replace(/^\{|\}$/g, '').replace(/\$_/g, '').trim();
+
+    const m = body.match(/(-\w+)\s+(.+)$/);
+    if (!m) {
+      // No recognizable filter — pass everything through.
+      return { output: lines.join('\n'), exitCode: 0 };
+    }
+    const op = m[1].toLowerCase();
+    const operand = m[2].trim().replace(/^['"]|['"]$/g, '');
+
+    const keep = (l: string): boolean => {
+      switch (op) {
+        case '-match': return new RegExp(operand, 'i').test(l);
+        case '-notmatch': return !new RegExp(operand, 'i').test(l);
+        case '-like': return new RegExp('^' + operand.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.') + '$', 'i').test(l);
+        case '-eq': return l.trim().toLowerCase() === operand.toLowerCase();
+        case '-ne': return l.trim().toLowerCase() !== operand.toLowerCase();
+        case '-gt': return parseFloat(l) > parseFloat(operand);
+        case '-lt': return parseFloat(l) < parseFloat(operand);
+        case '-ge': return parseFloat(l) >= parseFloat(operand);
+        case '-le': return parseFloat(l) <= parseFloat(operand);
+        default: return true;
+      }
+    };
+
+    return { output: lines.filter(keep).join('\n'), exitCode: 0 };
+  },
+};
+
+export const forEachObjectCommand: ShellCommand = {
+  name: 'ForEach-Object',
+  aliases: ['foreach', '%'],
+  description: 'Performs an operation on each item in a collection',
+  usage: "ForEach-Object { ... }",
+
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    // Only the identity/pass-through case is meaningful in a text pipeline.
+    return { output: ctx.stdin ?? '', exitCode: 0 };
+  },
+};
+
+export const groupObjectCommand: ShellCommand = {
+  name: 'Group-Object',
+  aliases: ['group'],
+  description: 'Groups objects that contain the same value for specified properties',
+  usage: 'Group-Object [-NoElement]',
+  options: [
+    { long: 'NoElement', description: 'Omit the members of each group' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (ctx.stdin === undefined) return { output: '', exitCode: 0 };
+    const noElement = !!args.flags['NoElement'];
+    const lines = ctx.stdin.replace(/\n$/, '').split('\n');
+
+    // Group identical lines, preserving first-appearance order (the PowerShell
+    // equivalent of `sort | uniq -c`). $_ maps to the whole text line here.
+    const order: string[] = [];
+    const groups = new Map<string, string[]>();
+    for (const l of lines) {
+      if (!groups.has(l)) { groups.set(l, []); order.push(l); }
+      groups.get(l)!.push(l);
+    }
+
+    const out = ['', 'Count Name                      Group', '----- ----                      -----'];
+    for (const key of order) {
+      const members = groups.get(key)!;
+      const count = members.length.toString().padStart(5);
+      const name = key.length > 25 ? key.slice(0, 22) + '...' : key.padEnd(25);
+      const group = noElement ? '' : `{${members.slice(0, 4).join(', ')}${members.length > 4 ? '...' : ''}}`;
+      out.push(`${count} ${name} ${group}`.trimEnd());
+    }
+    return { output: out.join('\n'), exitCode: 0 };
+  },
+};
+
+export const getUniqueCommand: ShellCommand = {
+  name: 'Get-Unique',
+  aliases: ['gu'],
+  description: 'Returns unique items from a sorted list',
+  usage: 'Get-Unique',
+
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (ctx.stdin === undefined) return { output: '', exitCode: 0 };
+    const lines = ctx.stdin.replace(/\n$/, '').split('\n');
+    // Like uniq: collapse only ADJACENT duplicates (expects sorted input).
+    const out: string[] = [];
+    for (const l of lines) {
+      if (out.length === 0 || out[out.length - 1] !== l) out.push(l);
+    }
+    return { output: out.join('\n'), exitCode: 0 };
+  },
+};
+
+// Format-* and Out-String reshape objects for display; in this text-oriented
+// pipeline they pass their input straight through so composed pipelines work.
+export const formatTableCommand: ShellCommand = {
+  name: 'Format-Table',
+  aliases: ['ft'],
+  description: 'Formats the output as a table',
+  usage: 'Format-Table',
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    return { output: ctx.stdin ?? '', exitCode: 0 };
+  },
+};
+
+export const formatListCommand: ShellCommand = {
+  name: 'Format-List',
+  aliases: ['fl'],
+  description: 'Formats the output as a list of properties',
+  usage: 'Format-List',
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    return { output: ctx.stdin ?? '', exitCode: 0 };
+  },
+};
+
+export const outStringCommand: ShellCommand = {
+  name: 'Out-String',
+  description: 'Sends objects to the host as a series of strings',
+  usage: 'Out-String',
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    return { output: ctx.stdin ?? '', exitCode: 0 };
+  },
+};
+
+export const outNullCommand: ShellCommand = {
+  name: 'Out-Null',
+  description: 'Deletes output instead of sending it down the pipeline',
+  usage: 'Out-Null',
+  execute(_args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+    return { output: '', exitCode: 0 };
+  },
+};
+
+// ============================================================================
+// Integrity / IOC Commands
+// ============================================================================
+
+export const getFileHashCommand: ShellCommand = {
+  name: 'Get-FileHash',
+  description: 'Computes the hash value for a file using a specified algorithm',
+  usage: 'Get-FileHash [-Path] <file> [-Algorithm <SHA256|SHA1|MD5>]',
+  options: [
+    { long: 'Path', description: 'Path to the file', takesValue: true },
+    { long: 'Algorithm', description: 'Hash algorithm (default SHA256)', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const path = args.options['Path'] || args.positional[0];
+    if (!path) {
+      return { output: '', exitCode: 1, error: 'Get-FileHash : Cannot bind argument to parameter \'Path\' because it is null.' };
+    }
+    const algorithm = (args.options['Algorithm'] || 'SHA256').toUpperCase();
+    const hasher = HASHERS[algorithm];
+    if (!hasher) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: `Get-FileHash : Der Wert "${algorithm}" kann nicht in den Typ "Algorithm" konvertiert werden. Gültig: SHA1, SHA256, MD5.`,
+      };
+    }
+    const file = ctx.vfs.readFile(path);
+    if (!file.ok) {
+      return { output: '', exitCode: 1, error: `Get-FileHash : Cannot find path '${path}' because it does not exist.` };
+    }
+    // PowerShell renders hashes in uppercase, as an Algorithm/Hash/Path table.
+    const hash = hasher(toBytes(file.value)).toUpperCase();
+    const resolved = ctx.vfs.resolvePath(path);
+    const lines = [
+      '',
+      'Algorithm       Hash                                                                   Path',
+      '---------       ----                                                                   ----',
+      `${algorithm.padEnd(15)} ${hash.padEnd(70)} ${resolved}`,
+      '',
+    ];
+    return { output: lines.join('\n'), exitCode: 0 };
+  },
+
+  getCompletions(partial: string, ctx: CompletionContext): Completion[] {
+    return ctx.vfs.getPathCompletions(partial);
+  },
+};
+
+// ============================================================================
 // Utility Commands
 // ============================================================================
 
@@ -738,9 +1077,12 @@ export const writeOutputCommand: ShellCommand = {
   description: 'Sends objects to the success pipeline',
   usage: 'Write-Output [-InputObject] <object>',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
-    const output = args.positional.join(' ');
-    return { output, exitCode: 0 };
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    // With arguments, echo them; otherwise pass pipeline input straight through.
+    if (args.positional.length > 0) {
+      return { output: args.positional.join(' '), exitCode: 0 };
+    }
+    return { output: ctx.stdin ?? '', exitCode: 0 };
   },
 };
 
@@ -761,7 +1103,7 @@ export const getHelpCommand: ShellCommand = {
   description: 'Displays information about PowerShell commands',
   usage: 'Get-Help [[-Name] <command>]',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const command = args.options['Name'] || args.positional[0];
 
     if (!command) {
@@ -776,9 +1118,10 @@ SYNTAX
     Get-Help [[-Name] <String>]
 
 VERFÜGBARE CMDLETS
-    Datei-Cmdlets:     Get-ChildItem, Get-Content, Set-Content, New-Item, Remove-Item, Copy-Item, Move-Item
+    Datei-Cmdlets:     Get-ChildItem, Get-Content, Set-Content, Select-String, New-Item, Remove-Item, Copy-Item, Move-Item
     Netzwerk-Cmdlets:  Test-NetConnection, Test-Connection, Get-NetIPAddress, Resolve-DnsName
     Prozess-Cmdlets:   Get-Process, Stop-Process, Get-Service
+    Pipeline-Cmdlets:  Where-Object, Select-Object, Sort-Object, Measure-Object, Group-Object, Get-Unique, ForEach-Object, Format-Table, Format-List
     Allgemein:         Get-Help, Clear-Host, Write-Output, Get-History
 
 Tippen Sie "Get-Help <cmdlet>" für Details zu einem bestimmten Cmdlet.`,
@@ -786,17 +1129,43 @@ Tippen Sie "Get-Help <cmdlet>" für Details zu einem bestimmten Cmdlet.`,
       };
     }
 
-    return {
-      output: `NAME
-    ${command}
+    // Generate the help page from the cmdlet's own metadata (registry lookup
+    // is case-insensitive), instead of a generic stub.
+    const lower = command.toLowerCase();
+    const cmd = ctx.commands
+      ? [...ctx.commands.values()].find(c => c.name.toLowerCase() === lower)
+      : undefined;
 
-SYNTAX
-    ${command} [CommonParameters]
+    if (!cmd) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: `Get-Help : Get-Help konnte keine Hilfedateien für '${command}' auf diesem Computer finden.`,
+      };
+    }
 
-BESCHREIBUNG
-    Verwenden Sie "Get-Help ${command} -Detailed" für ausführliche Informationen.`,
-      exitCode: 0,
-    };
+    const lines = [
+      'NAME',
+      `    ${cmd.name}`,
+      '',
+      'ÜBERSICHT',
+      `    ${cmd.description}`,
+      '',
+      'SYNTAX',
+      `    ${cmd.usage}`,
+    ];
+    if (cmd.aliases && cmd.aliases.length > 0) {
+      lines.push('', 'ALIASE', `    ${cmd.aliases.join(', ')}`);
+    }
+    if (cmd.options && cmd.options.length > 0) {
+      lines.push('', 'PARAMETER');
+      for (const opt of cmd.options) {
+        lines.push(`    -${opt.long ?? opt.short}`);
+        lines.push(`        ${opt.description}`);
+        lines.push('');
+      }
+    }
+    return { output: lines.join('\n'), exitCode: 0 };
   },
 };
 
@@ -891,6 +1260,20 @@ export const allPowerShellCommands: ShellCommand[] = [
   getProcessCommand,
   stopProcessCommand,
   getServiceCommand,
+  // Pipeline
+  sortObjectCommand,
+  selectObjectCommand,
+  measureObjectCommand,
+  whereObjectCommand,
+  forEachObjectCommand,
+  groupObjectCommand,
+  getUniqueCommand,
+  formatTableCommand,
+  formatListCommand,
+  outStringCommand,
+  outNullCommand,
+  // Integrity
+  getFileHashCommand,
   // Utility
   writeOutputCommand,
   clearHostCommand,

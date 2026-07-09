@@ -59,7 +59,8 @@ export const cdCommand: ShellCommand = {
     const result = ctx.vfs.setCurrentPath(target);
 
     if (!result.ok) {
-      return { output: '', exitCode: 1, error: result.error };
+      // Real bash prefixes builtin errors: `bash: cd: x: No such file...`
+      return { output: '', exitCode: 1, error: `bash: ${result.error}` };
     }
 
     // Set OLDPWD
@@ -99,8 +100,11 @@ export const lsCommand: ShellCommand = {
     const longFormat = args.flags['l'];
     const humanReadable = args.flags['h'] || args.flags['human-readable'];
     const recursive = args.flags['R'] || args.flags['recursive'];
-    const onePerLine = args.flags['1'];
-    const colorize = args.flags['color'] !== false; // Default true
+    // Like real ls: piped/redirected output is one-per-line and uncolored,
+    // so `ls | wc -l` counts entries and `ls | grep x` sees plain names.
+    const isTty = ctx.isTty !== false;
+    const onePerLine = args.flags['1'] || !isTty;
+    const colorize = isTty || !!args.flags['color'];
 
     const paths = args.positional.length > 0 ? args.positional : ['.'];
     const outputs: string[] = [];
@@ -166,6 +170,8 @@ export const lsCommand: ShellCommand = {
               subEntries.sort((a, b) => a.name.localeCompare(b.name));
               if (longFormat) {
                 outputs.push(...subEntries.map(e => formatLongEntry(e, humanReadable, colorize)));
+              } else if (onePerLine) {
+                outputs.push(...subEntries.map(e => colorizeEntry(e, colorize)));
               } else {
                 outputs.push(subEntries.map(e => colorizeEntry(e, colorize)).join('  '));
               }

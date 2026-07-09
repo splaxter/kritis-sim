@@ -3,7 +3,7 @@
  * whoami, hostname, uname, id, uptime, date, df, du, free, ps, kill, env, export
  */
 
-import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult } from '../../types';
+import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -454,6 +454,128 @@ export const exportCommand: ShellCommand = {
   },
 };
 
+// A curated set of systemd units, kept consistent with the `ps` process list
+// (sshd, apache2, mysqld) so the two commands tell the same story.
+interface SystemdUnit {
+  unit: string;
+  active: 'active' | 'inactive' | 'failed';
+  sub: 'running' | 'exited' | 'dead' | 'failed';
+  enabled: 'enabled' | 'disabled' | 'static';
+  pid?: number;
+  exec?: string;
+  desc: string;
+}
+
+const SYSTEMD_UNITS: SystemdUnit[] = [
+  { unit: 'ssh.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 456, exec: '/usr/sbin/sshd -D', desc: 'OpenBSD Secure Shell server' },
+  { unit: 'apache2.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 1234, exec: '/usr/sbin/apache2 -k start', desc: 'The Apache HTTP Server' },
+  { unit: 'mysql.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 2345, exec: '/usr/sbin/mysqld', desc: 'MySQL Community Server' },
+  { unit: 'cron.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 512, exec: '/usr/sbin/cron -f', desc: 'Regular background program processing daemon' },
+  { unit: 'systemd-journald.service', active: 'active', sub: 'running', enabled: 'static', pid: 210, exec: '/lib/systemd/systemd-journald', desc: 'Journal Service' },
+  { unit: 'networking.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Raise network interfaces' },
+  { unit: 'ufw.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Uncomplicated firewall' },
+];
+
+const findUnit = (name: string): SystemdUnit | undefined => {
+  // Accept both `ssh` and `ssh.service`.
+  const full = name.includes('.') ? name : `${name}.service`;
+  return SYSTEMD_UNITS.find(u => u.unit === full);
+};
+
+export const systemctlCommand: ShellCommand = {
+  name: 'systemctl',
+  description: 'Control the systemd system and service manager',
+  usage: 'systemctl [OPTIONS] COMMAND [UNIT...]',
+  options: [
+    { long: 'type', description: 'Filter units by type', takesValue: true },
+    { long: 'no-pager', description: 'Do not pipe output into a pager' },
+    { short: 'l', description: 'Show full output' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const [subcommand, ...units] = args.positional;
+
+    // Default (no args) or list-units → the unit table.
+    if (!subcommand || subcommand === 'list-units' || subcommand === 'list-unit-files') {
+      const rows = SYSTEMD_UNITS.map(u =>
+        `  ${u.unit.padEnd(28)} loaded ${u.active.padEnd(8)} ${u.sub.padEnd(8)} ${u.desc}`
+      );
+      const header = 'UNIT                          LOAD   ACTIVE   SUB      DESCRIPTION';
+      const footer = `\n${SYSTEMD_UNITS.length} loaded units listed.`;
+      return { output: [header, ...rows].join('\n') + footer, exitCode: 0 };
+    }
+
+    const unitName = units[0];
+
+    if (subcommand === 'status') {
+      const unit = findUnit(unitName || '');
+      if (!unit) {
+        return { output: `Unit ${unitName}.service could not be found.`, exitCode: 4 };
+      }
+      const dot = unit.active === 'active' ? '\x1b[32m●\x1b[0m' : unit.active === 'failed' ? '\x1b[31m●\x1b[0m' : '○';
+      const lines = [
+        `${dot} ${unit.unit} - ${unit.desc}`,
+        `     Loaded: loaded (/lib/systemd/system/${unit.unit}; ${unit.enabled}; vendor preset: enabled)`,
+        `     Active: ${unit.active} (${unit.sub}) since Mon 2026-07-09 09:00:01 UTC; 2h 15min ago`,
+      ];
+      if (unit.pid) {
+        lines.push(`   Main PID: ${unit.pid} (${unit.exec?.split(' ')[0].split('/').pop()})`);
+        lines.push('      Tasks: 1 (limit: 4915)');
+        lines.push('     Memory: 3.9M');
+        lines.push(`     CGroup: /system.slice/${unit.unit}`);
+        lines.push(`             └─${unit.pid} ${unit.exec}`);
+      }
+      return { output: lines.join('\n'), exitCode: unit.active === 'active' ? 0 : 3 };
+    }
+
+    if (subcommand === 'is-active') {
+      const unit = findUnit(unitName || '');
+      return { output: unit ? unit.active : 'inactive', exitCode: unit && unit.active === 'active' ? 0 : 3 };
+    }
+
+    if (subcommand === 'is-enabled') {
+      const unit = findUnit(unitName || '');
+      if (!unit) return { output: '', exitCode: 1, error: `Failed to get unit file state for ${unitName}.service: No such file or directory` };
+      return { output: unit.enabled, exitCode: unit.enabled === 'disabled' ? 1 : 0 };
+    }
+
+    // State-changing verbs need root, like the real polkit-gated systemctl.
+    if (['start', 'stop', 'restart', 'reload', 'enable', 'disable', 'mask', 'unmask'].includes(subcommand)) {
+      if (!unitName) {
+        return { output: '', exitCode: 1, error: `Too few arguments.` };
+      }
+      if (!findUnit(unitName)) {
+        return { output: '', exitCode: 5, error: `Failed to ${subcommand} ${unitName}.service: Unit ${unitName}.service not found.` };
+      }
+      if (ctx.user !== 'root') {
+        return {
+          output: '',
+          exitCode: 1,
+          error: `Failed to ${subcommand} ${unitName}.service: Access denied\nSee system logs and 'systemctl status ${unitName}.service' for details.\n(Hinweis: mit 'sudo' erneut versuchen.)`,
+        };
+      }
+      // As root the action "succeeds" silently, like real systemctl.
+      return { output: '', exitCode: 0 };
+    }
+
+    if (subcommand === 'daemon-reload') {
+      return ctx.user === 'root'
+        ? { output: '', exitCode: 0 }
+        : { output: '', exitCode: 1, error: 'Failed to reload daemon: Access denied' };
+    }
+
+    return { output: '', exitCode: 1, error: `Unknown command verb ${subcommand}.` };
+  },
+
+  getCompletions(partial: string): Completion[] {
+    const verbs = ['status', 'start', 'stop', 'restart', 'enable', 'disable', 'is-active', 'is-enabled', 'list-units'];
+    return [
+      ...verbs.filter(v => v.startsWith(partial)).map(v => ({ value: v, display: v, type: 'argument' as const })),
+      ...SYSTEMD_UNITS.filter(u => u.unit.startsWith(partial)).map(u => ({ value: u.unit, display: u.unit, type: 'argument' as const })),
+    ];
+  },
+};
+
 export const systemCommands: ShellCommand[] = [
   whoamiCommand,
   hostnameCommand,
@@ -468,4 +590,5 @@ export const systemCommands: ShellCommand[] = [
   killCommand,
   envCommand,
   exportCommand,
+  systemctlCommand,
 ];

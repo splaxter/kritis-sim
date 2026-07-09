@@ -31,12 +31,16 @@ export const catCommand: ShellCommand = {
     const showLineNumbers = args.flags['n'] || args.flags['number'];
     const numberNonBlank = args.flags['b'] || args.flags['number-nonblank'];
     const outputs: string[] = [];
+    const errors: string[] = [];
     let lineNum = 1;
 
+    // Real cat keeps going after a bad file: prints what it can, reports the
+    // rest on stderr, and exits 1 at the end.
     for (const file of args.positional) {
       const result = ctx.vfs.readFile(file);
       if (!result.ok) {
-        return { output: '', exitCode: 1, error: result.error };
+        errors.push(result.error);
+        continue;
       }
 
       let content = result.value;
@@ -51,7 +55,11 @@ export const catCommand: ShellCommand = {
       outputs.push(content);
     }
 
-    return { output: outputs.join('\n'), exitCode: 0 };
+    return {
+      output: outputs.join('\n'),
+      exitCode: errors.length > 0 ? 1 : 0,
+      error: errors.length > 0 ? errors.join('\n') : undefined,
+    };
   },
 
   getCompletions(partial: string, ctx: CompletionContext): Completion[] {
@@ -69,11 +77,16 @@ export const headCommand: ShellCommand = {
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    const numLines = parseInt(args.options['n'] || args.options['lines'] || '10', 10);
+    // Classic `head -5 file` form: a lone numeric flag means line count.
+    const legacyNum = args.raw.match(/(?:^|\s)-(\d+)(?:\s|$)/);
+    const numLines = parseInt(
+      args.options['n'] || args.options['lines'] || legacyNum?.[1] || '10',
+      10
+    );
     const numBytes = args.options['c'] || args.options['bytes'];
 
     // Handle stdin
-    const content = args.positional.length === 0 && ctx.stdin
+    const content = args.positional.length === 0 && ctx.stdin !== undefined
       ? ctx.stdin
       : null;
 
@@ -128,13 +141,20 @@ export const tailCommand: ShellCommand = {
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    const numLines = parseInt(args.options['n'] || args.options['lines'] || '10', 10);
+    // Classic `tail -20 file` form: a lone numeric flag means line count.
+    const legacyNum = args.raw.match(/(?:^|\s)-(\d+)(?:\s|$)/);
+    const nSpec = args.options['n'] || args.options['lines'] || legacyNum?.[1] || '10';
+    // `tail -n +N` prints from line N onward instead of the last N lines.
+    const fromLine = nSpec.startsWith('+') ? parseInt(nSpec.slice(1), 10) : null;
+    const numLines = fromLine === null ? parseInt(nSpec, 10) : 0;
     const follow = args.flags['f'] || args.flags['follow'];
 
+    const selectLines = (lines: string[]): string[] =>
+      fromLine !== null ? lines.slice(Math.max(0, fromLine - 1)) : lines.slice(-numLines);
+
     // Handle stdin
-    if (args.positional.length === 0 && ctx.stdin) {
-      const lines = ctx.stdin.split('\n');
-      const output = lines.slice(-numLines).join('\n');
+    if (args.positional.length === 0 && ctx.stdin !== undefined) {
+      const output = selectLines(ctx.stdin.split('\n')).join('\n');
       return { output, exitCode: 0 };
     }
 
@@ -155,8 +175,7 @@ export const tailCommand: ShellCommand = {
         outputs.push(`==> ${file} <==`);
       }
 
-      const lines = result.value.split('\n');
-      outputs.push(lines.slice(-numLines).join('\n'));
+      outputs.push(selectLines(result.value.split('\n')).join('\n'));
     }
 
     if (follow) {
@@ -229,7 +248,9 @@ export const wcCommand: ShellCommand = {
     const showAll = !showLines && !showWords && !showBytes && !showChars;
 
     function count(content: string): { lines: number; words: number; bytes: number; chars: number } {
-      const lines = content.split('\n').length - (content.endsWith('\n') ? 1 : 0);
+      const lines = content === ''
+        ? 0
+        : content.split('\n').length - (content.endsWith('\n') ? 1 : 0);
       const words = content.trim().split(/\s+/).filter(w => w).length;
       const bytes = new TextEncoder().encode(content).length;
       const chars = content.length;
@@ -246,8 +267,8 @@ export const wcCommand: ShellCommand = {
       return parts.join(' ');
     }
 
-    // Handle stdin
-    if (args.positional.length === 0 && ctx.stdin) {
+    // Handle stdin — an empty pipe is still stdin (`grep x f | wc -l` → 0).
+    if (args.positional.length === 0 && ctx.stdin !== undefined) {
       const c = count(ctx.stdin);
       return { output: formatCounts(c), exitCode: 0 };
     }

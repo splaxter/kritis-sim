@@ -12,13 +12,27 @@ export const helpCommand: ShellCommand = {
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.positional.length > 0) {
-      // Help for specific command
+      // Help for specific command — answer from the real registry.
       const cmdName = args.positional[0];
-      // In a real implementation, we'd look up the command
-      return {
-        output: `${cmdName}: ${cmdName} - use "${cmdName} --help" for more information`,
-        exitCode: 0,
-      };
+      const cmd = ctx.commands?.get(cmdName);
+      if (!cmd) {
+        return {
+          output: '',
+          exitCode: 1,
+          error: `bash: help: no help topics match \`${cmdName}'. Try \`man ${cmdName}'.`,
+        };
+      }
+      const lines = [`${cmdName}: ${cmd.usage}`, `    ${cmd.description}`];
+      if (cmd.options && cmd.options.length > 0) {
+        lines.push('');
+        lines.push('    Options:');
+        for (const opt of cmd.options) {
+          const names = [opt.short ? `-${opt.short}` : '', opt.long ? `--${opt.long}` : '']
+            .filter(Boolean).join(', ');
+          lines.push(`      ${names.padEnd(24)} ${opt.description}`);
+        }
+      }
+      return { output: lines.join('\n'), exitCode: 0 };
     }
 
     const output = `GNU bash, version 5.1.16(1)-release (x86_64-pc-linux-gnu)
@@ -28,7 +42,8 @@ Verfügbare Befehle:
   Navigation:     cd, pwd, ls, tree
   Dateien:        cat, head, tail, less, touch, mkdir, rm, cp, mv, chmod
   Suche:          grep, find
-  Text:           echo, sort, uniq, cut, wc
+  Text:           echo, sort, uniq, cut, wc, sed, awk, tr, nl, tac, rev
+  Analyse:        base64, sha256sum, md5sum, strings, xxd, stat, file, tee
   System:         whoami, hostname, uname, id, date, uptime, ps, kill, df, du, free
   Netzwerk:       ping, ifconfig, ip, netstat, dig, nslookup, curl, wget
   Shell:          help, history, clear, exit, export, env, alias, man, which, type
@@ -185,11 +200,41 @@ SEE ALSO
     };
 
     const page = manPages[command];
-    if (!page) {
-      return { output: '', exitCode: 1, error: `No manual entry for ${command}` };
+    if (page) {
+      return { output: page, exitCode: 0 };
     }
 
-    return { output: page, exitCode: 0 };
+    // No handwritten page — generate one from the command's own metadata so
+    // every registered command has a real man page instead of an error.
+    const cmd = _ctx.commands?.get(command);
+    if (!cmd) {
+      return { output: '', exitCode: 16, error: `No manual entry for ${command}` };
+    }
+
+    const title = `${command.toUpperCase()}(1)`;
+    const mid = 'User Commands';
+    const gap = ' '.repeat(Math.max(1, Math.floor((72 - title.length * 2 - mid.length) / 2)));
+    const header = `${title}${gap}${mid}${gap}${title}`;
+    const lines = [
+      header,
+      '',
+      'NAME',
+      `       ${cmd.name} - ${cmd.description.toLowerCase()}`,
+      '',
+      'SYNOPSIS',
+      `       ${cmd.usage}`,
+    ];
+    if (cmd.options && cmd.options.length > 0) {
+      lines.push('', 'DESCRIPTION');
+      for (const opt of cmd.options) {
+        const names = [opt.short ? `-${opt.short}` : '', opt.long ? `--${opt.long}` : '']
+          .filter(Boolean).join(', ');
+        lines.push(`       ${names}`);
+        lines.push(`              ${opt.description}`);
+        lines.push('');
+      }
+    }
+    return { output: lines.join('\n'), exitCode: 0 };
   },
 };
 
@@ -273,7 +318,7 @@ export const typeCommand: ShellCommand = {
     }
 
     const outputs: string[] = [];
-    let exitCode = 0;
+    const errors: string[] = [];
 
     for (const name of args.positional) {
       // Check if it's an alias
@@ -283,17 +328,25 @@ export const typeCommand: ShellCommand = {
       }
 
       // Check if it's a builtin
-      const builtins = ['cd', 'pwd', 'echo', 'export', 'alias', 'exit', 'history', 'type'];
+      const builtins = ['cd', 'pwd', 'echo', 'export', 'alias', 'exit', 'history', 'type', 'source', 'help', 'unalias'];
       if (builtins.includes(name)) {
         outputs.push(`${name} is a shell builtin`);
         continue;
       }
 
-      // Check if it's an external command
-      outputs.push(`${name} is /usr/bin/${name}`);
+      // Only claim a path for commands that actually exist here.
+      if (ctx.commands?.has(name)) {
+        outputs.push(`${name} is /usr/bin/${name}`);
+      } else {
+        errors.push(`bash: type: ${name}: not found`);
+      }
     }
 
-    return { output: outputs.join('\n'), exitCode };
+    return {
+      output: outputs.join('\n'),
+      exitCode: errors.length > 0 ? 1 : 0,
+      error: errors.length > 0 ? errors.join('\n') : undefined,
+    };
   },
 };
 
@@ -302,19 +355,25 @@ export const whichCommand: ShellCommand = {
   description: 'Locate a command',
   usage: 'which command...',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.positional.length === 0) {
       return { output: '', exitCode: 1 };
     }
 
     const outputs: string[] = [];
+    let missing = 0;
 
     for (const name of args.positional) {
-      // Simulate finding commands in PATH
-      outputs.push(`/usr/bin/${name}`);
+      // Real which: print the path only for commands that exist, stay silent
+      // and exit non-zero otherwise.
+      if (ctx.commands?.has(name)) {
+        outputs.push(`/usr/bin/${name}`);
+      } else {
+        missing++;
+      }
     }
 
-    return { output: outputs.join('\n'), exitCode: 0 };
+    return { output: outputs.join('\n'), exitCode: missing > 0 ? 1 : 0 };
   },
 };
 
@@ -328,26 +387,44 @@ export const sudoCommand: ShellCommand = {
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    // In simulation, sudo just runs the command
-    // A real implementation might prompt for password
-
-    if (args.positional.length === 0 && !args.flags['s'] && !args.flags['shell']) {
-      return { output: '', exitCode: 1, error: 'usage: sudo -h | -K | -k | -V\nusage: sudo command [args]' };
-    }
-
-    if (args.flags['s'] || args.flags['shell']) {
+    if (args.positional.length === 0 && !args.flags['s'] && !args.flags['shell'] && !args.flags['i']) {
       return {
-        output: `[sudo] password for ${ctx.user}:\nroot@${ctx.vfs.getEnv('HOSTNAME')}:/# `,
-        exitCode: 0,
+        output: '',
+        exitCode: 1,
+        error: 'usage: sudo -h | -K | -k | -V\nusage: sudo [-u user] command [args]',
       };
     }
 
-    // For our simulation, we just indicate sudo would run the command
-    const command = args.positional.join(' ');
-    return {
-      output: `[sudo] password for ${ctx.user}:\n[Executing as root: ${command}]`,
-      exitCode: 0,
-    };
+    // Interactive root shells aren't possible in this terminal.
+    if (args.flags['s'] || args.flags['shell'] || args.flags['i']) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: 'sudo: an interactive shell is not available here, run `sudo COMMAND` instead',
+      };
+    }
+
+    // Actually run the command as root (NOPASSWD-style, like most lab VMs):
+    // temporarily switch the VFS user so permission checks pass, then restore.
+    // Rebuild the command from the raw input — going through args.positional
+    // would drop the inner command's own flags (e.g. `sudo cat -n file`).
+    let command = args.raw.replace(/^\s*sudo\s+/, '');
+    let runAs = 'root';
+    const userOpt = command.match(/^(?:-u\s+|--user[= ])(\S+)\s+/);
+    if (userOpt) {
+      runAs = userOpt[1];
+      command = command.slice(userOpt[0].length);
+    }
+    const previousUser = ctx.vfs.getUser();
+    ctx.vfs.setUser(runAs);
+    try {
+      if (ctx.execute) {
+        return ctx.execute(command);
+      }
+      return { output: '', exitCode: 1, error: `sudo: ${command}: command not found` };
+    } finally {
+      ctx.vfs.setUser(previousUser);
+    }
   },
 };
 
@@ -366,13 +443,26 @@ export const sourceCommand: ShellCommand = {
     const result = ctx.vfs.readFile(file);
 
     if (!result.ok) {
-      return { output: '', exitCode: 1, error: `source: ${file}: No such file or directory` };
+      return { output: '', exitCode: 1, error: `bash: ${file}: No such file or directory` };
     }
 
-    // In a real implementation, we'd execute each line
+    // Actually execute the file line by line, like a real `source`.
+    const outputs: string[] = [];
+    const errors: string[] = [];
+    let exitCode = 0;
+    for (const line of result.value.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#') || !ctx.execute) continue;
+      const res = ctx.execute(trimmed);
+      if (res.output) outputs.push(res.output);
+      if (res.error) errors.push(res.error);
+      exitCode = res.exitCode;
+    }
+
     return {
-      output: `[source: Executing ${file}]`,
-      exitCode: 0,
+      output: outputs.join('\n'),
+      exitCode,
+      error: errors.length > 0 ? errors.join('\n') : undefined,
     };
   },
 };

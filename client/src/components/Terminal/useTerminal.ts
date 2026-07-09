@@ -4,6 +4,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
 import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds } from '../../engine/shell';
+import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
 
 interface UseTerminalOptions {
   context: TerminalContext;
@@ -196,11 +197,9 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     let streaming = false;
     let streamTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Tab completion state for cycling
+    // Tab-completion scratch state (reset on edits so a stale list never lingers).
     let tabCompletions: Completion[] = [];
     let tabIndex = -1;
-    let tabOriginalLine = '';
-    let tabOriginalCursorPos = 0;
 
     // Get all available command patterns for scenario-specific autocomplete
     const availableCommands = context.commands.map(cmd => cmd.pattern);
@@ -357,7 +356,22 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
           tabIndex = -1;
           term.writeln('');
           if (line.trim()) {
-            const trimmed = line.trim();
+            // Bash history expansion (!!, !N, !$). When it changes the line,
+            // real bash echoes the expanded command before running it.
+            const expansion = shellRef.current?.expandHistory(line.trim());
+            if (expansion?.changed) {
+              term.writeln(expansion.expanded);
+            } else if (expansion && expansion.expanded !== line.trim() && !expansion.changed) {
+              // `!5: event not found` style errors: show and abort.
+              term.writeln(`\x1b[31m${expansion.expanded}\x1b[0m`);
+              line = '';
+              cursorPos = 0;
+              setCurrentLine('');
+              prompt = getTermPrompt();
+              term.write(prompt);
+              break;
+            }
+            const trimmed = expansion?.changed ? expansion.expanded.trim() : line.trim();
 
             // Add to shell history
             shellRef.current?.addToHistory(trimmed);
@@ -493,31 +507,47 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
             if (!scenarioMatch && shellRef.current) {
               const result = shellRef.current.execute(trimmed);
 
+              // Writes an error line plus a beginner-mode tip for common cases.
+              const writeShellError = (error: string) => {
+                term.writeln(`\x1b[31m${error}\x1b[0m`);
+                if (isBeginnerMode) {
+                  if (error.includes('command not found') || error.includes('not recognized')) {
+                    term.writeln('\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m');
+                  } else if (error.includes('No such file') || error.includes('cannot find')) {
+                    term.writeln('\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m');
+                  } else if (error.includes('Permission denied')) {
+                    term.writeln('\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m');
+                  } else if (error.includes('not a directory')) {
+                    term.writeln('\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m');
+                  }
+                }
+              };
+
               // Handle clear screen
               if (result.clearScreen) {
                 term.clear();
+              } else if (result.output && result.output.split('\n').some(isPingReplyLine)) {
+                // Live network command (ping etc.): pace the reply lines so it
+                // feels like the host is actually being probed, then finish up.
+                emitScenarioOutput(result.output, true, () => {
+                  if (result.error) writeShellError(result.error);
+                  line = '';
+                  cursorPos = 0;
+                  setCurrentLine('');
+                  prompt = getTermPrompt();
+                  term.write(prompt);
+                });
+                return; // prompt is written in the done callback above
               } else {
-                // Show output or error
-                if (result.error) {
-                  term.writeln(`\x1b[31m${result.error}\x1b[0m`);
-                  // In beginner mode, add helpful tips for common errors
-                  if (isBeginnerMode) {
-                    if (result.error.includes('command not found') || result.error.includes('not recognized')) {
-                      term.writeln('\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m');
-                    } else if (result.error.includes('No such file') || result.error.includes('cannot find')) {
-                      term.writeln('\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m');
-                    } else if (result.error.includes('Permission denied')) {
-                      term.writeln('\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m');
-                    } else if (result.error.includes('not a directory')) {
-                      term.writeln('\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m');
-                    }
-                  }
-                } else if (result.output) {
-                  // Split by newlines for proper terminal rendering
-                  const shellLines = result.output.split('\n');
-                  for (const shellLine of shellLines) {
+                // Show stdout AND stderr — a pipeline can produce both
+                // (`grep x missing | wc -l` prints grep's error and wc's 0).
+                if (result.output) {
+                  for (const shellLine of result.output.split('\n')) {
                     term.writeln(shellLine);
                   }
+                }
+                if (result.error) {
+                  writeShellError(result.error);
                 }
               }
             }
@@ -550,6 +580,14 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
           cursorPos = 0;
           setCurrentLine('');
           term.write(prompt);
+          break;
+
+        case '\x0c': // Ctrl+L - clear screen, preserve the current line
+          term.clear();
+          term.write(prompt + line);
+          if (cursorPos < line.length) {
+            term.write('\x1b[' + (prompt.length + cursorPos + 1) + 'G');
+          }
           break;
 
         case '\x15': // Ctrl+U - clear line
@@ -596,123 +634,57 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
           }
           break;
 
-        case '\t': // Tab - autocomplete with cycling
+        case '\t': // Tab - bash-style completion (fill common prefix, then list)
           {
-            // Check if we're continuing a tab cycle (tabIndex >= 0 means we're in cycle mode)
-            if (tabCompletions.length > 1 && tabIndex >= 0) {
-              // Continue cycling through completions
-              tabIndex = (tabIndex + 1) % tabCompletions.length;
-              const completion = tabCompletions[tabIndex];
-              const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
-
-              // Calculate the prefix to keep (everything before the last token in original line)
-              const originalTokens = tabOriginalLine.split(/\s+/);
-              const originalLastToken = originalTokens[originalTokens.length - 1] || '';
-              const lastTokenStart = tabOriginalLine.length - originalLastToken.length;
-              const newLine = tabOriginalLine.slice(0, lastTokenStart) + completion.value + suffix;
-
-              rewriteLine(newLine);
-
-              // Update cycle indicator
-              term.write(`\x1b[s`); // Save cursor
-              term.write(`\r\n\x1b[K\x1b[90m[${tabIndex + 1}/${tabCompletions.length}] Tab to cycle, Enter to confirm\x1b[0m`);
-              term.write(`\x1b[u`); // Restore cursor
-              return;
-            }
-
-            // Get completions from shell engine
-            const shellCompletions = shellRef.current?.complete(line, cursorPos) || [];
-
-            // Also get scenario command completions - match partial commands
-            const tokens = line.split(/\s+/);
-            const lastToken = tokens[tokens.length - 1] || '';
-            const isFirstToken = tokens.length <= 1 && !line.includes(' ');
-
-            // For first token, match against command starts; for later tokens, use path/arg completion
-            const scenarioMatches = isFirstToken
-              ? availableCommands.filter(cmd =>
-                  cmd.toLowerCase().startsWith(line.toLowerCase().trim())
-                )
-              : [];
-
-            // Combine and deduplicate completions
-            const allCompletions = new Map<string, Completion>();
-
-            // Add shell completions
-            for (const comp of shellCompletions) {
-              allCompletions.set(comp.value, comp);
-            }
-
-            // Add scenario completions (these take priority for display purposes)
-            for (const cmd of scenarioMatches) {
-              if (!allCompletions.has(cmd)) {
-                allCompletions.set(cmd, {
-                  value: cmd,
-                  display: cmd,
-                  type: 'command',
-                  description: 'Scenario command',
-                });
-              }
-            }
-
-            const completions = Array.from(allCompletions.values());
-
-            if (completions.length === 1) {
-              // Single match - complete it
-              const completion = completions[0];
-              // Find what to add based on the last token
-              const toAdd = completion.value.slice(lastToken.length);
-
-              // Add space after completion if it's a command/directory
-              const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
-
-              if (toAdd.length > 0 || suffix.length > 0) {
-                // Insert at cursor position
-                line = line.slice(0, cursorPos) + toAdd + suffix + line.slice(cursorPos);
-                cursorPos += toAdd.length + suffix.length;
-                setCurrentLine(line);
-                term.write(toAdd + suffix);
-              }
-              // Reset tab state
-              tabCompletions = [];
-              tabIndex = -1;
-            } else if (completions.length > 1) {
-              // Multiple matches - set up cycling
-              tabCompletions = completions;
-              tabOriginalLine = line;
-              tabOriginalCursorPos = cursorPos;
-              tabIndex = 0;
-
-              // Apply first completion
-              const completion = completions[0];
-              const suffix = (completion.type === 'command' || completion.type === 'directory') ? ' ' : '';
-
-              // Calculate the prefix to keep (everything before the last token)
-              const lastTokenStart = line.length - lastToken.length;
-              const newLine = line.slice(0, lastTokenStart) + completion.value + suffix;
-
-              rewriteLine(newLine);
-
-              // Show count indicator
-              term.write(`\x1b[s`); // Save cursor
-              term.write(`\r\n\x1b[90m[${tabIndex + 1}/${completions.length}] Tab to cycle\x1b[0m`);
-              term.write(`\x1b[u`); // Restore cursor
-            } else if (line.length === 0) {
-              // Empty line - show help message
+            // Print all matches as an aligned column grid below the line, then
+            // redraw the prompt + current input — what bash shows when the
+            // options can't be narrowed further.
+            const printCompletionList = (comps: Completion[]) => {
+              const items = comps.map(c => c.display || c.value);
+              const maxLen = items.reduce((m, s) => Math.max(m, s.length), 0);
+              const colW = maxLen + 2;
+              const cols = Math.max(1, Math.floor((term.cols || 80) / colW));
               term.writeln('');
-              term.writeln('\x1b[36mVerfügbare Befehle: help, ls, cd, cat, grep, ...\x1b[0m');
-              term.writeln('\x1b[36mSzenario-Befehle: ' + availableCommands.slice(0, 3).join(', ') + (availableCommands.length > 3 ? ', ...' : '') + '\x1b[0m');
-              term.write(prompt);
-              // Reset tab state
-              tabCompletions = [];
-              tabIndex = -1;
+              for (let i = 0; i < items.length; i += cols) {
+                const row = items.slice(i, i + cols).map(s => s.padEnd(colW)).join('');
+                term.writeln('\x1b[36m' + row.trimEnd() + '\x1b[0m');
+              }
+              term.write(prompt + line);
+              if (cursorPos < line.length) {
+                term.write('\x1b[' + (prompt.length + cursorPos + 1) + 'G');
+              }
+            };
+
+            const completions = gatherCompletions(shellRef.current, availableCommands, line, cursorPos);
+
+            if (completions.length === 0) {
+              if (line.length === 0) {
+                term.writeln('');
+                term.writeln('\x1b[36mVerfügbare Befehle: help, ls, cd, cat, grep, ...\x1b[0m');
+                term.writeln('\x1b[36mSzenario-Befehle: ' + availableCommands.slice(0, 3).join(', ') + (availableCommands.length > 3 ? ', ...' : '') + '\x1b[0m');
+                term.write(prompt);
+              } else {
+                term.write('\x07'); // visual bell — nothing matches
+              }
+            } else if (completions.length === 1) {
+              const r = applyCompletionToLine(line, cursorPos, completions[0]);
+              rewriteLine(r.line, r.cursor);
             } else {
-              // No completions found for current input - show visual feedback
-              term.write('\x07'); // Bell character (visual bell in most terminals)
-              // Reset tab state
-              tabCompletions = [];
-              tabIndex = -1;
+              // Several matches: first fill the longest common prefix (this also
+              // corrects case, e.g. `get-c` → `Get-C`); when it can't extend any
+              // further, list every option like bash's second Tab.
+              const token = tokenUnderCursor(line, cursorPos);
+              const lcp = longestCommonPrefix(completions.map(c => c.value));
+              if (lcp !== token) {
+                const r = applyCompletionToLine(line, cursorPos, { value: lcp, display: lcp, type: 'argument' }, false);
+                rewriteLine(r.line, r.cursor);
+              } else {
+                printCompletionList(completions);
+              }
             }
+            // Cycling is gone; keep the shared tab state clean.
+            tabCompletions = [];
+            tabIndex = -1;
           }
           break;
 

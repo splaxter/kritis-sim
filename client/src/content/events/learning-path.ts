@@ -14,6 +14,77 @@
 
 import { GameEvent } from '@kritis/shared';
 
+// --- learn_04_grep_hunter: real log files for the VFS -----------------------
+// The attack lines must land on exactly the line numbers the level's
+// `grep -n "185" auth.log` output claims (47-49, 52, 55), so lines 1-46 are
+// routine cron noise. Everything a player greps here matches what the canned
+// scenario outputs show.
+const grepHunterAuthLogNoise = Array.from({ length: 23 }, (_, i) => {
+  const t = i * 5;
+  const hh = String(Math.floor(t / 60)).padStart(2, '0');
+  const mm = String(t % 60).padStart(2, '0');
+  const pid = 2001 + i;
+  return (
+    `Mar 15 ${hh}:${mm}:01 warm-srv-01 CRON[${pid}]: pam_unix(cron:session): session opened for user root by (uid=0)\n` +
+    `Mar 15 ${hh}:${mm}:01 warm-srv-01 CRON[${pid}]: pam_unix(cron:session): session closed for user root`
+  );
+}).join('\n');
+
+const grepHunterAuthLog = `${grepHunterAuthLogNoise}
+Mar 15 02:40:01 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:40:03 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:40:05 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:42:01 warm-srv-01 CRON[3201]: pam_unix(cron:session): session opened for user root by (uid=0)
+Mar 15 02:42:01 warm-srv-01 CRON[3201]: pam_unix(cron:session): session closed for user root
+Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
+Mar 15 02:45:01 warm-srv-01 CRON[3250]: pam_unix(cron:session): session opened for user root by (uid=0)
+Mar 15 02:45:01 warm-srv-01 CRON[3250]: pam_unix(cron:session): session closed for user root
+Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
+Mar 15 02:50:01 warm-srv-01 CRON[3320]: pam_unix(cron:session): session opened for user root by (uid=0)
+Mar 15 02:50:01 warm-srv-01 CRON[3320]: pam_unix(cron:session): session closed for user root
+`;
+
+// syslog: 3 [ALERT] lines, exactly 7 ERROR lines (grep -c "ERROR" → 7), and
+// exactly 3 lines containing 185.234 — consistent with the scenario outputs.
+const grepHunterSyslog = `Mar 15 00:05:01 warm-srv-01 systemd[1]: Starting Daily apt download activities...
+Mar 15 00:05:03 warm-srv-01 systemd[1]: apt-daily.service: Succeeded.
+Mar 15 00:17:22 warm-srv-01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.44 DST=10.0.20.11 PROTO=TCP DPT=23
+Mar 15 00:30:01 warm-srv-01 CRON[2211]: (root) CMD (logrotate /etc/logrotate.conf)
+Mar 15 00:42:17 warm-srv-01 smartd[801]: Device: /dev/sda, SMART Usage Attribute: 194 Temperature_Celsius changed from 41 to 43
+Mar 15 01:02:55 warm-srv-01 backup[3410]: ERROR: snapshot volume nearly full (92%)
+Mar 15 01:02:56 warm-srv-01 backup[3410]: ERROR: retrying snapshot in 60s
+Mar 15 01:03:56 warm-srv-01 backup[3410]: ERROR: snapshot volume nearly full (92%)
+Mar 15 01:03:57 warm-srv-01 backup[3410]: backup job finished with warnings
+Mar 15 01:15:09 warm-srv-01 nrpe[1122]: ERROR: Could not read request from client 10.0.20.5, bailing out...
+Mar 15 01:30:01 warm-srv-01 CRON[2790]: (root) CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+Mar 15 01:48:33 warm-srv-01 dockerd[990]: ERROR: heartbeat to manager failed: rpc error: context deadline exceeded
+Mar 15 02:00:14 warm-srv-01 ntpd[733]: ERROR: kernel reports TIME_ERROR: 0x41: Clock Unsynchronized
+Mar 15 02:12:40 warm-srv-01 smartd[801]: Device: /dev/sdb, opened
+Mar 15 02:30:01 warm-srv-01 CRON[3105]: (www-data) CMD (php /var/www/jobs/cleanup.php)
+Mar 15 02:31:07 warm-srv-01 php[3106]: ERROR: cleanup.php: stale lockfile removed
+Mar 15 02:47:13 warm-srv-01 kernel: [ALERT] UNAUTHORIZED_ACCESS from 185.234.72.15
+Mar 15 02:47:13 warm-srv-01 sshd: Connection from 185.234.72.15
+Mar 15 02:47:13 warm-srv-01 sshd: Accepted key for root from 185.234.72.15
+Mar 15 02:47:14 warm-srv-01 kernel: [ALERT] Session terminated: jens
+Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
+Mar 15 03:01:44 warm-srv-01 systemd[1]: Reloading.
+Mar 15 03:15:20 warm-srv-01 smartd[801]: Device: /dev/sda, SMART Usage Attribute: 194 Temperature_Celsius changed from 43 to 41
+`;
+
+const grepHunterKernLog = `Mar 15 00:00:07 warm-srv-01 kernel: [    0.000000] Linux version 5.15.0-101-generic (buildd@lcy02-amd64-032)
+Mar 15 00:00:07 warm-srv-01 kernel: [    0.004215] DMI: WARM Serverhalle Rack 3 / warm-srv-01
+Mar 15 00:17:22 warm-srv-01 kernel: [UFW BLOCK] IN=eth0 OUT= SRC=203.0.113.44 DST=10.0.20.11 PROTO=TCP DPT=23
+Mar 15 02:12:40 warm-srv-01 kernel: [ 7912.113355] usb 1-1: new high-speed USB device number 4 using xhci_hcd
+`;
+
+const grepHunterAccessLog = `10.0.20.5 - - [15/Mar:01:12:44 +0100] "GET /status HTTP/1.1" 200 512
+10.0.20.5 - - [15/Mar:01:42:44 +0100] "GET /status HTTP/1.1" 200 512
+203.0.113.44 - - [15/Mar:02:38:51 +0100] "GET /wp-login.php HTTP/1.1" 404 162
+203.0.113.44 - - [15/Mar:02:38:52 +0100] "GET /.env HTTP/1.1" 404 162
+10.0.20.5 - - [15/Mar:02:42:44 +0100] "GET /status HTTP/1.1" 200 512
+`;
+// ----------------------------------------------------------------------------
+
 export const learningPathEvents: GameEvent[] = [
   // ============================================
   // ACT 1: THE AWAKENING
@@ -511,8 +582,8 @@ Irgendwo in den Logs ist die IP-Adresse versteckt. Aber die Logs sind RIESIG.
 Du brauchst ein Skalpell, keine Axt. Du brauchst: **grep**
 
 **Deine Aufgabe:**
-- \`grep "ALERT" system.log\` — Finde alle Alarme
-- \`grep -c "ERROR" system.log\` — Zähle die Fehler
+- \`grep "ALERT" syslog\` — Finde alle Alarme
+- \`grep -c "ERROR" syslog\` — Zähle die Fehler
 - Finde heraus wer um 02:47 eingebrochen ist`,
     mentorNote: 'grep durchsucht Dateien nach Mustern. -i = ignore case, -c = count, -n = Zeilennummern',
     choices: [
@@ -545,10 +616,26 @@ Aber was haben sie gesucht? Die Pipes werden es verraten...`,
       hostname: 'warm-srv-01',
       username: 'azubi',
       currentPath: '/var/log',
+      taskText: `Der Eindringling hat Spuren in /var/log hinterlassen:
+1. grep "ALERT" syslog — finde die Alarm-Meldungen
+2. grep -c "ERROR" syslog — zähle die Fehler
+3. Wer ist um 02:47 eingebrochen? Finde die IP-Adresse.`,
+      // Real files back every command: whatever the player greps that isn't a
+      // scripted beat below falls through to the shell engine and still shows
+      // correct grep output.
+      vfsOverlay: {
+        directories: ['/var/log/apache2'],
+        files: [
+          { path: '/var/log/syslog', content: grepHunterSyslog },
+          { path: '/var/log/auth.log', content: grepHunterAuthLog },
+          { path: '/var/log/kern.log', content: grepHunterKernLog },
+          { path: '/var/log/apache2/access.log', content: grepHunterAccessLog },
+        ],
+      },
       commands: [
         {
           pattern: 'ls',
-          output: `auth.log  kern.log  syslog  apache2/
+          output: `apache2  auth.log  kern.log  syslog
 
 # auth.log enthält Login-Versuche. Da müssen wir suchen.`,
         },
@@ -562,10 +649,12 @@ Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
 # Da ist sie! Die IP: 185.234.72.15`,
           skillGain: { linux: 3, security: 2 },
         },
-        // Catch common mistake: searching wrong file
+        // Catch common mistake: searching for the alerts in the wrong file.
+        // (Only ALERT — every other grep on auth.log is a legitimate search
+        // and must show real grep output, not this nudge.)
         {
-          patternRegex: '^grep\\s+.*auth\\.log',
-          pattern: 'grep auth.log',
+          patternRegex: '^grep\\s+(-\\w+\\s+)*["\']?ALERT["\']?\\s+auth\\.log',
+          pattern: 'grep "ALERT" auth.log',
           output: `# Hmm, in auth.log findest du Login-Versuche, aber nicht die ALERT-Meldungen.
 # Die stehen in syslog! Versuch: grep "ALERT" syslog`,
         },
@@ -576,6 +665,7 @@ Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
           output: `# Meintest du ALERT? Der richtige Befehl ist: grep "ALERT" syslog`,
         },
         {
+          patternRegex: '^grep\\s+["\']?185[\\d.]*["\']?\\s+syslog',
           pattern: 'grep "185.234" syslog',
           output: `Mar 15 02:47:13 warm-srv-01 kernel: [ALERT] UNAUTHORIZED_ACCESS from 185.234.72.15
 Mar 15 02:47:13 warm-srv-01 sshd: Connection from 185.234.72.15
@@ -587,6 +677,7 @@ Mar 15 02:47:13 warm-srv-01 sshd: Accepted key for root from 185.234.72.15
           isSolution: true,
         },
         {
+          patternRegex: '^grep\\s+-c\\s+["\']?ERROR["\']?\\s+syslog',
           pattern: 'grep -c "ERROR" syslog',
           output: `7
 
@@ -594,17 +685,30 @@ Mar 15 02:47:13 warm-srv-01 sshd: Accepted key for root from 185.234.72.15
           skillGain: { linux: 2 },
         },
         {
+          patternRegex: '^grep\\s+-i\\s+["\']?[Ff][Aa][Ii][Ll][Ee][Dd]["\']?\\s+auth\\.log',
           pattern: 'grep -i "failed" auth.log',
           output: `Mar 15 02:40:01 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
 Mar 15 02:40:03 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
 Mar 15 02:40:05 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
 Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
-Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
 
-# Sie haben Passwörter probiert, dann plötzlich einen KEY benutzt!`,
+# Passwörter probiert — und um 02:45 ist Schluss. Aber der Einbruch war
+# 02:47. Wie kamen sie rein? Such mal nach "Accepted".`,
           skillGain: { linux: 3, security: 4 },
         },
         {
+          patternRegex: '^grep\\s+(-\\w+\\s+)*["\']?[Aa]ccepted["\']?\\s+auth\\.log',
+          pattern: 'grep "Accepted" auth.log',
+          output: `Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
+
+# 02:47:10 — Publickey-Login als ROOT von 185.234.72.15.
+# Erst Passwörter raten, dann plötzlich ein SSH-Key?! Das war ein Insider!`,
+          teachesCommand: 'grep',
+          skillGain: { linux: 3, security: 4 },
+          isSolution: true,
+        },
+        {
+          patternRegex: '^grep\\s+-n\\s+["\']?185[\\d.]*["\']?\\s+auth\\.log',
           pattern: 'grep -n "185" auth.log',
           output: `47:Mar 15 02:40:01 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
 48:Mar 15 02:40:03 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
@@ -614,6 +718,21 @@ Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
 
 # -n zeigt Zeilennummern. Zeile 55 war der erfolgreiche Einbruch!`,
           skillGain: { linux: 2 },
+          isSolution: true,
+        },
+        {
+          patternRegex: '^grep\\s+["\']?185[\\d.]*["\']?\\s+auth\\.log',
+          pattern: 'grep "185" auth.log',
+          output: `Mar 15 02:40:01 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:40:03 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:40:05 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
+Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
+Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
+
+# Da ist die ganze Geschichte: 4× Passwort probiert, dann Publickey-Login als ROOT.`,
+          teachesCommand: 'grep',
+          skillGain: { linux: 3, security: 3 },
+          isSolution: true,
         },
       ],
       solutions: [
@@ -627,9 +746,10 @@ Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
       ],
       hints: [
         '🤖 Jens: "grep ist dein Freund. grep MUSTER datei durchsucht nach dem Muster."',
-        '🤖 Jens: "Such mal nach ALERT oder ERROR. Da verstecken sich die Probleme."',
-        '🤖 Jens: "Mit grep -i ignorierst du Groß/Klein. Praktisch bei failed/FAILED."',
+        '🤖 Jens: "Such mal nach ALERT oder ERROR in syslog. Da verstecken sich die Probleme."',
+        '🤖 Jens: "Mit grep -i ignorierst du Groß/Klein. Praktisch bei failed/FAILED in auth.log."',
         '🤖 Jens: "Du suchst eine IP? Die fängt mit 185 an. Traust du dich?"',
+        '🤖 Jens: "Okay, die Lösung: grep 185 syslog — die IP steht direkt in den ALERT-Zeilen."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level2', 'grep', 'story'],

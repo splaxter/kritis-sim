@@ -9,9 +9,11 @@ interface TerminalProps {
   onSolved: (skillGain: Partial<Skills>) => void;
   onCancel: () => void;
   gameMode?: GameModeId;
+  /** Fallback task summary when the context has no taskText (extracted from the briefing) */
+  task?: string;
 }
 
-export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate' }: TerminalProps) {
+export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate', task }: TerminalProps) {
   const [partialFeedback, setPartialFeedback] = useState<string | null>(null);
   const { terminalRef, hintsRemaining, showHint } = useTerminal({
     context,
@@ -19,6 +21,8 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
     onPartialSolution: setPartialFeedback,
     gameMode,
   });
+
+  const taskText = context.taskText ?? task;
 
   return (
     <div className="border border-terminal-border h-full flex flex-col">
@@ -29,6 +33,14 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
           [ESC] Abbrechen
         </button>
       </div>
+
+      {/* Persistent task panel — the quest stays reviewable while playing */}
+      {taskText && (
+        <div className="border-b border-terminal-border bg-terminal-bg-secondary px-3 py-2 text-sm max-h-28 overflow-y-auto">
+          <span className="text-terminal-warning">📋 Aufgabe:</span>
+          <div className="whitespace-pre-line text-terminal-green-muted">{taskText}</div>
+        </div>
+      )}
 
       {/* Terminal area */}
       <div ref={terminalRef} className="flex-1 p-2" />
