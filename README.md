@@ -95,10 +95,18 @@ npm run build
 - **Kollegen** - Your IT colleagues
 - **Kämmerer** - Budget controller
 - **Fachabteilung** - Other departments
+- **GF** - Executive management (Geschäftsführung)
 
 ### Win/Lose Conditions
 - **Win:** Survive the probation period
 - **Lose:** Burnout (stress 100%), Fired (chef relationship -100), BSI fines (compliance 0%)
+
+Every run ends on a summary "Bilanz" (weeks survived, skill/relationship changes,
+what you focused on). The story ending also teases what you *didn't* see, and a
+per-browser tally tracks runs played and distinct endings reached.
+
+For a verified content breakdown (events, chains, chapters, lessons, packs), see
+[`docs/CONTENT_INVENTORY.md`](docs/CONTENT_INVENTORY.md).
 
 ## Content Packs
 

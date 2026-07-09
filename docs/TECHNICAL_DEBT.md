@@ -1,6 +1,6 @@
 # Technical Debt & Future Improvements
 
-Last updated: 2026-03-15
+Last updated: 2026-07-09
 
 ## Outstanding Items
 
@@ -8,63 +8,46 @@ Last updated: 2026-03-15
 
 | Item | Location | Description |
 |------|----------|-------------|
-| Add true difficulty-1 onboarding scenarios | `client/src/content/packs/*/scenarios.ts` | Most scenario packs start at difficulty 2-4. Beginner mode is forgiving, but needs more simple, hands-on first-run scenarios before vendor/KRITIS pressure ramps up. |
-| Broaden interactive challenge types beyond terminal | `client/src/content/packs/cloud365/`, `client/src/content/packs/internal/`, `client/src/content/packs/telekom/` | These packs currently play mostly as decision scenarios. Add GUI or lightweight interactive tasks so they feel as playable as `amse-it` and `kritis-infra`. |
-| Add victory/end-of-run screen | `client/src/hooks/useGame.ts`, `client/src/components/GameScreen/`, `client/src/engine/gameState.ts` | `checkGameOver()` can return `isVictory: true`, but the UI phase is still generic `gameover`. A dedicated win GUI should show ending, score/competence summary, mode-specific outcome, and replay goals. |
-
-### Windows GUI Challenges
-
-| Item | Location | Description |
-|------|----------|-------------|
-| Wire `GuiContext` into scenarios | `shared/src/types/scenarios.ts`, `client/src/hooks/useGame.ts`, `client/src/App.tsx` | `GuiContext` exists and `Scenario` imports it, but the runtime path is not wired like terminal challenges. Add `guiCommand`, a `gui` phase, pending GUI choice state, and solved/cancel handling. |
-| Build first Windows GUI vertical slice | `client/src/components/WindowsGui/` | Start with `GuiAppId: 'taskmanager'`: render process list, selection, end-task action, hints, and solution matching. This validates the interaction model before adding more fake Windows apps. |
-| Add beginner GUI level: suspicious process | `client/src/content/packs/internal/scenarios.ts` or `client/src/content/events/learning-path.ts` | First GUI scenario should be difficulty 1-2: identify high-CPU suspicious process in Task Manager and end it, with clear feedback and low punishment. |
-| Add Event Viewer level for security investigations | `shared/src/types/gui.ts`, `client/src/components/WindowsGui/`, security scenario pack | Extend GUI apps with an Event Viewer view for failed logins, suspicious service starts, and ransomware precursors. Good fit for learning mode and KRITIS preparation. |
-| Add Explorer permissions level | `shared/src/types/gui.ts`, `client/src/components/WindowsGui/`, `client/src/content/packs/cloud365/` or `internal` | Fake Explorer/security dialog level where the player fixes an overbroad share permission such as `Everyone: Full Control`. |
-
-### Tests (Low Priority)
-
-| Item | Location | Description |
-|------|----------|-------------|
-| Adventure engine unit tests | `client/src/engine/` | Core logic works, tested via integration, but dedicated unit tests would help |
+| Add true difficulty-1 onboarding scenarios | `client/src/content/packs/*/scenarios.ts` | No scenario is below difficulty 2. Beginner mode is forgiving, but a gentler difficulty-1 tier would smooth a true novice's first hour. |
+| Broaden interactive challenge types beyond terminal | `client/src/content/packs/cloud365/`, `client/src/content/packs/internal/`, `client/src/content/packs/telekom/` | These packs play mostly as decision scenarios. GUI or lightweight interactive tasks would make them feel as playable as `amse-it` / `kritis-infra`. |
 
 ### Code Quality (Minor)
 
 | Item | Location | Description |
 |------|----------|-------------|
-| Magic numbers | Various event/scenario files | Scores (100, 15, etc.) should be extracted to constants |
-| Character reference `{athos}` | `client/src/App.tsx:38` | Defined but may not be used in all events |
-| Error boundaries | React components | No error boundaries for graceful failure handling |
+| Magic numbers | Various event/scenario files | Scores (100, 15, …) could be extracted to named constants. |
+| Error boundaries | React components | No error boundaries for graceful failure handling. |
 
 ### Architecture (Nice-to-Have)
 
 | Item | Description |
 |------|-------------|
-| Content validation at build time | Currently runtime - could add pre-build validation step |
+| Content validation at build time | Currently runtime + test-time; a pre-build validation step could fail faster. |
+| Meta-progression backend | `metaProgress.ts` is localStorage-only (per browser). A backend would enable cross-device stats/achievements. The old server schema lives in git history — see `docs/BACKEND_REMOVAL.md`. |
 
 ---
 
-## Completed Items (2026-03-15)
+## Completed
 
-### Critical Fixes
-- [x] Remove unsafe `as any` cast in useGame.ts
-- [x] Add null guards for adventureState access
-- [x] Fix memory leak in event listeners (useKeyboardShortcuts hook)
-- [x] Fix silent JSON parse failure in saves route
+### 2026-07-09
+- [x] Story campaign completed (all 12 chapters + 3 endings; guarded by `campaignConsistency`/`campaignPacing`).
+- [x] Revived 3 sidequests wired to Act-3 payoffs (`sq_legacy_code`, `sq_predecessor_trail`, `sq_external_contact`).
+- [x] Run-summary screen for free-play/KRITIS (`components/RunSummaryScreen`, `engine/runSummary.ts`) — replaces the one-line gameover; the old "victory/end-of-run screen" item is resolved.
+- [x] Story "not seen" replay teaser on the ending screen + cross-run meta (`engine/metaProgress.ts`).
+- [x] Onboarding: first-run intro gating, LERNMODUS menu entry, one-time free-play → learning nudge.
+- [x] Docs truth-pass: replaced `GAME_FLOW_COVERAGE.md` with `docs/CONTENT_INVENTORY.md`, deleted the obsolete `STORY_CAMPAIGN_TODO.md`.
 
-### Important Fixes
-- [x] Add Zod schema validation for GameState
-- [x] Add content ID uniqueness validation tests
-- [x] Add event prerequisite validation tests
-- [x] Disable save/load buttons during async operations
-- [x] Implement stress decay mechanic
-- [x] Separate completedScenarios from completedEvents
-- [x] Configure CORS for production
+### Earlier (Windows GUI vertical slice — shipped)
+- [x] Fake-Windows desktop with six apps (`client/src/components/WindowsLevel/apps/`): Task Manager, Event Viewer, UAC, Explorer, Settings, CoreFirewall — each with browser tests.
+- [x] `GuiContext` wired into the runtime (GUI levels + Blackout incident).
+- [x] Beginner GUI level (suspicious process), Event Viewer security investigations, Explorer permissions level.
 
-### Minor Fixes
-- [x] Remove debug console.log statements
-- [x] Add safeguard for infinite loop in content selection
-- [x] Update server tests with new fields
+### 2026-03-15
+- [x] Remove unsafe `as any` cast in useGame.ts; null guards for adventureState.
+- [x] Fix event-listener memory leak (useKeyboardShortcuts).
+- [x] Zod GameState validation (later removed with the backend — see BACKEND_REMOVAL.md).
+- [x] Content id-uniqueness + prerequisite validation tests.
+- [x] Stress decay mechanic; separate completedScenarios from completedEvents.
 
 ---
 
@@ -72,7 +55,7 @@ Last updated: 2026-03-15
 
 ### Magic numbers
 ```typescript
-// Create client/src/constants/gameValues.ts
+// client/src/constants/gameValues.ts
 export const SCORE_VALUES = {
   PERFECT_SOLUTION: 100,
   GOOD_SOLUTION: 50,
@@ -82,6 +65,5 @@ export const SCORE_VALUES = {
 
 ### Error boundaries
 ```typescript
-// Create client/src/components/ErrorBoundary.tsx
-// Wrap main App content with error boundary
+// client/src/components/ErrorBoundary.tsx — wrap the App content.
 ```
