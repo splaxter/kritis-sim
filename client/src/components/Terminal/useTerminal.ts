@@ -428,10 +428,6 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   emitScenarioOutput(output, isPingLike, () => {
                     term.writeln('');
 
-                    // Show realistic exit code
-                    term.writeln('\x1b[90m[Process completed with exit code 0]\x1b[0m');
-                    term.writeln('');
-
                     // Show success feedback
                     term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
                     term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
@@ -457,7 +453,6 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                     term.writeln(partialLine);
                   }
                   term.writeln('');
-                  term.writeln('\x1b[33m[Exit code 1 - Teilweise erfolgreich]\x1b[0m');
                   onPartialSolutionRef.current(
                     cmd.wrongApproachFeedback || 'Das hat nicht wie erwartet funktioniert.'
                   );
