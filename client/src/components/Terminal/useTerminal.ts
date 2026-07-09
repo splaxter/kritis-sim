@@ -3,8 +3,9 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
-import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds } from '../../engine/shell';
+import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid } from '../../engine/shell';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
+import { buildPrompt } from './prompt';
 
 interface UseTerminalOptions {
   context: TerminalContext;
@@ -44,8 +45,11 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       vfsOverlay: context.vfsOverlay,
       env: context.env,
       templates,
+      commands: context.commands,
+      hints: context.hints,
+      taskText: context.taskText,
     });
-  }, [context.type, context.hostname, context.username, context.currentPath, context.vfsOverlay, context.env, context.templateIds]);
+  }, [context]);
 
   // Track teached commands ref for solution checking
   const teachedCommandsRef = useRef(teachedCommands);
@@ -86,14 +90,14 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
   }, [shell]);
 
   const getPrompt = useCallback(() => {
-    // Use VFS current path for dynamic prompt
     const vfs = shellRef.current?.getVfs();
-    const currentPath = vfs?.getCurrentPath() || context.currentPath;
-
-    if (context.type === 'linux') {
-      return `${context.username}@${context.hostname}:${currentPath}$ `;
-    }
-    return `PS ${currentPath}> `;
+    return buildPrompt({
+      type: context.type,
+      username: context.username,
+      hostname: context.hostname,
+      path: vfs?.getCurrentPath() || context.currentPath,
+      home: vfs?.getEnv('HOME'),
+    });
   }, [context.type, context.username, context.hostname, context.currentPath]);
 
   const showHint = useCallback(() => {
@@ -126,6 +130,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
 
     term.open(terminalRef.current);
     fitAddon.fit();
+    shellRef.current?.setTermCols(term.cols);
 
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
@@ -133,11 +138,13 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     // Get initial prompt
     const getTermPrompt = () => {
       const vfs = shellRef.current?.getVfs();
-      const currentPath = vfs?.getCurrentPath() || context.currentPath;
-      if (context.type === 'linux') {
-        return `${context.username}@${context.hostname}:${currentPath}$ `;
-      }
-      return `PS ${currentPath}> `;
+      return buildPrompt({
+        type: context.type,
+        username: context.username,
+        hostname: context.hostname,
+        path: vfs?.getCurrentPath() || context.currentPath,
+        home: vfs?.getEnv('HOME'),
+      });
     };
 
     let prompt = getTermPrompt();
@@ -421,10 +428,6 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   emitScenarioOutput(output, isPingLike, () => {
                     term.writeln('');
 
-                    // Show realistic exit code
-                    term.writeln('\x1b[90m[Process completed with exit code 0]\x1b[0m');
-                    term.writeln('');
-
                     // Show success feedback
                     term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
                     term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
@@ -450,7 +453,6 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                     term.writeln(partialLine);
                   }
                   term.writeln('');
-                  term.writeln('\x1b[33m[Exit code 1 - Teilweise erfolgreich]\x1b[0m');
                   onPartialSolutionRef.current(
                     cmd.wrongApproachFeedback || 'Das hat nicht wie erwartet funktioniert.'
                   );
@@ -641,13 +643,9 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
             // options can't be narrowed further.
             const printCompletionList = (comps: Completion[]) => {
               const items = comps.map(c => c.display || c.value);
-              const maxLen = items.reduce((m, s) => Math.max(m, s.length), 0);
-              const colW = maxLen + 2;
-              const cols = Math.max(1, Math.floor((term.cols || 80) / colW));
               term.writeln('');
-              for (let i = 0; i < items.length; i += cols) {
-                const row = items.slice(i, i + cols).map(s => s.padEnd(colW)).join('');
-                term.writeln('\x1b[36m' + row.trimEnd() + '\x1b[0m');
+              for (const row of formatGrid(items, term.cols || 80)) {
+                term.writeln('\x1b[36m' + row + '\x1b[0m');
               }
               term.write(prompt + line);
               if (cursorPos < line.length) {
@@ -733,7 +731,10 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       }
     });
 
-    const handleResize = () => fitAddon.fit();
+    const handleResize = () => {
+      fitAddon.fit();
+      shellRef.current?.setTermCols(term.cols);
+    };
     window.addEventListener('resize', handleResize);
 
     // Prevent browser default Tab behavior (focus change) when terminal is focused

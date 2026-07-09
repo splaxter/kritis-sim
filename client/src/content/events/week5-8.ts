@@ -1283,7 +1283,7 @@ Die Uhr tickt.`,
       type: 'windows',
       hostname: 'DC01',
       username: 'admin',
-      currentPath: 'C:\\>',
+      currentPath: 'C:\\',
       commands: [
         {
           pattern: 'Get-ADUser.*-Filter|Get-EventLog.*Security',

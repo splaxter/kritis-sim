@@ -156,7 +156,7 @@ Was tust du?`,
       type: 'linux',
       hostname: 'switch-mgmt',
       username: 'admin',
-      currentPath: '~$',
+      currentPath: '~',
       commands: [
         {
           pattern: 'lldpctl',
@@ -370,7 +370,7 @@ Henry meint: "Das passiert manchmal. Aber bei KRITIS sollten wir das schnell fix
       type: 'linux',
       hostname: 'backup-srv',
       username: 'admin',
-      currentPath: '/backup$',
+      currentPath: '/backup',
       commands: [
         {
           pattern: 'df -h',
@@ -786,7 +786,7 @@ Henry: "Der ist schon wieder voll? Letzte Woche hab ich da noch 20GB freigemacht
       type: 'windows',
       hostname: 'SRV-DB-01',
       username: 'admin',
-      currentPath: 'C:\\>',
+      currentPath: 'C:\\',
       commands: [
         {
           pattern: 'Get-ChildItem -Recurse',

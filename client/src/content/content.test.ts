@@ -173,3 +173,15 @@ describe('Content Counts', () => {
     console.log('Events by category:', Object.fromEntries(eventCategories));
   });
 });
+
+describe('Terminal context path hygiene', () => {
+  const contexts = [
+    ...allEvents.filter(e => e.terminalContext).map(e => ({ id: e.id, ctx: e.terminalContext! })),
+    ...allScenarios.filter(s => s.terminalContext).map(s => ({ id: s.id, ctx: s.terminalContext! })),
+  ];
+
+  it('no currentPath ends with a prompt character', () => {
+    const bad = contexts.filter(({ ctx }) => /[$>]\s*$/.test(ctx.currentPath) && ctx.currentPath !== 'C:\\');
+    expect(bad.map(b => `${b.id}: ${b.ctx.currentPath}`)).toEqual([]);
+  });
+});

@@ -157,7 +157,12 @@ export class VirtualFilesystem implements VirtualFilesystemInterface {
     }
 
     if (isWindows) {
-      return resolved.length > 0 ? resolved.join('\\') : 'C:\\';
+      if (resolved.length === 0) return 'C:\\';
+      // A bare drive letter is the drive root, e.g. 'C:\' (not 'C:').
+      if (resolved.length === 1 && /^[A-Z]:$/i.test(resolved[0])) {
+        return resolved[0] + '\\';
+      }
+      return resolved.join('\\');
     }
     return '/' + resolved.join('/');
   }
@@ -634,7 +639,7 @@ export function createLinuxFilesystem(options: {
   const vfs = new VirtualFilesystem({
     shellType: 'bash',
     user,
-    home: `/home/${user}`,
+    home: user === 'root' ? '/root' : `/home/${user}`,
     env: {
       HOSTNAME: hostname,
       LOGNAME: user,
@@ -646,11 +651,16 @@ export function createLinuxFilesystem(options: {
   vfs.addDirectory('/etc');
   vfs.addDirectory('/etc/network');
   vfs.addDirectory('/etc/ssh');
-  vfs.addDirectory(`/home/${user}`);
-  vfs.addDirectory(`/home/${user}/Documents`);
-  vfs.addDirectory(`/home/${user}/.ssh`);
+  if (user !== 'root') {
+    vfs.addDirectory(`/home/${user}`);
+    vfs.addDirectory(`/home/${user}/Documents`);
+    vfs.addDirectory(`/home/${user}/.ssh`);
+  }
   vfs.addDirectory('/opt');
   vfs.addDirectory('/root');
+  if (user === 'root') {
+    vfs.addDirectory('/root/.ssh');
+  }
   vfs.addDirectory('/tmp');
   vfs.addDirectory('/usr/bin');
   vfs.addDirectory('/usr/local/bin');
