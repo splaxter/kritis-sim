@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AsciiFrame } from '../TerminalUI';
 
 interface NewGameSelectModalProps {
@@ -34,26 +34,58 @@ export function NewGameSelectModal({
   onClose,
 }: NewGameSelectModalProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const selectedIndexRef = useRef(0);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  const selectOption = (index: number, moveFocus = false) => {
+    selectedIndexRef.current = index;
+    setSelectedIndex(index);
+    if (moveFocus) optionRefs.current[index]?.focus();
+  };
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    optionRefs.current[0]?.focus();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
-      } else if (event.key === 'Enter') {
-        if (selectedIndex === 0) onSelectSimulation();
-        else onSelectStory();
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
-        setSelectedIndex((current) => (current === 0 ? 1 : 0));
+        const next = selectedIndexRef.current === 0 ? 1 : 0;
+        selectOption(next, true);
+      } else if (event.key === 'Tab') {
+        const buttons = Array.from(dialogRef.current?.querySelectorAll('button') ?? []);
+        const first = buttons[0];
+        const last = buttons[buttons.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, onSelectSimulation, onSelectStory, selectedIndex]);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Einsatzart wählen"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain"
+    >
       <div className="w-full max-w-2xl">
         <AsciiFrame title="NEUES SPIEL · EINSATZART" variant="info">
           <div className="space-y-3 p-4">
@@ -68,9 +100,12 @@ export function NewGameSelectModal({
                 return (
                   <button
                     key={experience.id}
+                    ref={(element) => { optionRefs.current[index] = element; }}
                     type="button"
+                    aria-pressed={selected}
                     onClick={index === 0 ? onSelectSimulation : onSelectStory}
-                    onMouseEnter={() => setSelectedIndex(index)}
+                    onMouseEnter={() => selectOption(index)}
+                    onFocus={() => selectOption(index)}
                     className={`group relative min-h-52 overflow-hidden border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-terminal-green focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                       selected
                         ? 'border-terminal-green bg-terminal-green/10'

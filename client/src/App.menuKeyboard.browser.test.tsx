@@ -62,6 +62,29 @@ describe('App — main menu arrow-key navigation', () => {
     expect(await screen.findByRole('button', { name: /Standard/ })).toBeInTheDocument();
     expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
     expect(screen.queryByText('Story: Die Probezeit')).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(await screen.findByRole('button', { name: /Freie Simulation/ })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('starts story directly and Standard through the simulation branch', async () => {
+    const first = render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+    fireEvent.click(await screen.findByRole('button', { name: /Story: Die Probezeit/ }));
+    expect(await screen.findByText('Willkommen im Team')).toBeInTheDocument();
+
+    first.unmount();
+    localStorage.clear();
+
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+    fireEvent.click(await screen.findByRole('button', { name: /Freie Simulation/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Standard/ }));
+    expect(await screen.findByText(/Woche 1\/12/)).toBeInTheDocument();
   });
 
   it('opens the existing load dialog through Spielstände', async () => {

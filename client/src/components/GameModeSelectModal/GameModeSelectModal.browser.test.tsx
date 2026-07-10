@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { GameModeSelectModal } from './index';
 
 describe('GameModeSelectModal — simulation variants', () => {
@@ -15,6 +16,8 @@ describe('GameModeSelectModal — simulation variants', () => {
     expect(screen.getByRole('button', { name: /KRITIS/ })).toBeInTheDocument();
     expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
     expect(screen.queryByText('Story: Die Probezeit')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Simulation wählen' })).toHaveAttribute('aria-modal', 'true');
+    expect(screen.getByRole('button', { name: /Einsteiger/ })).toHaveFocus();
   });
 
   it('keeps Einsteiger as the recommended, pre-selected mode', () => {
@@ -26,14 +29,28 @@ describe('GameModeSelectModal — simulation variants', () => {
     expect(screen.getAllByText('Einsteiger').length).toBeGreaterThan(0);
   });
 
-  it('selects Standard with ArrowDown and Enter', () => {
+  it('activates Standard after it receives focus through Tab', async () => {
+    const user = userEvent.setup();
     const onSelect = vi.fn();
     render(<GameModeSelectModal onSelect={onSelect} onClose={vi.fn()} />);
 
-    fireEvent.keyDown(window, { key: 'ArrowDown' });
-    fireEvent.keyDown(window, { key: 'Enter' });
+    await user.tab();
+    expect(screen.getByRole('button', { name: /Standard/ })).toHaveFocus();
+    await user.keyboard('{Enter}');
 
     expect(onSelect).toHaveBeenCalledWith('intermediate');
+  });
+
+  it('traps focus after the final control', async () => {
+    const user = userEvent.setup();
+    render(<GameModeSelectModal onSelect={vi.fn()} onClose={vi.fn()} />);
+
+    await user.tab();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Abbrechen' })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole('button', { name: /Einsteiger/ })).toHaveFocus();
   });
 
   it('closes on Escape', () => {
