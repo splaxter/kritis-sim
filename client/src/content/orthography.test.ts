@@ -51,7 +51,7 @@ const STEMS = [
   'vertraege', 'verzoeger', 'wuerde', 'wuerdig', 'wuetend', 'wuehl', 'zaeh', 'zerstoert', 'zufaellig',
   'zugaenge', 'zustaendig', 'zusaetzlich', 'zuhoeren', 'gebueren', 'gebuehr', 'fuehl', 'fuell',
   'gefuehl', 'schluecks', 'gruesst', 'gruessst', 'woechentlich', 'abschluessen', 'tvoed', 'tuer',
-  'solidaritaet', 'atmosphaere', 'zuverlaess', 'hoeflich', 'gaeste',
+  'solidaritaet', 'atmosphaere', 'zuverlaess', 'hoeflich', 'gaeste', 'taeter',
 ];
 // Case-sensitive: display-text "Frau Mueller" is a defect, ASCII username
 // 'admin.mueller' / hostname 'standort-sued' are not.

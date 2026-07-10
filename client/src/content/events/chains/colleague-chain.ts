@@ -45,7 +45,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         id: 'baramundi_report',
         text: '{chef} informieren - das ist zu gross, um es zu verstecken',
         effects: { relationships: { kollegen: -20, chef: 10 }, stress: 10, compliance: 5 },
-        resultText: '{chef} kommt sofort. "Wer? Henry? Verstehe." Henry wird zum Gespraech gebeten. Als er zurueckkommt, redet er nicht mehr mit dir.',
+        resultText: '{chef} kommt sofort. "Wer? Henry? Verstehe." Henry wird zum Gespräch gebeten. Als er zurückkommt, redet er nicht mehr mit dir.',
         choiceTags: ['report', 'honest'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_resentment',
@@ -57,9 +57,9 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         id: 'baramundi_blame_system',
         text: 'Den Rollout stoppen und einen "Systemfehler" melden',
         effects: { relationships: { kollegen: 10 }, stress: 15, compliance: -10 },
-        resultText: 'Ihr schiebt es auf einen "Bug in Baramundi". {chef} ist misstrauisch, aber kann nichts beweisen. Die Luege liegt schwer im Raum.',
+        resultText: 'Ihr schiebt es auf einen "Bug in Baramundi". {chef} ist misstrauisch, aber kann nichts beweisen. Die Lüge liegt schwer im Raum.',
         choiceTags: ['lie', 'cover_up'],
-        teachingMoment: 'Luegen funktionieren kurzfristig, aber Audit-Logs existieren. Spaeter kann das sehr unangenehm werden.',
+        teachingMoment: 'Lügen funktionieren kurzfristig, aber Audit-Logs existieren. Später kann das sehr unangenehm werden.',
       },
       {
         id: 'baramundi_let_run',
@@ -102,7 +102,7 @@ Im Baramundi-Dashboard siehst du die Installation: 23% abgeschlossen.`,
         },
       ],
       hints: [
-        'Tipp: In Baramundi koennen laufende Jobs gestoppt werden.',
+        'Tipp: In Baramundi können laufende Jobs gestoppt werden.',
         'Tipp: Je schneller du handelst, desto weniger Rechner sind betroffen.',
       ],
     },
@@ -126,7 +126,7 @@ Er setzt sich neben dich. "Exchange? Lass mich mal schauen. Ich hab sowas schon 
 
 Er erinnert sich an die Nacht mit dem Baramundi-Desaster. Jetzt ist er an der Reihe.`,
     involvedCharacters: ['kollege'],
-    mentorNote: 'Kollegiale Solidaritaet ist unbezahlbar. In der IT loest man Probleme selten allein. Ein Team, das zusammenhaelt, uebersteht auch schwere Krisen.',
+    mentorNote: 'Kollegiale Solidarität ist unbezahlbar. In der IT löst man Probleme selten allein. Ein Team, das zusammenhält, übersteht auch schwere Krisen.',
     choices: [
       {
         id: 'loyalty_accept',
@@ -139,15 +139,15 @@ Er erinnert sich an die Nacht mit dem Baramundi-Desaster. Jetzt ist er an der Re
         id: 'loyalty_proud',
         text: '"Danke, aber ich schaff das alleine."',
         effects: { relationships: { kollegen: -5 }, stress: 10 },
-        resultText: 'Henry zuckt die Schultern. "Wie du willst." Du brauchst noch 2 Stunden fuer das Problem, das er in 20 Minuten geloest haette.',
+        resultText: 'Henry zuckt die Schultern. "Wie du willst." Du brauchst noch 2 Stunden für das Problem, das er in 20 Minuten gelöst hätte.',
         choiceTags: ['proud', 'stubborn'],
       },
       {
         id: 'loyalty_learn',
         text: '"Zeig mir, wie du das machst - ich will lernen."',
         effects: { relationships: { kollegen: 15 }, skills: { windows: 8, troubleshooting: 5 }, stress: -10 },
-        resultText: 'Henry erklaert jeden Schritt. "Event Log hier, dann ESEUTIL..." Du schreibst mit. "Beim naechsten Mal machst du das alleine", sagt er mit einem Laecheln.',
-        teachingMoment: 'Die beste Lernmethode: Einem Experten ueber die Schulter schauen.',
+        resultText: 'Henry erklärt jeden Schritt. "Event Log hier, dann ESEUTIL..." Du schreibst mit. "Beim nächsten Mal machst du das alleine", sagt er mit einem Lächeln.',
+        teachingMoment: 'Die beste Lernmethode: Einem Experten über die Schulter schauen.',
       },
     ],
     tags: ['team', 'chain_consequence', 'help', 'exchange'],
@@ -161,45 +161,45 @@ Er erinnert sich an die Nacht mit dem Baramundi-Desaster. Jetzt ist er an der Re
     category: 'team',
     isChainEvent: true,
     chainPriority: 5,
-    title: 'Vergiftete Atmosphaere',
-    description: `Seit dem Baramundi-Vorfall ist die Stimmung im Buero anders.
+    title: 'Vergiftete Atmosphäre',
+    description: `Seit dem Baramundi-Vorfall ist die Stimmung im Büro anders.
 
-Henry redet nur noch das Noetigste mit dir. Tickets, die normalerweise als Team geloest wurden, macht jetzt jeder fuer sich. Als du eine Frage stellst, sagt er: "Google es."
+Henry redet nur noch das Nötigste mit dir. Tickets, die normalerweise als Team gelöst wurden, macht jetzt jeder für sich. Als du eine Frage stellst, sagt er: "Google es."
 
-Heute Morgen hoerst du ihn zu einem anderen Kollegen sagen: "Pass auf, was du ihm erzaehlst. Er laeuft direkt zum Chef."
+Heute Morgen hörst du ihn zu einem anderen Kollegen sagen: "Pass auf, was du ihm erzählst. Er läuft direkt zum Chef."
 
 Du hattest nur getan, was richtig war... oder?`,
     involvedCharacters: ['kollege', 'chef'],
-    mentorNote: 'Die Entscheidung zwischen Loyalitaet und Integritaet ist schwer. Beides ist wichtig. Langfristig ist Integritaet wichtiger, aber die sozialen Kosten koennen hoch sein. Such dir Mentoren ausserhalb der direkten Situation.',
+    mentorNote: 'Die Entscheidung zwischen Loyalität und Integrität ist schwer. Beides ist wichtig. Langfristig ist Integrität wichtiger, aber die sozialen Kosten können hoch sein. Such dir Mentoren ausserhalb der direkten Situation.',
     choices: [
       {
         id: 'resentment_confront',
-        text: 'Henry direkt ansprechen: "Koennen wir das klaeren?"',
+        text: 'Henry direkt ansprechen: "Können wir das klären?"',
         requires: { skill: 'softSkills', threshold: 35 },
         effects: { relationships: { kollegen: 5 }, stress: 10, skills: { softSkills: 5 } },
-        resultText: 'Es wird ein schwieriges Gespraech. "Ich musste es melden - 347 Rechner waren betroffen." Henry: "Ich weiss. Macht es trotzdem nicht leichter." Aber die Luft ist etwas leichter danach.',
+        resultText: 'Es wird ein schwieriges Gespräch. "Ich musste es melden - 347 Rechner waren betroffen." Henry: "Ich weiss. Macht es trotzdem nicht leichter." Aber die Luft ist etwas leichter danach.',
         teachingMoment: 'Konflikte ansprechen ist unangenehm, aber Schweigen macht es schlimmer.',
       },
       {
         id: 'resentment_ignore',
         text: 'Ignorieren - mit der Zeit wird es besser',
         effects: { relationships: { kollegen: -5 }, stress: 10 },
-        resultText: 'Es wird nicht besser. Die naechsten Wochen arbeitet ihr nebeneinander her, aber nicht miteinander.',
+        resultText: 'Es wird nicht besser. Die nächsten Wochen arbeitet ihr nebeneinander her, aber nicht miteinander.',
         choiceTags: ['avoidant'],
       },
       {
         id: 'resentment_chef',
         text: '{chef} um Rat fragen - das belastet das Team',
         effects: { relationships: { chef: 5, kollegen: -10 }, stress: 5 },
-        resultText: '{chef} seufzt. "Professionelle Erwachsene sollten das unter sich klaeren." Nicht hilfreich, und Henry hoert davon.',
+        resultText: '{chef} seufzt. "Professionelle Erwachsene sollten das unter sich klären." Nicht hilfreich, und Henry hört davon.',
         choiceTags: ['escalate'],
       },
       {
         id: 'resentment_apologize',
         text: 'Sich entschuldigen: "Es tut mir leid, wie ich das gehandhabt habe."',
         effects: { relationships: { kollegen: 10 }, stress: -5, skills: { softSkills: 8 } },
-        resultText: 'Henry ist ueberrascht. "Du... entschuldigst dich? Du hast doch nur deinen Job gemacht." "Ja, aber ich haette es anders kommunizieren koennen." Langsam taut er auf.',
-        teachingMoment: 'Man kann fuer die Art und Weise Verantwortung uebernehmen, auch wenn die Entscheidung richtig war.',
+        resultText: 'Henry ist überrascht. "Du... entschuldigst dich? Du hast doch nur deinen Job gemacht." "Ja, aber ich hätte es anders kommunizieren können." Langsam taut er auf.',
+        teachingMoment: 'Man kann für die Art und Weise Verantwortung übernehmen, auch wenn die Entscheidung richtig war.',
       },
     ],
     tags: ['team', 'chain_consequence', 'conflict', 'trust'],
