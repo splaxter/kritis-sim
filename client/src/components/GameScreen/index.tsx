@@ -1,5 +1,5 @@
 // client/src/components/GameScreen/index.tsx
-import { useEffect, useRef, useState, lazy, Suspense } from 'react';
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
@@ -64,6 +64,7 @@ export function GameScreen({
   const prevChapterRef = useRef<string | null>(null);
   const seenCinematicsRef = useRef<Set<string>>(new Set());
   const [cinematic, setCinematic] = useState<{ kicker: string; title: string; image: string } | null>(null);
+  const dismissCinematic = useCallback(() => setCinematic(null), []);
 
   const currentChapterId = state.storyState?.currentChapter;
 
@@ -85,6 +86,12 @@ export function GameScreen({
   }, [isStoryMode, currentChapterId]);
 
   // Show a fullscreen beat before key story events (once each).
+  // When a cinematic event coincides with a chapter entry (ch09_attack's first
+  // beat adv_ransomware_strike, ch11_truth's first beat adv_attacker_identity),
+  // both this effect and the chapter-change effect above set `cinematic` in the
+  // same commit. This effect is declared second, so its last write wins and the
+  // event beat intentionally takes precedence over the "KAPITEL N" card — ch09
+  // shares the same art anyway, and ch11 is meant to enter on the "23:47" beat.
   const currentEventId = currentEvent?.id;
   useEffect(() => {
     if (!isStoryMode || !currentEventId) return;
@@ -189,7 +196,7 @@ export function GameScreen({
 
         {/* Fullscreen cinema beat (chapter title / key-event) */}
         {cinematic && (
-          <ChapterCard {...cinematic} onDone={() => setCinematic(null)} />
+          <ChapterCard {...cinematic} onDone={dismissCinematic} />
         )}
 
         {/* Main content area */}

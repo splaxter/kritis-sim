@@ -10,13 +10,16 @@ interface ChapterCardProps {
 }
 
 const AUTO_DISMISS_MS = 2500;
+const TITLE_CPS = 25;
 
 /**
  * Vollbild-Kino-Beat: Artwork + getippter Titel. Schließt nach 2,5s
  * oder bei beliebiger Taste/Klick.
  */
 export function ChapterCard({ kicker, title, image, onDone }: ChapterCardProps) {
-  const typed = useTypewriter(title, { charsPerSecond: 25 });
+  const prefersReducedMotion =
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const typed = useTypewriter(title, { charsPerSecond: TITLE_CPS, enabled: !prefersReducedMotion });
 
   useEffect(() => {
     const t = window.setTimeout(onDone, AUTO_DISMISS_MS);
