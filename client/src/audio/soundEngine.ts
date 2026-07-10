@@ -21,7 +21,7 @@ class SoundEngine {
   private enabled = false;
 
   constructor() {
-    this.enabled = localStorage.getItem(SOUND_PREF_KEY) === 'on';
+    this.enabled = typeof localStorage !== 'undefined' && localStorage.getItem(SOUND_PREF_KEY) === 'on';
   }
 
   isEnabled() {
@@ -30,7 +30,9 @@ class SoundEngine {
 
   toggle(): boolean {
     this.enabled = !this.enabled;
-    localStorage.setItem(SOUND_PREF_KEY, this.enabled ? 'on' : 'off');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(SOUND_PREF_KEY, this.enabled ? 'on' : 'off');
+    }
     if (this.enabled) this.startAmbience();
     else this.stopAmbience();
     return this.enabled;
@@ -124,7 +126,7 @@ class SoundEngine {
     this.stopAmbience();
     this.ctx = null;
     this.master = null;
-    this.enabled = localStorage.getItem(SOUND_PREF_KEY) === 'on';
+    this.enabled = typeof localStorage !== 'undefined' && localStorage.getItem(SOUND_PREF_KEY) === 'on';
   }
 }
 

@@ -65,17 +65,21 @@ export function GameScreen({
   const [soundOn, setSoundOn] = useState(soundEngine.isEnabled());
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (phase === 'terminal') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (e.key.toLowerCase() === 'm' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         setSoundOn(soundEngine.toggle());
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [phase]);
 
   // Cinema-beat state: fullscreen chapter title cards + key-event beats
   const prevChapterRef = useRef<string | null>(null);
   const seenCinematicsRef = useRef<Set<string>>(new Set());
+  const seenStingersRef = useRef<Set<string>>(new Set());
   const [cinematic, setCinematic] = useState<{ kicker: string; title: string; image: string } | null>(null);
   const dismissCinematic = useCallback(() => setCinematic(null), []);
 
@@ -114,10 +118,16 @@ export function GameScreen({
     setCinematic({ kicker: '', title: currentEvent?.title ?? '', image });
   }, [isStoryMode, currentEventId, currentEvent]);
 
-  // Alarm-Stinger when an incident/compromise event mounts (opt-in; no-op if muted).
+  // Alarm-Stinger when an incident/compromise event first mounts (opt-in; no-op
+  // if muted). Idempotent per event id — StrictMode double-mount and back-nav
+  // to a seen incident must not replay it.
   useEffect(() => {
-    if (currentEvent && cueForEvent(currentEvent.tags) === 'stinger') soundEngine.stinger();
-  }, [currentEventId]);
+    if (!isStoryMode || !currentEventId || !currentEvent) return;
+    if (cueForEvent(currentEvent.tags) === 'stinger' && !seenStingersRef.current.has(currentEventId)) {
+      seenStingersRef.current.add(currentEventId);
+      soundEngine.stinger();
+    }
+  }, [isStoryMode, currentEventId, currentEvent]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
