@@ -148,7 +148,7 @@ Du gehst runter in die Buchhaltung. Frau Müller sitzt vor einem schwarzen Bilds
     category: 'story',
     weekRange: [1, 1],
     probability: 1,
-    // No image - late night mystery scene, no matching visual
+    image: '/images/events/13_handschriftliche-notiz-am-monitor.webp',
     description: `Es ist Feierabend. Alle sind schon weg — Bjorg bereits seit halb vier ("Termin!"). Du willst gerade herunterfahren, als du etwas bemerkst.
 
 In den Kommentaren eines alten Skripts, das auf dem Desktop lag, steht etwas Seltsames:
@@ -182,11 +182,11 @@ Es ist 18:30. Du könntest nach Hause gehen. Oder du könntest um 23:47 die Logs
         setsFlags: ['noted_message'],
       },
       {
-        id: 'tell_thomas',
+        id: 'tell_jens',
         text: 'Jens anrufen und ihm davon erzählen',
         effects: { relationships: { kollegen: 10 } },
         resultText: 'Jens hört schweigend zu. Dann, sehr ruhig: "Zeig mir das morgen. Und such nicht im Firmennetz nach Stefans Namen." Er legt auf. Kein überflüssiges Wort — aber du bist sicher, dass er heute Nacht nicht gut schlafen wird.',
-        setsFlags: ['thomas_knows', 'thomas_worried'],
+        setsFlags: ['jens_knows', 'jens_worried'],
       },
     ],
   },
@@ -242,7 +242,7 @@ Du starrst ihn an. "Ihr steuert eine *Müllverbrennungsanlage*?"
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
-    // No image - IoT coffee machine scene, no matching visual
+    image: '/images/events/27_pausenraum-kaffeemaschine.webp',
     description: `Im Pausenraum steht eine verchromte Kaffeemaschine. Sie sieht teuer aus. Und sie macht seltsame Geräusche.
 
 "Die spinnt seit Wochen", erklärt Frau Weber aus der Personalabteilung. "Manchmal macht sie Kaffee ohne dass jemand drückt. Letzte Woche hat sie um Mitternacht 47 Tassen Espresso gemacht."
@@ -304,14 +304,14 @@ Er legt sein Handy auf den Tisch. Screenshots von Logs, Netzwerkdiagramme, Notiz
         text: '"Das klingt nach Paranoia. Bist du sicher?"',
         effects: { relationships: { kollegen: -5 } },
         resultText: 'Jens\' Gesicht wird wieder das übliche: freundlich, verschlossen. "Vergiss es." Er zahlt und geht. Du hast das Gefühl, dass sich diese Tür so schnell nicht wieder öffnet.',
-        setsFlags: ['doubted_thomas'],
+        setsFlags: ['doubted_jens'],
       },
       {
         id: 'careful',
         text: '"Lass uns vorsichtig sein. Wer weiß noch davon?"',
         effects: { relationships: { kollegen: 15 }, skills: { security: 2 } },
         resultText: '"Nur wir", sagt Jens. "Und Stefan, wo auch immer er ist." Er schaut sich kurz um — routiniert, als hätte er das schon oft getan. "Lass uns woanders reden."',
-        setsFlags: ['careful_approach', 'thomas_partner', 'jens_ally'],
+        setsFlags: ['careful_approach', 'jens_partner', 'jens_ally'],
       },
     ],
   },
@@ -322,7 +322,7 @@ Er legt sein Handy auf den Tisch. Screenshots von Logs, Netzwerkdiagramme, Notiz
     category: 'story',
     weekRange: [2, 2],
     probability: 1,
-    image: '/images/events/evt_docusnap_einrichtung.webp',
+    image: '/images/events/24_sachbearbeiter-cubicle.webp',
     description: `Du hast Jens' Hinweise befolgt und die Logs der letzten Wochen analysiert. Was du findest, ist... beunruhigend.
 
 Jede Nacht, zwischen 02:00 und 04:00:
@@ -370,7 +370,7 @@ Jens steht hinter dir. "Stefan hat das auch gefunden", sagt er leise. "Drei Tage
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
-    image: '/images/events/evt_ad_passwort.webp',
+    image: '/images/events/28_stau-am-drucker.webp',
     description: `"DER DRUCKER DRUCKT WIEDER VON SELBST!"
 
 Die Panik-Mail kommt von der 3. Etage. Als du dort ankommst, sieht es aus wie in einem Papierhagel. Hunderte von Seiten. Alle mit dem gleichen Inhalt:
@@ -413,6 +413,7 @@ Bjorg bleibt demonstrativ im Türrahmen: "Ich fass das Ding nicht an. Drucker si
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
+    image: '/images/events/31_bert-betriebsleiter-nachtschicht.webp',
     description: `Chef Bert kommt zügig ins IT-Büro. "Der Bürgermeister ist in 30 Minuten da, und die Präsentation hängt sich beim Öffnen auf. Sieht mir nach Speicher aus - kannst du da ran? Du bist da schneller als ich."
 
 Bjorg ruft ihm hinterher: "Ich würde ja helfen, aber ich bin gleich in einem Termin!" Du gehst mit Bert runter ins Chefbüro.
@@ -455,6 +456,7 @@ Der gleiche Prozess aus den Logs.`,
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
+    image: '/images/events/12_schock-am-crt-terminal.webp',
     description: `Das Ticket-System meldet sich wieder. Diesmal von mehreren Leuten gleichzeitig.
 
 "Ich bekomme Mails die ich nie gesendet habe"
@@ -500,6 +502,7 @@ Das war kein Script-Kiddie. Das war jemand mit Admin-Zugang.`,
     category: 'story',
     weekRange: [3, 3],
     probability: 1,
+    image: '/images/events/02_it-admin-leitwarte-nacht.webp',
     description: `Es ist 23:00. Jens und du sitzt noch im Büro. Kaffee ist leer, die Pizza, die Henry vor seinem Feierabend noch vorbeigebracht hat, ist kalt.
 
 "Was haben wir?", fragt Jens.
@@ -553,6 +556,7 @@ Ihr seid nicht allein in diesem Netzwerk.`,
     category: 'story',
     weekRange: [4, 4],
     probability: 1,
+    image: '/images/events/20_serverraum-kritis-warnschild.webp',
     description: `Im Keller findest du ihn: Stefans alten Rechner. Er wurde nie abgeholt, nur abgestellt und vergessen.
 
 Henry steht Wache oben. "Beeil dich", sagt er über Funk. "Der Chef macht um 14 Uhr seine Runde. Und Bjorg erzählt gerade im Flur einen Witz — der bindet ihn maximal drei Minuten."
@@ -593,7 +597,7 @@ Ironischerweise ist sie nicht passwortgeschützt.`,
     category: 'story',
     weekRange: [4, 4],
     probability: 1,
-    image: '/images/events/evt_lizenzfrage.webp',
+    image: '/images/events/14_passwort-notiz-und-ausweis.webp',
     description: `Die wichtigsten Dateien sind verschlüsselt. AES-256. Ohne Passwort kommst du nicht rein.
 
 Stefan hat aber einen Hinweis hinterlassen - typisch für einen Paranoiden:
@@ -621,11 +625,11 @@ Du überlegst. Stefan war kein Raucher. Aber er war oft... wo?`,
         setsFlags: ['found_password', 'knows_full_timeline'],
       },
       {
-        id: 'ask_thomas',
+        id: 'ask_jens',
         text: '"Jens, du kanntest Stefan. Wo ist er immer hin?"',
         effects: { relationships: { kollegen: 5 } },
         resultText: 'Jens überlegt keine zwei Sekunden. "Auf\'s Dach. Obwohl er gar nicht raucht." Du versuchst "DACHTERASSE". RICHTIG!',
-        setsFlags: ['found_password', 'thomas_helped'],
+        setsFlags: ['found_password', 'jens_helped'],
       },
     ],
   },
@@ -770,11 +774,12 @@ Ihr steht wieder am Anfang. Die Hinweise, die ihr habt, sind vage. Die Nacht-Log
 
   // ─── Kapitel 5: Zufälle gibt es nicht ───
   {
-    id: 'adv_thomas_confession',
+    id: 'adv_jens_confession',
     title: 'Jens\' Geständnis',
     category: 'story',
     weekRange: [5, 5],
     probability: 1,
+    image: '/images/events/11_usb-uebergabe-treppenhaus.webp',
     description: `Jens schließt die Bürotür. Zum ersten Mal, seit du hier bist, wirkt er unruhig.
 
 "Ich muss dir was sagen. Und du wirst sauer sein." Er legt einen USB-Stick auf den Tisch. "Stefan hat mir nicht nur ein paar Screenshots geschickt. Er hat mir ALLES geschickt. Sein ganzes Dossier. Vor Wochen."
@@ -815,6 +820,7 @@ Er schiebt dir den Stick zu. "Da drauf ist alles. Und das Schlimmste: Stefan war
     category: 'story',
     weekRange: [5, 5],
     probability: 1,
+    image: '/images/events/01_wasserwerk-luftaufnahme-nacht.webp',
     description: `Im Pausenraum läuft der Nachrichtensender. Du bleibst stehen.
 
 "...die Stadtwerke im Nachbarkreis. Seit heute Morgen sind tausende Haushalte ohne sauberes Trinkwasser. Die Behörden sprechen von einem 'technischen Defekt', doch nach Informationen unserer Redaktion deutet vieles auf einen gezielten Cyberangriff hin..."
@@ -853,6 +859,7 @@ Du erkennst es sofort. Das Muster. Dieselbe Handschrift wie in deinen Logs. Es i
     category: 'story',
     weekRange: [5, 5],
     probability: 1,
+    image: '/images/events/25_vermisster-mitarbeiter-pinnwand.webp',
     description: `Nachts im Büro. Ihr habt alles an die Wand gepinnt: Stefans Dossier, die Nacht-Logs, der C2-Server, die Eilmeldung, eure Timeline. Fäden dazwischen.
 
 Und plötzlich ergibt es ein Bild. Kein Chaos — ein Plan. Die "Pannen" der letzten Wochen waren Tests: Wie schnell reagiert ihr? Was fällt euch auf? Was nicht?
@@ -935,6 +942,7 @@ Bevor du irgendwem irgendwas zeigst, musst du diese Beweise schützen — und en
     category: 'story',
     weekRange: [6, 6],
     probability: 1,
+    image: '/images/events/03_audit-besprechung-nacht.webp',
     description: `Du legst Chef Bert die Mappe auf den Schreibtisch. Er blättert, und man sieht, dass er sofort begreift, was da steht. Genau das macht ihm zu schaffen.
 
 Er lehnt sich zurück. "Das ist erheblich. Und heikel. Wenn ich das nach oben melde und es stellt sich als Missverständnis heraus, ist mein Wort nichts mehr wert — und Ihres auch nicht. Lassen Sie uns das erst wasserdicht machen, bevor wir es groß aufhängen."
@@ -1049,6 +1057,7 @@ Ihr richtet euch ein: ein abgeschotteter Laptop, der nie ins Firmennetz geht. Ei
     category: 'story',
     weekRange: [6, 6],
     probability: 1,
+    image: '/images/events/10_figur-zwischen-tueren-flur.webp',
     description: `Es ist spät, als die Nachricht auf deinem privaten Handy aufploppt. Unbekannte Nummer.
 
 "Neugierige Azubis werden selten alt. Frag Stefan."
@@ -1090,6 +1099,7 @@ Du könntest jetzt noch aufhören. Wegsehen. Den Kopf einziehen. Oder du gehst d
     category: 'story',
     weekRange: [7, 7],
     probability: 1,
+    image: '/images/events/05_verdaechtige-email-am-monitor.webp',
     description: `Die Mail ist perfekt. Kein Tippfehler, kein generisches "Sehr geehrter Kunde". Sie spricht dich mit Namen an, nennt ein internes Projekt, das nur eine Handvoll Leute kennt, und hängt sich an einen echten Vorgang von letzter Woche.
 
 Nur der Link am Ende führt nicht dahin, wo er behauptet.
@@ -1128,6 +1138,7 @@ Das ist kein Massen-Phishing. Das ist auf DICH zugeschnitten. Und die Details da
     category: 'story',
     weekRange: [7, 7],
     probability: 1,
+    image: '/images/events/26_service-techniker-betritt-buero.webp',
     description: `Die Mail wusste Dinge, die nur wenige wissen. Ihr setzt euch hin und macht eine Liste: Wer hatte Zugriff auf dieses Projekt, diese Termine, diese Details?
 
 Die Liste ist kurz. Und unangenehm. Es sind Kollegen. Menschen, an denen du jeden Tag vorbeigehst.
@@ -1166,6 +1177,7 @@ Jens reibt sich die Augen. "Stefan hat es geahnt. Deshalb hat er niemandem getra
     category: 'story',
     weekRange: [7, 7],
     probability: 1,
+    image: '/images/events/30_geschaeftsfrau-glaswand-cover.webp',
     description: `Eine Nachricht über einen Kanal, den du kaum noch nutzt. Absender: die IT-Leiterin des Nachbar-Stadtwerks — das, dessen Wasserversorgung getroffen wurde.
 
 "Jemand hat uns vor ein paar Wochen anonym gewarnt. Wir waren vorbereiteter als die anderen. Ich glaube, das waren Sie. Wir sind nicht die Einzigen, die zurückschlagen wollen. Reden wir?"
@@ -1206,6 +1218,7 @@ Zum ersten Mal seit Wochen kommt Hilfe — von außen, ungefragt.`,
     category: 'story',
     weekRange: [8, 8],
     probability: 1,
+    image: '/images/events/19_it-buero-drei-arbeitsplaetze.webp',
     description: `Tage vergehen. Nichts. Keine Phishing-Mails, keine seltsamen Logs, keine nächtlichen Verbindungen. Die Systeme laufen stabil. Sauber. Perfekt.
 
 Genau das macht dich nervös.
@@ -1244,6 +1257,7 @@ Jens sitzt vor dem Monitoring und ist noch stiller als sonst. Irgendwann sagt er
     category: 'story',
     weekRange: [8, 8],
     probability: 1,
+    image: '/images/events/16_rechenzentrum-gang.webp',
     description: `Ihr geht die Liste durch. Die, die ihr nie machen wolltet, aber jetzt braucht.
 
 Backups — offline, getrennt, getestet? Segmentierung — hält sie? Notfallplan — wer ruft wen, in welcher Reihenfolge, mit welcher Nummer?
@@ -1282,6 +1296,7 @@ Es ist die Generalprobe, die niemand will. Und sie zeigt Lücken.`,
     category: 'story',
     weekRange: [8, 8],
     probability: 1,
+    image: '/images/events/21_solutions-engineer-am-arbeitsplatz.webp',
     description: `Spät am Abend, nur ihr beide. Jens dreht lange sein Glas in der Hand — und fängt dann an zu erzählen. Mehr Sätze am Stück, als du je von ihm gehört hast.
 
 "Vor zehn Jahren. Anderer Arbeitgeber, ein Energieversorger. Ich hab Warnzeichen gesehen und gemeldet. Sie haben mich ausgelacht. 'Wer soll uns schon angreifen?'"
@@ -1320,6 +1335,7 @@ Er schaut auf seine Hände. "Drei Wochen später war alles verschlüsselt. Mensc
     category: 'story',
     weekRange: [8, 8],
     probability: 1,
+    image: '/images/events/07_verlassenes-buero-server-led.webp',
     description: `Dann fängt es an. Leise.
 
 Ein Ausschlag fehlgeschlagener Anmeldungen um 3:14 Uhr. Ein Backup-Job, der heute Nacht verdächtig schnell "fertig" war. Ein Domänencontroller mit ein paar Sekunden unerklärlicher Zeitabweichung.
@@ -1404,6 +1420,7 @@ Alle schauen dich an.`,
     category: 'story',
     weekRange: [9, 9],
     probability: 1,
+    image: '/images/events/04_serverraum-serverschrank.webp',
     description: `Der Angriff läuft. Die Server sind verschlüsselt. Aber nicht alle - noch nicht.
 
 Du hast ein kleines Zeitfenster. Die Ransomware breitet sich aus, aber langsam. Du könntest noch etwas retten.
@@ -1445,6 +1462,7 @@ Was ist deine erste Aktion?`,
     category: 'story',
     weekRange: [7, 7],
     probability: 1,
+    image: '/images/events/08_admin-schliesst-ab-nacht.webp',
     description: `Die Phishing-Angriffe werden immer gezielter. Die letzte Mail wusste sogar deinen Geburtstag.
 
 Es ist Zeit für ernsthafte Maßnahmen. Aber welche?`,
@@ -1854,6 +1872,7 @@ Und jetzt, während alle Systeme verschlüsselt sind, hast du ein Backup das nie
     category: 'story',
     weekRange: [9, 9],
     probability: 1,
+    image: '/images/events/06_leitwarte-monitore-ausfall.webp',
     description: `Montagmorgen, 07:23. Du kommst ins Büro.
 
 Alle Bildschirme sind rot. Auf jedem steht die gleiche Nachricht:
@@ -1901,6 +1920,7 @@ Das Telefon klingelt. Es ist Jens. "Es ist soweit", sagt er ruhig. "Und es ist n
     category: 'story',
     weekRange: [12, 12],
     probability: 1,
+    image: '/images/events/18_verlassener-besprechungsraum-projektor.webp',
     description: `72 Stunden später.
 
 Du sitzt im Konferenzraum. Der Chef ist da. Der Bürgermeister. Das BSI. Jens und Henry, die aussehen, als hätten sie seit drei Tagen nicht geschlafen. (Haben sie auch nicht.) Und Bjorg, erstaunlich ausgeruht, der dem Bürgermeister gerade erklärt, wie "wir" das Ding "gerockt" haben.
@@ -1946,6 +1966,7 @@ Deine Probezeit ist offiziell beendet.`,
     category: 'story',
     weekRange: [9, 9],
     probability: 1,
+    image: '/images/events/17_helpdesk-schalter.webp',
     description: `Zehn Uhr vormittags, und das Amt ist ins Neunzehnte Jahrhundert zurückgefallen.
 
 Frau Müller hat einen Zettel an ihren roten Bildschirm geklebt — "KAPUTT!!" in Großbuchstaben — und tippt trotzdem weiter, aus Prinzip. Die Anrufe laufen im Sekundentakt auf: verärgerte Bürger, verwirrte Fahrer, ein Bestatter, der wissen will, ob die Beerdigung heute noch stattfindet. Die Disposition der Müllabfuhr steht. Achtundvierzig Wagen, kein Tourenplan.
@@ -2163,6 +2184,7 @@ Der Bürgermeister atmet hörbar. "Also. Erklären Sie mir in einfachen Worten: 
     category: 'story',
     weekRange: [10, 10],
     probability: 1,
+    image: '/images/events/09_sachbearbeiter-sonnenaufgang.webp',
     description: `Es ist die zweite Nacht, und Jens ist ein anderer Mensch.
 
 Vor zehn Jahren beim Energieversorger hat man ihn nicht gehört — bis es zu spät war, bis die Lichter ausgingen und alle plötzlich wussten, dass der stille Kollege die ganze Zeit recht gehabt hatte. Diese Nacht hat ihn nie losgelassen.
@@ -2389,6 +2411,7 @@ Jens zieht den Task-Scheduler des kompromittierten Domänencontrollers auf. Ein 
     category: 'story',
     weekRange: [11, 11],
     probability: 1,
+    image: '/images/events/29_kaemmerer-budgetordner.webp',
     description: `Konferenzraum, später Nachmittag. Der Kämmerer hat eine Excel-Tabelle mitgebracht.
 
 "Fünfhundert Bitcoin", sagt er und tippt auf eine Zelle, "sind beim aktuellen Kurs günstiger als drei Wochen Stillstand. Rein betriebswirtschaftlich."
@@ -2470,6 +2493,7 @@ Nicht mehr alles auf einmal ist zu schaffen. Ihr müsst priorisieren, ein letzte
     category: 'story',
     weekRange: [12, 12],
     probability: 1,
+    image: '/images/events/30_geschaeftsfrau-glaswand.webp',
     description: `Und dann kommt Hilfe an. Mehr, als du erwartet hast.
 
 Frau Dr. Reinhardt vom BSI steht im Türrahmen, Aktenkoffer in der Hand: "Sie haben ein Aktenzeichen. Jetzt haben Sie auch Personal." Kurz darauf die IT-Leiterin des Nachbarwerks, mit einem Laptop voller Signaturen und, aus irgendeinem Grund, einer Tafel Schokolade für jeden. Und in der Tür, müde, mit Ostsee-Bräune und einem schiefen Lächeln: ein Mann, dessen Schreibtisch du geerbt hast.

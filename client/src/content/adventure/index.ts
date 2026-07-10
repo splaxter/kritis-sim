@@ -57,7 +57,7 @@ export const ENDINGS = {
 // Character list for the story
 export const STORY_CHARACTERS = [
   {
-    id: 'thomas',
+    id: 'bjorg',
     name: 'Bjorg',
     role: 'Dein Kollege',
     description: 'Laut, immer im Weg, nie zuständig. Delegiert alles ("Kannst du das übernehmen? Ich bin gleich in einem wichtigen Termin") und erzählt Witze, über die nur er selbst lacht. Kennste?',

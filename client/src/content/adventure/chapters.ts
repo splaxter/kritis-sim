@@ -94,7 +94,7 @@ export const adventureChapters: AdventureChapter[] = [
     storyBeats: [
       { id: 'beat01', eventId: 'adv_pattern_recognition', isOptional: false },
       { id: 'beat_gui_probe', eventId: 'adv_gui_eventviewer_probe', isOptional: true },
-      { id: 'beat02', eventId: 'adv_thomas_confession', isOptional: false },
+      { id: 'beat02', eventId: 'adv_jens_confession', isOptional: false },
       { id: 'beat03', eventId: 'adv_news_report', isOptional: false },
       { id: 'beat04', eventId: 'adv_connecting_dots', isOptional: false },
     ],
