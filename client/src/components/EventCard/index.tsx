@@ -1,8 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { GameEvent, EventChoice, GameState } from '@kritis/shared';
 import { getVisibleChoices } from '../../engine/eventEngine';
 import { useStoryBackground } from '../../contexts/StoryBackgroundContext';
 import { useTypewriter } from '../../hooks/useTypewriter';
+import { soundEngine } from '../../audio/soundEngine';
 
 interface EventCardProps {
   event: GameEvent;
@@ -16,6 +17,13 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
   const [selectedIndex, setSelectedIndex] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { setBackgroundImage, isStoryMode } = useStoryBackground();
+
+  // Single commit path so the confirm cue plays exactly once per real choice
+  // (keyboard number, keyboard Enter, and the action buttons all route here).
+  const choose = useCallback((choice: EventChoice) => {
+    soundEngine.confirm();
+    onChoice(choice);
+  }, [onChoice]);
 
   const replaceCharacterNames = (text: string): string => {
     let result = text;
@@ -62,26 +70,28 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       }
 
       if (num >= 1 && num <= visibleChoices.length) {
-        onChoice(visibleChoices[num - 1]);
+        choose(visibleChoices[num - 1]);
         return;
       }
 
       if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
+        soundEngine.tick();
         setSelectedIndex(prev => (prev - 1 + visibleChoices.length) % visibleChoices.length);
       } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
+        soundEngine.tick();
         setSelectedIndex(prev => (prev + 1) % visibleChoices.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const choice = visibleChoices[selectedIndex];
-        if (choice) onChoice(choice);
+        if (choice) choose(choice);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visibleChoices, selectedIndex, onChoice, typewriter.done, typewriter.skip]);
+  }, [visibleChoices, selectedIndex, choose, typewriter.done, typewriter.skip]);
 
   // Scroll selected button into view
   useEffect(() => {
@@ -133,7 +143,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       return (
         <button
           ref={(el) => { buttonRefs.current[0] = el; }}
-          onClick={() => onChoice(choice)}
+          onClick={() => choose(choice)}
           className={cta}
         >
           {label}
@@ -153,7 +163,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
           <button
             key={choice.id}
             ref={(el) => { buttonRefs.current[index] = el; }}
-            onClick={() => onChoice(choice)}
+            onClick={() => choose(choice)}
             onMouseEnter={() => setSelectedIndex(index)}
             className={`w-full text-left px-4 py-3 rounded border-l-4 transition-all duration-150 flex justify-between items-start gap-3 ${
               isSelected
@@ -180,7 +190,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
         <button
           key={choice.id}
           ref={(el) => { buttonRefs.current[index] = el; }}
-          onClick={() => onChoice(choice)}
+          onClick={() => choose(choice)}
           onMouseEnter={() => setSelectedIndex(index)}
           className={`w-full text-left p-2 border transition-colors flex justify-between items-center ${
             isSelected

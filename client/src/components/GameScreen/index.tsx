@@ -11,6 +11,7 @@ import { GamePhase, ContentType } from '../../hooks/useGame';
 import { extractTaskText } from './extractTaskText';
 import { CHAPTER_ART, CINEMATIC_EVENTS } from '../../content/adventure/chapterArt';
 import { adventureChapters } from '../../content/adventure/chapters';
+import { soundEngine, cueForEvent } from '../../audio/soundEngine';
 
 // Lazy load Terminal - only needed when entering terminal mode
 const Terminal = lazy(() => import('../Terminal').then(m => ({ default: m.Terminal })));
@@ -60,6 +61,18 @@ export function GameScreen({
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
 
+  // Opt-in procedural sound: default muted, [M] toggles, persisted in localStorage.
+  const [soundOn, setSoundOn] = useState(soundEngine.isEnabled());
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'm' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        setSoundOn(soundEngine.toggle());
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
   // Cinema-beat state: fullscreen chapter title cards + key-event beats
   const prevChapterRef = useRef<string | null>(null);
   const seenCinematicsRef = useRef<Set<string>>(new Set());
@@ -100,6 +113,11 @@ export function GameScreen({
     seenCinematicsRef.current.add(currentEventId);
     setCinematic({ kicker: '', title: currentEvent?.title ?? '', image });
   }, [isStoryMode, currentEventId, currentEvent]);
+
+  // Alarm-Stinger when an incident/compromise event mounts (opt-in; no-op if muted).
+  useEffect(() => {
+    if (currentEvent && cueForEvent(currentEvent.tags) === 'stinger') soundEngine.stinger();
+  }, [currentEventId]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -271,6 +289,11 @@ export function GameScreen({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Dezenter Sound-Hinweis (nur Story-Layout) */}
+        <div className="fixed bottom-1 left-0 right-0 z-20 text-terminal-green/40 text-xs text-center mt-2 pointer-events-none">
+          [M] Sound {soundOn ? 'an' : 'aus'}
         </div>
       </div>
     );
