@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { GameEvent, EventChoice, GameState } from '@kritis/shared';
 import { getVisibleChoices } from '../../engine/eventEngine';
 import { useStoryBackground } from '../../contexts/StoryBackgroundContext';
+import { useTypewriter } from '../../hooks/useTypewriter';
+import { soundEngine } from '../../audio/soundEngine';
 
 interface EventCardProps {
   event: GameEvent;
@@ -15,6 +17,30 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
   const [selectedIndex, setSelectedIndex] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const { setBackgroundImage, isStoryMode } = useStoryBackground();
+
+  // Single commit path so the confirm cue plays exactly once per real choice
+  // (keyboard number, keyboard Enter, and the action buttons all route here).
+  const choose = useCallback((choice: EventChoice) => {
+    soundEngine.confirm();
+    onChoice(choice);
+  }, [onChoice]);
+
+  const replaceCharacterNames = (text: string): string => {
+    let result = text;
+    for (const [role, name] of Object.entries(characters)) {
+      result = result.replace(new RegExp(`\\{${role}\\}`, 'g'), name);
+    }
+    return result;
+  };
+
+  const description = replaceCharacterNames(event.description);
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const typewriter = useTypewriter(description, {
+    charsPerSecond: 500,
+    enabled: isStoryMode && !prefersReducedMotion,
+  });
 
   // Report image to background context when event changes
   useEffect(() => {
@@ -34,40 +60,43 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const num = parseInt(e.key);
+
+      // First keypress (Enter or a valid digit) completes the typewriter text
+      // instead of selecting — reveal now, choose on the next press.
+      if (!typewriter.done && (e.key === 'Enter' || (num >= 1 && num <= visibleChoices.length))) {
+        e.preventDefault();
+        typewriter.skip();
+        return;
+      }
+
       if (num >= 1 && num <= visibleChoices.length) {
-        onChoice(visibleChoices[num - 1]);
+        choose(visibleChoices[num - 1]);
         return;
       }
 
       if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
+        soundEngine.tick();
         setSelectedIndex(prev => (prev - 1 + visibleChoices.length) % visibleChoices.length);
       } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
+        soundEngine.tick();
         setSelectedIndex(prev => (prev + 1) % visibleChoices.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
         const choice = visibleChoices[selectedIndex];
-        if (choice) onChoice(choice);
+        if (choice) choose(choice);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visibleChoices, selectedIndex, onChoice]);
+  }, [visibleChoices, selectedIndex, choose, typewriter.done, typewriter.skip]);
 
   // Scroll selected button into view
   useEffect(() => {
     buttonRefs.current[selectedIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedIndex]);
-
-  const replaceCharacterNames = (text: string): string => {
-    let result = text;
-    for (const [role, name] of Object.entries(characters)) {
-      result = result.replace(new RegExp(`\\{${role}\\}`, 'g'), name);
-    }
-    return result;
-  };
 
   // ── Card kinds ──────────────────────────────────────────────────────────
   // Classify how this event's actions should read:
@@ -114,7 +143,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       return (
         <button
           ref={(el) => { buttonRefs.current[0] = el; }}
-          onClick={() => onChoice(choice)}
+          onClick={() => choose(choice)}
           className={cta}
         >
           {label}
@@ -134,7 +163,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
           <button
             key={choice.id}
             ref={(el) => { buttonRefs.current[index] = el; }}
-            onClick={() => onChoice(choice)}
+            onClick={() => choose(choice)}
             onMouseEnter={() => setSelectedIndex(index)}
             className={`w-full text-left px-4 py-3 rounded border-l-4 transition-all duration-150 flex justify-between items-start gap-3 ${
               isSelected
@@ -161,7 +190,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
         <button
           key={choice.id}
           ref={(el) => { buttonRefs.current[index] = el; }}
-          onClick={() => onChoice(choice)}
+          onClick={() => choose(choice)}
           onMouseEnter={() => setSelectedIndex(index)}
           className={`w-full text-left p-2 border transition-colors flex justify-between items-center ${
             isSelected
@@ -220,12 +249,16 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
             {/* Description */}
             <div className="px-5 py-4">
               <div className="whitespace-pre-wrap text-gray-200 leading-relaxed text-[15px] max-h-[35vh] overflow-auto pr-2">
-                {replaceCharacterNames(event.description)}
+                {typewriter.text}
               </div>
             </div>
 
             {/* Choices */}
-            <div className="px-5 pb-4 space-y-2">
+            <div
+              className={`px-5 pb-4 space-y-2 transition-opacity duration-300 ${
+                typewriter.done ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
               {cardKindBanner('text-terminal-info/80 text-xs uppercase tracking-widest mb-1')}
               {renderActions('story')}
             </div>

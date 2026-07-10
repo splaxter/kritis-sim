@@ -68,13 +68,13 @@ export function StoryBackground() {
         <img
           src={displayedImage}
           alt=""
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover animate-kenburns motion-reduce:animate-none"
           loading="eager"
         />
       </div>
 
       {/* Dark overlay for readability - gradient from bottom */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/50" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/15" />
 
       {/* Scanline effect */}
       <div

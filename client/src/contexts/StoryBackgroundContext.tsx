@@ -31,12 +31,16 @@ export function StoryBackgroundProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Reset when story mode is disabled
+  // Reset when story mode is disabled.
+  // Gate on a real true->false transition so the reset does not fire on
+  // initial mount, where it could clobber a background set in the same tick.
+  const prevStoryMode = useRef(false);
   useEffect(() => {
-    if (!isStoryMode) {
+    if (!isStoryMode && prevStoryMode.current) {
       setCurrentImage(null);
       lastImageRef.current = null;
     }
+    prevStoryMode.current = isStoryMode;
   }, [isStoryMode]);
 
   return (
