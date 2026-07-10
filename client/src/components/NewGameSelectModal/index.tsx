@@ -14,8 +14,10 @@ const EXPERIENCES = [
     eyebrow: 'DYNAMISCHER BETRIEB',
     title: 'Freie Simulation',
     description:
-      'Dynamische IT-Wochen mit Szenarien, Ereignisketten und frei wählbarer Herausforderung.',
+      'Dynamische IT-Wochen mit Hands-on-Aufgaben an Terminal & GUI, Szenarien und Ereignisketten — frei wählbare Herausforderung.',
     meta: 'Einsteiger · Standard · KRITIS',
+    badge: 'EMPFOHLEN',
+    badgeClass: 'border-terminal-info text-terminal-info',
   },
   {
     id: 'story',
@@ -23,8 +25,10 @@ const EXPERIENCES = [
     eyebrow: 'STORY-KAMPAGNE',
     title: 'Story: Die Probezeit',
     description:
-      'Ein zusammenhängender IT-Krimi in 12 Kapiteln mit Beziehungen und mehreren Enden.',
-    meta: '12 Kapitel · 3 Enden',
+      'Ein zusammenhängender IT-Krimi in 12 Kapiteln mit Beziehungen und mehreren Enden — vorwiegend Text & Entscheidungen, wenig Hands-on.',
+    meta: '12 Kapitel · 3 Enden · Casual',
+    badge: 'CASUAL',
+    badgeClass: 'border-terminal-green-muted text-terminal-green-muted',
   },
 ] as const;
 
@@ -123,9 +127,9 @@ export function NewGameSelectModal({
                         <h2 className="text-lg font-bold text-terminal-green">
                           {selected ? '> ' : ''}{experience.title}
                         </h2>
-                        {index === 0 && (
-                          <span className="shrink-0 border border-terminal-info px-1.5 py-0.5 text-[0.6rem] tracking-wider text-terminal-info">
-                            EMPFOHLEN
+                        {experience.badge && (
+                          <span className={`shrink-0 border px-1.5 py-0.5 text-[0.6rem] tracking-wider ${experience.badgeClass}`}>
+                            {experience.badge}
                           </span>
                         )}
                       </div>
