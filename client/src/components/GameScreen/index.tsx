@@ -1,13 +1,16 @@
 // client/src/components/GameScreen/index.tsx
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, useRef, useState, lazy, Suspense } from 'react';
 import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
+import { ChapterCard } from '../ChapterCard';
 import { ResultScreen, LearningResultCtas } from '../ResultScreen';
 import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
 import { extractTaskText } from './extractTaskText';
+import { CHAPTER_ART, CINEMATIC_EVENTS } from '../../content/adventure/chapterArt';
+import { adventureChapters } from '../../content/adventure/chapters';
 
 // Lazy load Terminal - only needed when entering terminal mode
 const Terminal = lazy(() => import('../Terminal').then(m => ({ default: m.Terminal })));
@@ -56,6 +59,40 @@ export function GameScreen({
   learningNudge,
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
+
+  // Cinema-beat state: fullscreen chapter title cards + key-event beats
+  const prevChapterRef = useRef<string | null>(null);
+  const seenCinematicsRef = useRef<Set<string>>(new Set());
+  const [cinematic, setCinematic] = useState<{ kicker: string; title: string; image: string } | null>(null);
+
+  const currentChapterId = state.storyState?.currentChapter;
+
+  // Show a chapter title card whenever the story advances to a new chapter.
+  useEffect(() => {
+    if (!isStoryMode || !currentChapterId) return;
+    const prev = prevChapterRef.current;
+    prevChapterRef.current = currentChapterId;
+    if (prev === null || prev === currentChapterId) return;
+    const chapter = adventureChapters.find((c) => c.id === currentChapterId);
+    const image = CHAPTER_ART[currentChapterId];
+    if (!chapter || !image) return;
+    const num = parseInt(currentChapterId.match(/^ch(\d+)/)?.[1] ?? '', 10);
+    setCinematic({
+      kicker: Number.isNaN(num) ? '' : `KAPITEL ${num}`,
+      title: chapter.title,
+      image,
+    });
+  }, [isStoryMode, currentChapterId]);
+
+  // Show a fullscreen beat before key story events (once each).
+  const currentEventId = currentEvent?.id;
+  useEffect(() => {
+    if (!isStoryMode || !currentEventId) return;
+    const image = CINEMATIC_EVENTS[currentEventId];
+    if (!image || seenCinematicsRef.current.has(currentEventId)) return;
+    seenCinematicsRef.current.add(currentEventId);
+    setCinematic({ kicker: '', title: currentEvent?.title ?? '', image });
+  }, [isStoryMode, currentEventId, currentEvent]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -150,9 +187,14 @@ export function GameScreen({
           </div>
         </div>
 
+        {/* Fullscreen cinema beat (chapter title / key-event) */}
+        {cinematic && (
+          <ChapterCard {...cinematic} onDone={() => setCinematic(null)} />
+        )}
+
         {/* Main content area */}
         <div className="flex-1">
-          {phase === 'playing' && contentType === 'event' && currentEvent && (
+          {!cinematic && phase === 'playing' && contentType === 'event' && currentEvent && (
             <EventCard
               event={currentEvent}
               state={state}

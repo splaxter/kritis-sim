@@ -81,7 +81,12 @@ describe('German orthography', () => {
       const rel = relative(CONTENT_ROOT, file);
       readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
         if (ID_LINE.test(line)) return;
-        for (const word of line.match(WORD) ?? []) {
+        // Image paths (client/public/images/**) are ASCII by convention and
+        // must not be "corrected" (…-uebergabe-…, …-buero-…). ID_LINE already
+        // exempts `image:`-keyed lines; strip inline path literals too so a
+        // path used as a map value (e.g. chapterArt.ts) is likewise exempt.
+        const scan = line.replace(/['"`]\/images\/[^'"`]*['"`]/g, '');
+        for (const word of scan.match(WORD) ?? []) {
           if (BLACKLIST.test(word) || CASE_SENSITIVE.some((r) => r.test(word))) {
             offenders.push(`${rel}:${i + 1} "${word}"`);
           }
