@@ -191,7 +191,52 @@ with `text-terminal-green-dim` for the subtitle line):
 
 ---
 
-## 7. Suggested test coverage
+## 7. Story-Modus / Immersion (NEW — already merged)
+
+Presentation layer that only runs in **story mode**; every effect degrades to
+instant/no-op under `prefers-reduced-motion` and outside story mode. None of it
+touches the metrics/colour logic above.
+
+### 7a. Fullscreen event artwork (`StoryBackground/index.tsx`, `contexts/StoryBackgroundContext.tsx`)
+Persistent `z-0` background layer behind the floating event card, keyed off the
+current event's artwork.
+- **Overlay lightened** so the art stays visible: `bg-gradient-to-t from-black/85
+  via-black/45 to-black/15` (was much darker).
+- Slow **Ken-Burns** zoom on the image: `animate-kenburns` (40s), gated by
+  `motion-reduce:animate-none`.
+- Retained: CRT **scanlines**, **vignette**, and an **800ms crossfade** between
+  images (previous image fades out while the new one fades in).
+
+### 7b. Typewriter event text (`hooks/useTypewriter.ts`, used by `EventCard`)
+Event description reveals progressively.
+- **Time-based**, drift-free: `TICK_MS = 20` (≈50 fps), revealed =
+  `floor((elapsed/1000) * charsPerSecond)`, default **500 cps**.
+- The **first Enter / number keypress SKIPS** the reveal (completes the text)
+  instead of selecting a choice.
+- **Choices fade in** only after the text finishes.
+- `enabled: false` → text renders instantly (non-story mode / reduced motion).
+
+### 7c. Cinematic chapter cards & key-event beats (`ChapterCard/index.tsx`, `content/adventure/chapterArt.ts`)
+Fullscreen (`z-30`) card at each chapter transition showing `KAPITEL N` + the
+chapter title typed out at **25 cps**.
+- **Auto-dismiss** after **2.5s** or on any key/click.
+- The same fullscreen beat also fires **once** for three key story events:
+  the ransomware strike, the "23:47" attacker reveal, and the finale.
+- The `EventCard` is **unmounted** while a card is shown.
+
+### 7d. Procedural opt-in sound (`audio/soundEngine.ts`)
+Web-Audio, **no asset files**; procedurally synthesised.
+- **Default MUTED (opt-in)**; `[M]` toggles it, persisted in
+  `localStorage['kritis_sound']`. A dezent footer hint `[M] Sound an/aus` sits in
+  the story layout. `[M]` is **ignored while a terminal/GUI input is focused**.
+- **Ambience:** filtered-noise **rain** + low **hum**.
+- **Cues:** a **tick** on keyboard selection change, a **confirm** blip on choice,
+  and an **alarm stinger** on incident/compromise-tagged events (`cueForEvent`).
+- All Web-Audio calls are **guarded** (jsdom / no AudioContext → no-op).
+
+---
+
+## 8. Suggested test coverage
 
 - `StatsBar` band unit tests: feed stress 35/55/90 (kritis) and 90/110 (learning),
   assert the right class — proves the mode-relative derivation.

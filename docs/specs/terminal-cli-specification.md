@@ -1029,6 +1029,15 @@ interface TerminalContext {
   solutionConditions?: SolutionCondition[];
 }
 
+interface TerminalSolution {
+  commands: string[];               // Required command(s) that make up the solution
+  allRequired: boolean;             // true = all commands needed, false = any one suffices
+  resultText: string;               // Text shown when the solution is completed
+  skillGain: Partial<Skills>;       // Skills awarded on success
+  effects: EventEffects;            // NEW: additional effects (stress, relationships, budget,
+                                    // compliance, …) applied on top of skillGain — see §8.4
+}
+
 interface SolutionCondition {
   type: 'file_exists' | 'file_contains' | 'command_executed' | 'env_set' | 'custom';
   path?: string;
@@ -1118,6 +1127,57 @@ if (command === 'chmod' && args.includes('777')) {
   };
 }
 ```
+
+### 8.4 Solution Rewards & Effects
+
+A completed terminal/GUI solution grants three kinds of reward, all applied
+**additively** when the level is solved:
+
+| Field         | Type              | Applied via                       | Purpose                                              |
+|---------------|-------------------|-----------------------------------|------------------------------------------------------|
+| `skillGain`   | `Partial<Skills>` | `applyEffects(state, { skills })` | Skill points awarded for solving the level.          |
+| `effects`     | `EventEffects`    | `applyEffects(state, effects)`    | Any other state deltas — `stress`, `relationships`, `budget`, `compliance`. |
+| solution flags| `string[]`        | `state.flags[flag] = true`        | Flags a later level can branch on (e.g. full vs. partial solve). |
+
+The `effects` field is optional. It lets a well-executed solution carry
+consequences beyond skills — for example a clean terminal fix relieving stress:
+
+```typescript
+const firewallSolution: TerminalSolution = {
+  commands: ['iptables -A INPUT -p tcp --dport 22 -j DROP'],
+  allRequired: true,
+  resultText: 'Port 22 gesperrt. Der unautorisierte Zugriff ist gestoppt.',
+  skillGain: { netzwerk: 3, troubleshooting: 2 },
+  effects: { stress: -10, relationships: { ciso: 1 } }  // NEW
+};
+```
+
+#### Data flow
+
+The reward data flows from the solution detection in the terminal hook out to the
+game state reducer:
+
+```
+useTerminal (detects solution)
+  → Terminal.onSolved(skillGain, setsFlags?, solutionEffects?)
+  → GameScreen.onTerminalSolved(skillGain, setsFlags?, solutionEffects?)
+  → useGame.closeTerminal(solved, skillGain, solutionFlags, solutionEffects)
+```
+
+#### Precedence
+
+On a successful solve, `closeTerminal` applies effects in a fixed order. The
+choice's own effects always apply first; the solution's rewards are then layered
+on top:
+
+1. **Choice effects** — `applyEffects(state, choice.effects)` (the event/scenario
+   choice that opened the terminal always applies).
+2. **Solution effects** — `applyEffects(state, solution.effects)` (the `effects`
+   object above, if present).
+3. **Solution skillGain** — `applyEffects(state, { skills: solution.skillGain })`.
+
+Flags from the choice (`setsFlags`) and from the matched solution
+(`solutionFlags`) are merged and set together.
 
 ---
 

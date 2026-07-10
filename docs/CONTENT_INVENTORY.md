@@ -58,6 +58,21 @@ consequences scheduled via `pendingChainEvents`.
   dialogue in the main story. Six more premises remain parked in
   `docs/sidequest-backlog.md`.
 
+## Event illustrations (33 noir)
+
+`client/public/images/events/`: 33 new illustrations (1024×1024, WebP,
+dark-noir vector style), on top of the 5 pre-existing `evt_*.webp` story
+images (38 `.webp` files total). Wired into the Adventure story via each
+event's `image:` field in `adventure/story-events.ts` — **29 adventure events
+now carry artwork** (26 that had none, 3 upgraded from placeholder reuse).
+
+A few illustrations map to vendor packs rather than the adventure story
+(cloud365 sales pitch, telekom technician, vendor lobby) and are available but
+not yet wired.
+
+A full mapping (original filename → content-named file → in-game path →
+description) lives at `docs/event-bilder-zuordnung.csv`.
+
 ## Learning content (31 lessons across 8 tracks)
 
 - **16 CLI lessons** (`events/learning-path.ts`) on the shell engine.

@@ -368,3 +368,17 @@ presentation: { layout: 'incident', header: 'incidentHeader',
 3. `<HudShell>` + `SIM_DEFAULT`/`narrative`/`focus`-Profile; GameScreen entzweigen.
 4. Paritäts-Tests grün.
 5. `incident`-Layout + Panels/Metriken — andockbar an den Blackout-Slice.
+
+---
+
+## Bereits gemergte Presentation-Module (Story-Modus)
+
+_Orthogonal zum HudShell-Refactor: eine Reihe eigenständiger Presentation-Bausteine ist bereits gemergt. Sie ergänzen die geplante Registry-Ebene und ersetzen sie **nicht** — jeder Baustein ist für sich wiederverwendbar und deklarativ ansteuerbar._
+
+| Modul | Rolle |
+|---|---|
+| **`contexts/StoryBackgroundContext.tsx`** + **`components/StoryBackground/index.tsx`** | Persistente Vollbild-Artwork-Ebene für den Story-Modus mit Crossfade, Ken-Burns, Scanlines/Vignette. Gespeist von `EventCard`, das `event.image` an den Context meldet (`setBackgroundImage`); der Context hält das letzte Bild und fällt auf einen Default-Hintergrund zurück. |
+| **`hooks/useTypewriter.ts`** | Wiederverwendbare, zeitbasierte progressive Textanzeige (`{ text, done, skip }`), ≈50 fps, mit `enabled:false`-Sofortmodus (Reduced Motion / Nicht-Story). `skip()` überspringt sofort — der Aufrufer entscheidet, welche Eingabe skippt. Genutzt von `EventCard` (Event-Text) und `ChapterCard` (Titel). |
+| **`components/ChapterCard/index.tsx`** + **`content/adventure/chapterArt.ts`** | Vollbild-Kino-Beat für Kapiteltitel / Schlüssel-Events (Artwork + getippter Titel, Auto-Dismiss). Die Maps `CHAPTER_ART` (12 Kapitel) und `CINEMATIC_EVENTS` (3 Events) liefern das Artwork; von `GameScreen` an Kapitel-/Event-Übergängen gerendert. |
+| **`audio/soundEngine.ts`** | Singleton, prozedurale Web-Audio-Engine (opt-in, Default stumm, `[M]`-Toggle mit localStorage-Persistenz; Ambience + Tick/Confirm/Stinger-Cues, **keine** Asset-Dateien). `cueForEvent(tags)`-Helper mappt Vorfalls-Tags auf den Stinger. Verdrahtet in `GameScreen` (`[M]` + Stinger, Key-Listener modifier-geguardet) und `EventCard` (Tick/Confirm). |
+| **`components/NewGameSelectModal/index.tsx`** | Neuer „Experience-Picker" (Freie Simulation / Story), der im Menüfluss **über** dem bestehenden `GameModeSelectModal` (jetzt simulation-only, `SIMULATION_MODES`) sitzt. |

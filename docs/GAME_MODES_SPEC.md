@@ -1,12 +1,34 @@
 # Game Modes Specification
 
+## Menu Information Architecture
+
+The main menu offers three primary destinations plus one contextual shortcut:
+
+1. **Neues Spiel** — opens the experience picker (`NewGameSelectModal`)
+2. **Lernbereich** — opens the learning hub directly (all tracks/levels of the `learning` mode)
+3. **Spielstände** — load/manage saved games
+4. **Weiterspielen** — contextual shortcut, shown only when a resumable autosave exists
+
+### New-game flow
+
+**Neues Spiel** opens an *experience picker* (`NewGameSelectModal`) with two choices:
+
+- **Freie Simulation** (recommended, preselected) — badge `EMPFOHLEN`; emphasizes "Hands-on-Aufgaben an Terminal & GUI" as the product's hands-on focus.
+- **Story: Die Probezeit** — badge `CASUAL`; "vorwiegend Text & Entscheidungen, wenig Hands-on".
+
+Choosing **Freie Simulation** opens a second picker (`GameModeSelectModal`, now simulation-only) offering **Einsteiger · Standard · KRITIS**. Choosing **Story** starts the `story` mode directly.
+
+The **Lernmodus** was removed from the new-game mode picker but remains fully available via **Lernbereich** (all tracks/levels). The hidden **hard** mode stays hidden. No mode ids, configs, or saves changed by this reorganization.
+
+**Picker controls:** arrows change selection, Enter confirms, Escape goes back one level, focus is trapped inside the modal.
+
 ## Active Modes (4)
 
-Only these modes are visible in the mode selection screen:
-1. **Beginner** (📚 Einsteiger) — for newcomers
-2. **Learning** (🎓 Lernmodus) — for IT training
-3. **Story** (📖 Die Probezeit) — narrative adventure
-4. **KRITIS** (🏛️ KRITIS) — realistic simulation
+These four modes remain defined and playable. They are now reached through the menu flow above rather than a single flat selection screen:
+1. **Beginner** (📚 Einsteiger) — for newcomers · via Freie Simulation
+2. **Learning** (🎓 Lernmodus) — for IT training · via Lernbereich
+3. **Story** (📖 Die Probezeit) — narrative adventure · via Story: Die Probezeit
+4. **KRITIS** (🏛️ KRITIS) — realistic simulation · via Freie Simulation
 
 ---
 
@@ -145,6 +167,8 @@ Only these modes are visible in the mode selection screen:
 **Icon:** `📖`
 
 **Philosophy:** Story-first experience. NPCs have memory. Decisions shape the narrative. Comedy-drama tone mixing The Office with Mr. Robot.
+
+**Framing:** This is the **CASUAL** experience — "vorwiegend Text & Entscheidungen, wenig Hands-on". Chapters 1–4 are essentially text/choice. From chapter 5 the story adds THREE optional hands-on **GUI** beats — `adv_gui_eventviewer_probe`, `adv_gui_settings_preharden`, `adv_gui_taskmanager_attack` (all `guiCommand`, `isOptional: true`, in `client/src/content/adventure/story-events.ts`). There are **no** `terminalCommand` beats in the adventure story; CLI/terminal tasks live in the Lernbereich and the simulation scenarios.
 
 ### Configuration
 
@@ -301,13 +325,21 @@ These modes exist in code but are not shown in the selection screen.
 ## Implementation Notes
 
 ### Mode Selection Order
+
+Selection is now two-step (see **Menu Information Architecture**), not one flat list.
+
+Step 1 — experience picker (`NewGameSelectModal`):
+```
+01. Freie Simulation — EMPFOHLEN (preselected) — hands-on Terminal & GUI
+02. Story: Die Probezeit — CASUAL — mostly text & choices
+```
+Step 2 — simulation picker (`GameModeSelectModal`, simulation-only), Einsteiger preselected:
 ```
 1. 📚 Einsteiger (Beginner) — recommended for new players
-2. 🎓 Lernmodus (Learning) — recommended for IT training
-3. 📖 Story (Adventure) — narrative experience
-4. 💼 Standard (Intermediate) — classic baseline experience
-5. 🏛️ KRITIS — full simulation
+2. 💼 Standard (Intermediate) — classic baseline experience
+3. 🏛️ KRITIS — full simulation
 ```
+🎓 Lernmodus (Learning) is no longer in this flow; it is entered via the **Lernbereich** menu entry.
 
 ### Type Definition Update
 ```typescript
@@ -343,5 +375,6 @@ export const VISIBLE_MODES: GameModeId[] = ['beginner', 'learning', 'story', 'in
 
 1. `learning` exists in `GameModeId`
 2. `learning` exists in `GAME_MODES`
-3. `VISIBLE_MODES` exposes `beginner`, `learning`, `story`, and `kritis`
-4. Hidden modes remain available in config for saved games or future reactivation
+3. `VISIBLE_MODES` still exposes `beginner`, `learning`, `story`, and `kritis` at the config level (unchanged)
+4. The simulation picker (`GameModeSelectModal`) filters `getVisibleGameModes()` to `beginner`, `intermediate`, `kritis`; `learning` is reached via the **Lernbereich** menu entry and `story` via the experience picker
+5. Hidden modes remain available in config for saved games or future reactivation
