@@ -13,23 +13,23 @@ export const storyWeek5to8Events: GameEvent[] = [
     weekRange: [5, 8],
     probability: 0.95,
     category: 'budget',
-    title: 'Das Budget-Gespraech',
-    description: `{kaemmerer} laedt dich und {chef} ein: "Wir muessen ueber das IT-Budget reden."
+    title: 'Das Budget-Gespräch',
+    description: `{kaemmerer} lädt dich und {chef} ein: "Wir müssen über das IT-Budget reden."
 
 Drei Positionen stehen zur Diskussion:
-- Sophos-Lizenzen: 15.000 Euro (Sicherheit, laeuft aus)
+- Sophos-Lizenzen: 15.000 Euro (Sicherheit, läuft aus)
 - Neue Switches: 8.000 Euro (Infrastruktur, die alten sind EOL)
 - Backup-System: 12.000 Euro (Compliance, fehlt komplett)
 
-{kaemmerer} verschraenkt die Arme: "Wir koennen nur zwei von drei machen dieses Jahr."`,
+{kaemmerer} verschränkt die Arme: "Wir können nur zwei von drei machen dieses Jahr."`,
     involvedCharacters: ['chef', 'kaemmerer', 'gf'],
-    mentorNote: 'Im OeD: Nie alle drei fordern wenn nur zwei moeglich sind - du verlierst die Vertrauensbasis beim Kaemmerer. Strategie: Zwei priorisieren, fuer das dritte einen separaten Antrag mit BSI-Pflicht-Begruendung stellen. KRITIS-Keule nur einmal pro Jahr schwingen.',
+    mentorNote: 'Im OeD: Nie alle drei fordern wenn nur zwei möglich sind - du verlierst die Vertrauensbasis beim Kaemmerer. Strategie: Zwei priorisieren, für das dritte einen separaten Antrag mit BSI-Pflicht-Begründung stellen. KRITIS-Keule nur einmal pro Jahr schwingen.',
     choices: [
       {
         id: 'sophos_backup',
         text: 'Sophos + Backup - Sicherheit geht vor',
         effects: { compliance: 10, relationships: { kaemmerer: 5 } },
-        resultText: '{kaemmerer} nickt. "Verstaendlich. Die Switches muessen dann noch ein Jahr halten." {chef} ist erleichtert - das war die sichere Wahl.',
+        resultText: '{kaemmerer} nickt. "Verständlich. Die Switches müssen dann noch ein Jahr halten." {chef} ist erleichtert - das war die sichere Wahl.',
         choiceTags: ['security_first'],
         chainTriggers: [{
           targetEventId: 'evt_switch_failure',
@@ -42,7 +42,7 @@ Drei Positionen stehen zur Diskussion:
         id: 'sophos_switches',
         text: 'Sophos + Switches - Infrastruktur muss stabil sein',
         effects: { compliance: 5, relationships: { kaemmerer: 5 } },
-        resultText: 'Die Switches werden bestellt. Aber ohne Backup-System lebst du gefaehrlich. Ein Ransomware-Angriff waere katastrophal.',
+        resultText: 'Die Switches werden bestellt. Aber ohne Backup-System lebst du gefährlich. Ein Ransomware-Angriff wäre katastrophal.',
         choiceTags: ['infrastructure_first'],
         chainTriggers: [{
           targetEventId: 'evt_backup_crisis',
@@ -55,9 +55,9 @@ Drei Positionen stehen zur Diskussion:
         id: 'all_three_kritis',
         text: 'Alle drei mit KRITIS-Pflicht argumentieren',
         effects: { compliance: 15, relationships: { kaemmerer: -15, gf: 5 }, stress: 5 },
-        resultText: '{kaemmerer} wird rot: "Immer diese KRITIS-Keule!" Aber du hast recht - und die {gf} weiss das. "Wir finden das Budget", sagt sie. Der Kaemmerer ist nicht gluecklich.',
+        resultText: '{kaemmerer} wird rot: "Immer diese KRITIS-Keule!" Aber du hast recht - und die {gf} weiss das. "Wir finden das Budget", sagt sie. Der Kaemmerer ist nicht glücklich.',
         choiceTags: ['aggressive', 'correct'],
-        teachingMoment: 'Die KRITIS-Keule funktioniert - aber sie hat politische Kosten. Spar sie fuer echte Notfaelle.',
+        teachingMoment: 'Die KRITIS-Keule funktioniert - aber sie hat politische Kosten. Spar sie für echte Notfälle.',
       },
     ],
     tags: ['story', 'budget', 'politics', 'week5'],
@@ -70,22 +70,22 @@ Drei Positionen stehen zur Diskussion:
     probability: 0.75,
     category: 'team',
     title: 'Der Neue will helfen',
-    description: `Herr Bauer aus der Abfallwirtschaft kommt vorbei. Er ist technikaffin und bietet an, bei IT-Themen zu unterstuetzen.
+    description: `Herr Bauer aus der Abfallwirtschaft kommt vorbei. Er ist technikaffin und bietet an, bei IT-Themen zu unterstützen.
 
-"Ich hab frueher mal Linux administriert und kenne mich mit Netzwerken aus. Wenn ihr Entlastung braucht..."
+"Ich hab früher mal Linux administriert und kenne mich mit Netzwerken aus. Wenn ihr Entlastung braucht..."
 
 {chef} ist nicht da. Du musst entscheiden.
 
-Auf der einen Seite: Mehr Haende sind gut.
+Auf der einen Seite: Mehr Hände sind gut.
 Auf der anderen: Shadow IT ist real.`,
     involvedCharacters: ['chef'],
-    mentorNote: 'IT-affine Fachbereichs-Mitarbeiter sind Gold wert - aber nur mit klaren Grenzen. Definiere genau was sie duerfen (First-Level-Support, Druckertoner) und was nicht (AD-Aenderungen, Softwareinstallation). Schriftlich.',
+    mentorNote: 'IT-affine Fachbereichs-Mitarbeiter sind Gold wert - aber nur mit klaren Grenzen. Definiere genau was sie dürfen (First-Level-Support, Druckertoner) und was nicht (AD-Aenderungen, Softwareinstallation). Schriftlich.',
     choices: [
       {
         id: 'integrate_properly',
         text: 'Einbinden als IT-Ansprechpartner mit klaren Regeln',
         effects: { relationships: { fachabteilung: 10 }, stress: 5 },
-        resultText: 'Du definierst die Grenzen: Drucker, Bildschirme, Erst-Diagnose. Alles andere: Ticket. Herr Bauer ist zufrieden - er fuehlt sich wertgeschaetzt.',
+        resultText: 'Du definierst die Grenzen: Drucker, Bildschirme, Erst-Diagnose. Alles andere: Ticket. Herr Bauer ist zufrieden - er fühlt sich wertgeschätzt.',
         choiceTags: ['structured', 'delegation'],
         setsFlags: ['it_liaison_established'],
         teachingMoment: 'Klare Grenzen machen die Zusammenarbeit einfacher, nicht schwerer.',
@@ -94,14 +94,14 @@ Auf der anderen: Shadow IT ist real.`,
         id: 'decline_friendly',
         text: 'Freundlich ablehnen - IT bleibt bei IT',
         effects: { relationships: { fachabteilung: -5 }, compliance: 5 },
-        resultText: '"Danke, aber aus Compliance-Gruenden muss das IT-Team bleiben." Er versteht, ist aber ein bisschen enttaeuscht.',
+        resultText: '"Danke, aber aus Compliance-Gründen muss das IT-Team bleiben." Er versteht, ist aber ein bisschen enttäuscht.',
         choiceTags: ['by_the_book'],
       },
       {
         id: 'full_access',
         text: 'Ihm mehr Rechte geben - er klingt kompetent',
         effects: { relationships: { fachabteilung: 10 }, compliance: -10 },
-        resultText: 'Du gibst ihm lokale Admin-Rechte auf einigen PCs. Er ist happy. Bis er zwei Wochen spaeter eine private NAS ans Netzwerk haengt...',
+        resultText: 'Du gibst ihm lokale Admin-Rechte auf einigen PCs. Er ist happy. Bis er zwei Wochen später eine private NAS ans Netzwerk hängt...',
         choiceTags: ['risky', 'trusting'],
         chainTriggers: [{
           targetEventId: 'evt_shadow_it',
@@ -120,30 +120,30 @@ Auf der anderen: Shadow IT ist real.`,
     probability: 0.85,
     category: 'crisis',
     title: 'Serverraum-Klimaanlage',
-    description: `Freitagmittag. Die Klimaanlage im Serverraum faellt aus.
+    description: `Freitagmittag. Die Klimaanlage im Serverraum fällt aus.
 
 Aktuelle Temperatur: 28 Grad. Tendenz: steigend.
 Draussen: 32 Grad. Hochsommer.
-Haustechnik: "Wir sind unterbesetzt, fruehestens Montag."
+Haustechnik: "Wir sind unterbesetzt, frühestens Montag."
 
 Du hast vielleicht zwei Stunden bevor es kritisch wird. Die Server laufen noch, aber nicht mehr lange.`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Notfallplan fuer Serverraum-Kuehlung gehoert in jedes KRITIS-Betriebshandbuch. Mobile Klimaanlage auf Lager haben (oder wissen wo eine steht), Schwellwert-Monitoring per SNMP, und: Fenster auf ist KEINE Option - physische Sicherheit!',
+    mentorNote: 'Notfallplan für Serverraum-Kühlung gehört in jedes KRITIS-Betriebshandbuch. Mobile Klimaanlage auf Lager haben (oder wissen wo eine steht), Schwellwert-Monitoring per SNMP, und: Fenster auf ist KEINE Option - physische Sicherheit!',
     choices: [
       {
         id: 'mobile_klima',
-        text: 'Mobile Klimaanlage organisieren + Notlueftung',
+        text: 'Mobile Klimaanlage organisieren + Notlüftung',
         effects: { stress: 10, budget: -200 },
-        resultText: 'Du rufst den Baumarkt an: Letzte mobile Klimaanlage, 199 Euro, selbst abholen. Eine Stunde spaeter laeuft sie. Nicht schoen, aber funktioniert.',
+        resultText: 'Du rufst den Baumarkt an: Letzte mobile Klimaanlage, 199 Euro, selbst abholen. Eine Stunde später läuft sie. Nicht schön, aber funktioniert.',
         choiceTags: ['creative', 'pragmatic'],
         setsFlags: ['klimakrise_geloest'],
-        teachingMoment: 'Notfallmassnahmen muessen schnell sein, nicht perfekt. Improvisation ist erlaubt.',
+        teachingMoment: 'Notfallmassnahmen müssen schnell sein, nicht perfekt. Improvisation ist erlaubt.',
       },
       {
         id: 'shutdown_servers',
         text: 'Server kontrolliert herunterfahren bis Reparatur',
         effects: { compliance: 10, relationships: { fachabteilung: -15, gf: -10 }, stress: 10 },
-        resultText: 'Du faehrst die Server sauber herunter. Kein Dienst mehr erreichbar. Die Fachabteilungen sind wuetend. Aber die Hardware ist sicher.',
+        resultText: 'Du fährst die Server sauber herunter. Kein Dienst mehr erreichbar. Die Fachabteilungen sind wütend. Aber die Hardware ist sicher.',
         choiceTags: ['safe', 'disruptive'],
       },
       {
@@ -170,22 +170,22 @@ Du hast vielleicht zwei Stunden bevor es kritisch wird. Die Server laufen noch, 
     probability: 0.7,
     category: 'budget',
     title: 'OPNsense vs. Sophos',
-    description: `Die Sophos XG Firewall Lizenz laeuft bald aus. Verlaengerung: 8.000 Euro pro Jahr.
+    description: `Die Sophos XG Firewall Lizenz läuft bald aus. Verlängerung: 8.000 Euro pro Jahr.
 
-Du kennst OPNsense aus deinem Homelab. Open Source, kostenlos, leistungsfaehig. Es wuerde funktionieren.
+Du kennst OPNsense aus deinem Homelab. Open Source, kostenlos, leistungsfähig. Es würde funktionieren.
 
 Ersparnis: 8.000 Euro pro Jahr.
 Risiko: Du bist der Einzige, der es kann.
 
 {chef} schaut dich an: "Was schlägst du vor?"`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Open Source im KRITIS-Umfeld ist moeglich, aber: Du brauchst Wartungskonzept, Patch-Prozess, und Zweitexperten. Wenn nur DU OPNsense kannst und krank wirst, steht alles. OeD-Vergaberecht bei Umstellungen beachten!',
+    mentorNote: 'Open Source im KRITIS-Umfeld ist möglich, aber: Du brauchst Wartungskonzept, Patch-Prozess, und Zweitexperten. Wenn nur DU OPNsense kannst und krank wirst, steht alles. OeD-Vergaberecht bei Umstellungen beachten!',
     choices: [
       {
         id: 'opnsense_migration',
         text: 'Migration auf OPNsense vorschlagen',
         effects: { relationships: { chef: 10 }, budget: 8000, stress: 10 },
-        resultText: '{chef} ist begeistert: "Eigeninitiative! Mach einen Plan." Du bist jetzt verantwortlich fuer die Firewall. Alleine.',
+        resultText: '{chef} ist begeistert: "Eigeninitiative! Mach einen Plan." Du bist jetzt verantwortlich für die Firewall. Alleine.',
         choiceTags: ['innovative', 'risky'],
         chainTriggers: [{
           targetEventId: 'evt_opnsense_responsibility',
@@ -196,16 +196,16 @@ Risiko: Du bist der Einzige, der es kann.
       },
       {
         id: 'sophos_renew',
-        text: 'Sophos verlaengern - Never change a running system',
+        text: 'Sophos verlängern - Never change a running system',
         effects: { compliance: 5, budget: -8000 },
-        resultText: 'Die sichere Wahl. Support ist inklusive, Dokumentation existiert, {kollege} kennt es auch. Langweilig, aber richtig fuer KRITIS.',
+        resultText: 'Die sichere Wahl. Support ist inklusive, Dokumentation existiert, {kollege} kennt es auch. Langweilig, aber richtig für KRITIS.',
         choiceTags: ['safe', 'conservative'],
       },
       {
         id: 'hybrid_approach',
         text: 'Hybrid: OPNsense intern, Sophos als Perimeter',
         effects: { relationships: { chef: 5 }, budget: -4000, stress: 10, skills: { netzwerk: 5 } },
-        resultText: 'Der beste technische Kompromiss: Sophos bleibt fuer Internet-Perimeter (Support!), OPNsense fuer interne Segmentierung. Mehr Arbeit, aber mehr Sicherheit.',
+        resultText: 'Der beste technische Kompromiss: Sophos bleibt für Internet-Perimeter (Support!), OPNsense für interne Segmentierung. Mehr Arbeit, aber mehr Sicherheit.',
         choiceTags: ['balanced', 'technical'],
         teachingMoment: 'Defense in Depth: Mehrere Schichten sind besser als eine perfekte.',
       },
@@ -221,22 +221,22 @@ Risiko: Du bist der Einzige, der es kann.
     category: 'crisis',
     isChainEvent: true,
     chainPriority: 8,
-    title: 'Ueberhitzung',
+    title: 'Überhitzung',
     description: `Die Temperatur im Serverraum hat 45 Grad erreicht.
 
 Der Exchange-Server schaltet sich mit einem Notfall-Shutdown ab. Dann der Fileserver. Dann...
 
-Die {gf} ruft persoenlich an: "Was ist los?! Niemand kann arbeiten!"
+Die {gf} ruft persönlich an: "Was ist los?! Niemand kann arbeiten!"
 
 Du stehst vor einem Serverraum voller heisser, stiller Maschinen.`,
     involvedCharacters: ['chef', 'gf'],
-    mentorNote: 'Nach einem thermischen Shutdown: Server NICHT sofort wieder einschalten! Abkuehlen lassen (mindestens 30 Minuten), Festplatten pruefen (SMART-Werte), dann kontrolliert hochfahren. Hitze killt Hardware.',
+    mentorNote: 'Nach einem thermischen Shutdown: Server NICHT sofort wieder einschalten! Abkühlen lassen (mindestens 30 Minuten), Festplatten prüfen (SMART-Werte), dann kontrolliert hochfahren. Hitze killt Hardware.',
     choices: [
       {
         id: 'controlled_restart',
-        text: 'Abkuehlen lassen, dann kontrolliert hochfahren',
+        text: 'Abkühlen lassen, dann kontrolliert hochfahren',
         effects: { stress: 20, relationships: { gf: -5 }, compliance: 10 },
-        resultText: 'Du wartest 45 Minuten. Die Server kuehlen ab. Der Neustart ist sauber - keine Datenverluste. Die Downtime war schlimm, aber es haette schlimmer sein koennen.',
+        resultText: 'Du wartest 45 Minuten. Die Server kühlen ab. Der Neustart ist sauber - keine Datenverluste. Die Downtime war schlimm, aber es hätte schlimmer sein können.',
         choiceTags: ['patient', 'correct'],
         teachingMoment: 'Geduld bei Hardware-Problemen spart langfristig Geld und Nerven.',
       },
@@ -244,7 +244,7 @@ Du stehst vor einem Serverraum voller heisser, stiller Maschinen.`,
         id: 'immediate_restart',
         text: 'Sofort wieder einschalten - alle warten!',
         effects: { stress: 10, compliance: -10 },
-        resultText: 'Du drueckst den Startknopf. Der Exchange faehrt hoch... und stuerzt wieder ab. Eine Festplatte ist beschaedigt. Das wird teuer.',
+        resultText: 'Du drückst den Startknopf. Der Exchange fährt hoch... und stürzt wieder ab. Eine Festplatte ist beschädigt. Das wird teuer.',
         choiceTags: ['hasty', 'risky'],
       },
     ],

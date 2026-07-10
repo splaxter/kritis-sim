@@ -13,21 +13,21 @@ export const storyWeek7to10Events: GameEvent[] = [
     probability: 0.85,
     category: 'politics',
     title: 'Personalrat',
-    description: `Der Personalrat will wissen, warum Baramundi "die PCs ueberwacht." Ein Mitarbeiter hat sich beschwert.
+    description: `Der Personalrat will wissen, warum Baramundi "die PCs überwacht." Ein Mitarbeiter hat sich beschwert.
 
-{chef} sagt: "Erklaer denen das mal."
+{chef} sagt: "Erklär denen das mal."
 
 Du sitzt jetzt vor drei Personalratsvertretern. Sie schauen skeptisch.
 
-"Was genau kann dieses... Baramundi... sehen? Bildschirminhalte? Tastenanschlaege? Wann wir auf Toilette gehen?"`,
+"Was genau kann dieses... Baramundi... sehen? Bildschirminhalte? Tastenanschläge? Wann wir auf Toilette gehen?"`,
     involvedCharacters: ['chef', 'kaemmerer'],
-    mentorNote: 'Baramundi/Endpoint Management und Personalrat: Betriebsvereinbarung ist der Koenigsweg. Definiere genau was inventarisiert wird, wer Zugriff hat, wie lange Daten gespeichert werden. Ohne BV bist du angreifbar.',
+    mentorNote: 'Baramundi/Endpoint Management und Personalrat: Betriebsvereinbarung ist der Königsweg. Definiere genau was inventarisiert wird, wer Zugriff hat, wie lange Daten gespeichert werden. Ohne BV bist du angreifbar.',
     choices: [
       {
         id: 'transparent_presentation',
-        text: 'Transparente Erklaerung: Was kann es, was kann es NICHT',
+        text: 'Transparente Erklärung: Was kann es, was kann es NICHT',
         effects: { relationships: { kaemmerer: 5 }, compliance: 10, stress: 5 },
-        resultText: 'Du zeigst live, was Baramundi erfasst: Installierte Software, Hardware-Inventar, Windows-Updates. "Keine Tastaturueberwachung, keine Screenshots, keine Aktivitaetstracking." Der Personalrat entspannt sich.',
+        resultText: 'Du zeigst live, was Baramundi erfasst: Installierte Software, Hardware-Inventar, Windows-Updates. "Keine Tastaturüberwachung, keine Screenshots, keine Aktivitätstracking." Der Personalrat entspannt sich.',
         choiceTags: ['honest', 'professional'],
         setsFlags: ['personalrat_informed'],
         teachingMoment: 'Transparenz baut Vertrauen auf. Verstecken macht alles schlimmer.',
@@ -36,7 +36,7 @@ Du sitzt jetzt vor drei Personalratsvertretern. Sie schauen skeptisch.
         id: 'minimize_details',
         text: 'Technische Details minimieren - "nur Softwareverteilung"',
         effects: { compliance: -5, stress: 3 },
-        resultText: '"Es ist nur fuer Softwareverteilung." Der Personalrat nickt. Bis ein IT-affines Mitglied googelt und herausfindet, was Baramundi noch alles kann...',
+        resultText: '"Es ist nur für Softwareverteilung." Der Personalrat nickt. Bis ein IT-affines Mitglied googelt und herausfindet, was Baramundi noch alles kann...',
         choiceTags: ['evasive'],
         chainTriggers: [{
           targetEventId: 'evt_personalrat_escalation',
@@ -49,9 +49,9 @@ Du sitzt jetzt vor drei Personalratsvertretern. Sie schauen skeptisch.
         id: 'betriebsvereinbarung',
         text: 'Betriebsvereinbarung vorschlagen',
         effects: { compliance: 15, stress: 10, relationships: { chef: 5, kaemmerer: -5 } },
-        resultText: '"Wir sollten eine Betriebsvereinbarung aufsetzen. Das schuetzt alle Seiten." Der Personalrat ist beeindruckt. Extra Aufwand, aber rechtssicher.',
+        resultText: '"Wir sollten eine Betriebsvereinbarung aufsetzen. Das schützt alle Seiten." Der Personalrat ist beeindruckt. Extra Aufwand, aber rechtssicher.',
         choiceTags: ['by_the_book', 'thorough'],
-        teachingMoment: 'Eine BV ist Arbeit, aber sie schuetzt vor spaeterer Eskalation.',
+        teachingMoment: 'Eine BV ist Arbeit, aber sie schützt vor späterer Eskalation.',
       },
     ],
     tags: ['story', 'politics', 'personalrat', 'compliance', 'week7'],
@@ -64,21 +64,21 @@ Du sitzt jetzt vor drei Personalratsvertretern. Sie schauen skeptisch.
     probability: 0.8,
     category: 'crisis',
     title: 'ELO-Workflow kaputt',
-    description: `Das DMS (ELO) hat ein Problem: Rechnungsfreigaben haengen seit zwei Tagen.
+    description: `Das DMS (ELO) hat ein Problem: Rechnungsfreigaben hängen seit zwei Tagen.
 
-Die Buchhaltung dreht durch. {kaemmerer} ruft persoenlich an:
+Die Buchhaltung dreht durch. {kaemmerer} ruft persönlich an:
 
-"Wir koennen keine Rechnungen freigeben! Die Lieferanten drohen mit Mahnungen! FIX. THAT. NOW."
+"Wir können keine Rechnungen freigeben! Die Lieferanten drohen mit Mahnungen! FIX. THAT. NOW."
 
 Du kennst ELO nicht gut. Jens kennt es besser. Der ELO-Support kostet 180 Euro pro Stunde.`,
     involvedCharacters: ['kollege', 'kaemmerer'],
-    mentorNote: 'Systeme die du nicht kennst: Nicht heldenhaft selbst fixen. Herstellersupport nutzen und dabei LERNEN. Jedes Ticket das der Support loest, dokumentierst du als Runbook fuer naechstes Mal.',
+    mentorNote: 'Systeme die du nicht kennst: Nicht heldenhaft selbst fixen. Herstellersupport nutzen und dabei LERNEN. Jedes Ticket das der Support löst, dokumentierst du als Runbook für nächstes Mal.',
     choices: [
       {
         id: 'self_debug',
         text: 'Selbst debuggen - kannst ja nicht so schwer sein',
         effects: { stress: 15 },
-        resultText: 'Du wuehlst dich durch ELO-Logs. Nach einer Stunde findest du das Problem: Ein Workflow-Skript hat einen Timeout. Du fixst es. {kaemmerer} ist erleichtert.',
+        resultText: 'Du wühlst dich durch ELO-Logs. Nach einer Stunde findest du das Problem: Ein Workflow-Skript hat einen Timeout. Du fixst es. {kaemmerer} ist erleichtert.',
         choiceTags: ['heroic'],
         chainTriggers: [{
           targetEventId: 'evt_elo_fix_success',
@@ -106,7 +106,7 @@ Du kennst ELO nicht gut. Jens kennt es besser. Der ELO-Support kostet 180 Euro p
         id: 'ask_colleague',
         text: 'Jens fragen - er kennt ELO besser',
         effects: { relationships: { kollegen: 5 }, stress: 5 },
-        resultText: 'Jens schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem geloest.',
+        resultText: 'Jens schaut sich das an. "Ah, der Workflow-Server. Neustart hilft meist." Er hat recht. Problem gelöst.',
         choiceTags: ['teamwork'],
       },
     ],
@@ -120,19 +120,19 @@ Du kennst ELO nicht gut. Jens kennt es besser. Der ELO-Support kostet 180 Euro p
     probability: 0.75,
     category: 'compliance',
     title: 'Datenschutzanfrage',
-    description: `Ein Buerger stellt einen DSGVO-Auskunftsantrag: Welche Daten hat WARM ueber ihn?
+    description: `Ein Bürger stellt einen DSGVO-Auskunftsantrag: Welche Daten hat WARM über ihn?
 
 Du hast 30 Tage Zeit zu antworten.
 
 Das Problem: Die Daten liegen in 4 verschiedenen Systemen. Die Fachabteilungen wissen nicht genau, was wo gespeichert ist. Der Datenschutzbeauftragte ist nur halbtags da.`,
     involvedCharacters: ['chef'],
-    mentorNote: 'DSGVO-Auskunft: Immer den DSB einschalten. Das ist SEIN Job. Du unterstuetzt technisch (Systemsuche), aber die Koordination und Antwort laeuft ueber den DSB. Dokumentiere den Prozess - naechstes Mal gehts schneller.',
+    mentorNote: 'DSGVO-Auskunft: Immer den DSB einschalten. Das ist SEIN Job. Du unterstützt technisch (Systemsuche), aber die Koordination und Antwort läuft über den DSB. Dokumentiere den Prozess - nächstes Mal gehts schneller.',
     choices: [
       {
         id: 'systematic_search',
         text: 'Alle Systeme systematisch durchsuchen',
         effects: { stress: 10, compliance: 15, skills: { troubleshooting: 3 } },
-        resultText: 'Du gehst System fuer System durch: Fachverfahren, DMS, Fileserver, Email-Archiv. Nach einer Woche hast du alles. Viel Arbeit, aber vollstaendig.',
+        resultText: 'Du gehst System für System durch: Fachverfahren, DMS, Fileserver, Email-Archiv. Nach einer Woche hast du alles. Viel Arbeit, aber vollständig.',
         choiceTags: ['thorough'],
       },
       {
@@ -146,9 +146,9 @@ Das Problem: Die Daten liegen in 4 verschiedenen Systemen. Die Fachabteilungen w
         id: 'involve_dsb',
         text: 'Datenschutzbeauftragten einschalten',
         effects: { compliance: 10, stress: 3 },
-        resultText: 'Du rufst den DSB an. "Das ist mein Job, danke fuer die Info. Ich koordiniere die Fachabteilungen, du hilfst bei der Technik." So sollte es laufen.',
+        resultText: 'Du rufst den DSB an. "Das ist mein Job, danke für die Info. Ich koordiniere die Fachabteilungen, du hilfst bei der Technik." So sollte es laufen.',
         choiceTags: ['correct', 'professional'],
-        teachingMoment: 'Rollen respektieren: Der DSB ist fuer Datenschutz zustaendig, nicht die IT.',
+        teachingMoment: 'Rollen respektieren: Der DSB ist für Datenschutz zuständig, nicht die IT.',
         setsFlags: ['dsb_involved_properly'],
       },
     ],
@@ -164,17 +164,17 @@ Das Problem: Die Daten liegen in 4 verschiedenen Systemen. Die Fachabteilungen w
     title: 'Die Weihnachtsfeier-Mail',
     description: `Jemand hat eine "Einladung zur Weihnachtsfeier" an ALLE geschickt.
 
-Mit einem Excel-Anhang. In dem Excel ist ein Makro. Sophos schlaegt nicht an - es ist kein Virus, nur ein schlecht programmiertes VBA-Formular fuer Essenswuensche.
+Mit einem Excel-Anhang. In dem Excel ist ein Makro. Sophos schlägt nicht an - es ist kein Virus, nur ein schlecht programmiertes VBA-Formular für Essenswünsche.
 
-"Bitte Dropdown waehlen: Fleisch / Vegetarisch / Vegan"
+"Bitte Dropdown wählen: Fleisch / Vegetarisch / Vegan"
 
 {kollege} grinst: "Klassiker. Jedes Jahr."`,
     involvedCharacters: ['kollege'],
-    mentorNote: 'Makro-Policies: Goldener Mittelweg mit Baramundi - Makros per Default blocken, Whitelist fuer signierte Makros von definierten Quellen. Nie komplett blockieren ohne die Fachanwendungen zu pruefen.',
+    mentorNote: 'Makro-Policies: Goldener Mittelweg mit Baramundi - Makros per Default blocken, Whitelist für signierte Makros von definierten Quellen. Nie komplett blockieren ohne die Fachanwendungen zu prüfen.',
     choices: [
       {
         id: 'macro_policy',
-        text: 'Makro-Richtlinie verschaerfen - keine Makros mehr',
+        text: 'Makro-Richtlinie verschärfen - keine Makros mehr',
         effects: { compliance: 10, stress: 3 },
         resultText: 'Du konfigurierst Baramundi: Makros per Default geblockt. Problem: SFirm braucht Makros. Die Buchhaltung ist nicht amused.',
         choiceTags: ['strict'],
@@ -188,14 +188,14 @@ Mit einem Excel-Anhang. In dem Excel ist ein Makro. Sophos schlaegt nicht an - e
         id: 'replace_excel',
         text: 'Excel entfernen, saubere Version an alle schicken',
         effects: { relationships: { kollegen: 5 }, stress: 5 },
-        resultText: 'Du erstellst schnell ein makrofreies Formular und schickst es an alle. "Bitte diese Version verwenden." Pragmatische Loesung.',
+        resultText: 'Du erstellst schnell ein makrofreies Formular und schickst es an alle. "Bitte diese Version verwenden." Pragmatische Lösung.',
         choiceTags: ['pragmatic'],
       },
       {
         id: 'awareness_mail',
         text: 'Awareness-Mail: Bitte keine Makro-Excels verschicken',
         effects: { compliance: 3 },
-        resultText: 'Du schickst eine freundliche Erinnerung. Niemand liest sie. Naechstes Jahr: Gleiche Situation.',
+        resultText: 'Du schickst eine freundliche Erinnerung. Niemand liest sie. Nächstes Jahr: Gleiche Situation.',
         choiceTags: ['ineffective'],
       },
     ],
@@ -214,28 +214,28 @@ Mit einem Excel-Anhang. In dem Excel ist ein Makro. Sophos schlaegt nicht an - e
 Er braucht:
 - VPN-Zugang ins Netz
 - Admin-Rechte auf die Switches
-- Zugriff fuer "ca. 2 Wochen"
+- Zugriff für "ca. 2 Wochen"
 
 {chef} sagt: "Gib ihm Zugang, wir haben das beauftragt."
 
 Der Dienstleister wartet auf seine Credentials.`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Externe Dienstleister: Eigene Zugaenge, zeitlich begrenzt, auf das noetige Segment beschraenkt. NIE geteilte Credentials. Bei KRITIS: Nachweispflicht wer wann auf was zugegriffen hat. Geteilte Accounts machen das unmoeglich.',
+    mentorNote: 'Externe Dienstleister: Eigene Zugänge, zeitlich begrenzt, auf das nötige Segment beschränkt. NIE geteilte Credentials. Bei KRITIS: Nachweispflicht wer wann auf was zugegriffen hat. Geteilte Accounts machen das unmöglich.',
     choices: [
       {
         id: 'dedicated_access',
         text: 'Eigenes VPN-Profil mit Zeitlimit + nur Management-VLAN',
         effects: { compliance: 10, stress: 10, relationships: { chef: -3 } },
-        resultText: 'Du richtest ein dediziertes Profil ein: Nur Switch-Management, laeuft in 14 Tagen ab, vollstaendige Protokollierung. {chef}: "Muss das so kompliziert sein?" Ja, muss es.',
+        resultText: 'Du richtest ein dediziertes Profil ein: Nur Switch-Management, läuft in 14 Tagen ab, vollständige Protokollierung. {chef}: "Muss das so kompliziert sein?" Ja, muss es.',
         choiceTags: ['secure', 'by_the_book'],
-        teachingMoment: 'Proper Access Management ist Aufwand, aber es schuetzt bei Audits und Incidents.',
+        teachingMoment: 'Proper Access Management ist Aufwand, aber es schützt bei Audits und Incidents.',
         setsFlags: ['external_access_proper'],
       },
       {
         id: 'share_credentials',
         text: '{chef}s Zugangsdaten teilen - geht am schnellsten',
         effects: { compliance: -20, stress: -5 },
-        resultText: 'Du gibst dem Dienstleister {chef}s VPN-Daten. Schnell, aber... bei der naechsten KRITIS-Pruefung wird das zum Problem.',
+        resultText: 'Du gibst dem Dienstleister {chef}s VPN-Daten. Schnell, aber... bei der nächsten KRITIS-Prüfung wird das zum Problem.',
         choiceTags: ['lazy', 'risky'],
         chainTriggers: [{
           targetEventId: 'evt_shared_credentials_audit',
@@ -245,9 +245,9 @@ Der Dienstleister wartet auf seine Credentials.`,
       },
       {
         id: 'onsite_supervision',
-        text: 'Vor-Ort-Termin statt VPN - du schaust ihm ueber die Schulter',
+        text: 'Vor-Ort-Termin statt VPN - du schaust ihm über die Schulter',
         effects: { compliance: 15, stress: 15, skills: { netzwerk: 8 } },
-        resultText: 'Du planst einen ganzen Tag mit dem Dienstleister. Er konfiguriert, du lernst. Keine Remote-Risiken, dafuer viel Wissen transferiert.',
+        resultText: 'Du planst einen ganzen Tag mit dem Dienstleister. Er konfiguriert, du lernst. Keine Remote-Risiken, dafür viel Wissen transferiert.',
         choiceTags: ['secure', 'learning'],
         teachingMoment: 'Dienstleisterbegleitung ist eine Lernchance. Nutze sie.',
       },
@@ -266,19 +266,19 @@ Der Dienstleister wartet auf seine Credentials.`,
     title: 'Held der Buchhaltung',
     description: `Du hast ELO gefixt. Alleine. Ohne Support.
 
-{kaemmerer} kommt persoenlich vorbei: "Das war beeindruckend. Die Rechnungen laufen wieder."
+{kaemmerer} kommt persönlich vorbei: "Das war beeindruckend. Die Rechnungen laufen wieder."
 
 Er macht eine Pause.
 
-"Ich werde das bei der naechsten Budget-Runde nicht vergessen."`,
+"Ich werde das bei der nächsten Budget-Runde nicht vergessen."`,
     involvedCharacters: ['kaemmerer'],
-    mentorNote: 'Fachliche Kompetenz baut Vertrauen auf. Aber: Dokumentiere was du getan hast, damit du es beim naechsten Mal schneller findest.',
+    mentorNote: 'Fachliche Kompetenz baut Vertrauen auf. Aber: Dokumentiere was du getan hast, damit du es beim nächsten Mal schneller findest.',
     choices: [
       {
         id: 'document_fix',
-        text: 'Fix dokumentieren fuer naechstes Mal',
+        text: 'Fix dokumentieren für nächstes Mal',
         effects: { relationships: { kaemmerer: 15 }, skills: { troubleshooting: 5 }, stress: -5 },
-        resultText: 'Du schreibst ein kurzes Runbook: "ELO Workflow-Timeout - Loesung". Naechstes Mal dauert es 5 Minuten statt einer Stunde.',
+        resultText: 'Du schreibst ein kurzes Runbook: "ELO Workflow-Timeout - Lösung". Nächstes Mal dauert es 5 Minuten statt einer Stunde.',
       },
     ],
     tags: ['story', 'chain_consequence', 'success'],
@@ -299,7 +299,7 @@ Der Workflow-Dienst startet nicht. Die Datenbank meldet Fehler. {kaemmerer} steh
 
 "Was haben Sie GEMACHT?"
 
-Der ELO-Support ist jetzt definitiv noetig.`,
+Der ELO-Support ist jetzt definitiv nötig.`,
     involvedCharacters: ['kaemmerer'],
     mentorNote: 'Wenn du etwas kaputter machst: Transparent kommunizieren. Verstecken macht es nur schlimmer.',
     choices: [
@@ -307,16 +307,16 @@ Der ELO-Support ist jetzt definitiv noetig.`,
         id: 'admit_call_support',
         text: 'Ehrlich zugeben und sofort Support rufen',
         effects: { relationships: { kaemmerer: -10 }, budget: -500, stress: 10 },
-        resultText: 'Der Support braucht 3 Stunden und 500 Euro. Aber ELO laeuft wieder. {kaemmerer} ist nicht happy, aber er respektiert die Ehrlichkeit.',
+        resultText: 'Der Support braucht 3 Stunden und 500 Euro. Aber ELO läuft wieder. {kaemmerer} ist nicht happy, aber er respektiert die Ehrlichkeit.',
         teachingMoment: 'Fehler eingestehen ist schwer, aber wichtig. Vertuschen macht es schlimmer.',
       },
       {
         id: 'cover_up',
         text: 'Selbst heimlich weiterpfuschen und {kaemmerer} nichts vom Fehler sagen',
         effects: { relationships: { kaemmerer: -20 }, stress: 25, compliance: -5 },
-        resultText: 'Du bastelst stundenlang heimlich weiter. ELO bleibt kaputt, {kaemmerer} merkt, dass du etwas verschweigst - und ist jetzt doppelt sauer: ueber den Ausfall UND die Vertuschung.',
+        resultText: 'Du bastelst stundenlang heimlich weiter. ELO bleibt kaputt, {kaemmerer} merkt, dass du etwas verschweigst - und ist jetzt doppelt sauer: über den Ausfall UND die Vertuschung.',
         choiceTags: ['cover_up', 'risky'],
-        teachingMoment: 'Vertuschen kostet am Ende mehr als der Fehler selbst: Vertrauen verloren und Problem weiter ungeloest.',
+        teachingMoment: 'Vertuschen kostet am Ende mehr als der Fehler selbst: Vertrauen verloren und Problem weiter ungelöst.',
       },
     ],
     tags: ['story', 'chain_consequence', 'failure'],
@@ -335,9 +335,9 @@ Der ELO-Support ist jetzt definitiv noetig.`,
 
 "Sie haben uns nicht die ganze Wahrheit gesagt."
 
-Sie fordern jetzt eine vollstaendige Pruefung durch den Datenschutzbeauftragten. {chef} ist nicht erfreut.`,
+Sie fordern jetzt eine vollständige Prüfung durch den Datenschutzbeauftragten. {chef} ist nicht erfreut.`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Unvollstaendige Information raechen sich. Besser einmal zu viel erklaeren als einmal zu wenig.',
+    mentorNote: 'Unvollständige Information rächen sich. Besser einmal zu viel erklären als einmal zu wenig.',
     choices: [
       {
         id: 'full_disclosure',

@@ -16,7 +16,7 @@ export const randomFlavorEvents: GameEvent[] = [
     title: 'Normaler Dienstag',
     description: `Windows Update hat 12 PCs lahmgelegt. Mitten in der Arbeitszeit.
 
-"Bitte warten Sie, waehrend Windows konfiguriert wird... 34%"
+"Bitte warten Sie, während Windows konfiguriert wird... 34%"
 
 Die Fachabteilung ruft an: "Warum macht der Computer das JETZT?!"`,
     involvedCharacters: [],
@@ -26,7 +26,7 @@ Die Fachabteilung ruft an: "Warum macht der Computer das JETZT?!"`,
         id: 'let_finish',
         text: 'Durchlaufen lassen - ist in 20 Minuten fertig',
         effects: { stress: 5 },
-        resultText: 'Du wartest. Die Mitarbeiter trinken Kaffee. Nach 25 Minuten laeuft alles wieder.',
+        resultText: 'Du wartest. Die Mitarbeiter trinken Kaffee. Nach 25 Minuten läuft alles wieder.',
       },
     ],
     tags: ['random', 'absurd', 'windows'],
@@ -45,13 +45,13 @@ Die Fachabteilung ruft an: "Warum macht der Computer das JETZT?!"`,
 
 Der Mitarbeiter ist in der Pause.`,
     involvedCharacters: [],
-    mentorNote: 'Passwort-Policies helfen nicht, wenn die Nutzer nicht verstehen WARUM. Awareness-Schulung ist wichtiger als Komplexitaetsregeln.',
+    mentorNote: 'Passwort-Policies helfen nicht, wenn die Nutzer nicht verstehen WARUM. Awareness-Schulung ist wichtiger als Komplexitätsregeln.',
     choices: [
       {
         id: 'remove_postit',
         text: 'Post-it entfernen und eine Notiz hinterlassen',
         effects: { compliance: -3, stress: 2 },
-        resultText: 'Du nimmst den Post-it mit und laesst eine freundliche Erinnerung da. Ob es hilft?',
+        resultText: 'Du nimmst den Post-it mit und lässt eine freundliche Erinnerung da. Ob es hilft?',
       },
       {
         id: 'ignore_postit',
@@ -72,16 +72,16 @@ Der Mitarbeiter ist in der Pause.`,
     title: 'Toner leer',
     description: `"Der Drucker druckt nicht mehr!"
 
-Toner ist alle. Natuerlich der eine Drucker, den alle brauchen. Natuerlich um 8:45 Uhr.
+Toner ist alle. Natürlich der eine Drucker, den alle brauchen. Natürlich um 8:45 Uhr.
 
-Ersatztoner: Im Schrank. Schrank: Abgeschlossen. Schluessel: Bei Frau Mueller. Frau Mueller: Im Urlaub.`,
+Ersatztoner: Im Schrank. Schrank: Abgeschlossen. Schlüssel: Bei Frau Müller. Frau Müller: Im Urlaub.`,
     involvedCharacters: [],
     choices: [
       {
         id: 'find_alternative',
         text: 'Anderen Drucker konfigurieren',
         effects: { stress: 3 },
-        resultText: 'Du richtest schnell einen anderen Drucker ein. Problem geloest - fuer heute.',
+        resultText: 'Du richtest schnell einen anderen Drucker ein. Problem gelöst - für heute.',
       },
     ],
     tags: ['random', 'support', 'printers'],
@@ -93,20 +93,20 @@ Ersatztoner: Im Schrank. Schrank: Abgeschlossen. Schluessel: Bei Frau Mueller. F
     weekRange: [1, 12],
     probability: 0.2,
     category: 'absurd',
-    title: 'Der Heizluefter',
-    description: `Du hoerst ein Summen aus dem Serverraum. Ungewoehnlich.
+    title: 'Der Heizlüfter',
+    description: `Du hörst ein Summen aus dem Serverraum. Ungewöhnlich.
 
-Jemand hat einen privaten Heizluefter an die USV angeschlossen. Die USV zeigt 95% Last.
+Jemand hat einen privaten Heizlüfter an die USV angeschlossen. Die USV zeigt 95% Last.
 
 Der Serverraum ist 28 Grad warm.`,
     involvedCharacters: [],
-    mentorNote: 'Physischer Zugang zum Serverraum muss kontrolliert sein. Jeder Heizluefter ist ein Risiko.',
+    mentorNote: 'Physischer Zugang zum Serverraum muss kontrolliert sein. Jeder Heizlüfter ist ein Risiko.',
     choices: [
       {
         id: 'remove_heater',
-        text: 'Heizluefter entfernen und Mail an alle',
+        text: 'Heizlüfter entfernen und Mail an alle',
         effects: { stress: 5, compliance: -2 },
-        resultText: 'Der Heizluefter wandert in den Muell. Die anonyme Rundmail wird ignoriert. Business as usual.',
+        resultText: 'Der Heizlüfter wandert in den Müll. Die anonyme Rundmail wird ignoriert. Business as usual.',
       },
     ],
     tags: ['random', 'absurd', 'infrastructure'],
@@ -130,7 +130,7 @@ Willst du es rausfinden?`,
         id: 'leave_it',
         text: 'Finger weg - zu riskant',
         effects: {},
-        resultText: 'Der Server bleibt an. Das Geheimnis bleibt ungeloest. Manchmal ist Nichtwissen besser.',
+        resultText: 'Der Server bleibt an. Das Geheimnis bleibt ungelöst. Manchmal ist Nichtwissen besser.',
       },
       {
         id: 'investigate',
@@ -151,16 +151,16 @@ Willst du es rausfinden?`,
     title: 'Das Ticket',
     description: `Neues Ticket: "Internet geht nicht."
 
-Anhaenge: 1
+Anhänge: 1
 
-Du oeffnest den Anhang: Ein Screenshot vom Desktop. Mit dem Browser-Icon. Sonst nichts.`,
+Du öffnest den Anhang: Ein Screenshot vom Desktop. Mit dem Browser-Icon. Sonst nichts.`,
     involvedCharacters: [],
     choices: [
       {
         id: 'call_user',
         text: 'Anrufen und nachfragen',
         effects: { stress: 3 },
-        resultText: '"Ja, ich hab den Browser geoeffnet und da kam nix." DNS-Problem. Geloest in 2 Minuten. Ticket-Zeit: 45 Minuten.',
+        resultText: '"Ja, ich hab den Browser geöffnet und da kam nix." DNS-Problem. Gelöst in 2 Minuten. Ticket-Zeit: 45 Minuten.',
       },
     ],
     tags: ['random', 'absurd', 'support'],
@@ -176,7 +176,7 @@ Du oeffnest den Anhang: Ein Screenshot vom Desktop. Mit dem Browser-Icon. Sonst 
     title: 'Freitagsanruf',
     description: `Freitag, 16:50 Uhr. Das Telefon klingelt.
 
-"Ich hab da ein Problem... koennen Sie mal kurz schauen?"
+"Ich hab da ein Problem... können Sie mal kurz schauen?"
 
 Dein Feierabend winkt.`,
     involvedCharacters: [],
@@ -191,7 +191,7 @@ Dein Feierabend winkt.`,
         id: 'voicemail',
         text: 'Klingeln lassen - Montag ist auch ein Tag',
         effects: { stress: -2 },
-        resultText: 'Du laesst es klingeln. Der Anrufer hinterlaesst keine Nachricht. War wohl nicht so wichtig.',
+        resultText: 'Du lässt es klingeln. Der Anrufer hinterlässt keine Nachricht. War wohl nicht so wichtig.',
       },
     ],
     tags: ['random', 'absurd', 'support'],
@@ -228,22 +228,22 @@ Die Stimmung sinkt messbar. {kollege} schaut dich verzweifelt an.
     probability: 0.15,
     category: 'absurd',
     title: 'Die Fax-Anfrage',
-    description: `Ein Buerger ruft an: "Kann ich meine Abfuhrtermine per Fax bekommen?"
+    description: `Ein Bürger ruft an: "Kann ich meine Abfuhrtermine per Fax bekommen?"
 
-Du schaust auf das Faxgeraet in der Ecke. Es hat seit 2019 keinen Strom mehr.`,
+Du schaust auf das Faxgerät in der Ecke. Es hat seit 2019 keinen Strom mehr.`,
     involvedCharacters: [],
     choices: [
       {
         id: 'find_fax',
-        text: 'Faxgeraet reaktivieren',
+        text: 'Faxgerät reaktivieren',
         effects: { stress: 3 },
-        resultText: 'Nach 20 Minuten Suche nach Tonern und Kabeln funktioniert das Fax. Du schickst die Termine. Der Buerger bedankt sich herzlich.',
+        resultText: 'Nach 20 Minuten Suche nach Tonern und Kabeln funktioniert das Fax. Du schickst die Termine. Der Bürger bedankt sich herzlich.',
       },
       {
         id: 'suggest_email',
-        text: 'Hoeflich auf E-Mail verweisen',
+        text: 'Höflich auf E-Mail verweisen',
         effects: { stress: 1 },
-        resultText: '"Ich hab kein E-Mail." Der Buerger legt auf. Du fuehlst dich schuldig.',
+        resultText: '"Ich hab kein E-Mail." Der Bürger legt auf. Du fühlst dich schuldig.',
       },
     ],
     tags: ['random', 'absurd', 'citizen'],
@@ -256,7 +256,7 @@ Du schaust auf das Faxgeraet in der Ecke. Es hat seit 2019 keinen Strom mehr.`,
     probability: 0.15,
     category: 'absurd',
     title: 'Die Steam-Frage',
-    description: `{kollege} fragt beilaeufig: "Kann man eigentlich Steam auf dem Dienstrechner...?"
+    description: `{kollege} fragt beiläufig: "Kann man eigentlich Steam auf dem Dienstrechner...?"
 
 Er schaut dich mit grossen Augen an.`,
     involvedCharacters: ['kollege'],
@@ -280,9 +280,9 @@ Er schaut dich mit grossen Augen an.`,
     title: 'Blaues Wunder',
     description: `Der Beamer im Besprechungsraum zeigt nur Blau. Seit Wochen.
 
-Niemand hat ein Ticket gemacht. Alle haben sich daran gewoehnt.
+Niemand hat ein Ticket gemacht. Alle haben sich daran gewöhnt.
 
-"Wir halten unsere Praesentationen halt mit Handouts."`,
+"Wir halten unsere Präsentationen halt mit Handouts."`,
     involvedCharacters: [],
     choices: [
       {
@@ -302,24 +302,24 @@ Niemand hat ein Ticket gemacht. Alle haben sich daran gewoehnt.
     probability: 0.2,
     category: 'security',
     title: 'Das WLAN-Geheimnis',
-    description: `Du findest den WLAN-Schluessel fuer das Gaeste-Netz.
+    description: `Du findest den WLAN-Schlüssel für das Gäste-Netz.
 
 "warm1234"
 
-Seit 2017 unveraendert. Auf dem Aushang im Foyer.`,
+Seit 2017 unverändert. Auf dem Aushang im Foyer.`,
     involvedCharacters: [],
     choices: [
       {
         id: 'change_password',
-        text: 'Passwort aendern und Aushang aktualisieren',
+        text: 'Passwort ändern und Aushang aktualisieren',
         effects: { compliance: -5, stress: 5 },
         resultText: 'Neues Passwort, neuer Aushang. 47 Leute beschweren sich, dass ihr WLAN nicht mehr geht. Sie hatten es gespeichert.',
       },
       {
         id: 'leave_wlan',
-        text: 'Erstmal so lassen - Gaeste-Netz ist isoliert',
+        text: 'Erstmal so lassen - Gäste-Netz ist isoliert',
         effects: {},
-        resultText: 'Du dokumentierst es fuer spaeter. Solange das Gaeste-Netz vom Rest getrennt ist...',
+        resultText: 'Du dokumentierst es für später. Solange das Gäste-Netz vom Rest getrennt ist...',
       },
     ],
     tags: ['random', 'security', 'wlan'],
@@ -332,7 +332,7 @@ Seit 2017 unveraendert. Auf dem Aushang im Foyer.`,
     probability: 0.15,
     category: 'absurd',
     title: 'Das Backup-Laufwerk',
-    description: `Du pruefst die Backup-Platten und findest eine mit dem Label "BACKUP_SRV01".
+    description: `Du prüfst die Backup-Platten und findest eine mit dem Label "BACKUP_SRV01".
 
 Inhalt: 847 GB Filme. Keine Backups.
 
@@ -343,7 +343,7 @@ Jemand hat die Backup-Platte als Film-Archiv benutzt.`,
         id: 'investigate_owner',
         text: 'Besitzer ermitteln und ansprechen',
         effects: { compliance: -3, stress: 5 },
-        resultText: 'Die Filme sind von 2018. Der Besitzer ist laengst weg. Du formatierst die Platte.',
+        resultText: 'Die Filme sind von 2018. Der Besitzer ist längst weg. Du formatierst die Platte.',
       },
     ],
     tags: ['random', 'absurd', 'backup'],
@@ -356,9 +356,9 @@ Jemand hat die Backup-Platte als Film-Archiv benutzt.`,
     probability: 0.2,
     category: 'absurd',
     title: 'Teams-Ausfall',
-    description: `Microsoft Teams stuerzt ab. Bundesweit.
+    description: `Microsoft Teams stürzt ab. Bundesweit.
 
-Ploetzlich herrscht Ruhe im Buero. Keine Anrufe, keine Chats, keine "kurzen Fragen".
+Plötzlich herrscht Ruhe im Büro. Keine Anrufe, keine Chats, keine "kurzen Fragen".
 
 Die Mitarbeiter schauen verwirrt - und fangen an, konzentriert zu arbeiten.`,
     involvedCharacters: [],
@@ -367,7 +367,7 @@ Die Mitarbeiter schauen verwirrt - und fangen an, konzentriert zu arbeiten.`,
         id: 'enjoy_silence',
         text: 'Die Ruhe geniessen',
         effects: { stress: -5 },
-        resultText: 'Zwei Stunden spaeter ist Teams wieder online. Die Produktivitaet sinkt sofort.',
+        resultText: 'Zwei Stunden später ist Teams wieder online. Die Produktivität sinkt sofort.',
       },
     ],
     tags: ['random', 'absurd', 'productivity'],
@@ -380,9 +380,9 @@ Die Mitarbeiter schauen verwirrt - und fangen an, konzentriert zu arbeiten.`,
     probability: 0.15,
     category: 'crisis',
     title: 'Bluescreen-Timing',
-    description: `Windows zeigt "Neustart in 15 Minuten" auf dem Praesentations-PC.
+    description: `Windows zeigt "Neustart in 15 Minuten" auf dem Präsentations-PC.
 
-Die {gf} praesentiert gerade vor dem Kreistag.
+Die {gf} präsentiert gerade vor dem Kreistag.
 
 Das Popup ist auf der Leinwand zu sehen.`,
     involvedCharacters: ['gf'],
@@ -391,7 +391,7 @@ Das Popup ist auf der Leinwand zu sehen.`,
         id: 'sprint_to_pc',
         text: 'Zum PC sprinten und Neustart verschieben',
         effects: { stress: 10, relationships: { gf: -3 } },
-        resultText: 'Du stuermst in den Raum, klickst hektisch "Spaeter erinnern" und verschwinde. Die {gf} macht weiter als waere nichts gewesen.',
+        resultText: 'Du stürmst in den Raum, klickst hektisch "Später erinnern" und verschwinde. Die {gf} macht weiter als wäre nichts gewesen.',
       },
     ],
     tags: ['random', 'crisis', 'presentation'],
@@ -404,18 +404,18 @@ Das Popup ist auf der Leinwand zu sehen.`,
     probability: 0.3,
     category: 'absurd',
     title: 'Kurz Schauen',
-    description: `Mail von Frau Schmidt: "Koennen Sie mal kurz schauen?"
+    description: `Mail von Frau Schmidt: "Können Sie mal kurz schauen?"
 
 Du schaust auf die Uhr. Es ist 10:00 Uhr.
 
-Drei Stunden spaeter bist du immer noch dabei. Es war nicht "kurz".`,
+Drei Stunden später bist du immer noch dabei. Es war nicht "kurz".`,
     involvedCharacters: [],
     choices: [
       {
         id: 'finish_task',
         text: 'Zu Ende bringen - angefangen ist angefangen',
         effects: { stress: 8 },
-        resultText: 'Um 14:00 Uhr ist das Problem geloest. Es war ein Profil-Problem, das zu einem GPO-Problem fuehrte, das zu einem DNS-Problem fuehrte...',
+        resultText: 'Um 14:00 Uhr ist das Problem gelöst. Es war ein Profil-Problem, das zu einem GPO-Problem führte, das zu einem DNS-Problem führte...',
       },
     ],
     tags: ['random', 'absurd', 'support'],
@@ -440,13 +440,13 @@ Es sind 47 Drucker.`,
         id: 'start_list',
         text: 'Seufzen und anfangen',
         effects: { stress: 10 },
-        resultText: 'Du faengst an. Um 18:30 hast du die Haelfte. Der Rest wird Montag frueh.',
+        resultText: 'Du fängst an. Um 18:30 hast du die Hälfte. Der Rest wird Montag früh.',
       },
       {
         id: 'ignore_until_monday',
         text: 'Montag ist auch noch ein Tag',
         effects: { stress: 3, relationships: { chef: -3 } },
-        resultText: 'Du faehrst nach Hause. Montag fragst du: "Bis wann genau?" {chef}: "Ach, naechste Woche reicht."',
+        resultText: 'Du fährst nach Hause. Montag fragst du: "Bis wann genau?" {chef}: "Ach, nächste Woche reicht."',
       },
     ],
     tags: ['random', 'absurd', 'deadline'],
@@ -470,7 +470,7 @@ Die Poststelle hat 200 Briefe zu scannen.`,
         id: 'fix_scanner',
         text: 'Papier vorsichtig entfernen',
         effects: { stress: 3 },
-        resultText: 'Nach 15 Minuten Fummelei ist das Papier draussen. Der Scanner laeuft wieder. Bis naechste Woche.',
+        resultText: 'Nach 15 Minuten Fummelei ist das Papier draussen. Der Scanner läuft wieder. Bis nächste Woche.',
       },
     ],
     tags: ['random', 'support', 'hardware'],
@@ -485,16 +485,16 @@ Die Poststelle hat 200 Briefe zu scannen.`,
     title: 'Gespeichertes Passwort',
     description: `Du arbeitest am PC eines kranken Kollegen.
 
-Der Browser oeffnet sich. Autofill zeigt: "admin@warm-kommunal.de" mit gespeichertem Passwort.
+Der Browser öffnet sich. Autofill zeigt: "admin@warm-kommunal.de" mit gespeichertem Passwort.
 
 Es ist ein Shared PC in der Poststelle.`,
     involvedCharacters: [],
     choices: [
       {
         id: 'delete_password',
-        text: 'Gespeichertes Passwort loeschen',
+        text: 'Gespeichertes Passwort löschen',
         effects: { compliance: -5, stress: 3 },
-        resultText: 'Du loeschst das Passwort und informierst {chef}. Der stellt die Frage: "Wer hat Autofill auf Shared PCs erlaubt?"',
+        resultText: 'Du löschst das Passwort und informierst {chef}. Der stellt die Frage: "Wer hat Autofill auf Shared PCs erlaubt?"',
       },
     ],
     tags: ['random', 'security', 'passwords'],
@@ -506,17 +506,17 @@ Es ist ein Shared PC in der Poststelle.`,
     weekRange: [1, 12],
     probability: 0.15,
     category: 'personal',
-    title: 'Kuchen-Ueberfall',
+    title: 'Kuchen-Überfall',
     description: `Eine Kollegin bringt Kuchen mit. "Geburtstag!" ruft sie.
 
-Die IT-Abteilung isst die Haelfte, bevor die anderen Abteilungen es merken.
+Die IT-Abteilung isst die Hälfte, bevor die anderen Abteilungen es merken.
 
-{kollege} hat schon zwei Stuecke gegessen.`,
+{kollege} hat schon zwei Stücke gegessen.`,
     involvedCharacters: ['kollege'],
     choices: [
       {
         id: 'eat_cake',
-        text: 'Auch ein Stueck nehmen',
+        text: 'Auch ein Stück nehmen',
         effects: { stress: -3 },
         resultText: 'Schokoladenkuchen. Der Tag ist gerettet.',
       },

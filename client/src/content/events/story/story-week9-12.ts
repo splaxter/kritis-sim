@@ -12,29 +12,29 @@ export const storyWeek9to12Events: GameEvent[] = [
     weekRange: [9, 10],
     probability: 0.95,
     category: 'personal',
-    title: 'Das Probezeitgespraech naht',
-    description: `{chef} erwaehnt beilaeufig: "Wir sollten bald mal ueber deine Probezeit reden."
+    title: 'Das Probezeitgespräch naht',
+    description: `{chef} erwähnt beiläufig: "Wir sollten bald mal über deine Probezeit reden."
 
 Noch 2-3 Wochen bis zum offiziellen Ende.
 
-Du denkst an die letzten Wochen: Die Krisen, die Erfolge, die Konflikte. Wie wird das Gespraech laufen?`,
+Du denkst an die letzten Wochen: Die Krisen, die Erfolge, die Konflikte. Wie wird das Gespräch laufen?`,
     involvedCharacters: ['chef', 'kollege'],
-    mentorNote: 'Probezeitende proaktiv ansprechen zeigt Eigeninitiative. Eine Seite: Was wurde erreicht (mit messbaren Ergebnissen), was steht an, wo siehst du Entwicklungspotential. Zahlen schlagen Bauchgefuehl.',
+    mentorNote: 'Probezeitende proaktiv ansprechen zeigt Eigeninitiative. Eine Seite: Was wurde erreicht (mit messbaren Ergebnissen), was steht an, wo siehst du Entwicklungspotential. Zahlen schlagen Bauchgefühl.',
     choices: [
       {
         id: 'prepare_summary',
         text: 'Eine Zusammenfassung vorbereiten: Erreicht, geplant, gelernt',
         effects: { skills: { softSkills: 5 }, relationships: { chef: 5, gf: 5 }, stress: 5 },
-        resultText: 'Du erstellst eine Seite: Projekte abgeschlossen, Krisen bewaeltigt, Skills entwickelt, naechste Ziele. {chef} ist beeindruckt von der Initiative.',
+        resultText: 'Du erstellst eine Seite: Projekte abgeschlossen, Krisen bewältigt, Skills entwickelt, nächste Ziele. {chef} ist beeindruckt von der Initiative.',
         choiceTags: ['proactive', 'prepared'],
         setsFlags: ['probezeit_summary_prepared'],
-        teachingMoment: 'Vorbereitung zeigt Professionalitaet und macht das Gespraech leichter.',
+        teachingMoment: 'Vorbereitung zeigt Professionalität und macht das Gespräch leichter.',
       },
       {
         id: 'wait_for_meeting',
         text: 'Abwarten - nicht zu keen wirken',
         effects: { stress: 5 },
-        resultText: 'Du wartest auf den Termin. Wenn die Stats gut sind, passiert nichts Schlimmes. Wenn nicht... haettest du dich vorbereiten sollen.',
+        resultText: 'Du wartest auf den Termin. Wenn die Stats gut sind, passiert nichts Schlimmes. Wenn nicht... hättest du dich vorbereiten sollen.',
         choiceTags: ['passive'],
       },
       {
@@ -54,22 +54,22 @@ Du denkst an die letzten Wochen: Die Krisen, die Erfolge, die Konflikte. Wie wir
     weekRange: [9, 11],
     probability: 0.9,
     category: 'compliance',
-    title: 'KRITIS-Audit Ankuendigung',
+    title: 'KRITIS-Audit Ankündigung',
     description: `Brief vom BSI: Ein KRITIS-Audit ist in 8 Wochen geplant.
 
-Du wirst noch in der Probezeit sein, wenn die Vorbereitung beginnt. {gf} ist nervoes.
+Du wirst noch in der Probezeit sein, wenn die Vorbereitung beginnt. {gf} ist nervös.
 
 {chef} sagt: "Das wird DEIN Projekt."
 
 Das ist entweder eine grosse Chance oder eine grosse Falle.`,
     involvedCharacters: ['chef', 'gf'],
-    mentorNote: 'KRITIS-Audit Vorbereitung: BSI IT-Grundschutz-Kompendium als Checkliste, Gap-Analyse gegen die 10 NIS2-Massnahmenbereiche, Nachweisdokumentation sammeln. Externe Berater fuer den ersten Audit sind Gold wert - die kennen die Pruefer-Perspektive.',
+    mentorNote: 'KRITIS-Audit Vorbereitung: BSI IT-Grundschutz-Kompendium als Checkliste, Gap-Analyse gegen die 10 NIS2-Massnahmenbereiche, Nachweisdokumentation sammeln. Externe Berater für den ersten Audit sind Gold wert - die kennen die Prüfer-Perspektive.',
     choices: [
       {
         id: 'all_in',
         text: 'Audit-Vorbereitung als Probezeit-Projekt - all-in',
         effects: { stress: 20, compliance: 15, relationships: { gf: 15 }, skills: { security: 10 } },
-        resultText: 'Du stuertzt dich rein: Checklisten, Gap-Analyse, Dokumentation. Die {gf} sieht deinen Einsatz. Hohes Risiko, hohe Belohnung.',
+        resultText: 'Du stürzt dich rein: Checklisten, Gap-Analyse, Dokumentation. Die {gf} sieht deinen Einsatz. Hohes Risiko, hohe Belohnung.',
         choiceTags: ['ambitious', 'risky'],
         setsFlags: ['audit_lead_role'],
       },
@@ -84,7 +84,7 @@ Das ist entweder eine grosse Chance oder eine grosse Falle.`,
         id: 'external_help',
         text: 'Externe Hilfe vorschlagen - Auditor-Berater',
         effects: { budget: -5000, compliance: 10, stress: 5 },
-        resultText: 'Du schlägst einen BSI-erfahrenen Berater vor. {kaemmerer} stoehnt wegen der Kosten, aber die {gf} stimmt zu. "Beim ersten Audit lieber auf Nummer sicher."',
+        resultText: 'Du schlägst einen BSI-erfahrenen Berater vor. {kaemmerer} stöhnt wegen der Kosten, aber die {gf} stimmt zu. "Beim ersten Audit lieber auf Nummer sicher."',
         choiceTags: ['smart', 'resourceful'],
         teachingMoment: 'Externe Experten bei komplexen Compliance-Themen sind eine gute Investition.',
       },
@@ -107,13 +107,13 @@ Das Handy klingelt: Der Hauptserver ist down. Exchange, Fileserver, Fachverfahre
 
 Du stehst an der Bushaltestelle. Das Wochenende winkt.`,
     involvedCharacters: ['chef', 'kollege'],
-    mentorNote: 'Rufbereitschaft und Ueberstunden: Kein Vertrag = keine Pflicht. Aber in der Probezeit zeigt Commitment. Langfristig: Rufbereitschaftsregelung formalisieren mit TVoeD-Zuschlaegen. Monitoring + Backup ist besser als Heldentum.',
+    mentorNote: 'Rufbereitschaft und Überstunden: Kein Vertrag = keine Pflicht. Aber in der Probezeit zeigt Commitment. Langfristig: Rufbereitschaftsregelung formalisieren mit TVöD-Zuschlägen. Monitoring + Backup ist besser als Heldentum.',
     choices: [
       {
         id: 'turn_around',
         text: 'Umdrehen und fixen - du musst zeigen, dass du da bist',
         effects: { stress: 20, relationships: { chef: 15, gf: 5 } },
-        resultText: 'Du faehrst zurueck. Vier Stunden spaeter laeuft alles wieder: Eine Festplatte im RAID hatte Timeout-Fehler, Rebuild läuft. Du bist muede, aber stolz.',
+        resultText: 'Du fährst zurück. Vier Stunden später läuft alles wieder: Eine Festplatte im RAID hatte Timeout-Fehler, Rebuild läuft. Du bist müde, aber stolz.',
         choiceTags: ['heroic', 'committed'],
         chainTriggers: [{
           targetEventId: 'evt_weekend_hero',
@@ -131,7 +131,7 @@ Du stehst an der Bushaltestelle. Das Wochenende winkt.`,
         id: 'call_chef',
         text: '{chef} anrufen - nach Feierabend ist sein Problem',
         effects: { stress: 5 },
-        resultText: '{chef} geht nicht ran. Natuerlich nicht - Freitag Abend. Du hinterlaesst eine Nachricht. Am Montag ist das Problem groesser.',
+        resultText: '{chef} geht nicht ran. Natürlich nicht - Freitag Abend. Du hinterlässt eine Nachricht. Am Montag ist das Problem größer.',
         choiceTags: ['by_the_book'],
         chainTriggers: [{
           targetEventId: 'evt_monday_disaster',
@@ -141,9 +141,9 @@ Du stehst an der Bushaltestelle. Das Wochenende winkt.`,
       },
       {
         id: 'vpn_troubleshoot',
-        text: 'Remote per VPN analysieren, nur wenn noetig reinfahren',
+        text: 'Remote per VPN analysieren, nur wenn nötig reinfahren',
         effects: { stress: 10, skills: { troubleshooting: 5 } },
-        resultText: 'Du verbindest dich per VPN. Schnelle Analyse: RAID degraded, aber stabil. Du startest einen Rebuild remote und ueberwachst per Handy. Intelligente Loesung.',
+        resultText: 'Du verbindest dich per VPN. Schnelle Analyse: RAID degraded, aber stabil. Du startest einen Rebuild remote und überwachst per Handy. Intelligente Lösung.',
         choiceTags: ['smart', 'balanced'],
         setsFlags: ['server_crisis_handled_smart'],
       },
@@ -158,15 +158,15 @@ Du stehst an der Bushaltestelle. Das Wochenende winkt.`,
     probability: 0.7,
     category: 'team',
     title: 'Side Project',
-    description: `Du schaust zufaellig auf den Monitor von {kollege}, als du vorbeigehst.
+    description: `Du schaust zufällig auf den Monitor von {kollege}, als du vorbeigehst.
 
-Er arbeitet an einer Website. Einer privaten Website. Mit professionellem Design. Auf dem Dienst-PC. Waehrend der Arbeitszeit.
+Er arbeitet an einer Website. Einer privaten Website. Mit professionellem Design. Auf dem Dienst-PC. Während der Arbeitszeit.
 
 Er hat dich noch nicht bemerkt.
 
-Dienstvereinbarung: Private Nutzung waehrend der Arbeitszeit ist untersagt.`,
+Dienstvereinbarung: Private Nutzung während der Arbeitszeit ist untersagt.`,
     involvedCharacters: ['kollege', 'chef'],
-    mentorNote: 'Private Nutzung am Arbeitsplatz: Dienstvereinbarung pruefen. Im OeD meist streng geregelt. Unter vier Augen ansprechen ist fast immer der richtige Weg - es zeigt Loyalitaet zum Kollegen UND Verantwortungsbewusstsein.',
+    mentorNote: 'Private Nutzung am Arbeitsplatz: Dienstvereinbarung prüfen. Im OeD meist streng geregelt. Unter vier Augen ansprechen ist fast immer der richtige Weg - es zeigt Loyalität zum Kollegen UND Verantwortungsbewusstsein.',
     choices: [
       {
         id: 'talk_privately',
@@ -198,7 +198,7 @@ Dienstvereinbarung: Private Nutzung waehrend der Arbeitszeit ist untersagt.`,
         id: 'tell_chef',
         text: '{chef} informieren',
         effects: { compliance: 5, relationships: { kollegen: -30 } },
-        resultText: '{chef} dankt dir fuer die Info. {kollege} wird zum Gespraech gebeten. Als er zurueckkommt, schaut er durch dich hindurch. "Petze."',
+        resultText: '{chef} dankt dir für die Info. {kollege} wird zum Gespräch gebeten. Als er zurückkommt, schaut er durch dich hindurch. "Petze."',
         choiceTags: ['by_the_book', 'snitch'],
       },
     ],
@@ -212,22 +212,22 @@ Dienstvereinbarung: Private Nutzung waehrend der Arbeitszeit ist untersagt.`,
     dayPreference: [5],
     probability: 1.0,
     category: 'personal',
-    title: 'Das Gespraech',
-    description: `{chef} und {gf} sitzen dir gegenueber.
+    title: 'Das Gespräch',
+    description: `{chef} und {gf} sitzen dir gegenüber.
 
 "So", sagt {gf}. "Drei Monate. Wie ist Ihr Fazit?"
 
-Du denkst an alles, was passiert ist. Die Krisen, die du bewaeltigt hast. Die Fehler, die du gemacht hast. Die Beziehungen, die du aufgebaut - oder beschaedigt - hast.
+Du denkst an alles, was passiert ist. Die Krisen, die du bewältigt hast. Die Fehler, die du gemacht hast. Die Beziehungen, die du aufgebaut - oder beschädigt - hast.
 
 Das ist der Moment.`,
     involvedCharacters: ['chef', 'gf'],
-    mentorNote: 'Probezeitgespraeche im OeD: Dein Vorgesetzter muss eine Beurteilung schreiben. Vorbereitung auf Fragen: "Was haben Sie erreicht?", "Wo sehen Sie Verbesserungsbedarf?", "Wie ist die Zusammenarbeit im Team?"',
+    mentorNote: 'Probezeitgespräche im OeD: Dein Vorgesetzter muss eine Beurteilung schreiben. Vorbereitung auf Fragen: "Was haben Sie erreicht?", "Wo sehen Sie Verbesserungsbedarf?", "Wie ist die Zusammenarbeit im Team?"',
     choices: [
       {
         id: 'confident_summary',
         text: 'Selbstbewusst zusammenfassen: Erreicht, gelernt, Ziele',
         effects: { skills: { softSkills: 10 } },
-        resultText: 'Du praesentierst deine Erfolge: Server-Krisen geloest, Compliance verbessert, Team unterstuetzt. {gf} nickt. {chef} laechelt.',
+        resultText: 'Du präsentierst deine Erfolge: Server-Krisen gelöst, Compliance verbessert, Team unterstützt. {gf} nickt. {chef} lächelt.',
         choiceTags: ['confident', 'prepared'],
         setsFlags: ['probezeit_presentation_good'],
       },
@@ -242,9 +242,9 @@ Das ist der Moment.`,
       },
       {
         id: 'deflect_blame',
-        text: 'Auf schwierige Umstaende verweisen',
+        text: 'Auf schwierige Umstände verweisen',
         effects: { relationships: { chef: -10, gf: -10 }, stress: 5 },
-        resultText: '"Die Infrastruktur war veraltet, die Dokumentation fehlte..." {chef} unterbricht: "Das war bei allen Vorgaengern so. Wir fragen nach IHNEN."',
+        resultText: '"Die Infrastruktur war veraltet, die Dokumentation fehlte..." {chef} unterbricht: "Das war bei allen Vorgängern so. Wir fragen nach IHNEN."',
         choiceTags: ['defensive'],
       },
     ],
@@ -262,7 +262,7 @@ Das ist der Moment.`,
     title: 'Wochenend-Held',
     description: `Montag morgen. {chef} kommt an deinen Schreibtisch.
 
-"Ich hab gehoert, du warst Freitagabend noch hier. Und die Server laufen wieder."
+"Ich hab gehört, du warst Freitagabend noch hier. Und die Server laufen wieder."
 
 Er macht eine Pause.
 
@@ -274,7 +274,7 @@ Er macht eine Pause.
         id: 'humble_response',
         text: 'Bescheiden bleiben',
         effects: { relationships: { chef: 10 }, stress: -10 },
-        resultText: '"War selbstverstaendlich. Die Server muessen laufen." {chef} nickt. So muss es sein.',
+        resultText: '"War selbstverständlich. Die Server müssen laufen." {chef} nickt. So muss es sein.',
       },
     ],
     tags: ['story', 'chain_consequence', 'recognition'],
@@ -293,22 +293,22 @@ Er macht eine Pause.
 
 Freitagabend. Samstagmorgen. Jetzt ist es Sonntagnacht und du hast immer noch nicht richtig geschlafen.
 
-Der Server laeuft wieder. Aber du?`,
+Der Server läuft wieder. Aber du?`,
     involvedCharacters: [],
-    mentorNote: 'Burnout-Praevention ist Teil des Jobs. Wenn du ausfaellst, hilft das niemandem.',
+    mentorNote: 'Burnout-Prävention ist Teil des Jobs. Wenn du ausfällst, hilft das niemandem.',
     choices: [
       {
         id: 'take_break',
         text: 'Morgen einen halben Tag frei nehmen',
         effects: { stress: -15 },
-        resultText: 'Du nimmst dir den Vormittag. {chef} versteht: "Nach so einem Wochenende - klar." Selbstfuersorge ist kein Schwaeche.',
-        teachingMoment: 'Regeneration ist Teil der Produktivitaet.',
+        resultText: 'Du nimmst dir den Vormittag. {chef} versteht: "Nach so einem Wochenende - klar." Selbstfürsorge ist kein Schwäche.',
+        teachingMoment: 'Regeneration ist Teil der Produktivität.',
       },
       {
         id: 'push_through',
         text: 'Durchhalten - nur noch ein paar Wochen Probezeit',
         effects: { stress: 10 },
-        resultText: 'Du machst weiter. Die naechsten Tage fuehlen sich zaeher an als sonst. Aber du schaffst das. Hoffentlich.',
+        resultText: 'Du machst weiter. Die nächsten Tage fühlen sich zäher an als sonst. Aber du schaffst das. Hoffentlich.',
         choiceTags: ['stubborn'],
       },
     ],
@@ -324,7 +324,7 @@ Der Server laeuft wieder. Aber du?`,
     isChainEvent: true,
     chainPriority: 7,
     title: 'Montag-Desaster',
-    description: `Montag, 8:00 Uhr. Du kommst ins Buero.
+    description: `Montag, 8:00 Uhr. Du kommst ins Büro.
 
 Das Chaos ist perfekt: Keine E-Mails, keine Dateien, die Fachabteilung kann nicht arbeiten.
 
@@ -336,9 +336,9 @@ Das Chaos ist perfekt: Keine E-Mails, keine Dateien, die Fachabteilung kann nich
     choices: [
       {
         id: 'fix_now',
-        text: 'Sofort fixen - Erklaerungen spaeter',
+        text: 'Sofort fixen - Erklärungen später',
         effects: { stress: 20, skills: { troubleshooting: 5 } },
-        resultText: 'Du stuertzt dich auf das Problem. Zwei Stunden spaeter laeuft alles. Die Erklaerung? Die kommt spaeter. Oder nie.',
+        resultText: 'Du stürzt dich auf das Problem. Zwei Stunden später läuft alles. Die Erklärung? Die kommt später. Oder nie.',
         choiceTags: ['action_first'],
       },
       {
@@ -363,19 +363,19 @@ Das Chaos ist perfekt: Keine E-Mails, keine Dateien, die Fachabteilung kann nich
     title: 'Schulden bezahlt',
     description: `{kollege} kommt zu dir.
 
-"Hey. Wegen der Sache letzte Woche... danke, dass du das unter uns geklaert hast. Ich hab das Projekt auf einen privaten Server verschoben."
+"Hey. Wegen der Sache letzte Woche... danke, dass du das unter uns geklärt hast. Ich hab das Projekt auf einen privaten Server verschoben."
 
 Er macht eine Pause.
 
 "Wenn du mal Hilfe brauchst - ich bin da."`,
     involvedCharacters: ['kollege'],
-    mentorNote: 'Loyalitaet im Team zahlt sich aus. Aber nur, wenn die Grenzen klar sind.',
+    mentorNote: 'Loyalität im Team zahlt sich aus. Aber nur, wenn die Grenzen klar sind.',
     choices: [
       {
         id: 'accept_thanks',
         text: 'Danke annehmen',
         effects: { relationships: { kollegen: 15 }, stress: -5 },
-        resultText: '"War selbstverstaendlich. Wir sind ein Team." Die Stimmung ist besser als je zuvor.',
+        resultText: '"War selbstverständlich. Wir sind ein Team." Die Stimmung ist besser als je zuvor.',
       },
     ],
     tags: ['story', 'chain_consequence', 'team'],
@@ -390,7 +390,7 @@ Er macht eine Pause.
     isChainEvent: true,
     chainPriority: 4,
     title: 'Erwischt',
-    description: `{chef} erwaehnt beilaeufig: "Der {kollege} wurde verwarnt. Private Projekte waehrend der Arbeitszeit."
+    description: `{chef} erwähnt beiläufig: "Der {kollege} wurde verwarnt. Private Projekte während der Arbeitszeit."
 
 Du schluckst. Du wusstest davon.
 
@@ -402,13 +402,13 @@ Du schluckst. Du wusstest davon.
         id: 'admit_knew',
         text: 'Ja, ich wusste davon',
         effects: { relationships: { chef: -5, kollegen: -15 }, stress: 10 },
-        resultText: '{chef}: "Und du hast nichts gesagt? Interessant." {kollege} hoert davon. Die Stimmung ist vergiftet.',
+        resultText: '{chef}: "Und du hast nichts gesagt? Interessant." {kollege} hört davon. Die Stimmung ist vergiftet.',
       },
       {
         id: 'deny',
         text: 'Nein, keine Ahnung',
         effects: { stress: 10 },
-        resultText: 'Du luegst. Es fuehlt sich nicht gut an. Aber die Alternative waere schlimmer gewesen. Oder?',
+        resultText: 'Du lügst. Es fühlt sich nicht gut an. Aber die Alternative wäre schlimmer gewesen. Oder?',
         choiceTags: ['lie'],
       },
     ],

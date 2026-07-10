@@ -20,15 +20,15 @@ export const storyWeek3to5Events: GameEvent[] = [
 
 Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: Die Rechner der Buchhaltung. Die brauchen die heute noch.
 
-{chef} ist in einem Meeting mit der {gf}. In 30 Minuten ist er zurueck.`,
+{chef} ist in einem Meeting mit der {gf}. In 30 Minuten ist er zurück.`,
     involvedCharacters: ['kollege', 'chef'],
-    mentorNote: 'Baramundi-Deployments: Immer erst eine OE als Testgruppe. Fehler des Kollegen zu covern baut Loyalitaet auf, aber nur wenn du es nicht zur Gewohnheit machst. Und: Dokumentiere was passiert ist - fuer den Prozessverbesserer, nicht den Schuldsucher.',
+    mentorNote: 'Baramundi-Deployments: Immer erst eine OE als Testgruppe. Fehler des Kollegen zu covern baut Loyalität auf, aber nur wenn du es nicht zur Gewohnheit machst. Und: Dokumentiere was passiert ist - für den Prozessverbesserer, nicht den Schuldsucher.',
     choices: [
       {
         id: 'fix_together',
-        text: 'Zusammen still fixen bevor {chef} zurueckkommt',
+        text: 'Zusammen still fixen bevor {chef} zurückkommt',
         effects: { relationships: { kollegen: 15 }, stress: 15, skills: { windows: 5 } },
-        resultText: 'Ihr arbeitet fieberhaft. Recovery-Image booten, Profile retten, neu deployen. Als {chef} zurueckkommt, laufen 18 von 20 PCs wieder. "Technische Stoerung", sagt Henry.',
+        resultText: 'Ihr arbeitet fieberhaft. Recovery-Image booten, Profile retten, neu deployen. Als {chef} zurückkommt, laufen 18 von 20 PCs wieder. "Technische Störung", sagt Henry.',
         choiceTags: ['cover_up', 'loyal', 'teamwork'],
         chainTriggers: [{
           targetEventId: 'evt_colleague_loyalty',
@@ -53,7 +53,7 @@ Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: 
         id: 'fix_yourself',
         text: 'Henry nach Hause schicken, du machst das alleine',
         effects: { relationships: { kollegen: 5 }, stress: 20, skills: { windows: 8 } },
-        resultText: 'Du sagst: "Geh, ich regel das." Vier Stunden spaeter laeuft alles. Du bist muede, aber du verstehst Baramundi jetzt WIRKLICH.',
+        resultText: 'Du sagst: "Geh, ich regel das." Vier Stunden später läuft alles. Du bist müde, aber du verstehst Baramundi jetzt WIRKLICH.',
         choiceTags: ['heroic', 'learning'],
         teachingMoment: 'Manchmal ist der beste Lehrer ein kaputtes System. Aber nachhaltig ist Heldentum nicht.',
       },
@@ -70,28 +70,28 @@ Du schaust auf den Bildschirm. 20 PCs stecken in einer Boot-Schleife. Darunter: 
     title: 'Die Sophos-Meldung',
     description: `Sophos Central meldet: "Trojan.Script.Agent" auf PC-VERWALTUNG-07.
 
-Benutzer: Herr Weber aus der Buchhaltung. Er nutzt SFirm fuer Bankueberweisungen.
+Benutzer: Herr Weber aus der Buchhaltung. Er nutzt SFirm für Banküberweisungen.
 
-Das Problem: SFirm ist beruehmt fuer False Positives. Das Banking-Modul nutzt Skripte, die wie Malware aussehen.
+Das Problem: SFirm ist berühmt für False Positives. Das Banking-Modul nutzt Skripte, die wie Malware aussehen.
 
 Aber: Was wenn es diesmal echt ist?`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Bei KRITIS: Im Zweifel isolieren. Lieber ein Nutzer beschwert sich als ein Incident mit Meldepflicht ans BSI. SFirm False Positives: Erst pruefen, dann gezielt excluden, und DOKUMENTIEREN warum.',
+    mentorNote: 'Bei KRITIS: Im Zweifel isolieren. Lieber ein Nutzer beschwert sich als ein Incident mit Meldepflicht ans BSI. SFirm False Positives: Erst prüfen, dann gezielt excluden, und DOKUMENTIEREN warum.',
     choices: [
       {
         id: 'isolate_now',
         text: 'Sofort PC vom Netz nehmen - Sicherheit geht vor',
         effects: { compliance: 10, relationships: { fachabteilung: -5 }, stress: 5 },
-        resultText: 'Du ziehst das Netzwerkkabel. Herr Weber ist genervt: "Ich muss Ueberweisungen machen!" Die Analyse zeigt: False Positive durch SFirm. Aber besser so.',
+        resultText: 'Du ziehst das Netzwerkkabel. Herr Weber ist genervt: "Ich muss Überweisungen machen!" Die Analyse zeigt: False Positive durch SFirm. Aber besser so.',
         choiceTags: ['cautious', 'safe'],
         setsFlags: ['sophos_responded_properly'],
         teachingMoment: 'Ein paar Minuten Downtime sind nichts gegen einen echten Incident. Lieber einmal zu viel isolieren.',
       },
       {
         id: 'analyze_first',
-        text: 'Erstmal analysieren - SFirm ist bekannt fuer False Positives',
+        text: 'Erstmal analysieren - SFirm ist bekannt für False Positives',
         effects: { stress: 3, skills: { security: 3 } },
-        resultText: 'Du pruefst die Details. Signatur, Pfad, Verhalten. Alles deutet auf SFirm. Du erstellst eine gezielte Ausnahme und dokumentierst sie.',
+        resultText: 'Du prüfst die Details. Signatur, Pfad, Verhalten. Alles deutet auf SFirm. Du erstellst eine gezielte Ausnahme und dokumentierst sie.',
         choiceTags: ['analytical'],
         chainTriggers: [{
           targetEventId: 'evt_real_trojan',
@@ -104,7 +104,7 @@ Aber: Was wenn es diesmal echt ist?`,
         id: 'exclude_sfirm',
         text: 'SFirm generell von Sophos excluden - spart Zeit',
         effects: { compliance: -5, stress: -3 },
-        resultText: 'Du erstellst eine Ausnahme fuer das ganze SFirm-Verzeichnis. Keine Meldungen mehr. Aber auch keine Ueberwachung mehr fuer Bankingsoftware...',
+        resultText: 'Du erstellst eine Ausnahme für das ganze SFirm-Verzeichnis. Keine Meldungen mehr. Aber auch keine Überwachung mehr für Bankingsoftware...',
         choiceTags: ['lazy', 'risky'],
         chainTriggers: [{
           targetEventId: 'evt_exclusion_backfire',
@@ -125,19 +125,19 @@ Aber: Was wenn es diesmal echt ist?`,
     title: 'Das Meeting mit der GF',
     description: `{gf} will ein "kurzes Update zur IT-Sicherheitslage."
 
-{chef} sagt zu dir: "Du solltest das praesentieren. Du kennst dich da besser aus als ich."
+{chef} sagt zu dir: "Du solltest das präsentieren. Du kennst dich da besser aus als ich."
 
 Ist das eine Chance? Oder schiebt er dich vor?
 
 Das Meeting ist in zwei Tagen.`,
     involvedCharacters: ['chef', 'gf'],
-    mentorNote: 'Jede Praesentation vor der GF ist eine Chance. Regel: Max 5 Folien, Ampelsystem (rot/gelb/gruen), konkrete naechste Schritte. Die GF will wissen: Sind wir sicher? Was kostet es? Was ist der naechste Schritt?',
+    mentorNote: 'Jede Präsentation vor der GF ist eine Chance. Regel: Max 5 Folien, Ampelsystem (rot/gelb/grün), konkrete nächste Schritte. Die GF will wissen: Sind wir sicher? Was kostet es? Was ist der nächste Schritt?',
     choices: [
       {
         id: 'prepare_well',
-        text: 'Saubere Praesentation vorbereiten mit Ampelsystem',
+        text: 'Saubere Präsentation vorbereiten mit Ampelsystem',
         effects: { stress: 10, skills: { softSkills: 5 } },
-        resultText: 'Du bereitest 5 Folien vor: Aktueller Stand (Ampel), Risiken (Top 3), Budget-Bedarf, Timeline. Die Praesentation laeuft gut - die {gf} stellt kluge Fragen und du hast Antworten.',
+        resultText: 'Du bereitest 5 Folien vor: Aktueller Stand (Ampel), Risiken (Top 3), Budget-Bedarf, Timeline. Die Präsentation läuft gut - die {gf} stellt kluge Fragen und du hast Antworten.',
         choiceTags: ['prepared', 'professional'],
         chainTriggers: [{
           targetEventId: 'evt_gf_presentation_success',
@@ -149,16 +149,16 @@ Das Meeting ist in zwei Tagen.`,
       },
       {
         id: 'let_chef',
-        text: '{chef} soll praesentieren, du arbeitest zu',
+        text: '{chef} soll präsentieren, du arbeitest zu',
         effects: { relationships: { chef: 10 }, stress: 5 },
-        resultText: 'Du bereitest die Folien vor, {chef} haelt sie. Er macht das gut - oder nimmt zumindest den Credit. Je nach Perspektive.',
+        resultText: 'Du bereitest die Folien vor, {chef} hält sie. Er macht das gut - oder nimmt zumindest den Credit. Je nach Perspektive.',
         choiceTags: ['supportive', 'background'],
       },
       {
         id: 'more_time',
         text: 'Um mehr Vorlaufzeit bitten',
         effects: { relationships: { gf: -5 }, stress: -5 },
-        resultText: '{gf} ist nicht begeistert: "Die IT sollte jederzeit Auskunft geben koennen." Das Meeting wird verschoben, aber der Eindruck bleibt.',
+        resultText: '{gf} ist nicht begeistert: "Die IT sollte jederzeit Auskunft geben können." Das Meeting wird verschoben, aber der Eindruck bleibt.',
         choiceTags: ['delay'],
       },
     ],
@@ -172,21 +172,21 @@ Das Meeting ist in zwei Tagen.`,
     probability: 0.8,
     category: 'absurd',
     title: 'Der Druckermarathon',
-    description: `Drei Drucker fallen gleichzeitig aus. In drei verschiedenen Abteilungen. Natuerlich.
+    description: `Drei Drucker fallen gleichzeitig aus. In drei verschiedenen Abteilungen. Natürlich.
 
-Die Abfallwirtschaft braucht JETZT Abfuhrbescheide - Buergerfrist.
+Die Abfallwirtschaft braucht JETZT Abfuhrbescheide - Bürgerfrist.
 Die GF-Assistenz braucht JETZT Vertragsunterlagen - Meeting in einer Stunde.
 Die Personalabteilung druckt Gehaltsabrechnungen - auch dringend.
 
-Du hast zwei Haende, einen Henry — und einen Bjorg, der "gleich einen Termin" hat.`,
+Du hast zwei Hände, einen Henry — und einen Bjorg, der "gleich einen Termin" hat.`,
     involvedCharacters: ['kollege', 'gf'],
-    mentorNote: 'Priorisierung nach Business Impact: Buergerfrist > GF-Vertraege > interne Post. Aber: Die GF-Assistenz vergisst nie, wer ihr geholfen hat. Politische Dimension nicht unterschaetzen.',
+    mentorNote: 'Priorisierung nach Business Impact: Bürgerfrist > GF-Verträge > interne Post. Aber: Die GF-Assistenz vergisst nie, wer ihr geholfen hat. Politische Dimension nicht unterschätzen.',
     choices: [
       {
         id: 'abfall_first',
-        text: 'Abfallwirtschaft zuerst - Buergerfrist ist gesetzlich',
+        text: 'Abfallwirtschaft zuerst - Bürgerfrist ist gesetzlich',
         effects: { relationships: { fachabteilung: 15, gf: -5 }, stress: 15, compliance: 5 },
-        resultText: 'Du rast zur Abfallwirtschaft. Papierstau. In 10 Minuten laeuft er wieder. Die Bescheide gehen raus. Die GF-Assistenz ist not amused - aber die Buerger sind wichtiger.',
+        resultText: 'Du rast zur Abfallwirtschaft. Papierstau. In 10 Minuten läuft er wieder. Die Bescheide gehen raus. Die GF-Assistenz ist not amused - aber die Bürger sind wichtiger.',
         choiceTags: ['compliant', 'citizen_first'],
       },
       {
@@ -202,7 +202,7 @@ Du hast zwei Haende, einen Henry — und einen Bjorg, der "gleich einen Termin" 
         effects: { relationships: { kollegen: 10 }, stress: 10, skills: { troubleshooting: 3 } },
         resultText: 'Ihr teilt euch auf. Teamwork! Nach einer Stunde laufen alle drei Drucker. Und ihr habt gezeigt, dass die IT auch unter Druck funktioniert.',
         choiceTags: ['teamwork', 'efficient'],
-        teachingMoment: 'Delegieren ist keine Schwaeche. Ein gutes Team loest Probleme schneller als ein Held.',
+        teachingMoment: 'Delegieren ist keine Schwäche. Ein gutes Team löst Probleme schneller als ein Held.',
       },
     ],
     tags: ['story', 'absurd', 'printers', 'week3'],
@@ -219,13 +219,13 @@ Du hast zwei Haende, einen Henry — und einen Bjorg, der "gleich einen Termin" 
 
 "WARM muss sich als KRITIS-Betreiber registrieren. Frist: 6 Wochen."
 
-{chef} schreibt dazu: "Kannst du dich darum kuemmern?"
+{chef} schreibt dazu: "Kannst du dich darum kümmern?"
 
-Du liest die NIS2-Verordnung. Paragraph 38: Die Geschaeftsfuehrung ist PERSOENLICH verantwortlich fuer Cybersicherheit.
+Du liest die NIS2-Verordnung. Paragraph 38: Die Geschäftsführung ist Persönlich verantwortlich für Cybersicherheit.
 
 Das ist eigentlich keine IT-Aufgabe...`,
     involvedCharacters: ['chef', 'gf'],
-    mentorNote: 'NIS2 §38: Die Geschaeftsleitung ist PERSOENLICH verantwortlich fuer Cybersicherheit. Das ist keine IT-Aufgabe, die delegiert wird. Du kannst zuarbeiten, aber die Registrierung muss die GF unterschreiben. Diesen Punkt zu kennen ist ein enormer Hebel.',
+    mentorNote: 'NIS2 §38: Die Geschäftsleitung ist Persönlich verantwortlich für Cybersicherheit. Das ist keine IT-Aufgabe, die delegiert wird. Du kannst zuarbeiten, aber die Registrierung muss die GF unterschreiben. Diesen Punkt zu kennen ist ein enormer Hebel.',
     choices: [
       {
         id: 'start_now',
@@ -245,9 +245,9 @@ Das ist eigentlich keine IT-Aufgabe...`,
       },
       {
         id: 'research_first',
-        text: 'Erstmal gruendlich recherchieren was genau gefordert ist',
+        text: 'Erstmal gründlich recherchieren was genau gefordert ist',
         effects: { compliance: 5, stress: 5, skills: { security: 8 } },
-        resultText: 'Du verbringst zwei Tage mit den NIS2-Dokumenten. Am Ende verstehst du mehr ueber KRITIS-Regulierung als die meisten Berater. Das zahlt sich spaeter aus.',
+        resultText: 'Du verbringst zwei Tage mit den NIS2-Dokumenten. Am Ende verstehst du mehr über KRITIS-Regulierung als die meisten Berater. Das zahlt sich später aus.',
         choiceTags: ['thorough', 'learning'],
         setsFlags: ['nis2_expert'],
       },
@@ -262,21 +262,21 @@ Das ist eigentlich keine IT-Aufgabe...`,
     probability: 0.85,
     category: 'support',
     title: 'Altlast im Serverraum',
-    description: `Du findest einen Windows Server 2012 R2 der noch laeuft. Still vor sich hin blinkend.
+    description: `Du findest einen Windows Server 2012 R2 der noch läuft. Still vor sich hin blinkend.
 
-Darauf: Eine Access-Datenbank, die eine Abteilung TAEGLICH nutzt. "Abfallgebuerenberechnung.mdb"
+Darauf: Eine Access-Datenbank, die eine Abteilung Täglich nutzt. "Abfallgebührenberechnung.mdb"
 
 Letzter Patch: 2019. Support-Ende: 2023. Backup: Keines dokumentiert.
 
-Die Fachabteilung weiss nicht mal, dass das ein Problem ist. "Der laeuft doch."`,
+Die Fachabteilung weiss nicht mal, dass das ein Problem ist. "Der läuft doch."`,
     involvedCharacters: ['chef'],
-    mentorNote: 'Altlasten: 1) Backup SOFORT. 2) Dokumentieren wer es nutzt und wofuer. 3) Risikobewertung schreiben. 4) Migration mit der Fachabteilung planen. Nie einfach abschalten - und nie einfach laufen lassen.',
+    mentorNote: 'Altlasten: 1) Backup SOFORT. 2) Dokumentieren wer es nutzt und wofür. 3) Risikobewertung schreiben. 4) Migration mit der Fachabteilung planen. Nie einfach abschalten - und nie einfach laufen lassen.',
     choices: [
       {
         id: 'backup_migrate',
         text: 'Sofort Backup einrichten, Migration planen',
         effects: { stress: 10, compliance: 10, skills: { troubleshooting: 5 } },
-        resultText: 'Du richtest ein taegliches Backup ein und schreibst einen Migrationsplan: Access → SQL Express, Server 2012 → Server 2022. Das wird Wochen dauern, aber es ist richtig.',
+        resultText: 'Du richtest ein tägliches Backup ein und schreibst einen Migrationsplan: Access → SQL Express, Server 2012 → Server 2022. Das wird Wochen dauern, aber es ist richtig.',
         choiceTags: ['thorough', 'responsible'],
         setsFlags: ['legacy_server_handled'],
       },
@@ -284,7 +284,7 @@ Die Fachabteilung weiss nicht mal, dass das ein Problem ist. "Der laeuft doch."`
         id: 'backup_report',
         text: 'Notfall-Backup machen, dann {chef} informieren',
         effects: { relationships: { chef: 5 }, compliance: 5, budget: -10 },
-        resultText: 'Du sicherst die Datenbank und schreibst einen Risikobericht. {chef}: "Gut erkannt. Budget fuer Migration beantragen wir naechstes Quartal." Hoffentlich haelt der Server so lange.',
+        resultText: 'Du sicherst die Datenbank und schreibst einen Risikobericht. {chef}: "Gut erkannt. Budget für Migration beantragen wir nächstes Quartal." Hoffentlich hält der Server so lange.',
         choiceTags: ['pragmatic'],
       },
       {
@@ -313,7 +313,7 @@ Die Fachabteilung weiss nicht mal, dass das ein Problem ist. "Der laeuft doch."`
     isChainEvent: true,
     chainPriority: 5,
     title: 'Positive Resonanz',
-    description: `Nach der Praesentation kommt {gf} auf dich zu.
+    description: `Nach der Präsentation kommt {gf} auf dich zu.
 
 "Gut gemacht. Klar strukturiert, auf den Punkt. So will ich das sehen."
 
@@ -323,7 +323,7 @@ Sie macht eine Pause.
 
 Das war ein guter Tag.`,
     involvedCharacters: ['gf', 'chef'],
-    mentorNote: 'Positives Feedback von der Geschaeftsfuehrung ist Gold wert - aber bleib bescheiden. Einmal gute Arbeit ersetzt nicht nachhaltige Leistung.',
+    mentorNote: 'Positives Feedback von der Geschäftsführung ist Gold wert - aber bleib bescheiden. Einmal gute Arbeit ersetzt nicht nachhaltige Leistung.',
     choices: [
       {
         id: 'thank_humble',
@@ -335,8 +335,8 @@ Das war ein guter Tag.`,
         id: 'mention_team',
         text: 'Auf das Team hinweisen - Henry hat auch geholfen',
         effects: { relationships: { gf: 5, kollegen: 10 }, skills: { softSkills: 8 }, stress: -8 },
-        resultText: '"Das Team hat stark unterstuetzt." {gf}: "Gut, dass Sie das erwaehnen. Teamplayer sind selten." Henry hoert davon und freut sich.',
-        teachingMoment: 'Credit teilen macht dich groesser, nicht kleiner.',
+        resultText: '"Das Team hat stark unterstützt." {gf}: "Gut, dass Sie das erwähnen. Teamplayer sind selten." Henry hört davon und freut sich.',
+        teachingMoment: 'Credit teilen macht dich größer, nicht kleiner.',
       },
     ],
     tags: ['story', 'chain_consequence', 'career', 'recognition'],
