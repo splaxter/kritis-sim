@@ -57,6 +57,18 @@ describe('useGame.closeTerminal — solution skillGain', () => {
     expect(after.security).toBe(before.security + 1);
   });
 
+  it('applies terminal solution effects such as stress relief', () => {
+    const { result } = renderHook(() => useGame());
+    act(() => result.current.startNewGame('SEED', 'intermediate'));
+    const before = result.current.state.stress;
+
+    act(() => result.current.setEvent(event));
+    act(() => result.current.openTerminal(choice));
+    act(() => result.current.closeTerminal(true, undefined, undefined, { stress: -10 }));
+
+    expect(result.current.state.stress).toBe(before - 10);
+  });
+
   it('sets solution flags (e.g. full vs partial) on solve', () => {
     const { result } = renderHook(() => useGame());
     act(() => result.current.startNewGame('SEED', 'intermediate'));

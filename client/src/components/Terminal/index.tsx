@@ -1,12 +1,12 @@
 // client/src/components/Terminal/index.tsx
 import '@xterm/xterm/css/xterm.css';
 import { useState } from 'react';
-import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
 import { useTerminal } from './useTerminal';
 
 interface TerminalProps {
   context: TerminalContext;
-  onSolved: (skillGain: Partial<Skills>) => void;
+  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onCancel: () => void;
   gameMode?: GameModeId;
   /** Fallback task summary when the context has no taskText (extracted from the briefing) */

@@ -45,7 +45,7 @@ interface UseGameReturn {
   makeScenarioChoice: (choice: ScenarioChoice) => void;
   openTerminal: (choice: EventChoice) => void;
   openScenarioTerminal: (choice: ScenarioChoice) => void;
-  closeTerminal: (solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[]) => void;
+  closeTerminal: (solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[], solutionEffects?: EventEffects) => void;
   continueGame: () => void;
   skipToNextDay: () => void;
   endStoryAct: () => void;
@@ -256,14 +256,17 @@ export function useGame(): UseGameReturn {
     setPhase('terminal');
   }, []);
 
-  // `skillGain` is the reward from the matched terminal/GUI *solution* (extra
-  // hands-on reward), applied additively ON TOP of the choice's own effects.
-  // Precedence: choice.effects always apply; solution.skillGain adds skills.
-  const closeTerminal = useCallback((solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[]) => {
+  // Rewards from a matched terminal/GUI solution are applied additively on top
+  // of the choice's own effects. This includes both skillGain and effects such
+  // as stress relief or relationship changes authored on the solution.
+  const closeTerminal = useCallback((solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[], solutionEffects?: EventEffects) => {
     // Handle event terminal choice
     if (solved && pendingTerminalChoice) {
       setState((prev) => {
         let newState = applyEffects(prev, pendingTerminalChoice.effects);
+        if (solutionEffects && Object.keys(solutionEffects).length > 0) {
+          newState = applyEffects(newState, solutionEffects);
+        }
         if (skillGain && Object.keys(skillGain).length > 0) {
           newState = applyEffects(newState, { skills: skillGain });
         }
@@ -307,6 +310,9 @@ export function useGame(): UseGameReturn {
       setState((prev) => {
         const effects = calculateScenarioEffects(pendingScenarioTerminalChoice);
         let newState = applyEffects(prev, effects);
+        if (solutionEffects && Object.keys(solutionEffects).length > 0) {
+          newState = applyEffects(newState, solutionEffects);
+        }
         if (skillGain && Object.keys(skillGain).length > 0) {
           newState = applyEffects(newState, { skills: skillGain });
         }

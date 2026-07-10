@@ -1,6 +1,6 @@
 // client/src/components/GameScreen/index.tsx
 import { useEffect, lazy, Suspense } from 'react';
-import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills } from '@kritis/shared';
+import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills, EventEffects } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
 import { ResultScreen, LearningResultCtas } from '../ResultScreen';
@@ -26,7 +26,7 @@ interface GameScreenProps {
   onChoice: (choice: EventChoice) => void;
   onScenarioChoice: (choice: ScenarioChoice) => void;
   onContinue: () => void;
-  onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[]) => void;
+  onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onTerminalCancel: () => void;
   onSave?: () => void;
   onLoad?: () => void;

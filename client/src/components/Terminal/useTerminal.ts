@@ -2,14 +2,14 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TerminalContext, Skills, GameModeId } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
 import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid } from '../../engine/shell';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
 import { buildPrompt } from './prompt';
 
 interface UseTerminalOptions {
   context: TerminalContext;
-  onSolved: (skillGain: Partial<Skills>) => void;
+  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onPartialSolution: (feedback: string) => void;
   gameMode?: GameModeId;
 }
@@ -198,6 +198,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     // text stays on screen and only Enter advances (no auto-timeout).
     let solved = false;
     let pendingSkillGain: Partial<Skills> = {};
+    let pendingSolutionEffects: EventEffects = {};
 
     // While a command "streams" its output line-by-line (e.g. ping printing one
     // reply per interval), the terminal swallows input until it finishes.
@@ -290,7 +291,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       if (solved) {
         if (data === '\r') {
           solved = false;
-          onSolvedRef.current(pendingSkillGain);
+          onSolvedRef.current(pendingSkillGain, undefined, pendingSolutionEffects);
         }
         return;
       }
@@ -492,6 +493,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                     );
                     solved = true;
                     pendingSkillGain = solution.skillGain || {};
+                    pendingSolutionEffects = solution.effects || {};
                     return;
                   }
 
