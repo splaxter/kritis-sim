@@ -90,6 +90,9 @@ export function GameScreen({
     if (!isStoryMode || !currentChapterId) return;
     const prev = prevChapterRef.current;
     prevChapterRef.current = currentChapterId;
+    // First chapter shows no card: prevChapterRef is null on story entry (the
+    // fresh-start intro is handled separately). CHAPTER_ART[ch01] is only used
+    // if a later flow re-enters ch01.
     if (prev === null || prev === currentChapterId) return;
     const chapter = adventureChapters.find((c) => c.id === currentChapterId);
     const image = CHAPTER_ART[currentChapterId];
@@ -238,7 +241,7 @@ export function GameScreen({
             />
           )}
 
-          {phase === 'playing' && contentType === 'scenario' && currentScenario && (
+          {!cinematic && phase === 'playing' && contentType === 'scenario' && currentScenario && (
             <div className="relative z-10 min-h-screen flex flex-col justify-end p-4 pb-8">
               <div className="flex-1 min-h-[30vh]" />
               <div className="max-w-3xl mx-auto w-full">
