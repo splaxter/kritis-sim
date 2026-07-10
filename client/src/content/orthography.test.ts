@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * Orthography guard: player-facing German text must use real umlauts
  * (ä/ö/ü/ß), never ASCII transliterations (ae/oe/ue).
