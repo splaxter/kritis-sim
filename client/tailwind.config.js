@@ -21,6 +21,12 @@ export default {
       fontFamily: {
         mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       },
+      keyframes: {
+        kenburns: { '0%': { transform: 'scale(1.0)' }, '100%': { transform: 'scale(1.08)' } },
+      },
+      animation: {
+        kenburns: 'kenburns 40s ease-in-out infinite alternate',
+      },
     },
   },
   plugins: [],
