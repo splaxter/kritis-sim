@@ -83,3 +83,15 @@ These tests fail loudly if content drifts — trust them over this document:
 - `content/events/chains/chainIntegrity.test.ts` — chain wiring.
 - `content/packs/packs.test.ts` — scenario pack integrity.
 - `engine/sidequestFlow.test.ts` — each sidequest triggers → completes → unlocks its payoff.
+- `content/orthography.test.ts` — display text uses real umlauts (ä/ö/ü/ß), never
+  ASCII transliterations (`fuer`, `ueber`, …). Curated stem blacklist, not a blanket
+  ae/oe/ue scan. **Policy: ids, flags, tags, `{placeholder}` keys, usernames,
+  hostnames, `image:` paths and file paths stay ASCII** (they are identifiers — e.g.
+  `kaemmerer`, tag `passwoerter`, username `admin.mueller`, image `…-uebergabe-…`);
+  only player-facing strings carry umlauts. New legit ae/oe/ue vocabulary never trips
+  it; a new transliterated word may need a new stem — add it to the test when you spot one.
+- `content/adventure/naming.test.ts` — no adventure id/flag references the
+  pre-rename character name "thomas" (renamed to Jens/Henry/Bjorg; ids/flags were
+  renamed 2026-07 without a save migration — flags were write-only and story
+  progress is beat-index-based). `TELEKOM-THOMAS` and "Thomas Bergmann" are
+  different characters and out of scope.
