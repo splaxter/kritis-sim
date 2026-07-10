@@ -10,6 +10,7 @@ import {
   advanceSidequest,
   getSidequestRewards,
   isDialogueUnlocked,
+  pickSidequestToStart,
 } from './adventureEngine';
 import { getVisibleChoices } from './eventEngine';
 import { getSidequestById } from '../content/adventure/sidequests';
@@ -129,5 +130,17 @@ describe.each([
     const fresh = baseState(chapter);
     const freshVisibleIds = getVisibleChoices(payoffEvent, fresh).map((c) => c.id);
     expect(freshVisibleIds).not.toContain(payoff.optionId);
+  });
+});
+
+describe('sidequest discovery', () => {
+  it('guarantees an eligible sidequest is discoverable without a lottery miss', () => {
+    const state = {
+      ...baseState('ch03_first_crisis'),
+      currentDay: 2,
+    };
+
+    expect(getAvailableSidequests(state).length).toBeGreaterThan(0);
+    expect(pickSidequestToStart(state)).not.toBeNull();
   });
 });

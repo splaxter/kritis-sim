@@ -12,6 +12,8 @@ const stats = {
   charactersHelped: ['chef', 'kollegen'],
   storyPath: 'official',
   endingFlags: ['saved_early', 'found_evidence'],
+  preparationFlags: ['saved_early', 'found_evidence'],
+  penaltyFlags: [],
 };
 
 describe('EndingScreen', () => {
@@ -19,6 +21,17 @@ describe('EndingScreen', () => {
     render(<EndingScreen ending="good" stats={stats} onBackToMenu={() => {}} />);
     expect(screen.getByText(ADVENTURE_ENDINGS.good.title)).toBeInTheDocument();
     expect(screen.getByText(/82/)).toBeInTheDocument(); // score shown
+  });
+
+  it('renders the preparation and penalty factors behind the ending', () => {
+    render(<EndingScreen ending="good" stats={{
+      ...stats,
+      preparationFlags: ['saved_early', 'found_evidence'],
+      penaltyFlags: ['ignored_warnings'],
+    }} onBackToMenu={() => {}} />);
+    expect(screen.getByText(/Was dieses Ende geprägt hat/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Systeme rechtzeitig geschützt/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Warnungen ignoriert/)).toBeInTheDocument();
   });
 
   it('renders the replay teaser (endings seen + missed content) when provided', () => {

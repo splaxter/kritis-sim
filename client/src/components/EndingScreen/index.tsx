@@ -8,6 +8,8 @@ interface EndingStats {
   charactersHelped: string[];
   storyPath: string;
   endingFlags: string[];
+  preparationFlags: string[];
+  penaltyFlags: string[];
 }
 
 /** Spoiler-light teaser of content this run didn't reach — nudges a replay. */
@@ -51,12 +53,20 @@ const FLAG_LABELS: Record<string, string> = {
   trusted_by_all: 'Vertrauen verdient — das Team stand hinter dir',
 };
 
+const PENALTY_LABELS: Record<string, string> = {
+  burned_bridges: 'Brücken verbrannt — Vertrauen im Team beschädigt',
+  ignored_warnings: 'Warnungen ignoriert — bekannte Risiken blieben offen',
+  blamed_others: 'Schuld weitergereicht — Zusammenarbeit erschwert',
+};
+
 // Only the positive, "earned" flags are shown as achievements.
 const EARNED_FLAG_ORDER = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all'];
 
 export function EndingScreen({ ending, stats, onBackToMenu, replay }: EndingScreenProps) {
   const text = ADVENTURE_ENDINGS[ending];
   const earned = EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f));
+  const preparations = stats.preparationFlags.filter((f) => FLAG_LABELS[f]);
+  const penalties = stats.penaltyFlags.filter((f) => PENALTY_LABELS[f]);
   const helped = stats.charactersHelped.map((c) => CHARACTER_LABELS[c] ?? c);
 
   return (
@@ -105,6 +115,17 @@ export function EndingScreen({ ending, stats, onBackToMenu, replay }: EndingScre
               ))}
             </div>
           )}
+          <div className="pt-2 border-t border-terminal-green/20 space-y-1">
+            <div className="text-terminal-green-muted">Was dieses Ende geprägt hat</div>
+            {preparations.length > 0 ? preparations.map((f) => (
+              <div key={f} className="text-terminal-green">✓ {FLAG_LABELS[f]}</div>
+            )) : (
+              <div className="text-terminal-green-muted">Keine zentrale Vorbereitung wurde eindeutig abgeschlossen.</div>
+            )}
+            {penalties.map((f) => (
+              <div key={f} className="text-terminal-green-muted">! {PENALTY_LABELS[f]}</div>
+            ))}
+          </div>
         </div>
 
         {/* Was du nicht gesehen hast — replay teaser */}

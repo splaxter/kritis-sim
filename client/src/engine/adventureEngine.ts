@@ -118,8 +118,9 @@ export function getNextStoryContent(
     }
   }
 
-  // (b) Otherwise maybe START a new sidequest (seeded 30% gate — deterministic,
-  // matching the game's simpleHash convention instead of Math.random).
+  // (b) Otherwise START the next eligible sidequest deterministically. The
+  // previous 30% lottery made authored content disappear for many players;
+  // one-active-quest and trigger/window checks still keep the story paced.
   const startable = pickSidequestToStart(state);
   if (startable) {
     const content = findContent(startable.events[0], allEvents, allScenarios);
@@ -151,19 +152,21 @@ export function getNextStoryContent(
 }
 
 /**
- * Deterministically decide whether to start a new sidequest this step (and which).
- * Replaces the old untestable Math.random() < 0.3 gate with a seeded hash so a
- * given state always yields the same answer (game-wide seeded-determinism convention).
- * Returns null ~70% of the time, or when no sidequest is available/startable.
+ * Choose the next eligible sidequest deterministically.
+ *
+ * Sidequests are authored story content, so availability should not depend on
+ * a luck roll. The one-active-quest guard and each quest's trigger/window
+ * conditions remain the pacing controls.
  */
 export function pickSidequestToStart(state: GameState): SidequestDefinition | null {
-  const available = getAvailableSidequests(state);
+  const available = getAvailableSidequests(state).filter(
+    (sidequest) => !state.completedEvents.includes(sidequest.events[0])
+  );
   if (available.length === 0) return null;
 
   const hash = simpleHash(
     state.seed + state.currentWeek + state.currentDay + state.completedEvents.length + 'sq'
   );
-  if (hash % 100 >= 30) return null;
   return available[hash % available.length];
 }
 
@@ -492,6 +495,8 @@ export function getEndingStats(state: GameState): {
   charactersHelped: string[];
   storyPath: string;
   endingFlags: string[];
+  preparationFlags: string[];
+  penaltyFlags: string[];
 } {
   if (!state.storyState) {
     return {
@@ -501,6 +506,8 @@ export function getEndingStats(state: GameState): {
       charactersHelped: [],
       storyPath: 'neutral',
       endingFlags: [],
+      preparationFlags: [],
+      penaltyFlags: [],
     };
   }
 
@@ -511,6 +518,10 @@ export function getEndingStats(state: GameState): {
     .map(([npcId]) => npcId);
 
   const endingFlags = deriveEndingFlags(state);
+  const preparationFlags = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all']
+    .filter((flag) => endingFlags.includes(flag));
+  const penaltyFlags = ['burned_bridges', 'ignored_warnings', 'blamed_others']
+    .filter((flag) => endingFlags.includes(flag));
 
   const score = calculateEndingScore(
     { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
@@ -525,6 +536,8 @@ export function getEndingStats(state: GameState): {
     charactersHelped,
     storyPath: deriveStoryPath(state),
     endingFlags,
+    preparationFlags,
+    penaltyFlags,
   };
 }
 

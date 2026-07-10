@@ -9,6 +9,7 @@ import {
   advanceStoryBeat,
   isAdventureModeComplete,
 } from './adventureEngine';
+import { getVisibleChoices } from './eventEngine';
 import { allEvents } from '../content/events';
 import { adventureStoryEvents } from '../content/adventure/story-events';
 import { adventureSidequestEvents } from '../content/adventure/sidequest-events';
@@ -89,6 +90,64 @@ describe('deriveStoryPath', () => {
   });
   it('neutral otherwise', () => {
     expect(deriveStoryPath(storyState())).toBe('neutral');
+  });
+});
+
+describe('route and preparation consequences', () => {
+  function contentAt(chapter: string, flags: Record<string, boolean>, beatIndex = 0) {
+    const state = storyState({
+      flags,
+      // Keep this focused route test on the main beat. In a real run these
+      // first sidequest events are marked complete when their quest is served.
+      completedEvents: [
+        'adv_sq_printer_1',
+        'adv_sq_network_1',
+        'adv_sq_coffee_1',
+        'adv_sq_legacy_1',
+        'adv_sq_trail_1',
+        'adv_sq_contact_1',
+      ],
+    });
+    state.storyState!.currentChapter = chapter;
+    state.storyState!.currentBeatIndex = beatIndex;
+    return getNextStoryContent(state, walkEvents, walkScenarios).content;
+  }
+
+  it('serves a distinct official investigation scene', () => {
+    expect(contentAt('ch07_escalation', { chose_official_route: true })?.id)
+      .toBe('adv_official_bsi_briefing');
+  });
+
+  it('serves a distinct underground investigation scene', () => {
+    expect(contentAt('ch07_escalation', { going_solo: true })?.id)
+      .toBe('adv_solo_countertrace');
+  });
+
+  it('serves a prepared crisis scene when systems were isolated', () => {
+    expect(contentAt('ch09_attack', { isolated_systems: true })?.id)
+      .toBe('adv_contained_ransomware');
+  });
+
+  it('serves an unprepared crisis scene without isolation', () => {
+    expect(contentAt('ch09_attack', {})?.id)
+      .toBe('adv_ransomware_strike_uncontained');
+  });
+
+  it('keeps the official route payoff distinct in the truth chapter', () => {
+    expect(contentAt('ch11_truth', { chose_official_route: true }, 2)?.id)
+      .toBe('adv_official_resolution');
+  });
+
+  it('keeps the underground route payoff distinct in the finale', () => {
+    expect(contentAt('ch12_finale', { going_solo: true }, 3)?.id)
+      .toBe('adv_underground_finale');
+  });
+
+  it('surfaces a Jens callback when his trust flag was earned', () => {
+    const event = adventureStoryEvents.find((candidate) => candidate.id === 'adv_official_resolution')!;
+    const state = storyState({ flags: { chose_official_route: true, jens_ally: true } });
+    expect(getVisibleChoices(event, state).map((choice) => choice.id))
+      .toContain('jens_callback');
   });
 });
 

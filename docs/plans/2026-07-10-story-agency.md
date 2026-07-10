@@ -90,7 +90,7 @@ Expected: summary renders the factor panel and existing summary behavior remains
 - Modify: `docs/GAME_MODES_SPEC.md`
 - Modify: `docs/plans/2026-07-10-story-agency-design.md`
 
-Document route divergence, guaranteed sidequest offers, preparation consequences, and ending transparency.
+Document route divergence, guaranteed sidequest offers, preparation consequences, and ending transparency. Mark the design and implementation plan complete after verification.
 
 Run: `npm test`
 Run: `npm run test:client`

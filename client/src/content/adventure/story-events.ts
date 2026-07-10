@@ -6,6 +6,236 @@
 import { GameEvent } from '@kritis/shared';
 
 export const adventureStoryEvents: GameEvent[] = [
+  {
+    id: 'adv_official_resolution',
+    title: 'Der Fall wird offiziell',
+    category: 'story',
+    weekRange: [11, 11],
+    probability: 1,
+    image: '/images/events/03_audit-besprechung-nacht.webp',
+    description: `Frau Dr. Reinhardt schiebt dir das Aktenzeichen über den Tisch. Die Spuren aus dem BSI-Bericht, Stefans Dossier und euren Logs greifen ineinander.
+
+„Mit dem offiziellen Weg haben Sie uns früh genug eingebunden“, sagt sie. „Jetzt können wir handeln, ohne dass Sie allein die Beweiskette tragen.“
+
+Zum ersten Mal ist der Fall größer als eure Abteilung — und genau deshalb nicht mehr nur euer Problem.`,
+    involvedCharacters: ['chef', 'jens'],
+    tags: ['story', 'chapter11', 'official_route', 'resolution'],
+    choices: [
+      {
+        id: 'hand_over_case',
+        text: 'Die vollständige Beweismappe übergeben und im Team aussagen',
+        effects: { compliance: 10, relationships: { chef: 8 }, skills: { security: 3 } },
+        resultText: 'Die Ermittler übernehmen den Fall. Du bleibst Ansprechpartner, aber nicht mehr allein verantwortlich. Bert unterschreibt die Übergabe mit zitternder Hand.',
+        setsFlags: ['official_case_handed_over', 'evidence_complete'],
+      },
+      {
+        id: 'protect_sources',
+        text: 'Zuerst Stefans und Jens’ Schutzbedingungen klären',
+        effects: { relationships: { kollegen: 10 }, stress: -3 },
+        resultText: 'Du machst klar: Beweise sind wichtig, aber Menschen sind keine Anhänge. Das BSI stellt Schutz und getrennte Aussagen sicher. Jens sieht dich an und nickt.',
+        setsFlags: ['sources_protected', 'trusted_by_all'],
+      },
+      {
+        id: 'jens_callback',
+        text: 'Jens die Einsatzleitung anbieten — diesmal hört ihm jemand zu',
+        unlocks: ['jens_ally'],
+        effects: { relationships: { kollegen: 20 }, stress: -5 },
+        resultText: 'Du stellst Jens vor die Runde und sagst, was du vor Wochen noch nicht sagen konntest: „Er kennt dieses Muster. Hört ihm zu.“ Jens übernimmt. Sein Blick sagt, dass er sich daran erinnern wird.',
+        setsFlags: ['trusted_by_all', 'coordinated_defense'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_underground_resolution',
+    title: 'Der Fall bleibt in eurer Hand',
+    category: 'story',
+    weekRange: [11, 12],
+    probability: 1,
+    image: '/images/events/10_figur-zwischen-tueren-flur.webp',
+    description: `Ihr habt den Angreifer gefunden, bevor jemand euch geglaubt hätte. Die Beweismappe liegt auf einem verschlüsselten Laptop. Jens kennt den einzigen Raum, in dem ihr ungestört reden könnt.
+
+„Wenn wir jetzt alles öffnen, verlieren wir den Vorsprung“, sagt er. „Wenn wir nichts öffnen, verlieren wir vielleicht den Fall.“
+
+Der Alleingang hat euch schnell gemacht. Nun müsst ihr entscheiden, wann er endet.`,
+    involvedCharacters: ['jens'],
+    tags: ['story', 'chapter11', 'underground_route', 'resolution'],
+    choices: [
+      {
+        id: 'controlled_disclosure',
+        text: 'Die Beweise kontrolliert an eine ausgewählte Ermittlerin übergeben',
+        effects: { compliance: 8, relationships: { kollegen: 8 }, skills: { security: 3 } },
+        resultText: 'Keine Presse, kein großer Verteiler: eine Person, ein sicherer Kanal, eine überprüfbare Übergabe. Der Alleingang endet nicht mit Vertrauen — aber mit einem belastbaren ersten Schritt.',
+        setsFlags: ['controlled_disclosure', 'evidence_complete'],
+      },
+      {
+        id: 'keep_leverage',
+        text: 'Die Beweise zurückhalten und Brandt weiter beobachten',
+        effects: { skills: { security: 4 }, stress: 8 },
+        resultText: 'Ihr behaltet den Hebel. Ihr behaltet aber auch das Risiko. Jens sagt nichts dagegen — er löscht nur zum dritten Mal den Raum und prüft die Tür.',
+        setsFlags: ['kept_leverage', 'going_solo'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_underground_finale',
+    title: '23:47 — ohne Netz',
+    category: 'story',
+    weekRange: [12, 12],
+    probability: 1,
+    image: '/images/events/18_verlassener-besprechungsraum-projektor.webp',
+    description: `23:47. Der Pivot-Versuch kommt — und diesmal wartet niemand auf eine Freigabe.
+
+Du und Jens habt die Koppel bereits aus dem Verbund genommen. Kein großer Krisenstab, kein Kamerateam, kein sauberer Applaus. Nur ein rotes Fenster, das geschlossen wird, bevor es grün werden kann.
+
+Die Stadt merkt nur, dass das Licht anbleibt. Genau das war der Plan.`,
+    involvedCharacters: ['jens'],
+    tags: ['story', 'chapter12', 'underground_route', 'finale', 'climax'],
+    choices: [
+      {
+        id: 'close_channel',
+        text: 'Den Kanal schließen und den Vorfall danach vollständig offenlegen',
+        effects: { compliance: 8, skills: { security: 4 }, relationships: { kollegen: 8 } },
+        resultText: 'Die Verbindung bricht ab. Danach öffnest du die Mappe — auch für die Menschen, die den Alleingang nicht gutheißen werden. Jens bleibt neben dir sitzen.',
+        setsFlags: ['attack_repelled', 'climax_resolved', 'evidence_complete'],
+      },
+      {
+        id: 'disappear_cleanly',
+        text: 'Den Kanal schließen und eure Spuren aus dem System nehmen',
+        effects: { skills: { security: 5 }, stress: -5 },
+        resultText: 'Der Angriff prallt ab. Eure privaten Spuren verschwinden gleich mit. Ihr habt die Stadt geschützt — aber niemand kann später genau sagen, wie.',
+        setsFlags: ['attack_repelled', 'climax_resolved', 'kept_leverage'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_official_bsi_briefing',
+    title: 'Der offizielle Weg',
+    category: 'story',
+    weekRange: [7, 7],
+    probability: 1,
+    image: '/images/events/03_audit-besprechung-nacht.webp',
+    description: `Du legst Dr. Reinhardt vom BSI deine Notizen auf den Tisch. Sie liest sie zweimal und tippt dann auf die Uhr.
+
+„Gut, dass Sie offiziell gekommen sind. Ab jetzt behandeln wir das wie einen Vorfall — mit Protokoll, Zuständigkeiten und Leuten, die wissen, was sie tun.“
+
+Es ist die sichere Route. Aber Sicherheit bedeutet auch: Jede Abkürzung wird später eine Frage in einem Bericht.`,
+    involvedCharacters: ['jens', 'chef'],
+    tags: ['story', 'chapter7', 'official_route', 'preparation'],
+    choices: [
+      {
+        id: 'document_everything',
+        text: 'Alles dokumentieren und die Meldekette eröffnen',
+        effects: { skills: { security: 3 }, relationships: { chef: 5 } },
+        resultText: 'Der Vorfall bekommt eine Aktennummer, einen Zeitstempel und plötzlich auch Aufmerksamkeit. Nicht alle mögen die Bürokratie — aber niemand kann später behaupten, nichts gewusst zu haben.',
+        setsFlags: ['evidence_secured', 'official_route_prepared'],
+      },
+      {
+        id: 'keep_quiet',
+        text: 'Erst intern prüfen, bevor du jemanden alarmierst',
+        effects: { skills: { troubleshooting: 2 }, relationships: { kollegen: 5 } },
+        resultText: 'Jens nickt erleichtert. Dr. Reinhardt nicht. Du gewinnst ein paar Stunden und verlierst ein Stück Vertrauen in die offizielle Route.',
+        setsFlags: ['official_route_delayed'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_solo_countertrace',
+    title: 'Die Spur im Schatten',
+    category: 'story',
+    weekRange: [7, 7],
+    probability: 1,
+    image: '/images/events/10_figur-zwischen-tueren-flur.webp',
+    description: `Du gehst nicht zum BSI. Stattdessen folgst du der Spur selbst — über einen alten VPN-Zugang, einen vergessenen Proxy und eine Adresse, die in keinem Inventar auftaucht.
+
+Jens sieht dir über die Schulter. „Wenn das schiefgeht, war ich nie hier.“
+
+Die Daten sind schneller da. Die Beweise sind aber nur so belastbar wie deine eigene Dokumentation.`,
+    involvedCharacters: ['jens'],
+    tags: ['story', 'chapter7', 'underground_route', 'investigation'],
+    choices: [
+      {
+        id: 'preserve_trace',
+        text: 'Die Spur sichern, bevor du weitergehst',
+        effects: { skills: { security: 3, linux: 2 } },
+        resultText: 'Du ziehst Hashes, Screenshots und eine Kopie der Logs. Der Weg ist illegaler als der offizielle — aber deine Beweiskette hält.',
+        setsFlags: ['evidence_secured', 'underground_route_prepared'],
+      },
+      {
+        id: 'follow_live',
+        text: 'Der Verbindung sofort weiter folgen',
+        effects: { skills: { troubleshooting: 3 }, stress: 5 },
+        resultText: 'Du erwischst einen laufenden Transfer. Als du ihn kappst, verschwinden die wichtigsten Spuren gleich mit. Du weißt jetzt mehr — und kannst weniger davon beweisen.',
+        setsFlags: ['underground_route_exposed'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_contained_ransomware',
+    title: 'Der Angriff prallt ab',
+    category: 'story',
+    weekRange: [9, 9],
+    probability: 1,
+    image: '/images/events/06_leitwarte-monitore-ausfall.webp',
+    description: `Montagmorgen. Die Ransomware ist da — aber sie findet nicht überall offene Türen. Deine früher isolierten Systeme stehen noch. Die Anzeige blinkt rot, doch der Betrieb läuft weiter.
+
+„Das ist der Unterschied zwischen Vorbereitung und Glück“, sagt Jens. Zum ersten Mal klingt er nicht erschöpft, sondern überzeugt.`,
+    involvedCharacters: ['jens', 'chef'],
+    tags: ['story', 'chapter9', 'incident', 'prepared'],
+    choices: [
+      {
+        id: 'protect_core',
+        text: 'Die isolierten Kernsysteme schützen und sauber inventarisieren',
+        effects: { skills: { security: 3 }, stress: -5 },
+        resultText: 'Ihr gewinnt Zeit. Nicht viel — aber genug, um die Ausbreitung zu stoppen, ohne blind abzuschalten.',
+        setsFlags: ['contained_damage', 'team_prepared'],
+      },
+      {
+        id: 'rush_restore',
+        text: 'Sofort mit dem Restore beginnen',
+        effects: { skills: { troubleshooting: 3 }, stress: 5 },
+        resultText: 'Der Restore läuft an. Du hast die richtigen Systeme, aber noch keinen geprüften Ablauf. Jede Minute wird zur Wette.',
+        setsFlags: ['restore_started'],
+      },
+    ],
+  },
+
+  {
+    id: 'adv_ransomware_strike_uncontained',
+    title: 'Alles brennt gleichzeitig',
+    category: 'story',
+    weekRange: [9, 9],
+    probability: 1,
+    image: '/images/events/12_schock-am-crt-terminal.webp',
+    description: `Montagmorgen. Ransomware. Die Warnungen aus den letzten Wochen waren richtig — nur die Trennung der Systeme fehlt. Ein Bildschirm nach dem anderen wird schwarz.
+
+Chef Bert steht hinter dir. „Sag mir bitte, dass du einen Plan hast.“
+
+Du hast einen Plan. Du hast nur nicht genug Zeit für alle Teile davon.`,
+    involvedCharacters: ['chef', 'jens'],
+    tags: ['story', 'chapter9', 'incident', 'unprepared'],
+    choices: [
+      {
+        id: 'cut_interconnect',
+        text: 'Die Verbindungen kappen und den Schaden begrenzen',
+        effects: { skills: { security: 3 }, stress: 10, relationships: { chef: 5 } },
+        resultText: 'Ein Teil des Betriebs fällt aus, aber die Ausbreitung stoppt. Es ist keine elegante Lösung. Es ist eine, mit der ihr weiterarbeiten könnt.',
+        setsFlags: ['cut_interconnect', 'contained_damage'],
+      },
+      {
+        id: 'keep_running',
+        text: 'Die Systeme weiterlaufen lassen, damit der Betrieb nicht stoppt',
+        effects: { stress: 15, relationships: { chef: -10 } },
+        resultText: 'Die Müllabfuhr fährt noch eine Stunde. Dann verschlüsselt die nächste Maschine. Der Preis für den Aufschub wird höher.',
+        setsFlags: ['ignored_warnings', 'damage_spread'],
+      },
+    ],
+  },
+
   // ============================================
   // CHAPTER 1: DER ERSTE TAG
   // ============================================

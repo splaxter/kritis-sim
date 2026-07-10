@@ -234,9 +234,13 @@ Act 3: Resolution (Weeks 9-12)
 
 - **Story beats** trigger at specific weeks
 - **Character memory** - NPCs reference past decisions
-- **Sidequests** - Optional storylines with rewards
+- **Character callbacks** - Trust flags can unlock visible later choices, including a Jens leadership payoff during the crisis
+- **Sidequests** - Optional storylines with rewards; eligible authored quests are surfaced deterministically instead of being lost to a random start roll
 - **Relationship gates** - Some content requires relationship thresholds
 - **Mystery thread** - What happened to the last sysadmin?
+- **Route divergence** - The official BSI route and underground route use different investigation scenes and different Act 3 resolutions
+- **Preparation consequences** - Evidence, isolation, team preparation, and warnings change the ransomware response and finale options
+- **Ending transparency** - The ending screen shows route, earned preparation factors, and penalty factors so replay differences are legible
 
 ---
 

@@ -26,7 +26,7 @@ const BEATS = [
     id: 'adv_gui_taskmanager_attack',
     app: 'taskmanager',
     chapter: 'ch09_attack',
-    after: 'adv_ransomware_strike',
+    after: 'adv_contained_ransomware',
     flag: 'story_incident_contained',
   },
 ] as const;
