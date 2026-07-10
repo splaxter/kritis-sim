@@ -102,7 +102,7 @@ describe('chain pacing audit', () => {
       }
     }
 
-    // eslint-disable-next-line no-console
+
     console.info('\n=== CHAIN PACING AUDIT (worst-case, scenarios excluded) ===' + report.join('\n') + '\n');
   });
 

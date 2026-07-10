@@ -9,6 +9,10 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['./src/test/setup.ts'],
+    // Headroom for CPU-starved parallel workers (jsdom + Fluent UI import
+    // cost); tests no longer depend on real time (see src/test/fakeTimers.ts),
+    // so this only delays *failure* reporting, never slows a passing run.
+    testTimeout: 15_000,
   },
   resolve: {
     alias: {

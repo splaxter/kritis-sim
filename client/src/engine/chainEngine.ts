@@ -60,7 +60,7 @@ export function evaluateCondition(
     };
 
     // Use Function constructor for controlled evaluation
-    // eslint-disable-next-line no-new-func
+
     const evalFn = new Function(
       'state',
       'event',

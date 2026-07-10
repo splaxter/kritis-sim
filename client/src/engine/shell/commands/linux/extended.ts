@@ -307,7 +307,7 @@ export const base64Command: ShellCommand = {
 
 /** Expand a tr SET: ranges (a-z), a few POSIX classes, and \n \t \\ escapes. */
 function expandSet(set: string): string {
-  let s = set
+  const s = set
     .replace(/\[:upper:\]/g, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ')
     .replace(/\[:lower:\]/g, 'abcdefghijklmnopqrstuvwxyz')
     .replace(/\[:digit:\]/g, '0123456789')
@@ -630,7 +630,7 @@ function guessType(path: string, content: string): string {
   if (/^PK\x03\x04/.test(content)) return 'Zip archive data';
   if (/^\{[\s\S]*\}\s*$/.test(content.trim()) || /^\[[\s\S]*\]\s*$/.test(content.trim())) return 'JSON data';
   // Any non-printable byte → treat as binary data.
-  // eslint-disable-next-line no-control-regex
+   
   if (/[\x00-\x08\x0e-\x1f]/.test(content)) return 'data';
   if (path.endsWith('.csv')) return 'CSV text';
   return 'ASCII text';

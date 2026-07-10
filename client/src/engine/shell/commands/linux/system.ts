@@ -345,7 +345,7 @@ export const psCommand: ShellCommand = {
       { pid: 3456, user: ctx.user, cpu: '0.0', mem: '0.1', vsz: 11320, rss: 2456, tty: 'pts/0', stat: 'R+', start: '10:30', time: '0:00', command: 'ps aux' },
     ];
 
-    let filteredProcesses = all ? processes : processes.filter(p => p.user === ctx.user || p.tty !== '?');
+    const filteredProcesses = all ? processes : processes.filter(p => p.user === ctx.user || p.tty !== '?');
 
     if (userFormat) {
       const header = 'USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND';

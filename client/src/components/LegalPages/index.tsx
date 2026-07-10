@@ -1,28 +1,6 @@
 // client/src/components/LegalPages/index.tsx
 import { useState } from 'react';
-
-// ═════════════════════════════════════════════════════════════════════
-// ⚠️  BETREIBER-DATEN — VOR PRODUKTIV-DEPLOYMENT AUSFÜLLEN!  ⚠️
-// Pflichtangaben nach § 5 TMG (Impressum) und Art. 13 DSGVO
-// (Verantwortliche Stelle). Solange hier TODO-Platzhalter stehen, ist
-// die Seite NICHT rechtskonform. Der Guard-Test in LegalPages.test.tsx
-// ist deshalb als `it.fails` markiert — nach dem Eintragen echter Daten
-// dort `it.fails` → `it` umstellen, damit er dauerhaft wacht.
-// ═════════════════════════════════════════════════════════════════════
-export const LEGAL_OWNER = {
-  name: 'TODO Vorname Nachname',
-  street: 'TODO Straße Hausnummer',
-  city: 'TODO PLZ Ort',
-  country: 'Deutschland',
-  email: 'TODO ihre-email@example.com',
-  /** Nach § 5 TMG optional — auf '' setzen, um die Zeile auszublenden. */
-  phone: 'TODO +49 XXX XXXXXXX',
-};
-
-/** True solange irgendein Feld noch einen TODO-Platzhalter trägt. */
-export const LEGAL_DATA_IS_PLACEHOLDER = Object.values(LEGAL_OWNER).some(
-  (v) => v.includes('TODO'),
-);
+import { LEGAL_OWNER, LEGAL_DATA_IS_PLACEHOLDER } from '../../config/legal';
 
 interface LegalPagesProps {
   initialPage?: 'impressum' | 'datenschutz';
