@@ -839,6 +839,8 @@ git commit -m "feat(story): wire sound cues + [M] toggle with footer hint"
 
 ## Task 5: Flow-Fixes — Doppel-Enter & Fokus
 
+> **⚠️ Sequenzierung:** Parallel wird `docs/plans/2026-07-10-menu-information-architecture-design.md` umgesetzt (Menü-Umbau: Hauptmenü → Experience-Picker → Simulation-Picker; `GameModeSelectModal` wird Simulation-Picker). Diesen Task ERST NACH dem Merge des Menü-Umbaus ausführen: (a) der Bug wirft den Spieler ins Hauptmenü — genau die Zone, die umgebaut wird; eine Diagnose gegen den alten Menü-Code wäre Wegwerfarbeit; (b) der Repro-Pfad ändert sich (Story startet dann direkt aus dem Experience-Picker); (c) die neuen semantischen Buttons mit `focus-visible`-Verhalten können den Fokus-Anteil des Bugs bereits beheben — nach dem Merge zuerst neu reproduzieren, dann entscheiden, ob nur noch der Input-Guard nötig ist. Tasks 1–4 sind vom Menü-Umbau unabhängig (disjunkte Dateien; Menü-Design erklärt In-Game-HUD explizit zum Non-Goal) und können jederzeit laufen.
+
 **Kontext:** Beim schnellen Enter-Drücken (Verifikation 2026-07-10) landete der Spieler vom Story-Fluss unvermittelt im Hauptmenü (beobachtet nach ResultScreen → Tageswechsel). Der Typewriter (Task 2) entschärft Event-Cards; ResultScreen und Übergangsscreens brauchen einen Input-Guard.
 
 **Files:**
