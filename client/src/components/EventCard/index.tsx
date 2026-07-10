@@ -81,7 +81,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [visibleChoices, selectedIndex, onChoice, typewriter]);
+  }, [visibleChoices, selectedIndex, onChoice, typewriter.done, typewriter.skip]);
 
   // Scroll selected button into view
   useEffect(() => {
