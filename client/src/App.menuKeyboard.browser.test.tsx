@@ -7,7 +7,7 @@ import App from './App';
 // items (New → Lernmodus → Laden), so wrap-around exercises real up/down deltas.
 describe('App — main menu arrow-key navigation', () => {
   // Fresh localStorage → the first-run intro shows, so the Enter below dismisses
-  // it (rather than triggering a menu action on an already-visible menu).
+// it (rather than triggering a menu action on an already-visible menu).
   beforeEach(() => localStorage.clear());
 
   // The selected item is rendered with a '> ' prefix inside the button.
@@ -25,25 +25,52 @@ describe('App — main menu arrow-key navigation', () => {
     // Initially item 0 ("NEUES SPIEL STARTEN") is selected.
     expect(markerOf(/NEUES SPIEL STARTEN/)).toMatch(/^>/);
 
-    // ArrowDown → "LERNMODUS".
+    // ArrowDown → "LERNBEREICH".
     fireEvent.keyDown(window, { key: 'ArrowDown' });
-    expect(markerOf(/LERNMODUS/)).toMatch(/^>/);
+    expect(markerOf(/LERNBEREICH/)).toMatch(/^>/);
     expect(markerOf(/NEUES SPIEL STARTEN/)).not.toMatch(/^>/);
 
-    // ArrowDown → "SPIEL LADEN".
+    // ArrowDown → "SPIELSTÄNDE".
     fireEvent.keyDown(window, { key: 'ArrowDown' });
-    expect(markerOf(/SPIEL LADEN/)).toMatch(/^>/);
+    expect(markerOf(/SPIELSTÄNDE/)).toMatch(/^>/);
 
     // ArrowDown again → wraps back to "NEUES SPIEL STARTEN".
     fireEvent.keyDown(window, { key: 'ArrowDown' });
     expect(markerOf(/NEUES SPIEL STARTEN/)).toMatch(/^>/);
 
-    // ArrowUp from item 0 → wraps UP to the last item ("SPIEL LADEN").
+    // ArrowUp from item 0 → wraps UP to the last item ("SPIELSTÄNDE").
     fireEvent.keyDown(window, { key: 'ArrowUp' });
-    expect(markerOf(/SPIEL LADEN/)).toMatch(/^>/);
+    expect(markerOf(/SPIELSTÄNDE/)).toMatch(/^>/);
 
-    // ArrowUp → "LERNMODUS".
+    // ArrowUp → "LERNBEREICH".
     fireEvent.keyDown(window, { key: 'ArrowUp' });
-    expect(markerOf(/LERNMODUS/)).toMatch(/^>/);
+    expect(markerOf(/LERNBEREICH/)).toMatch(/^>/);
+  });
+
+  it('opens the progressive new-game flow without a duplicate learning mode', async () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+
+    expect(await screen.findByRole('button', { name: /Freie Simulation/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Story: Die Probezeit/ })).toBeInTheDocument();
+    expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Freie Simulation/ }));
+
+    expect(await screen.findByRole('button', { name: /Standard/ })).toBeInTheDocument();
+    expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
+    expect(screen.queryByText('Story: Die Probezeit')).not.toBeInTheDocument();
+  });
+
+  it('opens the existing load dialog through Spielstände', async () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    fireEvent.click(await screen.findByText(/SPIELSTÄNDE/));
+
+    expect(await screen.findByText('Slot 1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Schließen/ })).toBeInTheDocument();
   });
 });

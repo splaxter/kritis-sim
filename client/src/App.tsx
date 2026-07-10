@@ -35,6 +35,7 @@ import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNa
 // Lazy load modals - only needed when user opens them
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
 const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
+const NewGameSelectModal = lazy(() => import('./components/NewGameSelectModal').then(m => ({ default: m.NewGameSelectModal })));
 // ⚠️ DEV-ONLY preview harness — NOT for production. Lets us eyeball GUI levels at
 // ?preview=<id> without fighting RNG/game-state. The import() lives inside the
 // import.meta.env.DEV ternary so the chunk is fully eliminated from prod builds.
@@ -131,7 +132,7 @@ function AppContent() {
     show: false,
     mode: 'save',
   });
-  const [showModeSelect, setShowModeSelect] = useState(false);
+  const [newGamePicker, setNewGamePicker] = useState<'experience' | 'simulation' | null>(null);
   const [menuIndex, setMenuIndex] = useState(0);
   const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
@@ -363,17 +364,17 @@ function AppContent() {
 
   // Handle mode selection and start game
   const handleModeSelect = useCallback((mode: GameModeId) => {
-    setShowModeSelect(false);
+    setNewGamePicker(null);
     game.startNewGame(undefined, mode);
   }, [game]);
 
   // Main menu keyboard navigation ('continue' only when an autosave exists)
-  const menuItems: readonly ('continue' | 'new' | 'learning' | 'load')[] = resumeSave
-    ? ['continue', 'new', 'learning', 'load']
-    : ['new', 'learning', 'load'];
+  const menuItems: readonly ('continue' | 'new' | 'learning' | 'saves')[] = resumeSave
+    ? ['continue', 'new', 'learning', 'saves']
+    : ['new', 'learning', 'saves'];
 
   useEffect(() => {
-    if (game.phase !== 'menu' || showModeSelect || saveLoadModal.show || showIntro || legalPage) return;
+    if (game.phase !== 'menu' || newGamePicker || saveLoadModal.show || showIntro || legalPage) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't hijack keys while the name field (or any input) is focused.
@@ -390,7 +391,7 @@ function AppContent() {
         if (item === 'continue') {
           handleResume();
         } else if (item === 'new') {
-          setShowModeSelect(true);
+          setNewGamePicker('experience');
         } else if (item === 'learning') {
           handleModeSelect('learning');
         } else {
@@ -401,7 +402,7 @@ function AppContent() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [game.phase, showModeSelect, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume, handleModeSelect]);
+  }, [game.phase, newGamePicker, saveLoadModal.show, menuIndex, showIntro, legalPage, menuItems, handleResume, handleModeSelect]);
 
   // ESC to close legal modal
   useEffect(() => {
@@ -465,7 +466,7 @@ function AppContent() {
             </button>
           )}
           <button
-            onClick={() => setShowModeSelect(true)}
+            onClick={() => setNewGamePicker('experience')}
             onMouseEnter={() => setMenuIndex(menuItems.indexOf('new'))}
             className={`w-full p-4 border transition-colors text-lg mb-2 ${
               menuIndex === menuItems.indexOf('new')
@@ -484,21 +485,24 @@ function AppContent() {
                 : 'border-terminal-border text-terminal-green-dim hover:border-terminal-green'
             }`}
           >
-            {menuIndex === menuItems.indexOf('learning') ? '> ' : '  '}[ LERNMODUS ]
+            {menuIndex === menuItems.indexOf('learning') ? '> ' : '  '}[ LERNBEREICH ]
             <div className="text-xs text-terminal-green-dim mt-1">
               Security-Training ohne Zeitdruck — Terminal &amp; Windows üben
             </div>
           </button>
           <button
             onClick={() => setSaveLoadModal({ show: true, mode: 'load' })}
-            onMouseEnter={() => setMenuIndex(menuItems.indexOf('load'))}
+            onMouseEnter={() => setMenuIndex(menuItems.indexOf('saves'))}
             className={`w-full p-3 border transition-colors ${
-              menuIndex === menuItems.indexOf('load')
+              menuIndex === menuItems.indexOf('saves')
                 ? 'border-terminal-info bg-terminal-bg-highlight text-terminal-green'
                 : 'border-terminal-border text-terminal-green-dim hover:border-terminal-info'
             }`}
           >
-            {menuIndex === menuItems.indexOf('load') ? '> ' : '  '}[ SPIEL LADEN ]
+            {menuIndex === menuItems.indexOf('saves') ? '> ' : '  '}[ SPIELSTÄNDE ]
+            <div className="text-xs text-terminal-green-dim mt-1">
+              Gespeicherte Einsätze laden und verwalten
+            </div>
           </button>
 
           <div className="text-terminal-green-dim text-xs mt-4">
@@ -577,12 +581,19 @@ function AppContent() {
           )}
         </Suspense>
 
-        {/* Game Mode Selection Modal */}
+        {/* Progressive new-game selection */}
         <Suspense fallback={null}>
-          {showModeSelect && (
+          {newGamePicker === 'experience' && (
+            <NewGameSelectModal
+              onSelectSimulation={() => setNewGamePicker('simulation')}
+              onSelectStory={() => handleModeSelect('story')}
+              onClose={() => setNewGamePicker(null)}
+            />
+          )}
+          {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
-              onClose={() => setShowModeSelect(false)}
+              onClose={() => setNewGamePicker('experience')}
             />
           )}
         </Suspense>
@@ -606,10 +617,17 @@ function AppContent() {
   if (game.phase === 'storyEnding') {
     const menuModal = (
       <Suspense fallback={null}>
-        {showModeSelect && (
+        {newGamePicker === 'experience' && (
+          <NewGameSelectModal
+            onSelectSimulation={() => setNewGamePicker('simulation')}
+            onSelectStory={() => handleModeSelect('story')}
+            onClose={() => setNewGamePicker(null)}
+          />
+        )}
+        {newGamePicker === 'simulation' && (
           <GameModeSelectModal
             onSelect={handleModeSelect}
-            onClose={() => setShowModeSelect(false)}
+            onClose={() => setNewGamePicker('experience')}
           />
         )}
       </Suspense>
@@ -641,7 +659,7 @@ function AppContent() {
           <EndingScreen
             ending={ending}
             stats={getEndingStats(game.state)}
-            onBackToMenu={() => setShowModeSelect(true)}
+            onBackToMenu={() => setNewGamePicker('experience')}
             replay={replay}
           />
           {menuModal}
@@ -677,7 +695,7 @@ function AppContent() {
             ))}
           </div>
           <button
-            onClick={() => setShowModeSelect(true)}
+            onClick={() => setNewGamePicker('experience')}
             className="w-full mt-8 p-3 border border-terminal-green hover:bg-terminal-bg-highlight"
           >
             [ ZURÜCK ZUM MENÜ ]
@@ -702,14 +720,21 @@ function AppContent() {
           modeIcon={modeConfig.icon}
           meta={meta}
           learningTip={learningTip}
-          onRetry={() => setShowModeSelect(true)}
+          onRetry={() => setNewGamePicker('experience')}
         />
-        {/* Game Mode Selection Modal */}
+        {/* Progressive new-game selection */}
         <Suspense fallback={null}>
-          {showModeSelect && (
+          {newGamePicker === 'experience' && (
+            <NewGameSelectModal
+              onSelectSimulation={() => setNewGamePicker('simulation')}
+              onSelectStory={() => handleModeSelect('story')}
+              onClose={() => setNewGamePicker(null)}
+            />
+          )}
+          {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
-              onClose={() => setShowModeSelect(false)}
+              onClose={() => setNewGamePicker('experience')}
             />
           )}
         </Suspense>

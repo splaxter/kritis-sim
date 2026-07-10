@@ -7,7 +7,7 @@ import App from './App';
 // NOT auto-serve the first level (learn_01). Before the wiring, App fell through
 // to selectNextEvent and rendered learn_01 as an active level.
 //
-// Drives the real UI flow: intro → menu → "NEUES SPIEL STARTEN" → pick Lernmodus.
+// Drives the real UI flow: intro → menu → Lernbereich.
 describe('App — learning mode routes to the hub', () => {
   it('shows "Lernpfad" and does NOT auto-render the first level', async () => {
     const user = userEvent.setup();
@@ -16,15 +16,11 @@ describe('App — learning mode routes to the hub', () => {
     // 1. Intro screen → enter (Enter key dismisses it).
     fireEvent.keyDown(window, { key: 'Enter' });
 
-    // 2. Main menu → start a new game.
-    const newGameBtn = await screen.findByText(/NEUES SPIEL STARTEN/i);
-    await user.click(newGameBtn);
-
-    // 3. Mode-select modal (lazy/Suspense) → choose Lernmodus.
-    const learningBtn = await screen.findByText('Lernmodus');
+    // 2. Main menu → open the dedicated learning area directly.
+    const learningBtn = await screen.findByText(/LERNBEREICH/i);
     await user.click(learningBtn);
 
-    // 4. The Learning Hub heading must be present...
+    // 3. The Learning Hub heading must be present...
     expect(await screen.findByText('Lernpfad')).toBeInTheDocument();
 
     // ...and learn_01 must NOT be auto-served as the active level. The level's
