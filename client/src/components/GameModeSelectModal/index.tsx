@@ -13,7 +13,9 @@ interface GameModeSelectModalProps {
 }
 
 export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalProps) {
-  const modes = getVisibleGameModes();
+  const modes = getVisibleGameModes().filter((mode) =>
+    ['beginner', 'intermediate', 'kritis'].includes(mode.id)
+  );
   // Pre-select the recommended mode so newcomers can just hit Enter.
   const recommendedIndex = Math.max(0, modes.findIndex((m) => m.id === RECOMMENDED_MODE_ID));
   const [selectedIndex, setSelectedIndex] = useState(recommendedIndex);
@@ -40,7 +42,7 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
       <div className="w-full max-w-2xl">
-        <AsciiFrame title="SPIELMODUS WÄHLEN" variant="info">
+        <AsciiFrame title="SIMULATION WÄHLEN" variant="info">
           <div className="p-4 space-y-3">
             {/* Newcomer guidance — the picker shows 4 modes before you know the game. */}
             <p className="text-terminal-green-dim text-sm">
@@ -95,8 +97,9 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter }
     : 'border-terminal-border hover:border-terminal-info';
 
   return (
-    <div
-      className={`border ${borderColor} p-3 cursor-pointer transition-colors`}
+    <button
+      type="button"
+      className={`w-full border ${borderColor} p-3 cursor-pointer text-left transition-colors focus-visible:ring-2 focus-visible:ring-terminal-green focus-visible:ring-offset-2 focus-visible:ring-offset-black`}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
     >
@@ -129,7 +132,6 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter }
           <span className="text-terminal-green">[*]</span>
         )}
       </div>
-    </div>
+    </button>
   );
 }
-

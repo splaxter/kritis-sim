@@ -1,17 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import { VISIBLE_MODES } from '@kritis/shared';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { GameModeSelectModal } from './index';
 
-describe('GameModeSelectModal — Standard mode exposed', () => {
-  it('VISIBLE_MODES includes intermediate (Standard, 1.0x) between story and kritis', () => {
-    expect(VISIBLE_MODES).toEqual(['beginner', 'learning', 'story', 'intermediate', 'kritis']);
-  });
-
-  it('renders the Standard mode card', () => {
+describe('GameModeSelectModal — simulation variants', () => {
+  it('shows only Einsteiger, Standard, and KRITIS as semantic buttons', () => {
     render(<GameModeSelectModal onSelect={vi.fn()} onClose={vi.fn()} />);
-    expect(screen.getByText('Standard')).toBeInTheDocument();
-    expect(screen.getByText(/klassische Spielerlebnis/)).toBeInTheDocument();
+
+    const choices = screen.getAllByRole('button').filter((button) =>
+      /Einsteiger|Standard|KRITIS/.test(button.textContent ?? '')
+    );
+    expect(choices).toHaveLength(3);
+    expect(screen.getByRole('button', { name: /Einsteiger/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Standard/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /KRITIS/ })).toBeInTheDocument();
+    expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
+    expect(screen.queryByText('Story: Die Probezeit')).not.toBeInTheDocument();
   });
 
   it('keeps Einsteiger as the recommended, pre-selected mode', () => {
@@ -21,5 +24,24 @@ describe('GameModeSelectModal — Standard mode exposed', () => {
     expect(screen.getByText('[*]')).toBeInTheDocument();
     // 'Einsteiger' appears in both the guidance blurb and the mode card title.
     expect(screen.getAllByText('Einsteiger').length).toBeGreaterThan(0);
+  });
+
+  it('selects Standard with ArrowDown and Enter', () => {
+    const onSelect = vi.fn();
+    render(<GameModeSelectModal onSelect={onSelect} onClose={vi.fn()} />);
+
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    fireEvent.keyDown(window, { key: 'Enter' });
+
+    expect(onSelect).toHaveBeenCalledWith('intermediate');
+  });
+
+  it('closes on Escape', () => {
+    const onClose = vi.fn();
+    render(<GameModeSelectModal onSelect={vi.fn()} onClose={onClose} />);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(onClose).toHaveBeenCalledOnce();
   });
 });
