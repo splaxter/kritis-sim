@@ -29,8 +29,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER ZUM STARTEN', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Game mode modal appears, press Enter to select default (Standard) mode
-      await page.keyboard.press('Enter');
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Should show game UI elements (stats bar with week indicator)
       // Wait for first event to load (format: "Woche X/Y | Day")
@@ -43,8 +44,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Game mode modal appears, press Enter to select default (Standard) mode
-      await page.keyboard.press('Enter');
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Check for week indicator in stats bar (format: "Woche X/Y | Day")
       await expect(page.getByText(/Woche 1\/\d+ \|/)).toBeVisible({ timeout: 5000 });
@@ -58,8 +60,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Einsteiger mode in the game mode selector
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Wait for event to appear
       await page.waitForTimeout(1000);
@@ -75,8 +78,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Einsteiger mode in the game mode selector
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Wait for game to load
       await page.waitForTimeout(1000);
@@ -107,8 +111,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Einsteiger mode in the game mode selector
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Play through a few events
       for (let i = 0; i < 3; i++) {
@@ -145,8 +150,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Einsteiger mode in the game mode selector
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Play through events until we find a terminal event
       for (let i = 0; i < 15; i++) {
@@ -198,8 +204,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Einsteiger mode in the game mode selector
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       // Look for any terminal choice button
       let foundTerminal = false;
@@ -264,8 +271,9 @@ test.describe('KRITIS Admin Simulator', () => {
       await page.waitForSelector('text=KLICKEN ODER ENTER', { timeout: 5000 });
       await page.keyboard.press('Enter');
       await page.click('text=NEUES SPIEL STARTEN');
-      // Click on Standard mode (or Einsteiger) instead of pressing Enter
-      await page.locator('div.cursor-pointer').filter({ hasText: 'Einsteiger' }).click();
+      // Two-step new-game flow: Einsatzart → Simulation (Einsteiger)
+      await page.getByRole('button', { name: /Freie Simulation/ }).click();
+      await page.getByRole('button', { name: /Einsteiger/ }).click();
 
       await page.waitForTimeout(1000);
 
