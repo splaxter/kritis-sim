@@ -3,9 +3,10 @@
  * preconditions, enable/disable, daemon-reload semantics, journal feedback.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+import { TerminalUnitPrecondition } from '@kritis/shared';
 import { createShell } from './index';
 import { ShellEngine } from './ShellEngine';
-import { createHostState, HostState } from './hosts';
+import { createHostState, derivedUnitPid, HostState } from './hosts';
 
 function makeShellOnHost(): { shell: ShellEngine; host: HostState } {
   const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
@@ -122,6 +123,120 @@ describe('systemctl stop/enable/disable', () => {
   });
 });
 
+describe('unit pids across stop/start', () => {
+  let shell: ShellEngine;
+  let host: HostState;
+  beforeEach(() => {
+    ({ shell, host } = makeShellOnHost());
+  });
+
+  it('stop then start restores a Main PID block in status', () => {
+    shell.execute('sudo systemctl stop apache2');
+    expect(host.services.find(s => s.unit === 'apache2.service')!.pid).toBeUndefined();
+
+    shell.execute('sudo systemctl start apache2');
+    const pid = host.services.find(s => s.unit === 'apache2.service')!.pid;
+    expect(pid).toBe(derivedUnitPid('apache2'));
+
+    const status = shell.execute('systemctl status apache2');
+    expect(status.output).toContain(`Main PID: ${pid}`);
+  });
+
+  it('a custom unit gets a stable derived pid on start', () => {
+    host.vfs.addFile('/etc/telemetryd.conf', 'interval=10\n');
+    shell.execute('sudo systemctl start telemetryd');
+    const unit = host.services.find(s => s.unit === 'telemetryd.service')!;
+    expect(unit.pid).toBe(derivedUnitPid('telemetryd.service'));
+
+    shell.execute('sudo systemctl stop telemetryd');
+    shell.execute('sudo systemctl start telemetryd');
+    expect(unit.pid).toBe(derivedUnitPid('telemetryd.service'));
+  });
+});
+
+describe('journal clock seeding', () => {
+  it('appended entries get timestamps after the newest seeded entry', () => {
+    const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
+    const host = createHostState({
+      id: 'h1',
+      hostname: 'h1',
+      journal: [
+        { ts: '2026-07-18 10:00:00', unit: 'sshd', message: 'seeded late entry' },
+        { ts: '2026-07-18 06:00:00', unit: 'cron', message: 'seeded early entry' },
+      ],
+    });
+    shell.registerHost(host);
+    shell.pushSession('h1', 'admin');
+
+    shell.execute('sudo systemctl stop apache2');
+    const last = host.journal[host.journal.length - 1];
+    expect(last.message).toBe('Stopped The Apache HTTP Server.');
+    expect(last.ts > '2026-07-18 10:00:00').toBe(true);
+    expect(last.ts.startsWith('2026-07-18 ')).toBe(true);
+  });
+});
+
+describe('systemctl enable/disable on static units', () => {
+  it('prints the no-installation-config message instead of a symlink line, exit 0', () => {
+    const { shell, host } = makeShellOnHost();
+    for (const verb of ['enable', 'disable']) {
+      const r = shell.execute(`sudo systemctl ${verb} systemd-journald`);
+      expect(r.exitCode).toBe(0);
+      const all = `${r.output}\n${r.error ?? ''}`;
+      expect(all).toContain('The unit files have no installation config (WantedBy=, RequiredBy=, Also=,');
+      expect(all).toContain('not meant to be enabled or disabled using systemctl');
+      expect(all).not.toContain('symlink');
+      expect(all).not.toContain('Removed');
+    }
+    expect(host.services.find(s => s.unit === 'systemd-journald.service')!.enabled).toBe('static');
+  });
+});
+
+describe('startRequires precondition branches', () => {
+  function hostWithPre(pre: TerminalUnitPrecondition, files: { path: string; content: string }[] = []): { shell: ShellEngine; host: HostState } {
+    const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
+    const host = createHostState({
+      id: 'p1',
+      hostname: 'p1',
+      services: [{ unit: 'foo.service', active: 'failed', desc: 'Foo', startRequires: [pre] }],
+      vfsOverlay: { files },
+    });
+    shell.registerHost(host);
+    shell.pushSession('p1', 'admin');
+    return { shell, host };
+  }
+
+  it('{file, matches}: start fails until the file content matches the regex', () => {
+    const { shell, host } = hostWithPre(
+      { file: '/etc/foo.conf', matches: '^interval=\\d+$', failMessage: 'foo: interval missing or invalid' },
+      [{ path: '/etc/foo.conf', content: 'interval=abc\n' }]
+    );
+    const bad = shell.execute('sudo systemctl start foo');
+    expect(bad.exitCode).toBe(1);
+    expect(host.journal[host.journal.length - 1].message).toContain('foo: interval missing or invalid');
+
+    host.vfs.addFile('/etc/foo.conf', 'interval=10\n');
+    const good = shell.execute('sudo systemctl restart foo');
+    expect(good.exitCode).toBe(0);
+    expect(host.services.find(s => s.unit === 'foo.service')!.active).toBe('active');
+  });
+
+  it('{file, absent: true}: start fails while the file exists', () => {
+    const { shell, host } = hostWithPre(
+      { file: '/var/run/foo.lock', absent: true, failMessage: 'foo: stale lockfile present' },
+      [{ path: '/var/run/foo.lock', content: '1234\n' }]
+    );
+    const bad = shell.execute('sudo systemctl start foo');
+    expect(bad.exitCode).toBe(1);
+    expect(host.journal[host.journal.length - 1].message).toContain('foo: stale lockfile present');
+
+    host.vfs.remove('/var/run/foo.lock');
+    const good = shell.execute('sudo systemctl start foo');
+    expect(good.exitCode).toBe(0);
+    expect(host.services.find(s => s.unit === 'foo.service')!.active).toBe('active');
+  });
+});
+
 describe('systemctl daemon-reload semantics', () => {
   let shell: ShellEngine;
   let host: HostState;
@@ -159,6 +274,17 @@ describe('systemctl restart ssh re-parses sshd_config', () => {
     expect(host.sshdEffective.passwordAuthentication).toBe(true); // stale until restart
 
     const r = shell.execute('sudo systemctl restart ssh');
+    expect(r.exitCode).toBe(0);
+    expect(host.sshdEffective.passwordAuthentication).toBe(false);
+    expect(host.sshdEffective.permitRootLogin).toBe(false);
+  });
+
+  it('reload ssh also re-parses sshd_config', () => {
+    const { shell, host } = makeShellOnHost();
+    host.vfs.addFile('/etc/ssh/sshd_config', 'PermitRootLogin no\nPasswordAuthentication no\n');
+    expect(host.sshdEffective.passwordAuthentication).toBe(true); // stale until reload
+
+    const r = shell.execute('sudo systemctl reload ssh');
     expect(r.exitCode).toBe(0);
     expect(host.sshdEffective.passwordAuthentication).toBe(false);
     expect(host.sshdEffective.permitRootLogin).toBe(false);

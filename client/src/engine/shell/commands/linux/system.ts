@@ -5,7 +5,7 @@
 
 import { TerminalUnitPrecondition } from '@kritis/shared';
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
-import { DEFAULT_UNITS, HostState, SystemdUnitState } from '../../hosts';
+import { DEFAULT_UNITS, HostState, SystemdUnitState, derivedUnitPid } from '../../hosts';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -468,11 +468,19 @@ const fullUnitName = (name: string): string => (name.includes('.') ? name : `${n
 const shortUnitName = (unit: string): string => unit.replace(/\.service$/, '');
 
 // Deterministic journal clock: fixed in-game date, minutes advance per entry.
+// Starts AFTER the newest seeded entry so appended lines always sort last.
 const journalClocks = new WeakMap<HostState, number>();
+function seedJournalClock(host: HostState): number {
+  let mins = 9 * 60 + 15;
+  for (const e of host.journal) {
+    const m = e.ts.match(/(\d{2}):(\d{2}):\d{2}$/);
+    if (m) mins = Math.max(mins, parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + 1);
+  }
+  return mins;
+}
 function nextJournalTs(host: HostState): string {
-  const n = journalClocks.get(host) ?? 0;
-  journalClocks.set(host, n + 1);
-  const totalMins = 9 * 60 + 15 + n;
+  const totalMins = journalClocks.get(host) ?? seedJournalClock(host);
+  journalClocks.set(host, totalMins + 1);
   const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
   const mm = String(totalMins % 60).padStart(2, '0');
   return `2026-07-18 ${hh}:${mm}:00`;
@@ -517,6 +525,8 @@ function startUnit(host: HostState, unit: SystemdUnitState): CommandResult {
   }
   unit.active = 'active';
   unit.sub = 'running';
+  // Restore a pid after stop→start; derived so status and journalctl agree.
+  unit.pid ??= derivedUnitPid(unit.unit);
   host.appendJournal({
     ts: nextJournalTs(host),
     unit: shortUnitName(unit.unit),
@@ -528,6 +538,12 @@ function startUnit(host: HostState, unit: SystemdUnitState): CommandResult {
   }
   return { output: '', exitCode: 0 };
 }
+
+// Real systemctl's answer for enable/disable on a static unit.
+const STATIC_UNIT_MESSAGE =
+  'The unit files have no installation config (WantedBy=, RequiredBy=, Also=,\n' +
+  'Alias= settings in the [Install] section, and DefaultInstance for template\n' +
+  'units). This means they are not meant to be enabled or disabled using systemctl.';
 
 /** 'YYYY-MM-DD HH:MM:SS' → journalctl-style 'Jul 18 HH:MM:SS'. */
 function formatJournalTs(ts: string): string {
@@ -646,19 +662,26 @@ export const systemctlCommand: ShellCommand = {
         });
         return { output: '', exitCode: 0 };
       }
-      if (subcommand === 'enable') {
-        if (unit.enabled !== 'static') unit.enabled = 'enabled';
-        return {
-          output: `Created symlink /etc/systemd/system/multi-user.target.wants/${unit.unit} → ${unit.unitFile ?? `/lib/systemd/system/${unit.unit}`}.`,
-          exitCode: 0,
-        };
-      }
-      if (subcommand === 'disable') {
-        if (unit.enabled !== 'static') unit.enabled = 'disabled';
+      if (subcommand === 'enable' || subcommand === 'disable') {
+        if (unit.enabled === 'static') {
+          return { output: STATIC_UNIT_MESSAGE, exitCode: 0 };
+        }
+        if (subcommand === 'enable') {
+          unit.enabled = 'enabled';
+          return {
+            output: `Created symlink /etc/systemd/system/multi-user.target.wants/${unit.unit} → ${unit.unitFile ?? `/lib/systemd/system/${unit.unit}`}.`,
+            exitCode: 0,
+          };
+        }
+        unit.enabled = 'disabled';
         return {
           output: `Removed /etc/systemd/system/multi-user.target.wants/${unit.unit}.`,
           exitCode: 0,
         };
+      }
+      if (subcommand === 'reload' && unit.unit === 'ssh.service') {
+        // Reload re-reads the config, like restart does.
+        host.refreshSshdEffective();
       }
       // reload/mask/unmask "succeed" silently, like real systemctl.
       return { output: '', exitCode: 0 };

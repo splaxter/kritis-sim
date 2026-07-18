@@ -56,6 +56,17 @@ export const DEFAULT_UNITS: SystemdUnitState[] = [
   { unit: 'ufw.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Uncomplicated firewall' },
 ];
 
+/**
+ * Deterministic fake PID for a unit without a live one — shared by
+ * `systemctl status` and `journalctl` so both show the same pid.
+ */
+export function derivedUnitPid(unitName: string): number {
+  const short = unitName.replace(/\.service$/, '');
+  let sum = 0;
+  for (let i = 0; i < short.length; i++) sum += short.charCodeAt(i);
+  return (sum % 900) + 100;
+}
+
 const SUB_FOR_ACTIVE: Record<SystemdUnitState['active'], SystemdUnitState['sub']> = {
   active: 'running',
   failed: 'failed',

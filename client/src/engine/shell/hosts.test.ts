@@ -1,5 +1,15 @@
 import { describe, it, expect } from 'vitest';
-import { createHostState } from './hosts';
+import { createHostState, derivedUnitPid } from './hosts';
+
+describe('derivedUnitPid', () => {
+  it('is deterministic, in the 100-999 range, and ignores the .service suffix', () => {
+    expect(derivedUnitPid('telemetryd')).toBe(derivedUnitPid('telemetryd.service'));
+    expect(derivedUnitPid('apache2')).toBeGreaterThanOrEqual(100);
+    expect(derivedUnitPid('apache2')).toBeLessThan(1000);
+    // Stable across calls.
+    expect(derivedUnitPid('apache2')).toBe(derivedUnitPid('apache2'));
+  });
+});
 
 describe('createHostState', () => {
   it('builds a host with its own VFS, default services and firewall', () => {
