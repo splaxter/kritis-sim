@@ -66,9 +66,7 @@ export const sshCommand: ShellCommand = {
       return { output: '', exitCode: 255, error: `ssh: Could not resolve hostname ${targetArg}: Name or service not known` };
     }
 
-    const at = targetArg.indexOf('@');
-    const targetUser = at > 0 ? targetArg.slice(0, at) : ctx.user;
-    const targetName = at >= 0 ? targetArg.slice(at + 1) : targetArg;
+    const { user: targetUser, host: targetName } = parseUserHost(targetArg, ctx);
 
     const auth = attemptSsh({ host, user: ctx.user }, targetName, targetUser, resolveHost);
 
@@ -280,27 +278,37 @@ function parseUserHost(arg: string, ctx: ExecutionContext): { user: string; host
   };
 }
 
+const PUBKEY_LINE = /^ssh-(rsa|ed25519) /;
+
+type PubkeyLookup =
+  | { kind: 'ok'; path: string; line: string }
+  | { kind: 'not-pubkey'; path: string }
+  | { kind: 'none' };
+
 /** First pubkey in the source user's ~/.ssh, or an explicit -i path. */
-function findPubkey(ctx: ExecutionContext, explicit?: string): { path: string; line: string } | null {
+function findPubkey(ctx: ExecutionContext, explicit?: string): PubkeyLookup {
   const vfs = ctx.vfs;
   if (explicit) {
     let path = vfs.resolvePath(explicit);
     if (!path.endsWith('.pub') && vfs.isFile(`${path}.pub`)) path = `${path}.pub`;
     const read = vfs.readFile(path);
-    if (!read.ok) return null;
-    return { path, line: read.value.trim().split('\n')[0].trim() };
+    if (!read.ok) return { kind: 'none' };
+    const line = read.value.trim().split('\n')[0].trim();
+    // -i may point at a private key with no .pub next to it — reject it.
+    if (!PUBKEY_LINE.test(line)) return { kind: 'not-pubkey', path };
+    return { kind: 'ok', path, line };
   }
   const sshDir = `${homeDir(ctx.user)}/.ssh`;
   const listing = vfs.readDirectory(sshDir);
-  if (!listing.ok) return null;
+  if (!listing.ok) return { kind: 'none' };
   for (const node of listing.value) {
     if (node.type !== 'file' || !node.name.endsWith('.pub')) continue;
     const read = vfs.readFile(`${sshDir}/${node.name}`);
     if (!read.ok) continue;
     const line = read.value.trim().split('\n')[0].trim();
-    if (line) return { path: `${sshDir}/${node.name}`, line };
+    if (PUBKEY_LINE.test(line)) return { kind: 'ok', path: `${sshDir}/${node.name}`, line };
   }
-  return null;
+  return { kind: 'none' };
 }
 
 const ALL_KEYS_SKIPPED = 'All keys were skipped because they already exist on the remote system.';
@@ -321,7 +329,10 @@ export const sshCopyIdCommand: ShellCommand = {
       return { output: '', exitCode: 255, error: `ssh: Could not resolve hostname ${targetArg}: Name or service not known` };
     }
     const key = findPubkey(ctx, args.options['i']);
-    if (!key) {
+    if (key.kind === 'not-pubkey') {
+      return { output: '', exitCode: 1, error: `ssh-copy-id: ERROR: ${key.path} is not a public key` };
+    }
+    if (key.kind === 'none') {
       return { output: '', exitCode: 1, error: 'ssh-copy-id: ERROR: No identities found' };
     }
 
@@ -331,10 +342,6 @@ export const sshCopyIdCommand: ShellCommand = {
     if (auth.kind === 'unreachable' || auth.kind === 'denied') {
       const error = auth.warning ? `${auth.warning}\n${auth.message}` : auth.message;
       return { output: '', exitCode: 255, error };
-    }
-    if (auth.kind === 'ok') {
-      // Key auth already works — nothing to install.
-      return { output: ALL_KEYS_SKIPPED, exitCode: 0 };
     }
 
     const target = resolveHost(targetName)!;
@@ -365,6 +372,13 @@ export const sshCopyIdCommand: ShellCommand = {
         exitCode: 0,
       };
     };
+
+    if (auth.kind === 'ok') {
+      // Existing key auth skips the password prompt, but a NEW -i identity
+      // must still be installed — install() dedupes and emits the skip message.
+      const r = install();
+      return auth.warning ? { ...r, output: [auth.warning, r.output].filter(Boolean).join('\n') } : r;
+    }
 
     const first = promptPassword(
       ctx, target, targetUser,

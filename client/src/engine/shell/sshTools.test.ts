@@ -244,6 +244,58 @@ describe('ssh-copy-id', () => {
     expect(r.error).toBe('ssh: Could not resolve hostname nix: Name or service not known');
     expect(r.exitCode).toBe(255);
   });
+
+  it('-i pointing at a private key without .pub fails, nothing written', () => {
+    const shell = baseShell();
+    const vfs = shell.getVfs();
+    vfs.addFile('/home/timo/.ssh/id_only_priv', '-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----\n');
+    vfs.chmod('/home/timo/.ssh/id_only_priv', '600');
+    const target = createHostState(web01Spec());
+    shell.registerHost(target);
+    const r = shell.execute('ssh-copy-id -i /home/timo/.ssh/id_only_priv admin@web01');
+    expect(r.error).toBe('ssh-copy-id: ERROR: /home/timo/.ssh/id_only_priv is not a public key');
+    expect(r.exitCode).toBe(1);
+    expect(target.vfs.exists('/home/admin/.ssh/authorized_keys')).toBe(false);
+  });
+
+  it('-i with an explicit .pub path installs that key', () => {
+    const shell = baseShell();
+    seedLocalKey(shell);
+    const target = createHostState(web01Spec());
+    shell.registerHost(target);
+    const r = shell.execute('ssh-copy-id -i /home/timo/.ssh/id_ed25519.pub admin@web01');
+    expect(r.pendingInput).toEqual({ prompt: "admin@web01's password: ", mask: true });
+    const r2 = shell.continueInput('sonnenblume23');
+    expect(r2.exitCode).toBe(0);
+    expect(r2.output).toContain('Number of key(s) added: 1');
+    const ak = target.vfs.readFile('/home/admin/.ssh/authorized_keys');
+    expect(ak.ok && ak.value).toContain(PUBKEY);
+  });
+
+  it('-i installs a NEW second key even though the first key already authenticates', () => {
+    const shell = baseShell();
+    seedLocalKey(shell);
+    const vfs = shell.getVfs();
+    const PUBKEY2 = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5DeployKey deploy@admin-ws';
+    vfs.addFile('/home/timo/.ssh/id_deploy', '-----BEGIN OPENSSH PRIVATE KEY-----\nfake2\n-----END OPENSSH PRIVATE KEY-----\n');
+    vfs.chmod('/home/timo/.ssh/id_deploy', '600');
+    vfs.addFile('/home/timo/.ssh/id_deploy.pub', `${PUBKEY2}\n`);
+    // First key is already authorized — plain ssh would log straight in.
+    const target = createHostState(web01Spec({
+      vfsOverlay: { files: [{ path: '/home/admin/.ssh/authorized_keys', content: `${PUBKEY}\n` }] },
+    }));
+    shell.registerHost(target);
+    const r = shell.execute('ssh-copy-id -i /home/timo/.ssh/id_deploy admin@web01');
+    expect(r.pendingInput).toBeUndefined();
+    expect(r.exitCode).toBe(0);
+    expect(r.output).toContain('Number of key(s) added: 1');
+    const ak = target.vfs.readFile('/home/admin/.ssh/authorized_keys');
+    expect(ak.ok).toBe(true);
+    if (ak.ok) {
+      expect(ak.value).toContain(PUBKEY);
+      expect(ak.value).toContain(PUBKEY2);
+    }
+  });
 });
 
 describe('scp', () => {
