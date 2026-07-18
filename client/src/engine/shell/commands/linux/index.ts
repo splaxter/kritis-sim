@@ -12,6 +12,7 @@ import { journalCommands } from './journal';
 import { networkCommands } from './network';
 import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
+import { remoteCommands } from './remote';
 
 export const allLinuxCommands: ShellCommand[] = [
   ...navigationCommands,
@@ -22,6 +23,7 @@ export const allLinuxCommands: ShellCommand[] = [
   ...networkCommands,
   ...builtinCommands,
   ...extendedCommands,
+  ...remoteCommands,
 ];
 
 export {
@@ -33,4 +35,5 @@ export {
   networkCommands,
   builtinCommands,
   extendedCommands,
+  remoteCommands,
 };
