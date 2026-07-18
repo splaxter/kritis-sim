@@ -11,6 +11,7 @@ export * from './gridLayout';
 export { allLinuxCommands } from './commands/linux';
 export { allPowerShellCommands } from './commands/powershell';
 export * from './scenarioSeed';
+export * from './hosts';
 
 import { ShellEngine } from './ShellEngine';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
