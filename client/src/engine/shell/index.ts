@@ -13,7 +13,9 @@ export { allPowerShellCommands } from './commands/powershell';
 export * from './scenarioSeed';
 export * from './hosts';
 
+import { TerminalHostSpec, TerminalSolution } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
+import { createHostState } from './hosts';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
 import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
@@ -99,6 +101,10 @@ export function createShellFromContext(context: {
   commands?: { pattern: string; output: string }[];
   hints?: string[];
   taskText?: string;
+  /** Accepted (unused here) so a full terminal context can be passed through. */
+  solutions?: TerminalSolution[];
+  /** Additional machines reachable via ssh from the local host. */
+  hosts?: TerminalHostSpec[];
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -131,6 +137,10 @@ export function createShellFromContext(context: {
     hints: context.hints,
     taskText: context.taskText,
   });
+
+  for (const spec of context.hosts ?? []) {
+    shell.registerHost(createHostState(spec));
+  }
 
   return shell;
 }

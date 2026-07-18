@@ -14,19 +14,24 @@ import {
   VirtualFilesystemInterface,
   CompletionContext,
 } from './types';
+import { HostState, wrapVfsAsHost } from './hosts';
 
 export class ShellEngine implements ShellEngineInterface {
-  private vfs: VirtualFilesystemInterface;
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
   private state: ShellState;
   private termCols = 80;
+  private hosts = new Map<string, HostState>();
+  /** Bottom entry is the local session; ssh pushes, exit pops (never below 1). */
+  private sessionStack: { hostId: string; user: string }[] = [];
 
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
   ) {
-    this.vfs = vfs;
+    const local = wrapVfsAsHost(vfs);
+    this.hosts.set(local.id, local);
+    this.sessionStack.push({ hostId: local.id, user: vfs.getUser() });
     this.state = {
       type: shellType,
       history: [],
@@ -172,6 +177,9 @@ export class ShellEngine implements ShellEngineInterface {
    * the previous pipeline stage (overridden by an explicit `< file`).
    */
   private executeStage(input: string, pipedStdin: string | undefined, isLastStage = true): CommandResult {
+    // Captured once: redirects apply on the host the stage STARTED on, even
+    // when the command itself pops the session (e.g. `exit > file`).
+    const vfs = this.getVfs();
     const expanded = this.expandAliases(input);
     const withEnv = this.expandEnvVars(expanded);
     const { command: cmdString, redirects } = this.parseRedirection(withEnv);
@@ -184,7 +192,7 @@ export class ShellEngine implements ShellEngineInterface {
       // Strip one layer of quotes, like the shell would.
       const value = rawValue.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
       this.state.env[name] = value;
-      this.vfs.setEnv(name, value);
+      vfs.setEnv(name, value);
       return { output: '', exitCode: 0 };
     }
 
@@ -193,8 +201,8 @@ export class ShellEngine implements ShellEngineInterface {
     // Input redirection: `< file` feeds the file as stdin.
     const inRedirect = redirects.find(r => r.type === '<');
     if (inRedirect) {
-      const path = this.vfs.resolvePath(inRedirect.file);
-      const read = this.vfs.readFile(path);
+      const path = vfs.resolvePath(inRedirect.file);
+      const read = vfs.readFile(path);
       if (!read.ok) {
         return { output: '', exitCode: 1, error: `bash: ${inRedirect.file}: ${read.error}` };
       }
@@ -216,10 +224,10 @@ export class ShellEngine implements ShellEngineInterface {
         const rd = outRedirects[i];
         const isLast = i === outRedirects.length - 1;
         const content = isLast ? this.ensureTrailingNewline(result.output) : '';
-        const path = this.vfs.resolvePath(rd.file);
+        const path = vfs.resolvePath(rd.file);
         const write = rd.type === '>>'
-          ? this.vfs.appendFile(path, content)
-          : this.vfs.writeFile(path, content);
+          ? vfs.appendFile(path, content)
+          : vfs.writeFile(path, content);
         if (!write.ok) {
           return { output: '', exitCode: 1, error: `bash: ${rd.file}: ${write.error}` };
         }
@@ -254,16 +262,24 @@ export class ShellEngine implements ShellEngineInterface {
     }
 
     const ctx: ExecutionContext = {
-      vfs: this.vfs,
+      vfs: this.getVfs(),
       env: { ...this.state.env },
       stdin,
       shell: this.state,
-      cwd: this.vfs.getCurrentPath(),
-      user: this.vfs.getUser(),
+      cwd: this.getVfs().getCurrentPath(),
+      user: this.getVfs().getUser(),
       isTty,
       termCols: this.termCols,
       commands: this.commands,
       execute: (input: string) => this.execute(input),
+      host: this.getCurrentHost(),
+      resolveHost: (nameOrIp: string) => this.resolveHost(nameOrIp),
+      pushSession: (hostId: string, user: string) => this.pushSession(hostId, user),
+      popSession: () => {
+        const closing = this.getCurrentHost();
+        return this.popSession() ? { closedHostname: closing.hostname } : null;
+      },
+      sessionDepth: this.sessionStack.length,
     };
 
     try {
@@ -718,7 +734,7 @@ export class ShellEngine implements ShellEngineInterface {
 
   /** Expand a glob pattern to matching paths, preserving the directory prefix. */
   private expandGlob(token: string): string[] {
-    const matches = this.vfs.glob(token);
+    const matches = this.getVfs().glob(token);
     // VFS.glob returns the original pattern unchanged when nothing matches;
     // in that case bash leaves the literal pattern in place.
     if (matches.length === 1 && matches[0] === token) {
@@ -728,7 +744,7 @@ export class ShellEngine implements ShellEngineInterface {
     // so `*.txt` expands to bare names and `logs/*.log` keeps the `logs/` part.
     const slash = token.lastIndexOf('/');
     const prefix = slash >= 0 ? token.slice(0, slash + 1) : '';
-    return matches.map(m => prefix + this.vfs.basename(m)).sort();
+    return matches.map(m => prefix + this.getVfs().basename(m)).sort();
   }
 
   private expandAliases(input: string): string {
@@ -777,7 +793,7 @@ export class ShellEngine implements ShellEngineInterface {
         const plain = input.slice(i + 1).match(/^(\w+)/);
         const name = braced?.[1] ?? plain?.[1];
         if (name) {
-          result += this.vfs.getEnv(name) || this.state.env[name] || '';
+          result += this.getVfs().getEnv(name) || this.state.env[name] || '';
           i += (braced ? braced[0].length : plain![0].length);
           continue;
         }
@@ -808,7 +824,7 @@ export class ShellEngine implements ShellEngineInterface {
     const command = this.commands.get(this.resolveName(commandName));
 
     const ctx: CompletionContext = {
-      vfs: this.vfs,
+      vfs: this.getVfs(),
       input,
       cursorPos,
       args: tokens.slice(1),
@@ -830,7 +846,7 @@ export class ShellEngine implements ShellEngineInterface {
     }
 
     // Default to path completion
-    return this.vfs.getPathCompletions(currentArg);
+    return this.getVfs().getPathCompletions(currentArg);
   }
 
   private getCommandCompletions(prefix: string): Completion[] {
@@ -1038,7 +1054,71 @@ export class ShellEngine implements ShellEngineInterface {
   }
 
   getVfs(): VirtualFilesystemInterface {
-    return this.vfs;
+    return this.getCurrentHost().vfs;
+  }
+
+  // ============================================================================
+  // Hosts & sessions
+  // ============================================================================
+
+  registerHost(host: HostState): void {
+    this.hosts.set(host.id, host);
+  }
+
+  getHost(id: string): HostState | undefined {
+    return this.hosts.get(id);
+  }
+
+  getBaseHost(): HostState {
+    return this.hosts.get(this.sessionStack[0].hostId)!;
+  }
+
+  getCurrentHost(): HostState {
+    return this.hosts.get(this.sessionStack[this.sessionStack.length - 1].hostId)!;
+  }
+
+  /** Match a host by id, full hostname, short hostname (before first '.'), or IP. */
+  resolveHost(nameOrIp: string): HostState | undefined {
+    const byId = this.hosts.get(nameOrIp);
+    if (byId) return byId;
+    for (const host of this.hosts.values()) {
+      if (host.hostname === nameOrIp) return host;
+      if (host.hostname.split('.')[0] === nameOrIp) return host;
+      if (host.ip === nameOrIp) return host;
+    }
+    return undefined;
+  }
+
+  pushSession(hostId: string, user: string): void {
+    const host = this.hosts.get(hostId);
+    if (!host) {
+      throw new Error(`pushSession: unknown host '${hostId}'`);
+    }
+    host.vfs.setUser(user);
+    this.sessionStack.push({ hostId, user });
+  }
+
+  /** Returns false at depth 1 — the base session is never popped. */
+  popSession(): boolean {
+    if (this.sessionStack.length <= 1) return false;
+    this.sessionStack.pop();
+    return true;
+  }
+
+  getSessionDepth(): number {
+    return this.sessionStack.length;
+  }
+
+  getPromptInfo(): { hostname: string; username: string; path: string; home: string } {
+    const top = this.sessionStack[this.sessionStack.length - 1];
+    const host = this.getCurrentHost();
+    const vfs = host.vfs;
+    return {
+      hostname: host.hostname,
+      username: top.user,
+      path: vfs.getCurrentPath(),
+      home: vfs.getEnv('HOME') ?? vfs.getEnv('USERPROFILE') ?? '',
+    };
   }
 
   setTermCols(cols: number): void {
@@ -1051,7 +1131,7 @@ export class ShellEngine implements ShellEngineInterface {
 
   setEnv(key: string, value: string): void {
     this.state.env[key] = value;
-    this.vfs.setEnv(key, value);
+    this.getVfs().setEnv(key, value);
   }
 
   setAlias(name: string, value: string): void {

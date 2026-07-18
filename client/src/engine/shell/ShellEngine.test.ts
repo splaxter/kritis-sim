@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createShell, createShellFromContext } from './index';
 import { ShellEngine } from './ShellEngine';
+import { createHostState } from './hosts';
 
 function bash(): ShellEngine {
   const shell = createShell({
@@ -553,5 +554,59 @@ describe('createShellFromContext currentPath sanitizing', () => {
     });
     expect(shell.getVfs().getCurrentPath()).toBe('/home/admin');
     expect(shell.getVfs().exists('/home/admin/~$')).toBe(false);
+  });
+});
+
+describe('multi-host sessions', () => {
+  function makeEngine() {
+    const shell = createShell({ type: 'bash', user: 'admin', hostname: 'ws01' });
+    const web = createHostState({ id: 'web01', hostname: 'web01' });
+    shell.registerHost(web);
+    return { shell, web };
+  }
+
+  it('starts on the local host at depth 1', () => {
+    const { shell } = makeEngine();
+    expect(shell.getSessionDepth()).toBe(1);
+    expect(shell.getPromptInfo().hostname).toBe('ws01');
+  });
+
+  it('pushSession switches vfs/prompt, popSession returns', () => {
+    const { shell, web } = makeEngine();
+    web.vfs.addFile('/etc/marker', 'remote');
+    shell.pushSession('web01', 'admin');
+    expect(shell.getPromptInfo()).toMatchObject({ hostname: 'web01', username: 'admin' });
+    expect(shell.execute('cat /etc/marker').output).toBe('remote');
+    expect(shell.popSession()).toBe(true);
+    expect(shell.getPromptInfo().hostname).toBe('ws01');
+    expect(shell.popSession()).toBe(false); // never pops the base session
+  });
+
+  it('exit builtin pops a pushed session instead of ending', () => {
+    const { shell } = makeEngine();
+    shell.pushSession('web01', 'admin');
+    const r = shell.execute('exit');
+    expect(r.output).toContain('Connection to web01 closed');
+    expect(shell.getSessionDepth()).toBe(1);
+  });
+
+  it('resolveHost matches by id, hostname, short hostname and ip', () => {
+    const { shell } = makeEngine();
+    const db = createHostState({ id: 'db01', hostname: 'db01.stadtwerke.local', ip: '10.0.20.12' });
+    shell.registerHost(db);
+    expect(shell.resolveHost('db01')?.id).toBe('db01'); // id + short hostname
+    expect(shell.resolveHost('db01.stadtwerke.local')?.id).toBe('db01');
+    expect(shell.resolveHost('10.0.20.12')?.id).toBe('db01');
+    expect(shell.resolveHost('web01')?.id).toBe('web01');
+    expect(shell.resolveHost('nope')).toBeUndefined();
+  });
+
+  it('createShellFromContext registers authored hosts', () => {
+    const shell = createShellFromContext({
+      type: 'linux', hostname: 'ws', username: 'u', currentPath: '/home/u',
+      commands: [], solutions: [], hints: [],
+      hosts: [{ id: 'web01', hostname: 'web01' }],
+    });
+    expect(shell.resolveHost('web01')?.hostname).toBe('web01');
   });
 });

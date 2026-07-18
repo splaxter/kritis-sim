@@ -97,6 +97,14 @@ export interface ExecutionContext {
   commands?: Map<string, ShellCommand>;
   /** Re-enter the shell (used by sudo/source to run nested commands). */
   execute?: (input: string) => CommandResult;
+  /** Multi-host: state of the host this command runs on. */
+  host?: import('./hosts').HostState;
+  /** Resolve another registered host by id, hostname or IP. */
+  resolveHost?: (nameOrIp: string) => import('./hosts').HostState | undefined;
+  /** Open a session on another host (ssh) / leave it (exit). */
+  pushSession?: (hostId: string, user: string) => void;
+  popSession?: () => { closedHostname: string } | null;
+  sessionDepth?: number;
 }
 
 export interface CompletionContext {

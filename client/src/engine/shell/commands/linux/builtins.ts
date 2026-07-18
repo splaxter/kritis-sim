@@ -297,7 +297,17 @@ export const exitCommand: ShellCommand = {
   description: 'Exit the shell',
   usage: 'exit [n]',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    // Inside an ssh session, exit closes the remote session instead of the shell.
+    if ((ctx.sessionDepth ?? 1) > 1 && ctx.popSession) {
+      const popped = ctx.popSession();
+      if (popped) {
+        return {
+          output: `logout\nConnection to ${popped.closedHostname} closed.`,
+          exitCode: 0,
+        };
+      }
+    }
     const code = args.positional[0] ? parseInt(args.positional[0], 10) : 0;
     return {
       output: 'logout',

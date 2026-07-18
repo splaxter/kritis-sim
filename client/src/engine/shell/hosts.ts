@@ -115,7 +115,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     }
   }
 
-  const host: HostState = {
+  return buildHostState({
     id: spec.id,
     hostname: spec.hostname,
     ip: spec.ip,
@@ -129,6 +129,29 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
       rules: (spec.firewall?.rules ?? []).map(r => ({ ...r })),
     },
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
+  });
+}
+
+/**
+ * Build a HostState around an EXISTING vfs — used to wrap the shell's local
+ * filesystem as the base host of the session stack. Shell-type agnostic.
+ */
+export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string): HostState {
+  return buildHostState({
+    id: 'local',
+    hostname: hostname ?? vfs.getEnv('HOSTNAME') ?? vfs.getEnv('COMPUTERNAME') ?? 'localhost',
+    vfs,
+    services: DEFAULT_UNITS.map(u => ({ ...u })),
+    journal: [],
+    firewall: { enabled: true, defaultIncoming: 'allow', defaultOutgoing: 'allow', rules: [] },
+    accounts: [{ name: vfs.getUser() }],
+  });
+}
+
+function buildHostState(base: Omit<HostState, 'sshdEffective' | 'refreshSshdEffective' | 'appendJournal'>): HostState {
+  const { vfs } = base;
+  const host: HostState = {
+    ...base,
     sshdEffective: { permitRootLogin: true, passwordAuthentication: true },
     refreshSshdEffective() {
       const read = vfs.readFile('/etc/ssh/sshd_config');
