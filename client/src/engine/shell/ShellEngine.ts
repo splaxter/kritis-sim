@@ -137,6 +137,11 @@ export class ShellEngine implements ShellEngineInterface {
       if (lastResult.error) {
         outputs.push(lastResult.error);
       }
+      // A command awaiting input aborts the remaining chain segments —
+      // deviation from bash, but keeps hasPendingInput() ⟺ result.pendingInput.
+      if (lastResult.pendingInput) {
+        break;
+      }
     }
 
     // Single command (no chaining): preserve the raw result, including its
@@ -148,6 +153,7 @@ export class ShellEngine implements ShellEngineInterface {
     return {
       output: outputs.join('\n'),
       exitCode: lastResult.exitCode,
+      ...(lastResult.pendingInput ? { pendingInput: lastResult.pendingInput } : {}),
     };
   }
 
@@ -169,6 +175,14 @@ export class ShellEngine implements ShellEngineInterface {
       result = this.executeStage(stages[i], stdin, isLast);
       if (result.error) {
         errors.push(result.error);
+      }
+      // A stage awaiting input aborts the pipeline: later stages never run.
+      if (result.pendingInput) {
+        this.state.exitCode = result.exitCode;
+        return {
+          ...result,
+          error: errors.length > 0 ? errors.join('\n') : undefined,
+        };
       }
       stdin = result.output;
     }
@@ -302,6 +316,9 @@ export class ShellEngine implements ShellEngineInterface {
       this.state.exitCode = result.exitCode;
       return result;
     } catch (error) {
+      // The command may have armed a continuation before throwing — drop it.
+      this.cancelPendingInput();
+      this.state.exitCode = 1;
       return {
         output: '',
         exitCode: 1,
@@ -331,7 +348,10 @@ export class ShellEngine implements ShellEngineInterface {
       this.state.exitCode = result.exitCode;
       return result;
     } catch (error) {
-      // A throwing continuation must not wedge the engine.
+      // A throwing continuation must not wedge the engine — even one that
+      // re-armed a new continuation before throwing.
+      this.cancelPendingInput();
+      this.state.exitCode = 1;
       return {
         output: '',
         exitCode: 1,

@@ -114,9 +114,11 @@ export interface ExecutionContext {
   /**
    * Ask the player for one more input line. Returns the pendingInput result
    * to hand back from execute(); `next` runs on the line typed. Chaining is
-   * allowed — `next` may call requestInput again.
+   * allowed — `next` may call requestInput again. Requesting input aborts any
+   * remaining chain segments / pipeline stages of the current command line
+   * (deviation from bash, acceptable for the simulation).
    */
-  requestInput?: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => CommandResult;
+  requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => CommandResult;
 }
 
 export interface CompletionContext {

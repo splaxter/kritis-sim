@@ -159,6 +159,77 @@ describe('pending input continuations', () => {
     expect(shell.execute('echo ok').output).toBe('ok');
   });
 
+  it('pendingInput aborts the remaining chain segments and propagates', () => {
+    const shell = createShell({ type: 'bash' });
+    shell.registerCommand({
+      name: 'askname', description: '', usage: 'askname',
+      execute(_args: ParsedArgs, ctx: ExecutionContext) {
+        return ctx.requestInput('name: ', false, (line) => ({ output: `hello ${line}`, exitCode: 0 }));
+      },
+    });
+    const r = shell.execute('askname && echo hi');
+    expect(r.pendingInput).toEqual({ prompt: 'name: ', mask: false });
+    expect(r.output).not.toContain('hi');
+    expect(shell.hasPendingInput()).toBe(true);
+    expect(shell.continueInput('Timo').output).toBe('hello Timo');
+  });
+
+  it('pendingInput aborts the pipeline; later stages are not fed', () => {
+    const shell = createShell({ type: 'bash' });
+    let sinkRuns = 0;
+    shell.registerCommand({
+      name: 'askname', description: '', usage: 'askname',
+      execute(_args: ParsedArgs, ctx: ExecutionContext) {
+        return ctx.requestInput('name: ', false, (line) => ({ output: `hello ${line}`, exitCode: 0 }));
+      },
+    });
+    shell.registerCommand({
+      name: 'sink', description: '', usage: 'sink',
+      execute() { sinkRuns++; return { output: 'sunk', exitCode: 0 }; },
+    });
+    const r = shell.execute('askname | sink');
+    expect(r.pendingInput).toEqual({ prompt: 'name: ', mask: false });
+    expect(sinkRuns).toBe(0);
+    expect(shell.hasPendingInput()).toBe(true);
+  });
+
+  it('a command that arms a continuation and then throws un-wedges the engine', () => {
+    const shell = createShell({ type: 'bash' });
+    shell.registerCommand({
+      name: 'armthrow', description: '', usage: 'armthrow',
+      execute(_args: ParsedArgs, ctx: ExecutionContext) {
+        ctx.requestInput('x: ', false, () => ({ output: '', exitCode: 0 }));
+        throw new Error('boom');
+      },
+    });
+    const r = shell.execute('armthrow');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('boom');
+    expect(shell.hasPendingInput()).toBe(false);
+    expect(shell.getState().exitCode).toBe(1);
+    expect(shell.execute('echo ok').output).toBe('ok');
+  });
+
+  it('a continuation that re-arms and then throws un-wedges too', () => {
+    const shell = createShell({ type: 'bash' });
+    shell.registerCommand({
+      name: 'rearm', description: '', usage: 'rearm',
+      execute(_args: ParsedArgs, ctx: ExecutionContext) {
+        return ctx.requestInput('x: ', false, () => {
+          ctx.requestInput('y: ', false, () => ({ output: '', exitCode: 0 }));
+          throw new Error('later');
+        });
+      },
+    });
+    shell.execute('rearm');
+    const r = shell.continueInput('egal');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('later');
+    expect(shell.hasPendingInput()).toBe(false);
+    expect(shell.getState().exitCode).toBe(1);
+    expect(shell.execute('echo ok').output).toBe('ok');
+  });
+
   it('continueInput without a pending continuation fails gracefully', () => {
     const shell = createShell({ type: 'bash' });
     const r = shell.continueInput('nichts');

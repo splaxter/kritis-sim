@@ -10,6 +10,13 @@ import { HostState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '.
 /** Threshold order, most severe first — journalctl -p shows LEVEL and above. */
 const PRIORITY_ORDER = ['err', 'warning', 'info'];
 
+/** Syslog numeric levels folded onto our three named ones. */
+const NUMERIC_LEVELS: Record<string, string> = {
+  '0': 'err', '1': 'err', '2': 'err', '3': 'err',
+  '4': 'warning',
+  '5': 'info', '6': 'info', '7': 'info',
+};
+
 /** Live service pid when the unit runs, else the shared derived pid. */
 function pidFor(host: HostState | undefined, unit: string): number {
   const full = canonicalUnitName(unit);
@@ -59,7 +66,10 @@ export const journalctlCommand: ShellCommand = {
     const prio = args.options['p'] ?? args.options['priority'];
     if (prio) {
       // Threshold, not exact match: -p warning includes err.
-      const threshold = PRIORITY_ORDER.indexOf(prio);
+      const threshold = PRIORITY_ORDER.indexOf(NUMERIC_LEVELS[prio] ?? prio);
+      if (threshold === -1) {
+        return { output: '', exitCode: 1, error: `journalctl: Failed to parse log level "${prio}"` };
+      }
       entries = entries.filter(
         e => PRIORITY_ORDER.indexOf(e.priority ?? 'info') <= threshold
       );

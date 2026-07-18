@@ -188,6 +188,20 @@ describe('journalctl -p threshold semantics', () => {
     expect(lines).toHaveLength(4);
     expect(lines[3]).toContain(': N');
   });
+
+  it('-p accepts syslog numeric levels (0-3 err, 4 warning, 5-7 info)', () => {
+    expect(makePrioShell().execute('journalctl -p 3').output.split('\n')).toHaveLength(1);
+    expect(makePrioShell().execute('journalctl -p 0').output.split('\n')).toHaveLength(1);
+    expect(makePrioShell().execute('journalctl -p 4').output.split('\n')).toHaveLength(2);
+    expect(makePrioShell().execute('journalctl -p 6').output.split('\n')).toHaveLength(4);
+    expect(makePrioShell().execute('journalctl -p 7').output.split('\n')).toHaveLength(4);
+  });
+
+  it('-p rejects unknown levels with exit 1', () => {
+    const r = makePrioShell().execute('journalctl -p wumpus');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('Failed to parse log level "wumpus"');
+  });
 });
 
 describe('journalctl edge cases', () => {
