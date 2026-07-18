@@ -71,6 +71,12 @@ export interface CommandResult {
   error?: string;
   sideEffects?: CommandSideEffect[];
   clearScreen?: boolean;
+  /**
+   * Set when the command wants ANOTHER input line (password prompt etc.).
+   * The UI shows `prompt` (masking input if `mask`) and feeds the typed line
+   * to ShellEngine.continueInput instead of executing it.
+   */
+  pendingInput?: { prompt: string; mask: boolean };
 }
 
 export interface CommandSideEffect {
@@ -105,6 +111,12 @@ export interface ExecutionContext {
   pushSession?: (hostId: string, user: string) => void;
   popSession?: () => { closedHostname: string } | null;
   sessionDepth?: number;
+  /**
+   * Ask the player for one more input line. Returns the pendingInput result
+   * to hand back from execute(); `next` runs on the line typed. Chaining is
+   * allowed — `next` may call requestInput again.
+   */
+  requestInput?: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => CommandResult;
 }
 
 export interface CompletionContext {
@@ -249,6 +261,12 @@ export interface ShellEngineInterface {
   // Execution
   execute(input: string): CommandResult;
   executeCommand(name: string, args: ParsedArgs, stdin?: string, isTty?: boolean): CommandResult;
+
+  // Interactive input continuations
+  continueInput(line: string): CommandResult;
+  hasPendingInput(): boolean;
+  getPendingPrompt(): { prompt: string; mask: boolean } | null;
+  cancelPendingInput(): void;
 
   // Completion
   complete(input: string, cursorPos: number): Completion[];

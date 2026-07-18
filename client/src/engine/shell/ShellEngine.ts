@@ -24,6 +24,9 @@ export class ShellEngine implements ShellEngineInterface {
   private hosts = new Map<string, HostState>();
   /** Bottom entry is the local session; ssh pushes, exit pops (never below 1). */
   private sessionStack: { hostId: string; user: string }[] = [];
+  /** Set while a command waits for another input line (password prompt etc.). */
+  private pendingContinuation: ((line: string) => CommandResult) | null = null;
+  private pendingPrompt: { prompt: string; mask: boolean } | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -92,6 +95,12 @@ export class ShellEngine implements ShellEngineInterface {
   // ============================================================================
 
   execute(input: string): CommandResult {
+    // While an input line is owed, refuse to run anything: re-show the prompt.
+    // Callers should route the line through continueInput instead.
+    if (this.pendingContinuation) {
+      return { output: '', exitCode: 1, pendingInput: { ...this.pendingPrompt! } };
+    }
+
     const trimmed = input.trim();
 
     if (!trimmed) {
@@ -281,6 +290,11 @@ export class ShellEngine implements ShellEngineInterface {
         return this.popSession() ? { closedHostname: closing.hostname } : null;
       },
       sessionDepth: this.sessionStack.length,
+      requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
+        this.pendingContinuation = next;
+        this.pendingPrompt = { prompt, mask };
+        return { output: '', exitCode: 0, pendingInput: { prompt, mask } };
+      },
     };
 
     try {
@@ -294,6 +308,49 @@ export class ShellEngine implements ShellEngineInterface {
         error: `${name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
+  }
+
+  // ============================================================================
+  // Interactive input continuations
+  // ============================================================================
+
+  /**
+   * Feed the pending continuation the line the player typed. Cleared BEFORE
+   * the run so a continuation that calls ctx.requestInput again (chaining)
+   * lands its new continuation cleanly.
+   */
+  continueInput(line: string): CommandResult {
+    const next = this.pendingContinuation;
+    this.pendingContinuation = null;
+    this.pendingPrompt = null;
+    if (!next) {
+      return { output: '', exitCode: 1, error: 'shell: no pending input' };
+    }
+    try {
+      const result = next(line);
+      this.state.exitCode = result.exitCode;
+      return result;
+    } catch (error) {
+      // A throwing continuation must not wedge the engine.
+      return {
+        output: '',
+        exitCode: 1,
+        error: `shell: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  hasPendingInput(): boolean {
+    return this.pendingContinuation !== null;
+  }
+
+  getPendingPrompt(): { prompt: string; mask: boolean } | null {
+    return this.pendingPrompt ? { ...this.pendingPrompt } : null;
+  }
+
+  cancelPendingInput(): void {
+    this.pendingContinuation = null;
+    this.pendingPrompt = null;
   }
 
   // ============================================================================
