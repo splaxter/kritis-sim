@@ -57,7 +57,9 @@ export function checkKeyAuth(
     ? akRead.value.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'))
     : [];
 
-  let warning: string | undefined;
+  const warnings: string[] = [];
+  const warning = () => (warnings.length ? warnings.join('\n') : undefined);
+  let matched = false;
   for (const node of listing.value) {
     if (node.type !== 'file' || !node.name.endsWith('.pub')) continue;
     const privPath = `${sshDir}/${node.name.slice(0, -4)}`;
@@ -65,25 +67,28 @@ export function checkKeyAuth(
     if (!privStat.ok) continue; // pubkey without private key is unusable
     const perms = privStat.value.permissions;
     if (perms.group.read || perms.other.read) {
-      warning = unprotectedKeyWarning(privPath, octalMode(perms));
+      warnings.push(unprotectedKeyWarning(privPath, octalMode(perms)));
       continue;
     }
+    if (matched) continue; // keep scanning only to collect remaining warnings
     const pubRead = sourceVfs.readFile(`${sshDir}/${node.name}`);
     if (!pubRead.ok) continue;
     const pubLine = pubRead.value.trim().split('\n')[0].trim();
     if (pubLine && authorized.includes(pubLine)) {
-      return { ok: true, warning };
+      matched = true;
     }
   }
-  return { ok: false, warning };
+  return { ok: matched, warning: warning() };
 }
 
 /** Is TCP/22 on the target blocked for connections coming from `source`? */
 function port22Blocked(target: HostState, source: HostState): boolean {
   const fw = target.firewall;
   if (!fw.enabled) return false;
-  const rules = fw.rules.filter(r => r.port === 22);
-  if (rules.some(r => r.action === 'deny')) return true;
+  // Only tcp rules apply to ssh; a udp-only rule never matches.
+  const rules = fw.rules.filter(r => r.port === 22 && (!r.proto || r.proto === 'tcp'));
+  // A from-restricted deny rule only blocks the exact source IP it names.
+  if (rules.some(r => r.action === 'deny' && (!r.from || source.ip === r.from))) return true;
   // A from-restricted allow rule only admits sources with exactly that IP —
   // the base 'local' host has no IP and is therefore not admitted by it.
   const admitted = rules.some(r =>

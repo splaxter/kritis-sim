@@ -16,21 +16,52 @@ function loginBanner(target: HostState, warning?: string): string {
   return parts.join('\n');
 }
 
+/**
+ * Masked multi-attempt password prompt against a target account — the shared
+ * auth UX of ssh, ssh-copy-id and scp. Wrong attempts re-prompt with
+ * 'Permission denied, please try again.'; the last failure yields onFail().
+ */
+export function promptPassword(
+  ctx: ExecutionContext,
+  target: HostState,
+  targetUser: string,
+  opts: { prompt: string; maxAttempts?: number },
+  onSuccess: () => CommandResult,
+  onFail: () => CommandResult
+): CommandResult {
+  const max = opts.maxAttempts ?? 3;
+  const password = target.accounts.find(a => a.name === targetUser)?.password;
+  const attempt = (n: number) => (line: string): CommandResult => {
+    if (password !== undefined && line === password) {
+      return onSuccess();
+    }
+    if (n >= max) {
+      return onFail();
+    }
+    return { ...ctx.requestInput(opts.prompt, true, attempt(n + 1)), output: 'Permission denied, please try again.' };
+  };
+  return ctx.requestInput(opts.prompt, true, attempt(1));
+}
+
 export const sshCommand: ShellCommand = {
   name: 'ssh',
   description: 'OpenSSH remote login client',
   usage: 'ssh [user@]host',
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    // Real ssh options (-p, -i, ...) are not simulated — say so up front.
+    if (Object.keys(args.flags).length > 0 || Object.keys(args.options).length > 0) {
+      return { output: '', exitCode: 255, error: 'ssh: Optionen werden in dieser Simulation nicht unterstützt' };
+    }
     const targetArg = args.positional[0];
     if (!targetArg) {
       return { output: '', exitCode: 255, error: 'usage: ssh [user@]hostname' };
     }
     if (args.positional.length > 1) {
       // Only interactive logins are simulated.
-      return { output: '', exitCode: 1, error: 'ssh: Entfernte Einzelbefehle unterstützt diese Simulation nicht — bitte interaktiv einloggen (ssh <host>).' };
+      return { output: '', exitCode: 255, error: 'ssh: Entfernte Einzelbefehle unterstützt diese Simulation nicht — bitte interaktiv einloggen (ssh <host>).' };
     }
-    const { host, resolveHost, pushSession, requestInput } = ctx;
+    const { host, resolveHost, pushSession } = ctx;
     if (!host || !resolveHost || !pushSession) {
       return { output: '', exitCode: 255, error: `ssh: Could not resolve hostname ${targetArg}: Name or service not known` };
     }
@@ -54,19 +85,15 @@ export const sshCommand: ShellCommand = {
     }
 
     // needs-password: up to three masked attempts via chained continuations.
-    const password = target.accounts.find(a => a.name === targetUser)?.password;
-    const prompt = `${targetUser}@${targetName}'s password: `;
-    const attempt = (n: number) => (line: string): CommandResult => {
-      if (password !== undefined && line === password) {
+    const first = promptPassword(
+      ctx, target, targetUser,
+      { prompt: `${targetUser}@${targetName}'s password: ` },
+      () => {
         pushSession(target.id, targetUser);
         return { output: loginBanner(target), exitCode: 0 };
-      }
-      if (n >= 3) {
-        return { output: '', exitCode: 255, error: `${targetUser}@${targetName}: Permission denied (password).` };
-      }
-      return { ...requestInput(prompt, true, attempt(n + 1)), output: 'Permission denied, please try again.' };
-    };
-    const first = requestInput(prompt, true, attempt(1));
+      },
+      () => ({ output: '', exitCode: 255, error: `${targetUser}@${targetName}: Permission denied (password).` })
+    );
     // A skipped unprotected key still warns before the prompt.
     return auth.warning ? { ...first, output: auth.warning } : first;
   },

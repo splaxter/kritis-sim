@@ -51,6 +51,26 @@ describe('ssh: reachability', () => {
     expect(r.exitCode).toBe(255);
   });
 
+  it('deny-22 restricted to a foreign source IP does not block the local host', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec({
+      firewall: { rules: [{ action: 'deny', port: 22, from: '10.9.9.9' }] },
+    })));
+    const r = shell.execute('ssh admin@web01');
+    expect(r.error).toBeUndefined();
+    expect(r.pendingInput).toEqual({ prompt: "admin@web01's password: ", mask: true });
+  });
+
+  it('deny-22 for udp only does not block ssh (tcp)', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec({
+      firewall: { rules: [{ action: 'deny', port: 22, proto: 'udp' }] },
+    })));
+    const r = shell.execute('ssh admin@web01');
+    expect(r.error).toBeUndefined();
+    expect(r.pendingInput).toBeTruthy();
+  });
+
   it('explicit deny-22 rule on the target times out, exit 255', () => {
     const shell = baseShell();
     shell.registerHost(createHostState(web01Spec({
@@ -203,6 +223,62 @@ describe('ssh: key auth', () => {
     shell.registerHost(createHostState(web01Spec()));
     const r = shell.execute('ssh ghost@web01');
     expect(r.error).toBe('Permission denied (publickey,password).');
+    expect(r.exitCode).toBe(255);
+  });
+
+  it('unprotected first key + valid second key: logs in AND prints the warning', () => {
+    const shell = baseShell();
+    const vfs = shell.getVfs();
+    // 'id_alt' sorts/inserts before the valid key and is world-readable.
+    vfs.addFile('/home/timo/.ssh/id_alt', 'fake');
+    vfs.addFile('/home/timo/.ssh/id_alt.pub', 'ssh-ed25519 AAAAC3AltKey timo@admin-ws\n');
+    seedLocalKey(shell);
+    shell.registerHost(createHostState(web01Spec({
+      vfsOverlay: { files: [{ path: '/home/admin/.ssh/authorized_keys', content: `${PUBKEY}\n` }] },
+    })));
+    const r = shell.execute('ssh admin@web01');
+    expect(r.exitCode).toBe(0);
+    expect(r.output).toContain('WARNING: UNPROTECTED PRIVATE KEY FILE!');
+    expect(r.output).toContain('Last login');
+    expect(shell.getSessionDepth()).toBe(2);
+  });
+
+  it('two unprotected keys: both warnings are printed', () => {
+    const shell = baseShell();
+    const vfs = shell.getVfs();
+    vfs.addFile('/home/timo/.ssh/id_alt', 'fake');
+    vfs.addFile('/home/timo/.ssh/id_alt.pub', 'ssh-ed25519 AAAAC3AltKey timo@admin-ws\n');
+    seedLocalKey(shell, { worldReadable: true });
+    shell.registerHost(createHostState(web01Spec()));
+    const r = shell.execute('ssh admin@web01');
+    expect(r.output).toContain("'/home/timo/.ssh/id_alt'");
+    expect(r.output).toContain("'/home/timo/.ssh/id_ed25519'");
+  });
+
+  it('ssh <host> without user@ defaults to the current user', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec({
+      accounts: [{ name: 'timo', password: 'geheim1' }],
+    })));
+    const r = shell.execute('ssh web01');
+    expect(r.pendingInput).toEqual({ prompt: "timo@web01's password: ", mask: true });
+  });
+});
+
+describe('ssh: unsupported invocations', () => {
+  it('option-looking args get the friendly German one-liner, exit 255', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec()));
+    const r = shell.execute('ssh -p 2222 admin@web01');
+    expect(r.error).toBe('ssh: Optionen werden in dieser Simulation nicht unterstützt');
+    expect(r.exitCode).toBe(255);
+  });
+
+  it('remote commands are rejected with the German hint, exit 255', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec()));
+    const r = shell.execute('ssh admin@web01 uptime');
+    expect(r.error).toContain('Entfernte Einzelbefehle');
     expect(r.exitCode).toBe(255);
   });
 });
