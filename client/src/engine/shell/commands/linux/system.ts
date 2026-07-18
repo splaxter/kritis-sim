@@ -609,7 +609,8 @@ export const systemctlCommand: ShellCommand = {
         if (recent.length > 0) {
           lines.push('');
           for (const e of recent) {
-            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${short}[${unit.pid ?? 1}]: ${e.message}`);
+            // Same fallback as journalctl so both render one consistent pid.
+            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${short}[${unit.pid ?? derivedUnitPid(unit.unit)}]: ${e.message}`);
           }
         }
       }

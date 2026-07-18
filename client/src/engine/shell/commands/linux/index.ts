@@ -8,6 +8,7 @@ import { navigationCommands } from './navigation';
 import { fileOpsCommands } from './fileops';
 import { textProcCommands } from './textproc';
 import { systemCommands } from './system';
+import { journalCommands } from './journal';
 import { networkCommands } from './network';
 import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
@@ -17,6 +18,7 @@ export const allLinuxCommands: ShellCommand[] = [
   ...fileOpsCommands,
   ...textProcCommands,
   ...systemCommands,
+  ...journalCommands,
   ...networkCommands,
   ...builtinCommands,
   ...extendedCommands,
@@ -27,6 +29,7 @@ export {
   fileOpsCommands,
   textProcCommands,
   systemCommands,
+  journalCommands,
   networkCommands,
   builtinCommands,
   extendedCommands,
