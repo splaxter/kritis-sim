@@ -10,7 +10,13 @@ const ROOT_ERROR = 'ERROR: You need to be root to run this script';
 const NO_SUCH_RULE = 'ERROR: Could not delete non-existent rule';
 const SSH_DISRUPT_PROMPT = 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? ';
 
-const SERVICE_PORTS: Record<string, number> = { ssh: 22, http: 80, https: 443 };
+// Service names normalize to port/tcp so 'allow ssh' and 'allow 22/tcp'
+// are the same rule (dedupe, delete, display).
+const SERVICE_PORTS: Record<string, { port: number; proto: 'tcp' }> = {
+  ssh: { port: 22, proto: 'tcp' },
+  http: { port: 80, proto: 'tcp' },
+  https: { port: 443, proto: 'tcp' },
+};
 
 /** '22/tcp' | '22' | 'ssh' → port/proto, or null when unparseable. */
 function parsePortSpec(spec: string): { port: number; proto?: 'tcp' | 'udp' } | null {
@@ -20,7 +26,7 @@ function parsePortSpec(spec: string): { port: number; proto?: 'tcp' | 'udp' } | 
     return proto ? { port: parseInt(m[1], 10), proto } : { port: parseInt(m[1], 10) };
   }
   const service = SERVICE_PORTS[spec];
-  return service !== undefined ? { port: service } : null;
+  return service ? { ...service } : null;
 }
 
 /**
@@ -32,7 +38,9 @@ function parseRuleTokens(action: 'allow' | 'deny', tokens: string[]): UfwRule | 
     if (tokens[1] === undefined || tokens[2] !== 'to' || tokens[3] !== 'any' || tokens[4] !== 'port') return null;
     const port = parseInt(tokens[5] ?? '', 10);
     if (!Number.isFinite(port)) return null;
-    const rule: UfwRule = { action, port, from: tokens[1] };
+    const rule: UfwRule = { action, port };
+    // 'from any' is no source restriction — same as omitting the clause.
+    if (tokens[1] !== 'any') rule.from = tokens[1];
     if (tokens.length > 6) {
       if (tokens[6] !== 'proto' || (tokens[7] !== 'tcp' && tokens[7] !== 'udp')) return null;
       rule.proto = tokens[7];
@@ -68,9 +76,14 @@ function statusOutput(fw: FirewallState, numbered: boolean): string {
   return lines.join('\n');
 }
 
-/** Would enforcing default-deny cut the connection this session came in over? */
 function hasAllow22(fw: FirewallState): boolean {
   return fw.rules.some(r => r.action === 'allow' && r.port === 22 && (!r.proto || r.proto === 'tcp'));
+}
+
+/** Would enabling this firewall block a hypothetical NEW ssh connection? */
+function enableWouldBlock22(fw: FirewallState): boolean {
+  const denied = fw.rules.some(r => r.action === 'deny' && r.port === 22 && (!r.proto || r.proto === 'tcp') && !r.from);
+  return denied || (fw.defaultIncoming === 'deny' && !hasAllow22(fw));
 }
 
 export const ufwCommand: ShellCommand = {
@@ -92,9 +105,10 @@ export const ufwCommand: ShellCommand = {
 
     // Real-ufw confirmation before an action that could cut this ssh session.
     const confirmSshDisrupt = (proceed: () => CommandResult): CommandResult =>
-      ctx.requestInput(SSH_DISRUPT_PROMPT, false, answer =>
-        answer.trim() === 'y' ? proceed() : { output: 'Aborted', exitCode: 1 }
-      );
+      ctx.requestInput(SSH_DISRUPT_PROMPT, false, answer => {
+        const a = answer.trim().toLowerCase();
+        return a === 'y' || a === 'yes' ? proceed() : { output: 'Aborted', exitCode: 1 };
+      });
     const overSsh = (ctx.sessionDepth ?? 1) > 1;
 
     if (sub === 'status') {
@@ -106,7 +120,7 @@ export const ufwCommand: ShellCommand = {
         fw.enabled = true;
         return { output: 'Firewall is active and enabled on system startup', exitCode: 0 };
       };
-      if (overSsh && fw.defaultIncoming === 'deny' && !hasAllow22(fw)) {
+      if (overSsh && enableWouldBlock22(fw)) {
         return confirmSshDisrupt(proceed);
       }
       return proceed();

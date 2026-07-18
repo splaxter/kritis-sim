@@ -548,7 +548,13 @@ export const chownCommand: ShellCommand = {
     }
 
     const [spec, ...files] = args.positional;
-    const [owner, group] = spec.split(':');
+    // ':group' changes only the group; 'owner' only the owner.
+    const [ownerPart, groupPart] = spec.split(':');
+    const owner = ownerPart || undefined;
+    const group = groupPart || undefined;
+    if (owner === undefined && group === undefined) {
+      return { output: '', exitCode: 1, error: `chown: invalid spec: '${spec}'` };
+    }
     const recursive = args.flags['R'] || args.flags['recursive'];
 
     for (const file of files) {
@@ -559,7 +565,7 @@ export const chownCommand: ShellCommand = {
       if (ctx.user !== 'root') {
         return { output: '', exitCode: 1, error: `chown: changing ownership of '${file}': Operation not permitted` };
       }
-      const result = ctx.vfs.chown(file, owner, group || undefined, recursive);
+      const result = ctx.vfs.chown(file, owner, group, recursive);
       if (!result.ok) {
         return { output: '', exitCode: 1, error: result.error };
       }

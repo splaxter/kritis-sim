@@ -184,6 +184,19 @@ describe('chown', () => {
     }
   });
 
+  it(':group form changes only the group, owner stays', () => {
+    const before = shell.getVfs().stat('/home/azubi/abc.txt');
+    const owner = before.ok ? before.value.owner : '';
+    const r = shell.execute('sudo chown :www-data abc.txt');
+    expect(r.exitCode).toBe(0);
+    const stat = shell.getVfs().stat('/home/azubi/abc.txt');
+    expect(stat.ok).toBe(true);
+    if (stat.ok) {
+      expect(stat.value.owner).toBe(owner);
+      expect(stat.value.group).toBe('www-data');
+    }
+  });
+
   it('non-root is denied with Operation not permitted', () => {
     const r = shell.execute('chown azubi abc.txt');
     expect(r.error).toBe("chown: changing ownership of 'abc.txt': Operation not permitted");
@@ -255,5 +268,15 @@ describe('crontab', () => {
     const r = shell.execute('crontab nix.txt');
     expect(r.exitCode).toBe(1);
     expect(r.error).toContain('No such file');
+  });
+
+  it("installed spool is mode 600 — other users cannot read someone else's crontab", () => {
+    shell.getVfs().addFile('/home/azubi/cron.txt', '0 4 * * * /opt/cleanup.sh\n');
+    const install = shell.execute('sudo crontab -u backup cron.txt');
+    expect(install.exitCode).toBe(0);
+    // Root installed it for backup — azubi must not be able to read it.
+    const r = shell.execute('cat /var/spool/cron/crontabs/backup');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('Permission denied');
   });
 });

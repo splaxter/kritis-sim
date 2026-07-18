@@ -97,16 +97,35 @@ describe('ufw allow/deny', () => {
     expect(shell.getBaseHost().firewall.rules).toEqual([{ action: 'allow', port: 8080 }]);
   });
 
-  it('service names resolve: ssh→22, http→80, https→443', () => {
+  it('service names resolve to port/tcp: ssh→22, http→80, https→443', () => {
     const shell = baseShell();
     shell.execute('sudo ufw allow ssh');
     shell.execute('sudo ufw allow http');
     shell.execute('sudo ufw deny https');
     expect(shell.getBaseHost().firewall.rules).toEqual([
-      { action: 'allow', port: 22 },
-      { action: 'allow', port: 80 },
-      { action: 'deny', port: 443 },
+      { action: 'allow', port: 22, proto: 'tcp' },
+      { action: 'allow', port: 80, proto: 'tcp' },
+      { action: 'deny', port: 443, proto: 'tcp' },
     ]);
+  });
+
+  it('allow ssh and allow 22/tcp are the same rule: dedupe and cross-delete', () => {
+    const shell = baseShell();
+    shell.execute('sudo ufw allow ssh');
+    const dup = shell.execute('sudo ufw allow 22/tcp');
+    expect(dup.output).toBe('Skipping adding existing rule');
+    expect(shell.getBaseHost().firewall.rules).toHaveLength(1);
+    expect(shell.execute('sudo ufw status').output).toContain('22/tcp');
+    const del = shell.execute('sudo ufw delete allow 22/tcp');
+    expect(del.output).toBe('Rule deleted');
+    expect(shell.getBaseHost().firewall.rules).toHaveLength(0);
+  });
+
+  it("'from any' stores no source restriction and displays Anywhere", () => {
+    const shell = baseShell();
+    shell.execute('sudo ufw allow from any to any port 22');
+    expect(shell.getBaseHost().firewall.rules).toEqual([{ action: 'allow', port: 22 }]);
+    expect(shell.execute('sudo ufw status').output).toContain('Anywhere');
   });
 
   it('duplicate rule is skipped, not pushed again', () => {
@@ -270,6 +289,34 @@ describe('ufw ssh-disruption warning (remote session)', () => {
     expect(target.firewall.defaultIncoming).toBe('deny');
   });
 
+  it('enable warns when an explicit deny-22 rule exists, even with default allow', () => {
+    const { shell, target } = remoteSetup({
+      enabled: false,
+      defaultIncoming: 'allow',
+      rules: [{ action: 'deny', port: 22, proto: 'tcp' }],
+    });
+    const r = shell.execute('sudo ufw enable');
+    expect(r.pendingInput).toEqual({
+      prompt: 'Command may disrupt existing ssh connections. Proceed with operation (y|n)? ',
+      mask: false,
+    });
+    const r2 = shell.continueInput('y');
+    expect(r2.exitCode).toBe(0);
+    expect(target.firewall.enabled).toBe(true);
+  });
+
+  it('confirmation accepts Y and yes case-insensitively', () => {
+    const first = remoteSetup({ enabled: false, defaultIncoming: 'deny' });
+    first.shell.execute('sudo ufw enable');
+    expect(first.shell.continueInput('Y').exitCode).toBe(0);
+    expect(first.target.firewall.enabled).toBe(true);
+
+    const second = remoteSetup({ enabled: false, defaultIncoming: 'deny' });
+    second.shell.execute('sudo ufw enable');
+    expect(second.shell.continueInput('yes').exitCode).toBe(0);
+    expect(second.target.firewall.enabled).toBe(true);
+  });
+
   it('no warning at depth 1 (local console) even without allow-22', () => {
     const shell = baseShell();
     shell.getBaseHost().firewall.enabled = false;
@@ -303,5 +350,26 @@ describe('ufw vs live ssh sessions', () => {
     const retry = shell.execute('ssh admin@web01');
     expect(retry.error).toBe('ssh: connect to host web01 port 22: Connection timed out');
     expect(retry.exitCode).toBe(255);
+  });
+
+  it("an 'allow from any' rule admits an ip-less local client under default-deny", () => {
+    const shell = baseShell();
+    const target = createHostState(web01Spec({ firewall: { enabled: true, defaultIncoming: 'deny' } }));
+    shell.registerHost(target);
+
+    // Default-deny with no rule: connection refused before any auth.
+    const blocked = shell.execute('ssh admin@web01');
+    expect(blocked.error).toBe('ssh: connect to host web01 port 22: Connection timed out');
+
+    // Author the rule from the console side (maintenance session).
+    shell.pushSession('web01', 'admin');
+    expect(shell.execute('sudo ufw allow from any to any port 22').output).toBe('Rule added');
+    shell.execute('exit');
+    expect(target.firewall.rules).toEqual([{ action: 'allow', port: 22 }]);
+
+    // The base host has no IP — only a from-less allow rule admits it.
+    const r = shell.execute('ssh admin@web01');
+    expect(r.pendingInput).toEqual({ prompt: "admin@web01's password: ", mask: true });
+    expect(shell.continueInput('sonnenblume23').exitCode).toBe(0);
   });
 });

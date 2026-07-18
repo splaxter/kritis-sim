@@ -509,6 +509,8 @@ export const crontabCommand: ShellCommand = {
     if (!write.ok) {
       return { output: '', exitCode: 1, error: `crontab: ${write.error}` };
     }
+    // Spool files are private — makes the root gate on -u real.
+    ctx.vfs.chmod(spool, '600');
     return { output: '', exitCode: 0 };
   },
 };
