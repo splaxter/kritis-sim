@@ -3,7 +3,9 @@
  * whoami, hostname, uname, id, uptime, date, df, du, free, ps, kill, env, export
  */
 
+import { TerminalUnitPrecondition } from '@kritis/shared';
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
+import { DEFAULT_UNITS, HostState, SystemdUnitState } from '../../hosts';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -454,33 +456,86 @@ export const exportCommand: ShellCommand = {
   },
 };
 
-// A curated set of systemd units, kept consistent with the `ps` process list
-// (sshd, apache2, mysqld) so the two commands tell the same story.
-interface SystemdUnit {
-  unit: string;
-  active: 'active' | 'inactive' | 'failed';
-  sub: 'running' | 'exited' | 'dead' | 'failed';
-  enabled: 'enabled' | 'disabled' | 'static';
-  pid?: number;
-  exec?: string;
-  desc: string;
+// systemctl operates on the mutable per-host unit table (ctx.host.services).
+// The hostless fallback only exists so a stray call without a host can't crash.
+const findUnit = (services: SystemdUnitState[], name: string): SystemdUnitState | undefined => {
+  // Accept both `ssh` and `ssh.service`.
+  return services.find(u => u.unit === fullUnitName(name));
+};
+
+const fullUnitName = (name: string): string => (name.includes('.') ? name : `${name}.service`);
+
+const shortUnitName = (unit: string): string => unit.replace(/\.service$/, '');
+
+// Deterministic journal clock: fixed in-game date, minutes advance per entry.
+const journalClocks = new WeakMap<HostState, number>();
+function nextJournalTs(host: HostState): string {
+  const n = journalClocks.get(host) ?? 0;
+  journalClocks.set(host, n + 1);
+  const totalMins = 9 * 60 + 15 + n;
+  const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
+  const mm = String(totalMins % 60).padStart(2, '0');
+  return `2026-07-18 ${hh}:${mm}:00`;
 }
 
-const SYSTEMD_UNITS: SystemdUnit[] = [
-  { unit: 'ssh.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 456, exec: '/usr/sbin/sshd -D', desc: 'OpenBSD Secure Shell server' },
-  { unit: 'apache2.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 1234, exec: '/usr/sbin/apache2 -k start', desc: 'The Apache HTTP Server' },
-  { unit: 'mysql.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 2345, exec: '/usr/sbin/mysqld', desc: 'MySQL Community Server' },
-  { unit: 'cron.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 512, exec: '/usr/sbin/cron -f', desc: 'Regular background program processing daemon' },
-  { unit: 'systemd-journald.service', active: 'active', sub: 'running', enabled: 'static', pid: 210, exec: '/lib/systemd/systemd-journald', desc: 'Journal Service' },
-  { unit: 'networking.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Raise network interfaces' },
-  { unit: 'ufw.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Uncomplicated firewall' },
-];
+/** True when the precondition HOLDS (the unit may start). */
+function preconditionHolds(host: HostState, unit: SystemdUnitState, pre: TerminalUnitPrecondition): boolean {
+  if (pre.unitFileMatches !== undefined) {
+    // Checked against the LOADED snapshot — daemon-reload refreshes it.
+    const matched = new RegExp(pre.unitFileMatches, 'm').test(unit.loadedUnitContent ?? '');
+    return pre.absent ? !matched : matched;
+  }
+  if (pre.file) {
+    const read = host.vfs.readFile(pre.file);
+    if (!read.ok) return pre.absent === true;
+    if (pre.matches !== undefined) {
+      const matched = new RegExp(pre.matches, 'm').test(read.value);
+      return pre.absent ? !matched : matched;
+    }
+    return pre.absent !== true;
+  }
+  return true;
+}
 
-const findUnit = (name: string): SystemdUnit | undefined => {
-  // Accept both `ssh` and `ssh.service`.
-  const full = name.includes('.') ? name : `${name}.service`;
-  return SYSTEMD_UNITS.find(u => u.unit === full);
-};
+function startUnit(host: HostState, unit: SystemdUnitState): CommandResult {
+  const failing = (unit.startRequires ?? []).find(p => !preconditionHolds(host, unit, p));
+  if (failing) {
+    unit.active = 'failed';
+    unit.sub = 'failed';
+    unit.pid = undefined;
+    host.appendJournal({
+      ts: nextJournalTs(host),
+      unit: shortUnitName(unit.unit),
+      priority: 'err',
+      message: failing.failMessage,
+    });
+    return {
+      output: '',
+      exitCode: 1,
+      error: `Job for ${unit.unit} failed because the control process exited with error code.\nSee "systemctl status ${unit.unit}" and "journalctl -xeu ${unit.unit}" for details.`,
+    };
+  }
+  unit.active = 'active';
+  unit.sub = 'running';
+  host.appendJournal({
+    ts: nextJournalTs(host),
+    unit: shortUnitName(unit.unit),
+    priority: 'info',
+    message: `Started ${unit.desc}.`,
+  });
+  if (unit.unit === 'ssh.service') {
+    host.refreshSshdEffective();
+  }
+  return { output: '', exitCode: 0 };
+}
+
+/** 'YYYY-MM-DD HH:MM:SS' → journalctl-style 'Jul 18 HH:MM:SS'. */
+function formatJournalTs(ts: string): string {
+  const m = ts.match(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
+  if (!m) return ts;
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return `${months[parseInt(m[1], 10) - 1]} ${m[2]} ${m[3]}`;
+}
 
 export const systemctlCommand: ShellCommand = {
   name: 'systemctl',
@@ -494,28 +549,33 @@ export const systemctlCommand: ShellCommand = {
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const [subcommand, ...units] = args.positional;
+    // Base host always exists; the fallback keeps a hostless call from crashing.
+    const host = ctx.host;
+    const services = host ? host.services : DEFAULT_UNITS.map(u => ({ ...u }));
 
     // Default (no args) or list-units → the unit table.
     if (!subcommand || subcommand === 'list-units' || subcommand === 'list-unit-files') {
-      const rows = SYSTEMD_UNITS.map(u =>
+      const rows = services.map(u =>
         `  ${u.unit.padEnd(28)} loaded ${u.active.padEnd(8)} ${u.sub.padEnd(8)} ${u.desc}`
       );
       const header = 'UNIT                          LOAD   ACTIVE   SUB      DESCRIPTION';
-      const footer = `\n${SYSTEMD_UNITS.length} loaded units listed.`;
+      const footer = `\n${services.length} loaded units listed.`;
       return { output: [header, ...rows].join('\n') + footer, exitCode: 0 };
     }
 
     const unitName = units[0];
+    const fullName = fullUnitName(unitName || '');
 
     if (subcommand === 'status') {
-      const unit = findUnit(unitName || '');
+      const unit = findUnit(services, unitName || '');
       if (!unit) {
-        return { output: `Unit ${unitName}.service could not be found.`, exitCode: 4 };
+        return { output: `Unit ${fullName} could not be found.`, exitCode: 4 };
       }
       const dot = unit.active === 'active' ? '\x1b[32m●\x1b[0m' : unit.active === 'failed' ? '\x1b[31m●\x1b[0m' : '○';
+      const unitFilePath = unit.unitFile ?? `/lib/systemd/system/${unit.unit}`;
       const lines = [
         `${dot} ${unit.unit} - ${unit.desc}`,
-        `     Loaded: loaded (/lib/systemd/system/${unit.unit}; ${unit.enabled}; vendor preset: enabled)`,
+        `     Loaded: loaded (${unitFilePath}; ${unit.enabled}; vendor preset: enabled)`,
         `     Active: ${unit.active} (${unit.sub}) since Mon 2026-07-09 09:00:01 UTC; 2h 15min ago`,
       ];
       if (unit.pid) {
@@ -525,17 +585,29 @@ export const systemctlCommand: ShellCommand = {
         lines.push(`     CGroup: /system.slice/${unit.unit}`);
         lines.push(`             └─${unit.pid} ${unit.exec}`);
       }
+      if (host) {
+        // Like real systemctl: the most recent journal lines for this unit.
+        const short = shortUnitName(unit.unit);
+        const hostShort = host.hostname.split('.')[0];
+        const recent = host.journal.filter(e => e.unit === short).slice(-3);
+        if (recent.length > 0) {
+          lines.push('');
+          for (const e of recent) {
+            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${short}[${unit.pid ?? 1}]: ${e.message}`);
+          }
+        }
+      }
       return { output: lines.join('\n'), exitCode: unit.active === 'active' ? 0 : 3 };
     }
 
     if (subcommand === 'is-active') {
-      const unit = findUnit(unitName || '');
+      const unit = findUnit(services, unitName || '');
       return { output: unit ? unit.active : 'inactive', exitCode: unit && unit.active === 'active' ? 0 : 3 };
     }
 
     if (subcommand === 'is-enabled') {
-      const unit = findUnit(unitName || '');
-      if (!unit) return { output: '', exitCode: 1, error: `Failed to get unit file state for ${unitName}.service: No such file or directory` };
+      const unit = findUnit(services, unitName || '');
+      if (!unit) return { output: '', exitCode: 1, error: `Failed to get unit file state for ${fullName}: No such file or directory` };
       return { output: unit.enabled, exitCode: unit.enabled === 'disabled' ? 1 : 0 };
     }
 
@@ -544,34 +616,78 @@ export const systemctlCommand: ShellCommand = {
       if (!unitName) {
         return { output: '', exitCode: 1, error: `Too few arguments.` };
       }
-      if (!findUnit(unitName)) {
-        return { output: '', exitCode: 5, error: `Failed to ${subcommand} ${unitName}.service: Unit ${unitName}.service not found.` };
+      const unit = findUnit(services, unitName);
+      if (!unit) {
+        return { output: '', exitCode: 5, error: `Failed to ${subcommand} ${fullName}: Unit ${fullName} not found.` };
       }
       if (ctx.user !== 'root') {
         return {
           output: '',
           exitCode: 1,
-          error: `Failed to ${subcommand} ${unitName}.service: Access denied\nSee system logs and 'systemctl status ${unitName}.service' for details.\n(Hinweis: mit 'sudo' erneut versuchen.)`,
+          error: `Failed to ${subcommand} ${fullName}: Access denied\nSee system logs and 'systemctl status ${fullName}' for details.\n(Hinweis: mit 'sudo' erneut versuchen.)`,
         };
       }
-      // As root the action "succeeds" silently, like real systemctl.
+      if (!host) {
+        return { output: '', exitCode: 0 };
+      }
+
+      if (subcommand === 'start' || subcommand === 'restart') {
+        return startUnit(host, unit);
+      }
+      if (subcommand === 'stop') {
+        unit.active = 'inactive';
+        unit.sub = 'dead';
+        unit.pid = undefined;
+        host.appendJournal({
+          ts: nextJournalTs(host),
+          unit: shortUnitName(unit.unit),
+          priority: 'info',
+          message: `Stopped ${unit.desc}.`,
+        });
+        return { output: '', exitCode: 0 };
+      }
+      if (subcommand === 'enable') {
+        if (unit.enabled !== 'static') unit.enabled = 'enabled';
+        return {
+          output: `Created symlink /etc/systemd/system/multi-user.target.wants/${unit.unit} → ${unit.unitFile ?? `/lib/systemd/system/${unit.unit}`}.`,
+          exitCode: 0,
+        };
+      }
+      if (subcommand === 'disable') {
+        if (unit.enabled !== 'static') unit.enabled = 'disabled';
+        return {
+          output: `Removed /etc/systemd/system/multi-user.target.wants/${unit.unit}.`,
+          exitCode: 0,
+        };
+      }
+      // reload/mask/unmask "succeed" silently, like real systemctl.
       return { output: '', exitCode: 0 };
     }
 
     if (subcommand === 'daemon-reload') {
-      return ctx.user === 'root'
-        ? { output: '', exitCode: 0 }
-        : { output: '', exitCode: 1, error: 'Failed to reload daemon: Access denied' };
+      if (ctx.user !== 'root') {
+        return { output: '', exitCode: 1, error: 'Failed to reload daemon: Access denied' };
+      }
+      if (host) {
+        for (const unit of host.services) {
+          if (unit.unitFile) {
+            const read = host.vfs.readFile(unit.unitFile);
+            unit.loadedUnitContent = read.ok ? read.value : '';
+          }
+        }
+      }
+      return { output: '', exitCode: 0 };
     }
 
     return { output: '', exitCode: 1, error: `Unknown command verb ${subcommand}.` };
   },
 
   getCompletions(partial: string): Completion[] {
-    const verbs = ['status', 'start', 'stop', 'restart', 'enable', 'disable', 'is-active', 'is-enabled', 'list-units'];
+    // CompletionContext carries no host — complete from the default unit set.
+    const verbs = ['status', 'start', 'stop', 'restart', 'enable', 'disable', 'is-active', 'is-enabled', 'list-units', 'daemon-reload'];
     return [
       ...verbs.filter(v => v.startsWith(partial)).map(v => ({ value: v, display: v, type: 'argument' as const })),
-      ...SYSTEMD_UNITS.filter(u => u.unit.startsWith(partial)).map(u => ({ value: u.unit, display: u.unit, type: 'argument' as const })),
+      ...DEFAULT_UNITS.filter(u => u.unit.startsWith(partial)).map(u => ({ value: u.unit, display: u.unit, type: 'argument' as const })),
     ];
   },
 };
