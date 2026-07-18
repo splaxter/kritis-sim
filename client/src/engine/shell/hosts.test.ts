@@ -1,5 +1,30 @@
 import { describe, it, expect } from 'vitest';
-import { createHostState, derivedUnitPid } from './hosts';
+import { canonicalUnitName, createHostState, derivedUnitPid, formatJournalTs, UNIT_ALIASES } from './hosts';
+
+describe('canonicalUnitName', () => {
+  it('appends .service when missing and keeps full names', () => {
+    expect(canonicalUnitName('telemetryd')).toBe('telemetryd.service');
+    expect(canonicalUnitName('telemetryd.service')).toBe('telemetryd.service');
+  });
+
+  it('resolves unit aliases before suffixing', () => {
+    expect(UNIT_ALIASES['sshd']).toBe('ssh.service');
+    expect(canonicalUnitName('sshd')).toBe('ssh.service');
+    expect(canonicalUnitName('ssh')).toBe('ssh.service');
+    expect(canonicalUnitName('ssh.service')).toBe('ssh.service');
+  });
+});
+
+describe('formatJournalTs', () => {
+  it("renders 'YYYY-MM-DD HH:MM:SS' as syslog-style 'Mon DD HH:MM:SS'", () => {
+    expect(formatJournalTs('2026-07-18 06:00:00')).toBe('Jul 18 06:00:00');
+    expect(formatJournalTs('2026-12-01 23:59:59')).toBe('Dec 01 23:59:59');
+  });
+
+  it('passes unparseable timestamps through unchanged', () => {
+    expect(formatJournalTs('gestern')).toBe('gestern');
+  });
+});
 
 describe('derivedUnitPid', () => {
   it('is deterministic, in the 100-999 range, and ignores the .service suffix', () => {

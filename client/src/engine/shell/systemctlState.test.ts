@@ -176,6 +176,46 @@ describe('journal clock seeding', () => {
   });
 });
 
+describe('systemctl status unit aliases', () => {
+  it('status ssh shows journal lines authored under sshd, with the live pid', () => {
+    const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
+    const host = createHostState({
+      id: 'h1',
+      hostname: 'h1',
+      journal: [
+        { ts: '2026-07-18 06:00:00', unit: 'sshd', priority: 'warning', message: 'Failed password for root from 203.0.113.50' },
+      ],
+    });
+    shell.registerHost(host);
+    shell.pushSession('h1', 'root');
+    const r = shell.execute('systemctl status ssh');
+    expect(r.output).toContain('Failed password for root from 203.0.113.50');
+    expect(r.output).toContain('[456]'); // live ssh.service pid
+  });
+});
+
+describe('journal clock clamp', () => {
+  it('never advances past 23:59 (no hour-24 timestamps)', () => {
+    const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
+    const host = createHostState({
+      id: 'late',
+      hostname: 'late',
+      journal: [
+        { ts: '2026-07-18 23:59:00', unit: 'cron', priority: 'info', message: 'late job' },
+      ],
+    });
+    shell.registerHost(host);
+    shell.pushSession('late', 'root');
+    shell.execute('systemctl stop cron');
+    shell.execute('systemctl start cron');
+    const appended = host.journal.slice(1);
+    expect(appended.length).toBeGreaterThan(0);
+    for (const e of appended) {
+      expect(e.ts).toBe('2026-07-18 23:59:00');
+    }
+  });
+});
+
 describe('systemctl enable/disable on static units', () => {
   it('prints the no-installation-config message instead of a symlink line, exit 0', () => {
     const { shell, host } = makeShellOnHost();

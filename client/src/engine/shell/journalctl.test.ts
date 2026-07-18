@@ -44,9 +44,10 @@ describe('journalctl rendering', () => {
     expect(r.exitCode).toBe(0);
     const lines = r.output.split('\n');
     expect(lines).toHaveLength(6);
-    // Short hostname, month name, derived pid for a unit with no live service.
+    // Short hostname, month name; authored `sshd` aliases to the live
+    // ssh.service, so its pid (456) renders instead of a derived one.
     expect(lines[0]).toBe(
-      `Jul 18 06:00:00 telem01 sshd[${derivedUnitPid('sshd')}]: Failed password for root from 203.0.113.50 port 51122 ssh2`
+      'Jul 18 06:00:00 telem01 sshd[456]: Failed password for root from 203.0.113.50 port 51122 ssh2'
     );
     // Sorted despite out-of-order authoring.
     expect(lines[1]).toContain('06:05:00');
@@ -122,6 +123,19 @@ describe('journalctl filters', () => {
     expect(lines[0]).toContain('config /etc/telemetryd.conf missing');
   });
 
+  it('-u ssh, -u sshd and -u ssh.service all reach authored sshd and live ssh entries', () => {
+    // Engine-appended entry uses the canonical short name 'ssh'.
+    shell.execute('sudo systemctl stop ssh');
+    for (const cmd of ['journalctl -u ssh', 'journalctl -u sshd', 'journalctl -u ssh.service']) {
+      const out = shell.execute(cmd).output;
+      expect(out.split('\n')).toHaveLength(4); // 3 authored sshd + 1 appended ssh
+      expect(out).toContain('Failed password for root from 203.0.113.50');
+      expect(out).toContain('Stopped OpenBSD Secure Shell server.');
+      // ssh.service was stopped, so the appended line falls back to the derived pid.
+      expect(out).toContain(`ssh[${derivedUnitPid('ssh')}]: Stopped`);
+    }
+  });
+
   it('output is plain text and pipes into grep', () => {
     const r = shell.execute('journalctl -u sshd | grep Failed');
     expect(r.exitCode).toBe(0);
@@ -134,6 +148,45 @@ describe('journalctl filters', () => {
     // Mid-pipeline (non-TTY) stays fully plain.
     const counted = shell.execute('journalctl -u sshd | grep Failed | wc -l');
     expect(counted.output.trim()).toBe('2');
+  });
+});
+
+describe('journalctl -p threshold semantics', () => {
+  // Like real journalctl: -p LEVEL shows LEVEL and everything more severe.
+  function makePrioShell(): ShellEngine {
+    const shell = createShell({ type: 'bash', user: 'azubi', hostname: 'kritis' });
+    const host = createHostState({
+      id: 'p1',
+      hostname: 'p1',
+      journal: [
+        { ts: '2026-07-18 06:00:00', unit: 'app', priority: 'err', message: 'E' },
+        { ts: '2026-07-18 06:01:00', unit: 'app', priority: 'warning', message: 'W' },
+        { ts: '2026-07-18 06:02:00', unit: 'app', priority: 'info', message: 'I' },
+        { ts: '2026-07-18 06:03:00', unit: 'app', message: 'N' }, // no priority → info
+      ],
+    });
+    shell.registerHost(host);
+    shell.pushSession('p1', 'admin');
+    return shell;
+  }
+
+  it('-p warning includes err and warning, hides info', () => {
+    const lines = makePrioShell().execute('journalctl -p warning').output.split('\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain(': E');
+    expect(lines[1]).toContain(': W');
+  });
+
+  it('-p err shows only err', () => {
+    const lines = makePrioShell().execute('journalctl -p err').output.split('\n');
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).toContain(': E');
+  });
+
+  it('-p info shows everything, counting entries without priority as info', () => {
+    const lines = makePrioShell().execute('journalctl -p info').output.split('\n');
+    expect(lines).toHaveLength(4);
+    expect(lines[3]).toContain(': N');
   });
 });
 

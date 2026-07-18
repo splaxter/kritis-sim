@@ -5,22 +5,16 @@
 
 import { TerminalJournalEntry } from '@kritis/shared';
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult } from '../../types';
-import { HostState, derivedUnitPid } from '../../hosts';
+import { HostState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '../../hosts';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** 'YYYY-MM-DD HH:MM:SS' → 'Jul 18 HH:MM:SS'. */
-function formatTs(ts: string): string {
-  const m = ts.match(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
-  if (!m) return ts;
-  return `${MONTHS[parseInt(m[1], 10) - 1]} ${m[2]} ${m[3]}`;
-}
+/** Threshold order, most severe first — journalctl -p shows LEVEL and above. */
+const PRIORITY_ORDER = ['err', 'warning', 'info'];
 
 /** Live service pid when the unit runs, else the shared derived pid. */
 function pidFor(host: HostState | undefined, unit: string): number {
-  const full = unit.includes('.') ? unit : `${unit}.service`;
+  const full = canonicalUnitName(unit);
   const service = host?.services.find(s => s.unit === full);
-  return service?.pid ?? derivedUnitPid(unit);
+  return service?.pid ?? derivedUnitPid(full);
 }
 
 export const journalctlCommand: ShellCommand = {
@@ -57,12 +51,18 @@ export const journalctlCommand: ShellCommand = {
 
     const unitOpt = args.options['u'] ?? args.options['unit'];
     if (unitOpt) {
-      const short = unitOpt.replace(/\.service$/, '');
-      entries = entries.filter(e => e.unit === short);
+      // Canonicalize BOTH sides so `-u ssh`, `-u sshd` and `-u ssh.service`
+      // all reach entries authored under either identifier.
+      const wanted = canonicalUnitName(unitOpt);
+      entries = entries.filter(e => canonicalUnitName(e.unit) === wanted);
     }
     const prio = args.options['p'] ?? args.options['priority'];
     if (prio) {
-      entries = entries.filter(e => e.priority === prio);
+      // Threshold, not exact match: -p warning includes err.
+      const threshold = PRIORITY_ORDER.indexOf(prio);
+      entries = entries.filter(
+        e => PRIORITY_ORDER.indexOf(e.priority ?? 'info') <= threshold
+      );
     }
     const since = args.options['since'];
     if (since) {
@@ -71,7 +71,7 @@ export const journalctlCommand: ShellCommand = {
     const until = args.options['until'];
     if (until) {
       // Prefix-inclusive upper bound: '07:00' still matches '07:00:00'.
-      entries = entries.filter(e => e.ts <= until + '￿');
+      entries = entries.filter(e => e.ts <= until + '\uffff');
     }
     const linesOpt = args.options['n'] ?? args.options['lines'];
     if (linesOpt !== undefined) {
@@ -88,7 +88,7 @@ export const journalctlCommand: ShellCommand = {
 
     const hostShort = (host?.hostname ?? ctx.vfs.getEnv('HOSTNAME') ?? 'localhost').split('.')[0];
     const lines = entries.map(
-      e => `${formatTs(e.ts)} ${hostShort} ${e.unit}[${pidFor(host, e.unit)}]: ${e.message}`
+      e => `${formatJournalTs(e.ts)} ${hostShort} ${e.unit}[${pidFor(host, e.unit)}]: ${e.message}`
     );
     return { output: lines.join('\n'), exitCode: 0 };
   },

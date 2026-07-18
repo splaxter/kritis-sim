@@ -5,7 +5,7 @@
 
 import { TerminalUnitPrecondition } from '@kritis/shared';
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
-import { DEFAULT_UNITS, HostState, SystemdUnitState, derivedUnitPid } from '../../hosts';
+import { DEFAULT_UNITS, HostState, SystemdUnitState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '../../hosts';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -459,16 +459,16 @@ export const exportCommand: ShellCommand = {
 // systemctl operates on the mutable per-host unit table (ctx.host.services).
 // The hostless fallback only exists so a stray call without a host can't crash.
 const findUnit = (services: SystemdUnitState[], name: string): SystemdUnitState | undefined => {
-  // Accept both `ssh` and `ssh.service`.
-  return services.find(u => u.unit === fullUnitName(name));
+  // Accepts `ssh`, `ssh.service` and aliases like `sshd`.
+  return services.find(u => u.unit === canonicalUnitName(name));
 };
-
-const fullUnitName = (name: string): string => (name.includes('.') ? name : `${name}.service`);
 
 const shortUnitName = (unit: string): string => unit.replace(/\.service$/, '');
 
 // Deterministic journal clock: fixed in-game date, minutes advance per entry.
 // Starts AFTER the newest seeded entry so appended lines always sort last.
+// Clamped at 23:59 — the clock must never roll into an hour-24 timestamp.
+const LAST_MINUTE = 23 * 60 + 59;
 const journalClocks = new WeakMap<HostState, number>();
 function seedJournalClock(host: HostState): number {
   let mins = 9 * 60 + 15;
@@ -476,11 +476,11 @@ function seedJournalClock(host: HostState): number {
     const m = e.ts.match(/(\d{2}):(\d{2}):\d{2}$/);
     if (m) mins = Math.max(mins, parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + 1);
   }
-  return mins;
+  return Math.min(mins, LAST_MINUTE);
 }
 function nextJournalTs(host: HostState): string {
   const totalMins = journalClocks.get(host) ?? seedJournalClock(host);
-  journalClocks.set(host, totalMins + 1);
+  journalClocks.set(host, Math.min(totalMins + 1, LAST_MINUTE));
   const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
   const mm = String(totalMins % 60).padStart(2, '0');
   return `2026-07-18 ${hh}:${mm}:00`;
@@ -545,14 +545,6 @@ const STATIC_UNIT_MESSAGE =
   'Alias= settings in the [Install] section, and DefaultInstance for template\n' +
   'units). This means they are not meant to be enabled or disabled using systemctl.';
 
-/** 'YYYY-MM-DD HH:MM:SS' → journalctl-style 'Jul 18 HH:MM:SS'. */
-function formatJournalTs(ts: string): string {
-  const m = ts.match(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
-  if (!m) return ts;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[parseInt(m[1], 10) - 1]} ${m[2]} ${m[3]}`;
-}
-
 export const systemctlCommand: ShellCommand = {
   name: 'systemctl',
   description: 'Control the systemd system and service manager',
@@ -580,7 +572,7 @@ export const systemctlCommand: ShellCommand = {
     }
 
     const unitName = units[0];
-    const fullName = fullUnitName(unitName || '');
+    const fullName = canonicalUnitName(unitName || '');
 
     if (subcommand === 'status') {
       const unit = findUnit(services, unitName || '');
@@ -603,14 +595,16 @@ export const systemctlCommand: ShellCommand = {
       }
       if (host) {
         // Like real systemctl: the most recent journal lines for this unit.
-        const short = shortUnitName(unit.unit);
+        // Canonical comparison reaches entries authored under an alias (sshd).
         const hostShort = host.hostname.split('.')[0];
-        const recent = host.journal.filter(e => e.unit === short).slice(-3);
+        const recent = host.journal
+          .filter(e => canonicalUnitName(e.unit) === unit.unit)
+          .slice(-3);
         if (recent.length > 0) {
           lines.push('');
           for (const e of recent) {
             // Same fallback as journalctl so both render one consistent pid.
-            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${short}[${unit.pid ?? derivedUnitPid(unit.unit)}]: ${e.message}`);
+            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${e.unit}[${unit.pid ?? derivedUnitPid(unit.unit)}]: ${e.message}`);
           }
         }
       }

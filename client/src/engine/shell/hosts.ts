@@ -56,6 +56,24 @@ export const DEFAULT_UNITS: SystemdUnitState[] = [
   { unit: 'ufw.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Uncomplicated firewall' },
 ];
 
+/** Alternate spellings for units — sshd is the syslog identifier of ssh.service. */
+export const UNIT_ALIASES: Record<string, string> = { sshd: 'ssh.service' };
+
+/** Resolve aliases, then append `.service` when the name has no unit suffix. */
+export function canonicalUnitName(name: string): string {
+  const resolved = UNIT_ALIASES[name] ?? name;
+  return resolved.includes('.') ? resolved : `${resolved}.service`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** 'YYYY-MM-DD HH:MM:SS' → syslog-style 'Jul 18 HH:MM:SS' — shared by journalctl and systemctl status. */
+export function formatJournalTs(ts: string): string {
+  const m = ts.match(/^\d{4}-(\d{2})-(\d{2}) (\d{2}:\d{2}:\d{2})$/);
+  if (!m) return ts;
+  return `${MONTHS[parseInt(m[1], 10) - 1]} ${m[2]} ${m[3]}`;
+}
+
 /**
  * Deterministic fake PID for a unit without a live one — shared by
  * `systemctl status` and `journalctl` so both show the same pid.
