@@ -25,6 +25,28 @@ describe('createHostState', () => {
     expect(host.accounts.map(a => a.name)).toContain('admin');
   });
 
+  it('replaces default units on override instead of appending', () => {
+    const host = createHostState({
+      id: 'w', hostname: 'w',
+      services: [{ unit: 'ssh.service', active: 'inactive' }],
+    });
+    const ssh = host.services.find(s => s.unit === 'ssh.service');
+    expect(ssh?.active).toBe('inactive');
+    expect(ssh?.sub).toBe('dead');
+    expect(host.services).toHaveLength(7);
+  });
+
+  it('keeps the default sub when a partial override does not set active', () => {
+    const host = createHostState({
+      id: 'w', hostname: 'w',
+      services: [{ unit: 'networking.service', enabled: 'disabled' }],
+    });
+    const net = host.services.find(s => s.unit === 'networking.service');
+    expect(net?.active).toBe('active');
+    expect(net?.sub).toBe('exited');
+    expect(net?.enabled).toBe('disabled');
+  });
+
   it('re-parses sshd_config on refreshSshdEffective', () => {
     const host = createHostState({ id: 'w', hostname: 'w' });
     host.vfs.addFile('/etc/ssh/sshd_config', 'PermitRootLogin no\nPasswordAuthentication no\n');

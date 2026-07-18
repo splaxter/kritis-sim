@@ -46,7 +46,7 @@ export interface HostState {
 }
 
 /** Same defaults the static systemctl table has — kept consistent with `ps`. */
-export const DEFAULT_UNITS: Omit<SystemdUnitState, 'loadedUnitContent'>[] = [
+export const DEFAULT_UNITS: SystemdUnitState[] = [
   { unit: 'ssh.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 456, exec: '/usr/sbin/sshd -D', desc: 'OpenBSD Secure Shell server' },
   { unit: 'apache2.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 1234, exec: '/usr/sbin/apache2 -k start', desc: 'The Apache HTTP Server' },
   { unit: 'mysql.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 2345, exec: '/usr/sbin/mysqld', desc: 'MySQL Community Server' },
@@ -94,13 +94,15 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     const merged: SystemdUnitState = {
       unit: svc.unit,
       active,
-      sub: SUB_FOR_ACTIVE[active],
+      // Only recompute sub when the spec sets active — a partial override
+      // (e.g. enabled only) must keep an existing unit's sub ('exited' etc.).
+      sub: svc.active !== undefined || !existing ? SUB_FOR_ACTIVE[active] : existing.sub,
       enabled: svc.enabled ?? existing?.enabled ?? 'enabled',
       pid: active === 'active' ? existing?.pid : undefined,
       exec: svc.exec ?? existing?.exec,
       desc: svc.desc ?? existing?.desc ?? svc.unit,
       unitFile: svc.unitFile,
-      startRequires: svc.startRequires,
+      startRequires: svc.startRequires?.map(p => ({ ...p })),
     };
     if (merged.unitFile) {
       const read = vfs.readFile(merged.unitFile);
@@ -119,7 +121,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     ip: spec.ip,
     vfs,
     services,
-    journal: [...(spec.journal ?? [])],
+    journal: (spec.journal ?? []).map(e => ({ ...e })),
     firewall: {
       enabled: spec.firewall?.enabled ?? true,
       defaultIncoming: spec.firewall?.defaultIncoming ?? 'allow',
