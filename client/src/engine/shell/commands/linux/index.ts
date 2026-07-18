@@ -14,6 +14,7 @@ import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
 import { remoteCommands } from './remote';
 import { firewallCommands } from './firewallCmd';
+import { ansibleCommands } from './ansible';
 
 export const allLinuxCommands: ShellCommand[] = [
   ...navigationCommands,
@@ -26,6 +27,7 @@ export const allLinuxCommands: ShellCommand[] = [
   ...extendedCommands,
   ...remoteCommands,
   ...firewallCommands,
+  ...ansibleCommands,
 ];
 
 export {
@@ -39,4 +41,5 @@ export {
   extendedCommands,
   remoteCommands,
   firewallCommands,
+  ansibleCommands,
 };

@@ -82,7 +82,7 @@ export function checkKeyAuth(
 }
 
 /** Is TCP/22 on the target blocked for connections coming from `source`? */
-function port22Blocked(target: HostState, source: HostState): boolean {
+export function port22Blocked(target: HostState, source: HostState): boolean {
   const fw = target.firewall;
   if (!fw.enabled) return false;
   // Only tcp rules apply to ssh; a udp-only rule never matches.

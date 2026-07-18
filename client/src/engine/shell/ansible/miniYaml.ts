@@ -31,7 +31,9 @@ interface Line {
   value: string | boolean | undefined;
 }
 
-function syntaxError(no: number, column: number, reason: string): MiniYamlResult {
+type MiniYamlError = Extract<MiniYamlResult, { ok: false }>;
+
+function syntaxError(no: number, column: number, reason: string): MiniYamlError {
   return {
     ok: false,
     line: no,
@@ -39,7 +41,7 @@ function syntaxError(no: number, column: number, reason: string): MiniYamlResult
   };
 }
 
-function semanticError(no: number, message: string): MiniYamlResult {
+function semanticError(no: number, message: string): MiniYamlError {
   return { ok: false, line: no, error: `ERROR! ${message}\n  line ${no}` };
 }
 
@@ -81,7 +83,7 @@ function parseScalar(raw: string): string | boolean {
 const KEY_VALUE = /^([A-Za-z_][A-Za-z0-9_-]*):(?:\s+(.*\S)\s*)?$/;
 
 /** Tokenize into structured lines, or fail with a positioned syntax error. */
-function tokenize(text: string): { ok: true; lines: Line[] } | Extract<MiniYamlResult, { ok: false }> {
+function tokenize(text: string): { ok: true; lines: Line[] } | MiniYamlError {
   const lines: Line[] = [];
   const rawLines = text.split('\n');
   for (let i = 0; i < rawLines.length; i++) {
@@ -183,7 +185,7 @@ function parseTasks(
   lines: Line[],
   getIndex: () => number,
   setIndex: (n: number) => void
-): { tasks: MiniTask[] } | Extract<MiniYamlResult, { ok: false }> {
+): { tasks: MiniTask[] } | MiniYamlError {
   const tasks: MiniTask[] = [];
   let i = getIndex();
 
