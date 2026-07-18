@@ -298,17 +298,20 @@ export const exitCommand: ShellCommand = {
   usage: 'exit [n]',
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    // Inside an ssh session, exit closes the remote session instead of the shell.
+    const code = args.positional[0] ? parseInt(args.positional[0], 10) : 0;
+    // Inside an ssh session, exit closes the remote session instead of the
+    // shell; like real ssh it propagates the remote exit status. No 'exit'
+    // solution side-effect here — closing a remote session must not count as
+    // the player leaving the terminal level.
     if ((ctx.sessionDepth ?? 1) > 1 && ctx.popSession) {
       const popped = ctx.popSession();
       if (popped) {
         return {
           output: `logout\nConnection to ${popped.closedHostname} closed.`,
-          exitCode: 0,
+          exitCode: code,
         };
       }
     }
-    const code = args.positional[0] ? parseInt(args.positional[0], 10) : 0;
     return {
       output: 'logout',
       exitCode: code,

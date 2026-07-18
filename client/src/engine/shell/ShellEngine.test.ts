@@ -582,6 +582,30 @@ describe('multi-host sessions', () => {
     expect(shell.popSession()).toBe(false); // never pops the base session
   });
 
+  it('popSession restores the previous session user on that host vfs', () => {
+    const { shell } = makeEngine();
+    shell.pushSession('web01', 'admin');
+    shell.pushSession('web01', 'root');
+    expect(shell.getVfs().getUser()).toBe('root');
+    expect(shell.popSession()).toBe(true);
+    expect(shell.getVfs().getUser()).toBe('admin');
+  });
+
+  it('registerHost rejects duplicate host ids (including local)', () => {
+    const { shell } = makeEngine();
+    expect(() => shell.registerHost(createHostState({ id: 'local', hostname: 'evil' }))).toThrow();
+    expect(() => shell.registerHost(createHostState({ id: 'web01', hostname: 'other' }))).toThrow();
+  });
+
+  it('exit N in a remote session propagates N as exit code', () => {
+    const { shell } = makeEngine();
+    shell.pushSession('web01', 'admin');
+    const r = shell.execute('exit 3');
+    expect(r.output).toContain('Connection to web01 closed');
+    expect(r.exitCode).toBe(3);
+    expect(shell.getSessionDepth()).toBe(1);
+  });
+
   it('exit builtin pops a pushed session instead of ending', () => {
     const { shell } = makeEngine();
     shell.pushSession('web01', 'admin');

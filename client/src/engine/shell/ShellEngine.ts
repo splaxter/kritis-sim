@@ -261,13 +261,14 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: this.formatHelp(command), exitCode: 0 };
     }
 
+    const vfs = this.getVfs();
     const ctx: ExecutionContext = {
-      vfs: this.getVfs(),
+      vfs,
       env: { ...this.state.env },
       stdin,
       shell: this.state,
-      cwd: this.getVfs().getCurrentPath(),
-      user: this.getVfs().getUser(),
+      cwd: vfs.getCurrentPath(),
+      user: vfs.getUser(),
       isTty,
       termCols: this.termCols,
       commands: this.commands,
@@ -1062,6 +1063,9 @@ export class ShellEngine implements ShellEngineInterface {
   // ============================================================================
 
   registerHost(host: HostState): void {
+    if (this.hosts.has(host.id)) {
+      throw new Error(`registerHost: duplicate host id '${host.id}'`);
+    }
     this.hosts.set(host.id, host);
   }
 
@@ -1102,6 +1106,10 @@ export class ShellEngine implements ShellEngineInterface {
   popSession(): boolean {
     if (this.sessionStack.length <= 1) return false;
     this.sessionStack.pop();
+    // Restore the resumed session's user — the closed session may have logged
+    // into the same host as a different user.
+    const top = this.sessionStack[this.sessionStack.length - 1];
+    this.hosts.get(top.hostId)!.vfs.setUser(top.user);
     return true;
   }
 
