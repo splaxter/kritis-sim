@@ -534,6 +534,45 @@ export const chmodCommand: ShellCommand = {
   },
 };
 
+export const chownCommand: ShellCommand = {
+  name: 'chown',
+  description: 'Change file owner and group',
+  usage: 'chown [-R] OWNER[:GROUP] FILE...',
+  options: [
+    { short: 'R', long: 'recursive', description: 'Operate on files and directories recursively' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    if (args.positional.length < 2) {
+      return { output: '', exitCode: 1, error: 'chown: missing operand' };
+    }
+
+    const [spec, ...files] = args.positional;
+    const [owner, group] = spec.split(':');
+    const recursive = args.flags['R'] || args.flags['recursive'];
+
+    for (const file of files) {
+      if (!ctx.vfs.exists(file)) {
+        return { output: '', exitCode: 1, error: `chown: cannot access '${file}': No such file or directory` };
+      }
+      // Only root may change ownership in this simulation.
+      if (ctx.user !== 'root') {
+        return { output: '', exitCode: 1, error: `chown: changing ownership of '${file}': Operation not permitted` };
+      }
+      const result = ctx.vfs.chown(file, owner, group || undefined, recursive);
+      if (!result.ok) {
+        return { output: '', exitCode: 1, error: result.error };
+      }
+    }
+
+    return { output: '', exitCode: 0 };
+  },
+
+  getCompletions(partial: string, ctx: CompletionContext): Completion[] {
+    return ctx.vfs.getPathCompletions(partial);
+  },
+};
+
 export const fileOpsCommands: ShellCommand[] = [
   catCommand,
   headCommand,
@@ -546,4 +585,5 @@ export const fileOpsCommands: ShellCommand[] = [
   cpCommand,
   mvCommand,
   chmodCommand,
+  chownCommand,
 ];

@@ -247,6 +247,7 @@ export interface VirtualFilesystemInterface {
   // Permissions
   checkPermission(path: string, action: 'read' | 'write' | 'execute'): boolean;
   chmod(path: string, mode: string): Result<void>;
+  chown(path: string, owner: string, group?: string, recursive?: boolean): Result<void>;
 
   // Completion helpers
   getPathCompletions(partial: string): Completion[];

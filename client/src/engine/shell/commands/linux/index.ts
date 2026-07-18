@@ -13,6 +13,7 @@ import { networkCommands } from './network';
 import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
 import { remoteCommands } from './remote';
+import { firewallCommands } from './firewallCmd';
 
 export const allLinuxCommands: ShellCommand[] = [
   ...navigationCommands,
@@ -24,6 +25,7 @@ export const allLinuxCommands: ShellCommand[] = [
   ...builtinCommands,
   ...extendedCommands,
   ...remoteCommands,
+  ...firewallCommands,
 ];
 
 export {
@@ -36,4 +38,5 @@ export {
   builtinCommands,
   extendedCommands,
   remoteCommands,
+  firewallCommands,
 };

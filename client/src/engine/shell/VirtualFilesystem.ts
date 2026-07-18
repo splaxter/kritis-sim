@@ -505,6 +505,22 @@ export class VirtualFilesystem implements VirtualFilesystemInterface {
     return err(`chmod: invalid mode: '${mode}'`);
   }
 
+  chown(path: string, owner: string, group?: string, recursive?: boolean): Result<void> {
+    const node = this.getNode(path);
+    if (!node) {
+      return err(`chown: cannot access '${path}': No such file or directory`);
+    }
+    const apply = (n: VFSNode): void => {
+      n.owner = owner;
+      if (group !== undefined) n.group = group;
+      if (recursive && n.children) {
+        for (const child of n.children.values()) apply(child);
+      }
+    };
+    apply(node);
+    return ok(undefined);
+  }
+
   // ============================================================================
   // Completions
   // ============================================================================

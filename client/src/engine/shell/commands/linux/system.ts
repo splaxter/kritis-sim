@@ -456,6 +456,63 @@ export const exportCommand: ShellCommand = {
   },
 };
 
+// File-backed crontab: the spool file IS the state, editable with cat/tee/sed.
+const cronSpool = (user: string): string => `/var/spool/cron/crontabs/${user}`;
+
+export const crontabCommand: ShellCommand = {
+  name: 'crontab',
+  description: 'Maintain crontab files for individual users',
+  usage: 'crontab [-u user] { -l | -e | file }',
+  options: [
+    { short: 'u', description: 'Target user (root only)', takesValue: true },
+    { short: 'l', description: 'List the crontab' },
+    { short: 'e', description: 'Edit the crontab' },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    let user = ctx.user;
+    if (args.options['u'] !== undefined) {
+      if (ctx.user !== 'root') {
+        return { output: '', exitCode: 1, error: 'must be privileged to use -u' };
+      }
+      user = args.options['u'];
+    }
+    const spool = cronSpool(user);
+
+    if (args.flags['l']) {
+      const read = ctx.vfs.readFile(spool);
+      if (!read.ok) {
+        return { output: '', exitCode: 1, error: `no crontab for ${user}` };
+      }
+      return { output: read.value.replace(/\n$/, ''), exitCode: 0 };
+    }
+
+    if (args.flags['e']) {
+      return {
+        output: `crontab -e ist in dieser Simulation nicht verfügbar. Bearbeite die Datei direkt, z.B. mit: cat/tee/sed auf ${spool}`,
+        exitCode: 0,
+      };
+    }
+
+    const file = args.positional[0];
+    if (!file) {
+      return { output: '', exitCode: 1, error: 'usage: crontab [-u user] file\n       crontab [-u user] { -e | -l }' };
+    }
+    const read = ctx.vfs.readFile(file);
+    if (!read.ok) {
+      return { output: '', exitCode: 1, error: `crontab: ${file}: No such file or directory` };
+    }
+    if (!ctx.vfs.isDirectory('/var/spool/cron/crontabs')) {
+      ctx.vfs.mkdir('/var/spool/cron/crontabs', true);
+    }
+    const write = ctx.vfs.writeFile(spool, read.value);
+    if (!write.ok) {
+      return { output: '', exitCode: 1, error: `crontab: ${write.error}` };
+    }
+    return { output: '', exitCode: 0 };
+  },
+};
+
 // systemctl operates on the mutable per-host unit table (ctx.host.services).
 // The hostless fallback only exists so a stray call without a host can't crash.
 const findUnit = (services: SystemdUnitState[], name: string): SystemdUnitState | undefined => {
@@ -724,5 +781,6 @@ export const systemCommands: ShellCommand[] = [
   killCommand,
   envCommand,
   exportCommand,
+  crontabCommand,
   systemctlCommand,
 ];
