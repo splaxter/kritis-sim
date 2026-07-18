@@ -3,9 +3,9 @@
  * whoami, hostname, uname, id, uptime, date, df, du, free, ps, kill, env, export
  */
 
-import { TerminalUnitPrecondition } from '@kritis/shared';
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
-import { DEFAULT_UNITS, HostState, SystemdUnitState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '../../hosts';
+import { DEFAULT_UNITS, SystemdUnitState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '../../hosts';
+import { applyUnitState } from '../../unitControl';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -522,82 +522,6 @@ const findUnit = (services: SystemdUnitState[], name: string): SystemdUnitState 
   return services.find(u => u.unit === canonicalUnitName(name));
 };
 
-const shortUnitName = (unit: string): string => unit.replace(/\.service$/, '');
-
-// Deterministic journal clock: fixed in-game date, minutes advance per entry.
-// Starts AFTER the newest seeded entry so appended lines always sort last.
-// Clamped at 23:59 — the clock must never roll into an hour-24 timestamp.
-const LAST_MINUTE = 23 * 60 + 59;
-const journalClocks = new WeakMap<HostState, number>();
-function seedJournalClock(host: HostState): number {
-  let mins = 9 * 60 + 15;
-  for (const e of host.journal) {
-    const m = e.ts.match(/(\d{2}):(\d{2}):\d{2}$/);
-    if (m) mins = Math.max(mins, parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + 1);
-  }
-  return Math.min(mins, LAST_MINUTE);
-}
-function nextJournalTs(host: HostState): string {
-  const totalMins = journalClocks.get(host) ?? seedJournalClock(host);
-  journalClocks.set(host, Math.min(totalMins + 1, LAST_MINUTE));
-  const hh = String(Math.floor(totalMins / 60)).padStart(2, '0');
-  const mm = String(totalMins % 60).padStart(2, '0');
-  return `2026-07-18 ${hh}:${mm}:00`;
-}
-
-/** True when the precondition HOLDS (the unit may start). */
-function preconditionHolds(host: HostState, unit: SystemdUnitState, pre: TerminalUnitPrecondition): boolean {
-  if (pre.unitFileMatches !== undefined) {
-    // Checked against the LOADED snapshot — daemon-reload refreshes it.
-    const matched = new RegExp(pre.unitFileMatches, 'm').test(unit.loadedUnitContent ?? '');
-    return pre.absent ? !matched : matched;
-  }
-  if (pre.file) {
-    const read = host.vfs.readFile(pre.file);
-    if (!read.ok) return pre.absent === true;
-    if (pre.matches !== undefined) {
-      const matched = new RegExp(pre.matches, 'm').test(read.value);
-      return pre.absent ? !matched : matched;
-    }
-    return pre.absent !== true;
-  }
-  return true;
-}
-
-function startUnit(host: HostState, unit: SystemdUnitState): CommandResult {
-  const failing = (unit.startRequires ?? []).find(p => !preconditionHolds(host, unit, p));
-  if (failing) {
-    unit.active = 'failed';
-    unit.sub = 'failed';
-    unit.pid = undefined;
-    host.appendJournal({
-      ts: nextJournalTs(host),
-      unit: shortUnitName(unit.unit),
-      priority: 'err',
-      message: failing.failMessage,
-    });
-    return {
-      output: '',
-      exitCode: 1,
-      error: `Job for ${unit.unit} failed because the control process exited with error code.\nSee "systemctl status ${unit.unit}" and "journalctl -xeu ${unit.unit}" for details.`,
-    };
-  }
-  unit.active = 'active';
-  unit.sub = 'running';
-  // Restore a pid after stop→start; derived so status and journalctl agree.
-  unit.pid ??= derivedUnitPid(unit.unit);
-  host.appendJournal({
-    ts: nextJournalTs(host),
-    unit: shortUnitName(unit.unit),
-    priority: 'info',
-    message: `Started ${unit.desc}.`,
-  });
-  if (unit.unit === 'ssh.service') {
-    host.refreshSshdEffective();
-  }
-  return { output: '', exitCode: 0 };
-}
-
 // Real systemctl's answer for enable/disable on a static unit.
 const STATIC_UNIT_MESSAGE =
   'The unit files have no installation config (WantedBy=, RequiredBy=, Also=,\n' +
@@ -702,18 +626,18 @@ export const systemctlCommand: ShellCommand = {
       }
 
       if (subcommand === 'start' || subcommand === 'restart') {
-        return startUnit(host, unit);
+        const out = applyUnitState(host, unitName, subcommand === 'start' ? 'started' : 'restarted');
+        if (!out.ok) {
+          return {
+            output: '',
+            exitCode: 1,
+            error: `Job for ${unit.unit} failed because the control process exited with error code.\nSee "systemctl status ${unit.unit}" and "journalctl -xeu ${unit.unit}" for details.`,
+          };
+        }
+        return { output: '', exitCode: 0 };
       }
       if (subcommand === 'stop') {
-        unit.active = 'inactive';
-        unit.sub = 'dead';
-        unit.pid = undefined;
-        host.appendJournal({
-          ts: nextJournalTs(host),
-          unit: shortUnitName(unit.unit),
-          priority: 'info',
-          message: `Stopped ${unit.desc}.`,
-        });
+        applyUnitState(host, unitName, 'stopped');
         return { output: '', exitCode: 0 };
       }
       if (subcommand === 'enable' || subcommand === 'disable') {
