@@ -140,7 +140,7 @@ klingle ich dich nachts aus dem Rechenzentrum.“
 - Setze \`PermitRootLogin no\` und \`PasswordAuthentication no\`
 - Lade den SSH-Dienst neu, damit die Härtung greift`,
     mentorNote:
-      'Reihenfolge ist alles: zuerst testen, dass der Schlüssel-Login funktioniert — erst dann Passwort-Authentifizierung abschalten. sshd wertet die erste passende Zeile aus; ändere die BESTEHENDE Zeile, häng keine zweite an.',
+      'Reihenfolge ist alles: zuerst testen, dass der Schlüssel-Login funktioniert — erst dann Passwort-Authentifizierung abschalten. sshd wertet die erste passende Zeile aus; ändere die BESTEHENDE Zeile, häng keine zweite an (sonst gewinnt weiter das alte „yes“). Systemdateien unter /etc gehören root — dafür brauchst du sudo.',
     choices: [
       {
         id: 'start',
@@ -193,16 +193,21 @@ klingle ich dich nachts aus dem Rechenzentrum.“
       commands: [],
       commandSkillGain: {
         ssh: { linux: 1 },
+        sudo: { linux: 1, security: 1 },
         sed: { linux: 1, security: 1 },
-        sudo: { linux: 1 },
       },
       solutions: [
         {
           commands: [],
           allRequired: false,
           stateGoals: [
+            // Both directives must end up on "no" AND the insecure "yes" line
+            // must be GONE — otherwise appending a "no" below the surviving
+            // "yes" would pass while sshd still honours the first (yes) match.
             { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+            { host: 'web01', file: '/etc/ssh/sshd_config', absentMatches: '^PermitRootLogin yes' },
             { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
+            { host: 'web01', file: '/etc/ssh/sshd_config', absentMatches: '^PasswordAuthentication yes' },
             { host: 'web01', service: 'ssh', serviceState: 'active' },
           ],
           resultText:
@@ -214,8 +219,8 @@ klingle ich dich nachts aus dem Rechenzentrum.“
       hints: [
         '🤖 Jens: Zwei Zeilen in der sshd-Konfiguration stehen auf „yes“, die gehören auf „no“. Aber log dich erst ein — und ändere die BESTEHENDEN Zeilen, häng keine neuen an.',
         '🤖 Jens: Rein kommst du mit ssh admin@web01 (Passwort steht in zugang-web01.txt). Die Konfiguration liegt in /etc/ssh/sshd_config.',
-        '🤖 Jens: Zeilen gezielt ersetzen geht mit sed -i und einem Suchmuster am Zeilenanfang (^). Danach den Dienst neu laden.',
-        "🤖 Jens: `ssh admin@web01` → `sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config` → dasselbe für `PasswordAuthentication` → `sudo systemctl restart ssh`.",
+        '🤖 Jens: Zeilen gezielt ersetzen geht mit sed -i und einem Suchmuster am Zeilenanfang (^). Die Konfig liegt root, also mit sudo. Danach den Dienst neu laden.',
+        "🤖 Jens: `ssh admin@web01` → `sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config` → dasselbe für `PasswordAuthentication` → `sudo systemctl restart ssh`.",
       ],
     },
     tags: ['learning', 'ssh', 'terminal', 'hardening'],
@@ -319,7 +324,9 @@ kritischen Infrastruktur gebaut: Wer in die DB-Zone will, geht
           commands: [],
           allRequired: false,
           stateGoals: [
-            { host: 'jump01', file: '/tmp/statusbericht.txt', fileExists: true },
+            // Must be the REAL report copied from db01 (content marker) — a bare
+            // `touch` of an empty file would bypass the whole jump-through lesson.
+            { host: 'jump01', file: '/tmp/statusbericht.txt', matches: 'DB-STATUS db01' },
           ],
           resultText:
             'Der Statusbericht liegt auf dem Jumphost — und db01 hat keine einzige Direktverbindung von außen gesehen. Genau dafür gibt es die Zone: Die Datenbank kennt nur den Sprungserver, alles andere läuft ins Leere.\n\nMerke: In KRITIS-Netzen bewegt man sich in Zonen. Der Jumphost ist die kontrollierte Schleuse — nicht die Abkürzung drumherum.',
@@ -458,7 +465,9 @@ In dieser Reihenfolge. Immer.
           commands: [],
           allRequired: false,
           stateGoals: [
-            { file: '/home/timo/evidenz_db01.txt', matches: 'wartung@extern' },
+            // Evidence must be the FULL rogue key line (a bare `echo wartung@extern`
+            // can't fake it); the live key must be gone from db01.
+            { file: '/home/timo/evidenz_db01.txt', matches: 'RogueFenrisBackdoorKey00 wartung@extern-2019' },
             { host: 'db01', file: '/home/admin/.ssh/authorized_keys', absentMatches: 'wartung@extern' },
           ],
           resultText:

@@ -89,8 +89,8 @@ describe('learn_ssh_02_open_door — harden sshd_config on web01', () => {
     expect(checkStateGoals(shell, goals)).toBe(false);
 
     login(shell);
-    run(shell, "sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
-    run(shell, "sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
+    run(shell, "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
+    run(shell, "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
     run(shell, 'sudo systemctl restart ssh');
 
     expect(checkStateGoals(shell, goals)).toBe(true);
@@ -98,15 +98,33 @@ describe('learn_ssh_02_open_door — harden sshd_config on web01', () => {
 
   it('ALTERNATIVE path wins too: a different sed form (broad substitution)', () => {
     // Proves the win is state-based, not tied to the documented command string:
-    // a single broad substitution reaches the same goal state.
+    // a single broad substitution reaches the same goal state (and removes the
+    // "yes" lines, satisfying the absentMatches guards).
     const shell = engineOf('learn_ssh_02_open_door');
     const goals = goalsOf('learn_ssh_02_open_door');
 
     login(shell);
-    run(shell, "sed -i 's/yes/no/' /etc/ssh/sshd_config");
+    run(shell, "sudo sed -i 's/yes/no/' /etc/ssh/sshd_config");
     run(shell, 'sudo systemctl restart ssh');
 
     expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('NEGATIVE: append-only (echo >> leaving the yes line) does NOT satisfy', () => {
+    // sshd honours the FIRST match: appending "no" below the surviving "yes"
+    // leaves the box insecure — the absentMatches guards must reject it.
+    const shell = engineOf('learn_ssh_02_open_door');
+    const goals = goalsOf('learn_ssh_02_open_door');
+
+    login(shell);
+    run(shell, "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config");
+    run(shell, "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config");
+    run(shell, 'sudo systemctl restart ssh');
+
+    // The insecure "yes" lines still exist above the appended "no" lines.
+    const cfg = shell.resolveHost('web01')!.vfs.readFile('/etc/ssh/sshd_config');
+    expect(cfg.ok && cfg.value).toMatch(/^PermitRootLogin yes/m);
+    expect(checkStateGoals(shell, goals)).toBe(false);
   });
 });
 
@@ -134,6 +152,18 @@ describe('learn_ssh_03_jumphost — jump through the segmented zone', () => {
     expect(shell.continueInput('kraftwerk-db-2024').exitCode).toBe(0);
 
     expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('NEGATIVE: a bare touch of an empty file does NOT satisfy (content marker required)', () => {
+    const shell = engineOf('learn_ssh_03_jumphost');
+    const goals = goalsOf('learn_ssh_03_jumphost');
+
+    // Reach the jumphost, then fake the deliverable with an empty file.
+    shell.execute('ssh admin@jump01');
+    expect(shell.continueInput('sprungbrett07').exitCode).toBe(0);
+    run(shell, 'touch /tmp/statusbericht.txt');
+
+    expect(checkStateGoals(shell, goals)).toBe(false);
   });
 });
 
