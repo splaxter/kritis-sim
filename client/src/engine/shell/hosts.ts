@@ -4,6 +4,7 @@
  */
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
+  TerminalServiceSpec, TerminalFirewallSpec,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
@@ -21,6 +22,8 @@ export interface SystemdUnitState {
   /** Snapshot of the unit file at load time — daemon-reload refreshes it. */
   loadedUnitContent?: string;
   startRequires?: TerminalUnitPrecondition[];
+  /** Files materialized on the host VFS on a successful start (e.g. a socket). */
+  createsOnStart?: string[];
 }
 
 export interface UfwRule { action: 'allow' | 'deny'; port: number; proto?: 'tcp' | 'udp'; from?: string }
@@ -103,21 +106,17 @@ function parseSshdConfig(content: string): { permitRootLogin: boolean; passwordA
   };
 }
 
-export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
-  const vfs = createLinuxFilesystem({ user: opts?.user ?? 'root', hostname: spec.hostname });
-
-  for (const template of resolveTemplateIds(spec.templateIds ?? [])) {
-    applyTemplate(vfs, template);
-  }
-  for (const dir of spec.vfsOverlay?.directories ?? []) {
-    vfs.addDirectory(dir);
-  }
-  for (const file of spec.vfsOverlay?.files ?? []) {
-    vfs.addFile(file.path, file.content);
-  }
-
-  const services: SystemdUnitState[] = DEFAULT_UNITS.map(u => ({ ...u }));
-  for (const svc of spec.services ?? []) {
+/**
+ * Merge authored service specs over an existing unit array (in place). Shared
+ * by createHostState and the primary-host seeding path so both apply the same
+ * override/snapshot rules (loadedUnitContent from the VFS, sub from active).
+ */
+export function applyServiceSpecs(
+  vfs: VirtualFilesystemInterface,
+  services: SystemdUnitState[],
+  specs: TerminalServiceSpec[],
+): void {
+  for (const svc of specs) {
     const existing = services.find(s => s.unit === svc.unit);
     const active = svc.active ?? existing?.active ?? 'active';
     const merged: SystemdUnitState = {
@@ -132,6 +131,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
       desc: svc.desc ?? existing?.desc ?? svc.unit,
       unitFile: svc.unitFile,
       startRequires: svc.startRequires?.map(p => ({ ...p })),
+      createsOnStart: svc.createsOnStart ? [...svc.createsOnStart] : undefined,
     };
     if (merged.unitFile) {
       const read = vfs.readFile(merged.unitFile);
@@ -143,6 +143,45 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
       services.push(merged);
     }
   }
+}
+
+/**
+ * Seed custom services/journal/firewall onto an EXISTING host (the primary
+ * host of a single-host level, which has no `hosts` entry of its own). Applied
+ * after the VFS overlay so unit files are present when their content is
+ * snapshotted into loadedUnitContent.
+ */
+export function seedPrimaryHost(
+  host: HostState,
+  spec: { services?: TerminalServiceSpec[]; journal?: TerminalJournalEntry[]; firewall?: TerminalFirewallSpec },
+): void {
+  if (spec.services) applyServiceSpecs(host.vfs, host.services, spec.services);
+  for (const entry of spec.journal ?? []) host.journal.push({ ...entry });
+  if (spec.firewall) {
+    host.firewall = {
+      enabled: spec.firewall.enabled ?? host.firewall.enabled,
+      defaultIncoming: spec.firewall.defaultIncoming ?? host.firewall.defaultIncoming,
+      defaultOutgoing: host.firewall.defaultOutgoing,
+      rules: (spec.firewall.rules ?? []).map(r => ({ ...r })),
+    };
+  }
+}
+
+export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
+  const vfs = createLinuxFilesystem({ user: opts?.user ?? 'root', hostname: spec.hostname });
+
+  for (const template of resolveTemplateIds(spec.templateIds ?? [])) {
+    applyTemplate(vfs, template);
+  }
+  for (const dir of spec.vfsOverlay?.directories ?? []) {
+    vfs.addDirectory(dir);
+  }
+  for (const file of spec.vfsOverlay?.files ?? []) {
+    vfs.addFile(file.path, file.content);
+  }
+
+  const services: SystemdUnitState[] = DEFAULT_UNITS.map(u => ({ ...u }));
+  applyServiceSpecs(vfs, services, spec.services ?? []);
 
   return buildHostState({
     id: spec.id,

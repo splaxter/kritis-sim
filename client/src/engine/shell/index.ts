@@ -15,9 +15,12 @@ export * from './hosts';
 export * from './unitControl';
 export * from './stateGoals';
 
-import { TerminalHostSpec, TerminalSolution } from '@kritis/shared';
+import {
+  TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
+  TerminalJournalEntry, TerminalFirewallSpec,
+} from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
-import { createHostState } from './hosts';
+import { createHostState, seedPrimaryHost } from './hosts';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
 import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
@@ -107,6 +110,12 @@ export function createShellFromContext(context: {
   solutions?: TerminalSolution[];
   /** Additional machines reachable via ssh from the local host. */
   hosts?: TerminalHostSpec[];
+  /** Custom services seeded onto the PRIMARY host (single-host levels). */
+  services?: TerminalServiceSpec[];
+  /** Journal seeded onto the PRIMARY host (single-host forensic levels). */
+  journal?: TerminalJournalEntry[];
+  /** Firewall state seeded onto the PRIMARY host. */
+  firewall?: TerminalFirewallSpec;
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -139,6 +148,16 @@ export function createShellFromContext(context: {
     hints: context.hints,
     taskText: context.taskText,
   });
+
+  // Seed custom services/journal/firewall onto the primary host AFTER the VFS
+  // overlay is in place (unit files must exist when snapshotted).
+  if (context.services || context.journal || context.firewall) {
+    seedPrimaryHost(shell.getBaseHost(), {
+      services: context.services,
+      journal: context.journal,
+      firewall: context.firewall,
+    });
+  }
 
   for (const spec of context.hosts ?? []) {
     shell.registerHost(createHostState(spec));

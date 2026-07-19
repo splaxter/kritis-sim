@@ -81,6 +81,11 @@ export function attemptStart(host: HostState, unit: SystemdUnitState): { ok: boo
   unit.sub = 'running';
   // Restore a pid after stop→start; derived so status and journalctl agree.
   unit.pid ??= derivedUnitPid(unit.unit);
+  // Materialize resources this unit provides (e.g. a DB socket) so dependent
+  // units' startRequires find them. Empty files; only created if still absent.
+  for (const path of unit.createsOnStart ?? []) {
+    if (!host.vfs.exists(path)) host.vfs.addFile(path, '');
+  }
   host.appendJournal({
     ts: nextJournalTs(host),
     unit: shortUnitName(unit.unit),

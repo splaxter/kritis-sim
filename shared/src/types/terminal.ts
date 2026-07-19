@@ -62,6 +62,16 @@ export interface TerminalContext {
   templateIds?: VFSTemplateId[];
   /** Multi-host levels: first entry is the primary host the player starts on. */
   hosts?: TerminalHostSpec[];
+  /**
+   * Custom systemd services seeded onto the PRIMARY (local) host — single-host
+   * levels that need a failing/inactive service without declaring a separate
+   * `hosts` entry. Merged over the default unit table.
+   */
+  services?: TerminalServiceSpec[];
+  /** Journal entries seeded onto the PRIMARY host (single-host forensic levels). */
+  journal?: TerminalJournalEntry[];
+  /** Firewall state seeded onto the PRIMARY host. */
+  firewall?: TerminalFirewallSpec;
   /** Live skill drip: first successful use (exit 0) of a command name grants this. */
   commandSkillGain?: Record<string, Partial<Skills>>;
 }
@@ -100,6 +110,12 @@ export interface TerminalServiceSpec {
   /** Path of the unit file; enables daemon-reload semantics. */
   unitFile?: string;
   startRequires?: TerminalUnitPrecondition[];
+  /**
+   * Files created (empty) on the host VFS when this unit starts successfully.
+   * Lets one service provide a resource (e.g. a DB socket) that another unit's
+   * `startRequires` depends on — powers dependency-chain levels.
+   */
+  createsOnStart?: string[];
 }
 
 export interface TerminalFirewallSpec {
