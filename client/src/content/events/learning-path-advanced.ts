@@ -558,7 +558,7 @@ System selbst mitschreibt.
             // without the config the lesson is about. Require the interval key.
             {
               file: '/etc/telemetryd.conf',
-              matches: 'interval',
+              matches: 'interval\\s*=\\s*\\d',
               failMessage: 'telemetryd[812]: FATAL: /etc/telemetryd.conf: missing required key "interval"',
             },
           ],

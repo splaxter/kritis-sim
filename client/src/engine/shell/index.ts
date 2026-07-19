@@ -17,7 +17,7 @@ export * from './stateGoals';
 
 import {
   TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
-  TerminalJournalEntry, TerminalFirewallSpec,
+  TerminalJournalEntry, TerminalFirewallSpec, NetListener, NetConnection,
 } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { createHostState, seedPrimaryHost } from './hosts';
@@ -116,6 +116,10 @@ export function createShellFromContext(context: {
   journal?: TerminalJournalEntry[];
   /** Firewall state seeded onto the PRIMARY host. */
   firewall?: TerminalFirewallSpec;
+  /** Listening sockets seeded onto the PRIMARY host. */
+  listeners?: NetListener[];
+  /** Established connections seeded onto the PRIMARY host. */
+  connections?: NetConnection[];
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -151,11 +155,13 @@ export function createShellFromContext(context: {
 
   // Seed custom services/journal/firewall onto the primary host AFTER the VFS
   // overlay is in place (unit files must exist when snapshotted).
-  if (context.services || context.journal || context.firewall) {
+  if (context.services || context.journal || context.firewall || context.listeners || context.connections) {
     seedPrimaryHost(shell.getBaseHost(), {
       services: context.services,
       journal: context.journal,
       firewall: context.firewall,
+      listeners: context.listeners,
+      connections: context.connections,
     });
   }
 

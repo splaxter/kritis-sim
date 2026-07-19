@@ -384,7 +384,7 @@ export const killCommand: ShellCommand = {
     { short: 'l', description: 'List signal names' },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.flags['l']) {
       return {
         output: ' 1) SIGHUP       2) SIGINT       3) SIGQUIT      4) SIGILL\n 5) SIGTRAP      6) SIGABRT      7) SIGBUS       8) SIGFPE\n 9) SIGKILL     10) SIGUSR1     11) SIGSEGV     12) SIGUSR2\n13) SIGPIPE     14) SIGALRM     15) SIGTERM     16) SIGSTKFLT',
@@ -396,10 +396,19 @@ export const killCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ... or kill -l [sigspec]' };
     }
 
-    const signal = args.flags['9'] ? 'SIGKILL' : 'SIGTERM';
-    const pids = args.positional;
+    // Killing a pid drops any listener/connection it owns from the host's
+    // socket table, so "kill the rogue listener" really closes the port.
+    const host = ctx.host;
+    if (host) {
+      for (const raw of args.positional) {
+        const pid = parseInt(raw, 10);
+        if (!Number.isFinite(pid)) continue;
+        host.listeners = host.listeners.filter(l => l.pid !== pid);
+        host.connections = host.connections.filter(c => c.pid !== pid);
+      }
+    }
 
-    // Simulate kill (always succeeds in our simulation)
+    // Simulate kill (always succeeds in our simulation).
     return {
       output: '',
       exitCode: 0,

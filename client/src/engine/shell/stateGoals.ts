@@ -34,7 +34,9 @@ function hasAssertion(goal: StateGoal): boolean {
   return fileAssertion
     || serviceAssertion
     || goal.firewallRule !== undefined
-    || goal.firewallDefaultIncoming !== undefined;
+    || goal.firewallDefaultIncoming !== undefined
+    || goal.listenerAbsent !== undefined
+    || goal.listenerPresent !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -121,6 +123,18 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
   return true;
 }
 
+function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
+  if (goal.listenerAbsent) {
+    const { port } = goal.listenerAbsent;
+    if (host.listeners.some(l => l.port === port)) return false;
+  }
+  if (goal.listenerPresent) {
+    const { port } = goal.listenerPresent;
+    if (!host.listeners.some(l => l.port === port)) return false;
+  }
+  return true;
+}
+
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
@@ -133,7 +147,8 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
     if (!host) return false;
     return checkFileGoals(host, goal)
       && checkServiceGoals(host, goal)
-      && checkFirewallGoals(host, goal);
+      && checkFirewallGoals(host, goal)
+      && checkNetworkGoals(host, goal);
   } catch {
     return false;
   }

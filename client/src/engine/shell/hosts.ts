@@ -4,7 +4,7 @@
  */
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
-  TerminalServiceSpec, TerminalFirewallSpec,
+  TerminalServiceSpec, TerminalFirewallSpec, NetListener, NetConnection,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
@@ -43,10 +43,34 @@ export interface HostState {
   journal: TerminalJournalEntry[];
   firewall: FirewallState;
   accounts: { name: string; password?: string }[];
+  /** Listening sockets shown by `ss`/`netstat`; `kill <pid>` removes matches. */
+  listeners: NetListener[];
+  /** Established connections shown by `ss -tp`/`netstat`. */
+  connections: NetConnection[];
   sshdEffective: { permitRootLogin: boolean; passwordAuthentication: boolean };
   refreshSshdEffective(): void;
   appendJournal(entry: TerminalJournalEntry): void;
 }
+
+/**
+ * The listeners a host has when it declares none — mirrors the old static
+ * ss/netstat table so existing single-host levels keep their network view.
+ */
+export const DEFAULT_LISTENERS: NetListener[] = [
+  { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
+  { proto: 'tcp', port: 80, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+  { proto: 'tcp', port: 443, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+  { proto: 'tcp', port: 3306, address: '127.0.0.1', pid: 2345, program: 'mysqld' },
+  { proto: 'udp', port: 68, address: '0.0.0.0', pid: 123, program: 'dhclient' },
+];
+
+/** The established connections a host has when it declares none. */
+export const DEFAULT_CONNECTIONS: NetConnection[] = [
+  { proto: 'tcp', localPort: 22, peer: '192.168.1.50:52413', state: 'ESTABLISHED', pid: 3456, program: 'sshd' },
+];
+
+const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ ...l }));
+const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ ...c }));
 
 /** Same defaults the static systemctl table has — kept consistent with `ps`. */
 export const DEFAULT_UNITS: SystemdUnitState[] = [
@@ -153,7 +177,13 @@ export function applyServiceSpecs(
  */
 export function seedPrimaryHost(
   host: HostState,
-  spec: { services?: TerminalServiceSpec[]; journal?: TerminalJournalEntry[]; firewall?: TerminalFirewallSpec },
+  spec: {
+    services?: TerminalServiceSpec[];
+    journal?: TerminalJournalEntry[];
+    firewall?: TerminalFirewallSpec;
+    listeners?: NetListener[];
+    connections?: NetConnection[];
+  },
 ): void {
   if (spec.services) applyServiceSpecs(host.vfs, host.services, spec.services);
   for (const entry of spec.journal ?? []) host.journal.push({ ...entry });
@@ -165,6 +195,10 @@ export function seedPrimaryHost(
       rules: (spec.firewall.rules ?? []).map(r => ({ ...r })),
     };
   }
+  // Listeners/connections replace the defaults when a level authors them —
+  // a forensic level owns its full port view, not a merge of the baseline.
+  if (spec.listeners) host.listeners = spec.listeners.map(l => ({ ...l }));
+  if (spec.connections) host.connections = spec.connections.map(c => ({ ...c }));
 }
 
 export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
@@ -197,6 +231,8 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
       rules: (spec.firewall?.rules ?? []).map(r => ({ ...r })),
     },
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
+    listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
+    connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
   });
 }
 
@@ -213,6 +249,8 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
     journal: [],
     firewall: { enabled: true, defaultIncoming: 'allow', defaultOutgoing: 'allow', rules: [] },
     accounts: [{ name: vfs.getUser() }],
+    listeners: cloneListeners(DEFAULT_LISTENERS),
+    connections: cloneConnections(DEFAULT_CONNECTIONS),
   });
 }
 

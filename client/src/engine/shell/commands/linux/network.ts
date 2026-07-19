@@ -197,21 +197,38 @@ export const netstatCommand: ShellCommand = {
     { short: 'n', description: 'Show numerical addresses' },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const showTcp = args.flags['t'];
     const showUdp = args.flags['u'];
     const listeningOnly = args.flags['l'];
     const showProgram = args.flags['p'];
     const numeric = args.flags['n'];
 
-    const connections = [
-      { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:22', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '456', program: 'sshd' },
-      { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:80', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1234', program: 'apache2' },
-      { proto: 'tcp', recv: 0, send: 0, local: '0.0.0.0:443', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '1234', program: 'apache2' },
-      { proto: 'tcp', recv: 0, send: 0, local: '127.0.0.1:3306', foreign: '0.0.0.0:*', state: 'LISTEN', pid: '2345', program: 'mysqld' },
-      { proto: 'tcp', recv: 0, send: 0, local: '10.0.0.50:22', foreign: '192.168.1.50:52413', state: 'ESTABLISHED', pid: '3456', program: 'sshd' },
-      { proto: 'udp', recv: 0, send: 0, local: '0.0.0.0:68', foreign: '0.0.0.0:*', state: '', pid: '123', program: 'dhclient' },
-    ];
+    // Source the socket table from the live host so levels can author rogue
+    // listeners/backchannels and `kill <pid>` can make them disappear.
+    const host = ctx.host;
+    const localIp = host?.ip ?? '0.0.0.0';
+    const listenerRows = (host?.listeners ?? []).map(l => ({
+      proto: l.proto,
+      recv: 0,
+      send: 0,
+      local: `${l.address ?? '0.0.0.0'}:${l.port}`,
+      foreign: l.proto === 'udp' ? '0.0.0.0:*' : '0.0.0.0:*',
+      state: l.proto === 'udp' ? '' : 'LISTEN',
+      pid: l.pid !== undefined ? String(l.pid) : '-',
+      program: l.program ?? '-',
+    }));
+    const connectionRows = (host?.connections ?? []).map(c => ({
+      proto: c.proto,
+      recv: 0,
+      send: 0,
+      local: `${localIp}:${c.localPort}`,
+      foreign: c.peer,
+      state: c.state ?? 'ESTAB',
+      pid: c.pid !== undefined ? String(c.pid) : '-',
+      program: c.program ?? '-',
+    }));
+    const connections = [...listenerRows, ...connectionRows];
 
     let filtered = connections;
     if (showTcp && !showUdp) {

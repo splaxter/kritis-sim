@@ -72,6 +72,10 @@ export interface TerminalContext {
   journal?: TerminalJournalEntry[];
   /** Firewall state seeded onto the PRIMARY host. */
   firewall?: TerminalFirewallSpec;
+  /** Listening sockets seeded onto the PRIMARY host (single-host net levels). */
+  listeners?: NetListener[];
+  /** Established connections seeded onto the PRIMARY host (single-host net levels). */
+  connections?: NetConnection[];
   /** Live skill drip: first successful use (exit 0) of a command name grants this. */
   commandSkillGain?: Record<string, Partial<Skills>>;
 }
@@ -124,6 +128,28 @@ export interface TerminalFirewallSpec {
   rules?: { action: 'allow' | 'deny'; port: number; proto?: 'tcp' | 'udp'; from?: string }[];
 }
 
+/** A listening socket shown by `ss`/`netstat` — a level can author a rogue one. */
+export interface NetListener {
+  proto: 'tcp' | 'udp';
+  port: number;
+  /** Bind address; defaults to '0.0.0.0' (all interfaces). */
+  address?: string;
+  pid?: number;
+  program?: string;
+}
+
+/** An established connection shown by `ss -tp`/`netstat` — e.g. a backchannel. */
+export interface NetConnection {
+  proto: 'tcp' | 'udp';
+  localPort: number;
+  /** Remote endpoint as 'ip:port'. */
+  peer: string;
+  /** Socket state; defaults to 'ESTAB'. */
+  state?: string;
+  pid?: number;
+  program?: string;
+}
+
 export interface TerminalHostSpec {
   id: string;               // 'web01'
   hostname: string;         // 'web01.stadtwerke.local'
@@ -135,6 +161,10 @@ export interface TerminalHostSpec {
   services?: TerminalServiceSpec[];
   journal?: TerminalJournalEntry[];
   firewall?: TerminalFirewallSpec;
+  /** Listening sockets on this host; when omitted a default table is used. */
+  listeners?: NetListener[];
+  /** Established connections on this host; when omitted a default table is used. */
+  connections?: NetConnection[];
 }
 
 /** Declarative win condition, checked against live engine state after every command. */
@@ -156,4 +186,8 @@ export interface StateGoal {
   serviceEnabled?: boolean;
   firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean };
   firewallDefaultIncoming?: 'allow' | 'deny';
+  /** True iff NO listener on the host binds this port (e.g. a killed rogue). */
+  listenerAbsent?: { port: number };
+  /** True iff at least one listener on the host binds this port. */
+  listenerPresent?: { port: number };
 }
