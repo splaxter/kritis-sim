@@ -18,6 +18,7 @@ This specification defines a comprehensive terminal/CLI emulator for KRITIS Admi
 8. [Integration Points](#8-integration-points)
 9. [Future: Zsh Support](#9-future-zsh-support)
 10. [Implementation Phases](#10-implementation-phases)
+11. [Multi-Host Levels & Advanced Commands](#11-multi-host-levels--advanced-commands)
 
 ---
 
@@ -1328,6 +1329,208 @@ class ZshDialect implements ShellDialectHandler { ... }
 
 ---
 
+## 11. Multi-Host Levels & Advanced Commands
+
+The advanced CLI learning tracks (`ssh_remote`, `systemd_journal`, `net_forensics`,
+`ansible_config` — see `docs/GAME_MODES_SPEC.md`) run on a multi-host extension of
+the ShellEngine. This section documents what the engine now supports beyond the
+single-host model of §§1–10. All types live in `shared/src/types/terminal.ts`;
+engine code lives under `client/src/engine/shell/`.
+
+### 11.1 Multi-Host Model
+
+The engine holds a **host registry** (`client/src/engine/shell/hosts.ts`,
+`HostState`) plus a **session stack**. Each host owns its own VFS **and** mutable
+`services` / `journal` / `firewall` / `listeners` / `connections` / `accounts`
+state and an `sshdEffective` snapshot parsed from its `/etc/ssh/sshd_config`.
+
+- The player always starts on a **primary (base) host** built from the level's
+  `hostname` / `username` / `templateIds` / `vfsOverlay`.
+- `ssh` **pushes** a session onto another host; `exit` (or `popSession`) **pops**
+  it. The base session at depth 1 is never popped by `exit`. Sessions nest —
+  a jumphost chain reaches depth 3, and `exit` unwinds one hop at a time.
+- `ShellEngine` API: `registerHost(host)`, `resolveHost(nameOrIp)` (matches host
+  id, full hostname, short hostname before the first `.`, or IP), `getBaseHost()`,
+  `pushSession(hostId, user)`, `popSession()`, `getSessionDepth()`, and
+  `getPromptInfo()` → `{ hostname, username, path, home }` for the **current**
+  session (this is what drives the live prompt — see §11.4).
+
+**How a level declares hosts** — on `TerminalContext`:
+
+```typescript
+interface TerminalContext {
+  // ... existing single-host fields (hostname, username, vfsOverlay, templateIds, env)
+
+  /** Multi-host levels: ADDITIONAL hosts beyond the implicit primary one. */
+  hosts?: TerminalHostSpec[];
+
+  // Convenience seeding onto the PRIMARY host for single-host advanced levels
+  // (no separate `hosts` entry needed):
+  services?: TerminalServiceSpec[];    // custom/failing systemd units
+  journal?: TerminalJournalEntry[];    // seeded journal lines
+  firewall?: TerminalFirewallSpec;     // ufw state
+  listeners?: NetListener[];           // sockets shown by ss/netstat
+  connections?: NetConnection[];       // established connections (e.g. a backchannel)
+
+  /** Live skill drip: first exit-0 use of a command name grants this (see §11.5). */
+  commandSkillGain?: Record<string, Partial<Skills>>;
+}
+
+interface TerminalHostSpec {
+  id: string;                 // 'web01'
+  hostname: string;           // 'web01.stadtwerke.local'
+  ip?: string;                // '10.0.20.11'
+  templateIds?: VFSTemplateId[];
+  vfsOverlay?: VFSOverlay;    // VFSOverlay.files entries accept an optional octal `mode`
+  accounts?: { name: string; password?: string }[];  // password only where a level teaches it
+  services?: TerminalServiceSpec[];
+  journal?: TerminalJournalEntry[];
+  firewall?: TerminalFirewallSpec;
+  listeners?: NetListener[];
+  connections?: NetConnection[];
+}
+```
+
+`createShellFromContext` (in `client/src/engine/shell/index.ts`) seeds the primary
+host from the top-level fields, then calls `createHostState` + `registerHost` for
+each entry in `hosts`. The **first** conceptual host the player operates is the
+primary one; `hosts` lists the machines reachable over `ssh`/`scp`/Ansible.
+
+`TerminalServiceSpec` supports declarative service scenarios: `startRequires`
+(`TerminalUnitPrecondition[]` — a start/restart fails until a file or the *loaded*
+unit-file content matches), `unitFile` (enables daemon-reload semantics), and
+`createsOnStart` (files materialized on a successful start, so one unit can satisfy
+another unit's precondition — powers dependency-chain levels).
+
+### 11.2 New Commands
+
+All command implementations are real (they mutate host state), not canned output.
+
+**SSH tooling** (`commands/linux/remote.ts`, auth core in `sshAuth.ts`):
+
+| Command | Notes |
+|---------|-------|
+| `ssh [user@]host` | Resolves the target host; gated by the target firewall (port 22, incl. `from`-restricted allow rules for jumphosts), `sshd_config` `PermitRootLogin` / `PasswordAuthentication`, and account existence. Tries key auth (`~/.ssh/*.pub` on source vs. remote `authorized_keys`); world-readable private keys are warned about and ignored. Falls back to a masked password prompt (up to 3 attempts). On success pushes a session; failures exit 255. |
+| `scp SRC DEST` | Copies a file across host VFSs; exactly one side may be `user@host:path`. Same auth path as `ssh`. |
+| `ssh-keygen` | `-t rsa\|ed25519`, `-f keyfile`, `-C comment`, `-N passphrase`. Deterministic key material (no `Math.random`); writes the private key at mode 600 plus a `.pub`. Overwriting an existing key prompts via the pending-input mechanism (§11.3). |
+| `ssh-copy-id [-i identity] [user@]host` | Appends the public key to the remote `authorized_keys` (creating `.ssh` at 700); idempotent on re-run. |
+
+**Service & journal** (`commands/linux/system.ts`, `journal.ts`):
+
+| Command | Notes |
+|---------|-------|
+| `systemctl start\|stop\|restart\|enable\|disable\|daemon-reload\|status` | Mutates the current host's units in place. `start`/`restart` evaluate `startRequires` and append journal lines + fail (exit 1) when unmet; `daemon-reload` re-snapshots each unit's loaded file content; restarting `ssh` re-parses `sshd_config`. State-changing verbs require root. |
+| `journalctl` | `-u/--unit` (accepts the unit with or without `.service`, plus `sshd`/`ssh` aliases), `-n/--lines`, `--since`, `--until` (string compare on the `YYYY-MM-DD HH:MM:SS` timestamp), `-p/--priority` (threshold), `--no-pager`, `-x`, `-e`, `-f/--follow` (prints a "not supported" note, no follow loop). Reads the current host's `journal`; pipeable into `grep`. |
+
+**Firewall & system** (`commands/linux/firewallCmd.ts`, `fileops.ts`, `system.ts`):
+
+| Command | Notes |
+|---------|-------|
+| `ufw status\|enable\|disable\|default\|allow\|deny\|delete` | Operates on the host `firewall` state; state-changing subcommands require root. Denying port 22 over an active ssh session asks for confirmation. A `deny 22` (or `default deny incoming` with no allow-22 rule) makes NEW `ssh` to that host time out while existing sessions keep working. |
+| `chown [-R] owner[:group] path` | Mutates VFS node owner/group; non-root gets "Operation not permitted". |
+| `crontab -l \| -e \| file`, `-u user` | File-backed at `/var/spool/cron/crontabs/<user>` — the spool file *is* the state, so `cat`/`tee`/`sed` edit it. `-e` prints a note pointing at the spool file (no interactive editor). |
+
+**Ansible** (`commands/linux/ansible.ts` + `ansible/` mini-engine):
+
+`ansible-playbook [-i/--inventory INV] [--check] [--diff] [--syntax-check] playbook.yml`
+runs a real (idempotent) mini-engine, not scripted output:
+
+- `ansible/miniYaml.ts` — a YAML **subset** parser for the playbook shape the
+  levels use (list of plays; `name`/`hosts`/`become`/`tasks`; one module key per
+  task). Syntax errors carry a line/column.
+- `ansible/inventory.ts` — an INI-subset inventory (`[group]` headers); default
+  path `/etc/ansible/hosts` unless `-i` is given.
+- `ansible/modules.ts` — modules `lineinfile`, `copy`, `service`, `user`, each
+  reporting real `changed` / `failed` / `diff`. Idempotency is genuine: a second
+  run reports `changed=0`.
+- Per-host connection checks reuse the same key-auth path as `ssh` (controller =
+  current session user); unreachable/failed hosts drive the `PLAY RECAP` counts
+  and a non-zero exit. `--check` predicts without applying; `--diff` prints
+  before/after for file modules.
+
+### 11.3 Interactive Input (Password Prompts)
+
+`ssh` / `ssh-copy-id` / `ssh-keygen` need mid-command prompts. A command can
+suspend and consume the next input line instead of returning immediately:
+
+```typescript
+interface CommandResult {
+  // ... output, exitCode, error
+  pendingInput?: { prompt: string; mask: boolean };
+}
+
+// In ExecutionContext:
+requestInput: (prompt: string, mask: boolean,
+               next: (line: string) => CommandResult) => CommandResult;
+```
+
+Engine API: `continueInput(line)` runs+clears the stored continuation (and keeps a
+*new* continuation if the result carries another `pendingInput` — multi-step
+prompts, e.g. 3 password attempts), plus `hasPendingInput()`, `getPendingPrompt()`,
+and `cancelPendingInput()`. While a prompt is pending, `execute()` refuses new
+commands and re-surfaces the pending prompt.
+
+`useTerminal` masks the typed line when `mask` is true (echoing `*`), routes Enter
+to `continueInput`, Ctrl+C to `cancelPendingInput`, and **keeps the pending line
+out of command history** (passwords never persist).
+
+### 11.4 stateGoals: Declarative Solution Detection
+
+Advanced levels win by reaching a **target state**, not by typing a specific
+command. `TerminalSolution` gains an optional `stateGoals`:
+
+```typescript
+interface TerminalSolution {
+  commands: string[];           // may be [] when stateGoals carry the win condition
+  allRequired: boolean;
+  stateGoals?: StateGoal[];     // ALL must hold (in addition to any `commands`)
+  resultText: string;
+  skillGain: Partial<Skills>;
+  effects: EventEffects;
+}
+
+interface StateGoal {
+  host?: string;                // id / hostname / short hostname / IP; default = base host
+  file?: string;
+  matches?: string;             // regex (multiline) the file MUST match
+  absentMatches?: string;       // regex the file must NOT match
+  fileExists?: boolean;
+  fileAbsent?: boolean;
+  service?: string;
+  serviceState?: 'active' | 'inactive' | 'failed';
+  serviceEnabled?: boolean;
+  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean };
+  firewallDefaultIncoming?: 'allow' | 'deny';
+  listenerAbsent?: { port: number };   // true iff NO listener binds this port
+  listenerPresent?: { port: number };  // true iff at least one listener binds it
+}
+```
+
+`stateGoals` are evaluated **omnisciently** (bypassing shell permissions) against
+live engine state after **every** command — including plain `shell.execute()`
+calls, not just canned matches — by `checkStateGoals` in
+`client/src/engine/shell/stateGoals.ts`. All goals in the array must hold
+(`checkStateGoals` returns false for an empty array). An unknown `host` evaluates
+to false and never throws.
+
+**Contrast with the canned-command model (both are supported):** the older,
+single-host lessons still win via `TerminalContext.commands` — `TerminalCommand`
+entries tagged `isSolution` / `teachesCommand` / `isPartialSolution`, matched
+against the typed line. A solution matches when its `commands` condition is met
+(as before) **and** its `stateGoals` (if any) hold. New levels lean on
+`stateGoals` so any valid path to the target state wins; the canned model remains
+for prescriptive "type this exact command" lessons.
+
+### 11.5 Live Skill Drip (`commandSkillGain`)
+
+`TerminalContext.commandSkillGain` maps a command name to a skill delta granted
+on the **first** successful (exit 0) use of that command, keyed on the first token
+of the line. `useTerminal` accumulates these live and merges them into the
+solution's `skillGain` when the level is solved — so exploration is rewarded even
+before the win condition is reached.
+
+---
+
 ## Appendix A: VFS Template Examples
 
 ### Linux Server Template
@@ -1497,6 +1700,7 @@ const ERROR_MESSAGES = {
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2026-03-14*
+*Document Version: 1.1*
+*Last Updated: 2026-07-19*
 *Author: Claude Code*
+*v1.1: added §11 (multi-host levels, SSH/journal/firewall/ansible commands, pending-input prompts, stateGoals solution model).*

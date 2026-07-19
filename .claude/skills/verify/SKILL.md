@@ -19,6 +19,13 @@ No build step needed for client verification; shared types are consumed via work
 - Static assets: `client/public/images/events/*.webp`, served at `/images/events/*`.
 - Autosave in localStorage (`kritis_autosave_*`); "WEITER SPIELEN" resumes exact story position.
 
+## Advanced CLI / multi-host terminal levels
+
+The advanced learning tracks (SSH, systemd/journal, net-forensics, Ansible — via **Lernbereich**) use a multi-host terminal:
+
+- In SSH levels, after `ssh user@host` a `user@host's password:` prompt appears. Type the password (NOT echoed — masked as `*`, kept out of history) + Enter. On success the prompt switches to `user@remotehost` and you're operating the remote machine. `exit` returns to the previous host (it does not close the terminal until you're back on the base host).
+- These levels win by reaching a target **state** (a file edited, a service/firewall/port changed), not by typing one exact command — so any valid path solves them. The "AUFGABE ABGESCHLOSSEN" banner fires as soon as the state condition is met.
+
 ## Gotchas
 
 - Rapid repeated Enter can land on a day-transition screen whose default focus exits to the main menu — screenshot between presses.
