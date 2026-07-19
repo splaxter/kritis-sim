@@ -108,7 +108,20 @@ export const LEARNING_TRACKS: LearningTrack[] = [
       { eventId: 'learn_ssh_04_key_graveyard', optional: true },
     ],
   },
-  // B3/B4/B5 will register these tracks once their levels are authored.
+  {
+    id: 'systemd_journal',
+    title: 'systemd & Journal',
+    description: 'Dienste verstehen, Logs lesen, Ursachen statt Symptome.',
+    icon: '⚙️',
+    order: 8,
+    levels: [
+      { eventId: 'learn_sysd_01_silent_service' },
+      { eventId: 'learn_sysd_02_time_travel' },
+      { eventId: 'learn_sysd_03_revenant' },
+      { eventId: 'learn_sysd_04_chain_reaction' },
+    ],
+  },
+  // B4/B5 will register the remaining tracks once their levels are authored.
   // Registering them now would list eventIds the LearningHub cannot resolve.
   {
     id: 'finale',
