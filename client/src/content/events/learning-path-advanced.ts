@@ -1814,7 +1814,7 @@ gleiche Struktur, andere Regel — und rollst dann aus.
 - Roll das erweiterte Playbook auf web01/web02/web03 aus
 - Prüf auf einem Host per SSH, dass beide Regeln stehen`,
     mentorNote:
-      'Die Synthese: Eine Richtlinie in ein Playbook übersetzen. Die zweite Aufgabe ist eine Kopie der ersten mit anderem Ziel — dieselbe Struktur (name, lineinfile, path, regexp, line). Anhängen kannst du zeilenweise mit echo und dem Anhänge-Umleiter >>. Achte auf die Einrückung: Aufgabe 4 Leerzeichen, Modul 6, Parameter 8. Danach: ausrollen, per SSH gegenprüfen.',
+      'Die Synthese: Eine Richtlinie in ein Playbook übersetzen. Die zweite Aufgabe ist eine Kopie der ersten mit anderem Ziel — dieselbe Struktur (name, lineinfile, path, regexp, line). Anhängen kannst du zeilenweise mit echo und dem Anhänge-Umleiter >>. Achte auf die Einrückung: Aufgabe 4 Leerzeichen, Modul 6, Parameter 8. Prüf dein erweitertes Playbook mit --syntax-check auf Einrückungsfehler, BEVOR du ausrollst — so fängst du einen YAML-Fehler ab, bevor er auf die Flotte trifft. Danach: ausrollen, per SSH gegenprüfen.',
     choices: [
       {
         id: 'start',
@@ -1855,8 +1855,8 @@ gleiche Struktur, andere Regel — und rollst dann aus.
               '    - name: Root-Login abschalten\n' +
               '      lineinfile:\n' +
               '        path: /etc/ssh/sshd_config\n' +
-              "        regexp: '^#?PermitRootLogin'\n" +
-              "        line: 'PermitRootLogin no'\n",
+              '        regexp: ^#?PermitRootLogin\n' +
+              '        line: PermitRootLogin no\n',
           },
         ],
       },
@@ -1898,8 +1898,9 @@ gleiche Struktur, andere Regel — und rollst dann aus.
       hints: [
         '🤖 Henry: Die zweite Regel ist strukturell die Kopie der ersten — nur mit PasswordAuthentication statt PermitRootLogin. Du hängst sie als weitere Aufgabe hinten an das Playbook an.',
         '🤖 Henry: Anhängen geht zeilenweise: Jede YAML-Zeile mit echo ausgeben und mit dem Anhänge-Umleiter (zwei spitze Klammern) in die Datei schreiben. Pass auf die Einrückung auf — Aufgabe 4 Leerzeichen, Modul 6, Parameter 8.',
-        '🤖 Henry: Fünf Zeilen kommen dazu: die Aufgaben-Zeile (- name:), die Modul-Zeile (lineinfile:), und darunter path, regexp und line. Danach ausrollen und per SSH gegenprüfen.',
-        "🤖 Henry: `echo '    - name: Passwort-Login abschalten' >> harden-fleet.yml` → `echo '      lineinfile:' >> harden-fleet.yml` → `echo '        path: /etc/ssh/sshd_config' >> harden-fleet.yml` → `echo '        regexp: ^#?PasswordAuthentication' >> harden-fleet.yml` → `echo '        line: PasswordAuthentication no' >> harden-fleet.yml` → dann `ansible-playbook harden-fleet.yml`.",
+        '🤖 Henry: Fünf Zeilen kommen dazu: die Aufgaben-Zeile (- name:), die Modul-Zeile (lineinfile:), und darunter path, regexp und line.',
+        '🤖 Henry: Prüf mit `ansible-playbook harden-fleet.yml --syntax-check`, ob dein YAML sauber ist, bevor du ausrollst — der Trockenlauf zeigt dir Einrückungsfehler, solange sie noch harmlos sind.',
+        "🤖 Henry: `echo '    - name: Passwort-Login abschalten' >> harden-fleet.yml` → `echo '      lineinfile:' >> harden-fleet.yml` → `echo '        path: /etc/ssh/sshd_config' >> harden-fleet.yml` → `echo '        regexp: ^#?PasswordAuthentication' >> harden-fleet.yml` → `echo '        line: PasswordAuthentication no' >> harden-fleet.yml` → prüfen mit `ansible-playbook harden-fleet.yml --syntax-check`, dann `ansible-playbook harden-fleet.yml`.",
       ],
     },
     tags: ['learning', 'ansible', 'terminal', 'security', 'automation', 'kritis'],
