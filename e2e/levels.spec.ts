@@ -253,10 +253,38 @@ async function assertCompleted(page: Page, levelId: string) {
     .toContain(levelId);
 }
 
+// ── Tracks the Playwright harness cannot drive ───────────────────────────────
+// The 4 advanced multi-host tracks (ssh_remote / systemd_journal / net_forensics
+// / ansible_config, ids learn_ssh_*/learn_sysd_*/learn_net_*/learn_ans_*) win by
+// reaching declarative `stateGoals` on a remote host's state — NOT by tagging a
+// canned command. Their content has `commands: []` and `solutions: [{ commands:
+// [], stateGoals: [...] }]`, so `deriveCliSolution` above has nothing to derive
+// (it throws "no reachable solution derived"). Actually solving them means typing
+// a real multi-step, password-prompted ssh/scp/ssh-copy-id/ansible sequence across
+// hosts — far beyond what this xterm-type-one-command flow drives.
+//
+// These levels' per-level solvability proof lives in the node engine suite, which
+// executes the real ShellEngine (hosts, session stack, Ansible idempotency) and
+// asserts each level's stateGoals are reachable:
+//   client/src/engine/sshTrackLessons.test.ts
+//   client/src/engine/systemdTrackLessons.test.ts
+//   client/src/engine/netTrackLessons.test.ts
+//   client/src/engine/ansibleTrackLessons.test.ts
+// They are skipped (not deleted) here so the intent stays visible in the e2e suite.
+const HARNESS_INCOMPATIBLE_TRACKS = new Set([
+  'ssh_remote',
+  'systemd_journal',
+  'net_forensics',
+  'ansible_config',
+]);
+
 // ── The suite: one test per learning-track level ─────────────────────────────
 
 for (const track of LEARNING_TRACKS) {
-  test.describe(`Track ${track.id}`, () => {
+  const describeLevels = HARNESS_INCOMPATIBLE_TRACKS.has(track.id)
+    ? test.describe.skip
+    : test.describe;
+  describeLevels(`Track ${track.id}`, () => {
     for (const lvl of track.levels) {
       const ev = eventById.get(lvl.eventId);
       test(`${lvl.eventId} — solvable end-to-end`, async ({ page }) => {
