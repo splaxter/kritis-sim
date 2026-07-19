@@ -101,8 +101,12 @@ export interface ExecutionContext {
   termCols?: number;
   /** Registry of all commands, so which/type/man/help can answer truthfully. */
   commands?: Map<string, ShellCommand>;
-  /** Re-enter the shell (used by sudo/source to run nested commands). */
-  execute?: (input: string) => CommandResult;
+  /**
+   * Re-enter the shell (used by sudo/source to run nested commands). The
+   * optional stdin lets a wrapper forward its own piped input so
+   * `echo x | sudo tee f` reaches the wrapped command.
+   */
+  execute?: (input: string, stdin?: string) => CommandResult;
   /** Multi-host: state of the host this command runs on. */
   host?: import('./hosts').HostState;
   /** Resolve another registered host by id, hostname or IP. */

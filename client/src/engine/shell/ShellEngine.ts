@@ -94,7 +94,7 @@ export class ShellEngine implements ShellEngineInterface {
   // Execution
   // ============================================================================
 
-  execute(input: string): CommandResult {
+  execute(input: string, initialStdin?: string): CommandResult {
     // While an input line is owed, refuse to run anything: re-show the prompt.
     // Callers should route the line through continueInput instead.
     if (this.pendingContinuation) {
@@ -109,16 +109,21 @@ export class ShellEngine implements ShellEngineInterface {
 
     // Command chaining (;, &&, ||) has the lowest precedence, so split it first.
     // A single segment with no operators falls through to executePipeline.
-    return this.executeChain(trimmed);
+    // initialStdin lets a wrapper (sudo) forward its own piped stdin so
+    // `echo x | sudo tee f` reaches tee — the first stage would otherwise get
+    // no stdin.
+    return this.executeChain(trimmed, initialStdin);
   }
 
-  private executeChain(input: string): CommandResult {
+  private executeChain(input: string, initialStdin?: string): CommandResult {
     // Split into segments, recording the operator that PRECEDES each segment.
     const segments = this.splitChain(input);
 
     let lastResult: CommandResult = { output: '', exitCode: 0 };
     const outputs: string[] = [];
     let executedAny = false;
+    // Forwarded stdin (from a sudo wrapper) feeds only the FIRST segment.
+    let pendingInitialStdin = initialStdin;
 
     for (const { cmd, operator } of segments) {
       // Short-circuit based on the operator before this segment.
@@ -129,7 +134,8 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
-      lastResult = this.executePipeline(cmd);
+      lastResult = this.executePipeline(cmd, pendingInitialStdin);
+      pendingInitialStdin = undefined;
       executedAny = true;
       if (lastResult.output) {
         outputs.push(lastResult.output);
@@ -157,7 +163,7 @@ export class ShellEngine implements ShellEngineInterface {
     };
   }
 
-  private executePipeline(input: string): CommandResult {
+  private executePipeline(input: string, initialStdin?: string): CommandResult {
     const stages = this.splitPipes(input);
 
     // Real pipelines run EVERY stage, even when an earlier one fails:
@@ -166,7 +172,7 @@ export class ShellEngine implements ShellEngineInterface {
     // The pipeline's exit code is the LAST stage's (bash without pipefail).
     // The first stage has NO stdin (undefined); later stages always have one,
     // even if it's empty — that difference matters to grep/wc/cat.
-    let stdin: string | undefined = undefined;
+    let stdin: string | undefined = initialStdin;
     let result: CommandResult = { output: '', exitCode: 0 };
     const errors: string[] = [];
 
@@ -295,7 +301,7 @@ export class ShellEngine implements ShellEngineInterface {
       isTty,
       termCols: this.termCols,
       commands: this.commands,
-      execute: (input: string) => this.execute(input),
+      execute: (input: string, nestedStdin?: string) => this.execute(input, nestedStdin),
       host: this.getCurrentHost(),
       resolveHost: (nameOrIp: string) => this.resolveHost(nameOrIp),
       pushSession: (hostId: string, user: string) => this.pushSession(hostId, user),

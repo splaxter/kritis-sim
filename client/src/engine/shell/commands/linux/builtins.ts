@@ -446,7 +446,8 @@ export const sudoCommand: ShellCommand = {
     ctx.vfs.setUser(runAs);
     try {
       if (ctx.execute) {
-        return ctx.execute(command);
+        // Forward our own piped stdin so `echo x | sudo tee f` reaches tee.
+        return ctx.execute(command, ctx.stdin);
       }
       return { output: '', exitCode: 1, error: `sudo: ${command}: command not found` };
     } finally {
