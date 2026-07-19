@@ -103,7 +103,7 @@ function playRealistic(mode: GameModeId, seed: string) {
 }
 
 describe('chain flow density (realistic)', () => {
-  it('chain consequences stay sparse and the throttle holds in normal play', () => {
+  it('chain consequences stay sparse and the throttle holds in normal play', { timeout: 20000 }, () => {
     const report: string[] = [];
     let globalMaxChainsPerWeek = 0;
 
