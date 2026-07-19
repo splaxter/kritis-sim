@@ -176,6 +176,36 @@ describe('ansible-playbook: module failure and task skipping', () => {
     expect(r.output).toMatch(/web01\s+: ok=0\s+changed=0\s+unreachable=0\s+failed=1/);
   });
 
+  it('an invalid player regexp fails the TASK, not the run', () => {
+    const { shell, web01 } = fleet();
+    shell.getVfs().addFile('/opt/playbooks/badre.yml', [
+      '- name: Regexp kaputt',
+      '  hosts: web',
+      '  become: true',
+      '  tasks:',
+      '    - name: Deploy motd',
+      '      copy:',
+      '        dest: /etc/motd',
+      "        content: 'KRITIS Zone'",
+      '    - name: Broken pattern',
+      '      lineinfile:',
+      '        path: /etc/ssh/sshd_config',
+      "        regexp: '^(PermitRootLogin'",
+      "        line: 'PermitRootLogin no'",
+    ].join('\n'));
+    const r = shell.execute('ansible-playbook /opt/playbooks/badre.yml');
+    expect(r.exitCode).toBe(2);
+    // The run itself stays intact: play/task structure and recap render.
+    expect(r.output).toContain('PLAY [Regexp kaputt]');
+    expect(r.output).toContain('TASK [Broken pattern]');
+    expect(r.output).toContain('fatal: [web01]: FAILED! =>');
+    expect(r.output).toContain("The regular expression '^(PermitRootLogin' is invalid");
+    expect(r.output).toContain('PLAY RECAP');
+    expect(r.output).toMatch(/web01\s+: ok=1\s+changed=1\s+unreachable=0\s+failed=1/);
+    // The prior task's mutation is legitimate and stays.
+    expect(web01.vfs.readFile('/etc/motd')).toMatchObject({ ok: true, value: 'KRITIS Zone' });
+  });
+
   it('an unknown module fails ansible-style', () => {
     const { shell } = fleet();
     shell.getVfs().addFile('/opt/playbooks/unknown.yml', [

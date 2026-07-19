@@ -61,12 +61,35 @@ describe('lineinfile: present', () => {
     expect(h.vfs.readFile('/etc/x')).toMatchObject({ ok: true, value: 'a\nb\n' });
   });
 
-  it('creates a missing file with the line', () => {
+  it('a missing file without create fails like real ansible', () => {
     const h = host();
     const r = lineinfile(h, { path: '/etc/neu.conf', line: 'interval=60' }, opts());
+    expect(r.failed).toBe('Destination /etc/neu.conf does not exist !');
+    expect(h.vfs.exists('/etc/neu.conf')).toBe(false);
+  });
+
+  it('creates a missing file with the line when create is set', () => {
+    const h = host();
+    const r = lineinfile(h, { path: '/etc/neu.conf', line: 'interval=60', create: true }, opts());
     expect(r.changed).toBe(true);
+    expect(r.failed).toBeUndefined();
     expect(r.diff).toEqual({ before: '', after: 'interval=60\n' });
     expect(h.vfs.readFile('/etc/neu.conf')).toMatchObject({ ok: true, value: 'interval=60\n' });
+  });
+
+  it('create in check mode reports changed without writing', () => {
+    const h = host();
+    const r = lineinfile(h, { path: '/etc/neu.conf', line: 'interval=60', create: true }, opts(true));
+    expect(r.changed).toBe(true);
+    expect(h.vfs.exists('/etc/neu.conf')).toBe(false);
+  });
+
+  it('an invalid regexp fails the module instead of throwing', () => {
+    const h = host([{ path: '/etc/x', content: 'a\n' }]);
+    const r = lineinfile(h, { path: '/etc/x', regexp: '^(unbalanced', line: 'b' }, opts());
+    expect(r.failed).toBe("The regular expression '^(unbalanced' is invalid");
+    expect(r.changed).toBe(false);
+    expect(h.vfs.readFile('/etc/x')).toMatchObject({ ok: true, value: 'a\n' });
   });
 
   it('check mode computes changed + diff without writing', () => {
@@ -105,6 +128,12 @@ describe('lineinfile: absent', () => {
   it('requires regexp for state=absent', () => {
     const r = lineinfile(host(), { path: '/etc/x', state: 'absent' }, opts());
     expect(r.failed).toContain('regexp is required');
+  });
+
+  it('an invalid regexp fails for state=absent too', () => {
+    const h = host([{ path: '/etc/x', content: 'a\n' }]);
+    const r = lineinfile(h, { path: '/etc/x', regexp: '[broken', state: 'absent' }, opts());
+    expect(r.failed).toBe("The regular expression '[broken' is invalid");
   });
 });
 

@@ -66,7 +66,11 @@ function stripComment(raw: string): string {
   return raw;
 }
 
-/** Unquote a scalar; booleans only from BARE true/false (quoted stays string). */
+// YAML 1.1 boolean spellings (canonical cases only), like real ansible YAML.
+const YAML_TRUE = new Set(['true', 'True', 'TRUE', 'yes', 'Yes', 'YES']);
+const YAML_FALSE = new Set(['false', 'False', 'FALSE', 'no', 'No', 'NO']);
+
+/** Unquote a scalar; booleans only from BARE spellings (quoted stays string). */
 function parseScalar(raw: string): string | boolean {
   const trimmed = raw.trim();
   if (
@@ -75,8 +79,8 @@ function parseScalar(raw: string): string | boolean {
   ) {
     return trimmed.slice(1, -1);
   }
-  if (trimmed === 'true') return true;
-  if (trimmed === 'false') return false;
+  if (YAML_TRUE.has(trimmed)) return true;
+  if (YAML_FALSE.has(trimmed)) return false;
   return trimmed;
 }
 
@@ -94,9 +98,14 @@ function tokenize(text: string): { ok: true; lines: Line[] } | MiniYamlError {
       if (stripped.trim() === '---') continue; // document marker
     }
 
-    const indent = stripped.length - stripped.trimStart().length;
+    const leading = stripped.slice(0, stripped.length - stripped.trimStart().length);
+    const tabAt = leading.indexOf('\t');
+    if (tabAt >= 0) {
+      return syntaxError(no, tabAt + 1, "found a tab character ('\\t') in indentation — use spaces");
+    }
+    const indent = leading.length;
     if (indent % 2 !== 0) {
-      return syntaxError(no, indent + 1, 'found a tab or bad indentation (indent must be a multiple of 2)');
+      return syntaxError(no, indent + 1, 'bad indentation (indent must be a multiple of 2)');
     }
     let body = stripped.trim();
     const isListItem = body.startsWith('- ');

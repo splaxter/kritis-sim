@@ -85,6 +85,54 @@ describe('parsePlaybook: harden fixture round-trip', () => {
     expect(r.plays[0].tasks[0].params.mode).toBe('0644');
   });
 
+  it('parses YAML 1.1 boolean spellings (yes/no, any canonical case)', () => {
+    const play = (becomeVal: string, enabledVal: string) => parsePlaybook([
+      '- name: p',
+      '  hosts: all',
+      `  become: ${becomeVal}`,
+      '  tasks:',
+      '    - name: t',
+      '      service:',
+      '        name: ssh',
+      `        enabled: ${enabledVal}`,
+    ].join('\n'));
+
+    const yes = play('yes', 'yes');
+    expect(yes.ok).toBe(true);
+    if (yes.ok) {
+      expect(yes.plays[0].become).toBe(true);
+      expect(yes.plays[0].tasks[0].params.enabled).toBe(true);
+    }
+
+    const no = play('No', 'NO');
+    expect(no.ok).toBe(true);
+    if (no.ok) {
+      expect(no.plays[0].become).toBe(false);
+      expect(no.plays[0].tasks[0].params.enabled).toBe(false);
+    }
+
+    const upper = play('TRUE', 'False');
+    expect(upper.ok).toBe(true);
+    if (upper.ok) {
+      expect(upper.plays[0].become).toBe(true);
+      expect(upper.plays[0].tasks[0].params.enabled).toBe(false);
+    }
+  });
+
+  it('quoted yes/no stay strings', () => {
+    const r = parsePlaybook([
+      '- name: p',
+      '  hosts: all',
+      '  tasks:',
+      '    - name: t',
+      '      lineinfile:',
+      '        path: /etc/x',
+      "        line: 'yes'",
+    ].join('\n'));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.plays[0].tasks[0].params.line).toBe('yes');
+  });
+
   it('become defaults to false when omitted', () => {
     const r = parsePlaybook([
       '- name: p',
@@ -155,6 +203,33 @@ describe('parsePlaybook: errors carry line/column', () => {
     if (r.ok) return;
     expect(r.error).toContain('ERROR! Syntax Error while loading YAML.');
     expect(r.error).toContain('line 6, column 10');
+    expect(r.line).toBe(6);
+  });
+
+  it('a tab in indentation is a syntax error naming the tab', () => {
+    const r = parsePlaybook([
+      '- name: p',
+      '\t hosts: all',
+    ].join('\n'));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('ERROR! Syntax Error while loading YAML.');
+    expect(r.error).toContain("tab");
+    expect(r.line).toBe(2);
+  });
+
+  it('a tab after even spaces is still rejected', () => {
+    const r = parsePlaybook([
+      '- name: p',
+      '  hosts: all',
+      '  tasks:',
+      '    - name: t',
+      '      lineinfile:',
+      '  \t     path: /etc/x',
+    ].join('\n'));
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.error).toContain('tab');
     expect(r.line).toBe(6);
   });
 

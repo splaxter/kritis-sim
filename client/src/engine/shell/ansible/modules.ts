@@ -34,6 +34,15 @@ const toLines = (content: string): string[] =>
 const fromLines = (lines: string[]): string =>
   lines.length === 0 ? '' : lines.join('\n') + '\n';
 
+/** Player-authored patterns may be invalid — that fails the task, not the run. */
+const compileRegexp = (pattern: string): RegExp | null => {
+  try {
+    return new RegExp(pattern);
+  } catch {
+    return null;
+  }
+};
+
 const lineinfileModule: AnsibleModule = (target, params, opts) => {
   const path = str(params.path);
   if (!path) return failed('missing required arguments: path');
@@ -46,8 +55,9 @@ const lineinfileModule: AnsibleModule = (target, params, opts) => {
   if (state === 'absent') {
     const regexp = str(params.regexp);
     if (!regexp) return failed('regexp is required with state=absent');
+    const re = compileRegexp(regexp);
+    if (!re) return failed(`The regular expression '${regexp}' is invalid`);
     if (!read.ok) return { changed: false };
-    const re = new RegExp(regexp);
     const kept = lines.filter(l => !re.test(l));
     if (kept.length === lines.length) return { changed: false };
     const after = fromLines(kept);
@@ -61,12 +71,15 @@ const lineinfileModule: AnsibleModule = (target, params, opts) => {
   const line = str(params.line);
   if (line === undefined) return failed('line is required with state=present');
   const regexp = str(params.regexp);
+  const re = regexp !== undefined ? compileRegexp(regexp) : undefined;
+  if (re === null) return failed(`The regular expression '${regexp}' is invalid`);
 
   let newLines: string[];
   if (!read.ok) {
+    // Real ansible refuses to invent the file unless create is set.
+    if (params.create !== true) return failed(`Destination ${path} does not exist !`);
     newLines = [line];
-  } else if (regexp) {
-    const re = new RegExp(regexp);
+  } else if (re) {
     const idx = lines.findIndex(l => re.test(l));
     if (idx >= 0) {
       if (lines[idx] === line) return { changed: false };
