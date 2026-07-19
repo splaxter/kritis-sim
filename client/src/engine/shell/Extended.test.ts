@@ -157,6 +157,46 @@ describe('tee / nl / tac / rev / strings / stat / file / xxd', () => {
   });
 });
 
+describe('sudo passes wrapped -i/-s flags through to the command', () => {
+  let shell: ShellEngine;
+  beforeEach(() => { shell = bash(); });
+
+  it('sudo sed -i actually edits the file (does not mistake sed -i for a login shell)', () => {
+    shell.execute("echo 'PermitRootLogin yes' > /home/azubi/conf");
+    const r = shell.execute("sudo sed -i 's/yes/no/' /home/azubi/conf");
+    expect(r.exitCode).toBe(0);
+    expect(r.error).toBeUndefined();
+    const read = shell.getVfs().readFile('/home/azubi/conf');
+    expect(read.ok && read.value).toMatch(/PermitRootLogin no/);
+  });
+
+  it('sudo -u root sed -i works (leading -u, then wrapped -i)', () => {
+    shell.execute("echo 'a' > /home/azubi/conf2");
+    const r = shell.execute("sudo -u root sed -i 's/a/b/' /home/azubi/conf2");
+    expect(r.exitCode).toBe(0);
+    const read = shell.getVfs().readFile('/home/azubi/conf2');
+    expect(read.ok && read.value).toMatch(/b/);
+  });
+
+  it('sudo -i alone (leading interactive request) still errors', () => {
+    const r = shell.execute('sudo -i');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/interactive shell is not available/);
+  });
+
+  it('sudo -s alone still errors', () => {
+    const r = shell.execute('sudo -s');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/interactive shell is not available/);
+  });
+
+  it('bare sudo still prints usage', () => {
+    const r = shell.execute('sudo');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/usage: sudo/);
+  });
+});
+
 describe('chown', () => {
   let shell: ShellEngine;
   beforeEach(() => { shell = bash(); });

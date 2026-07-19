@@ -400,7 +400,20 @@ export const sudoCommand: ShellCommand = {
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    if (args.positional.length === 0 && !args.flags['s'] && !args.flags['shell'] && !args.flags['i']) {
+    const interactiveError: CommandResult = {
+      output: '',
+      exitCode: 1,
+      error: 'sudo: an interactive shell is not available here, run `sudo COMMAND` instead',
+    };
+
+    // No wrapped command word: the -i/-s the parser saw (if any) are sudo's OWN
+    // options. `sudo -i`/`sudo -s` request an interactive shell; bare `sudo` is
+    // a usage error. Crucially we must NOT reach here for `sudo sed -i ...`,
+    // where -i belongs to the wrapped command (positional[0] === 'sed').
+    if (args.positional.length === 0) {
+      if (args.flags['s'] || args.flags['shell'] || args.flags['i']) {
+        return interactiveError;
+      }
       return {
         output: '',
         exitCode: 1,
@@ -408,25 +421,26 @@ export const sudoCommand: ShellCommand = {
       };
     }
 
-    // Interactive root shells aren't possible in this terminal.
-    if (args.flags['s'] || args.flags['shell'] || args.flags['i']) {
-      return {
-        output: '',
-        exitCode: 1,
-        error: 'sudo: an interactive shell is not available here, run `sudo COMMAND` instead',
-      };
-    }
-
     // Actually run the command as root (NOPASSWD-style, like most lab VMs):
     // temporarily switch the VFS user so permission checks pass, then restore.
     // Rebuild the command from the raw input — going through args.positional
-    // would drop the inner command's own flags (e.g. `sudo cat -n file`).
+    // would drop the inner command's own flags (e.g. `sudo cat -n file`,
+    // `sudo sed -i ...`). Consume sudo's OWN leading options here so a wrapped
+    // command's flags never get misread as sudo's.
     let command = args.raw.replace(/^\s*sudo\s+/, '');
     let runAs = 'root';
-    const userOpt = command.match(/^(?:-u\s+|--user[= ])(\S+)\s+/);
-    if (userOpt) {
-      runAs = userOpt[1];
-      command = command.slice(userOpt[0].length);
+    for (;;) {
+      const userOpt = command.match(/^(?:-u\s+|--user[= ])(\S+)\s+/);
+      if (userOpt) {
+        runAs = userOpt[1];
+        command = command.slice(userOpt[0].length);
+        continue;
+      }
+      // -i/-s BEFORE the wrapped command word = sudo's own interactive request.
+      if (/^(-i|-s|--shell)(\s+|$)/.test(command)) {
+        return interactiveError;
+      }
+      break;
     }
     const previousUser = ctx.vfs.getUser();
     ctx.vfs.setUser(runAs);
