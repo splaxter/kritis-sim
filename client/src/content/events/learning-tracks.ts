@@ -96,11 +96,26 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     ],
   },
   {
+    id: 'ssh_remote',
+    title: 'SSH & Remote-Zugriff',
+    description: 'Schlüssel statt Passwörter: sichere Fernzugriffe über Zonen hinweg.',
+    icon: '🗝️',
+    order: 7,
+    levels: [
+      { eventId: 'learn_ssh_01_first_key' },
+      { eventId: 'learn_ssh_02_open_door' },
+      { eventId: 'learn_ssh_03_jumphost' },
+      { eventId: 'learn_ssh_04_key_graveyard', optional: true },
+    ],
+  },
+  // B3/B4/B5 will register these tracks once their levels are authored.
+  // Registering them now would list eventIds the LearningHub cannot resolve.
+  {
     id: 'finale',
     title: 'Finale: Root Awakening',
     description: 'Die Abschlussprüfung. Schalte 3 Tracks frei.',
     icon: '🎓',
-    order: 7,
+    order: 11,
     isFinale: true,
     unlockAfterTracksCompleted: 3,
     levels: [{ eventId: 'learn_11_final_boss' }],
