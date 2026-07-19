@@ -13,6 +13,7 @@ export { allPowerShellCommands } from './commands/powershell';
 export * from './scenarioSeed';
 export * from './hosts';
 export * from './unitControl';
+export * from './stateGoals';
 
 import { TerminalHostSpec, TerminalSolution } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
