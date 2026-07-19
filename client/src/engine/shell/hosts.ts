@@ -212,6 +212,9 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
   }
   for (const file of spec.vfsOverlay?.files ?? []) {
     vfs.addFile(file.path, file.content);
+    // Overlay files land at 644; a 600 SSH private key must be re-chmod'd or
+    // key auth skips it as UNPROTECTED (group/other-readable).
+    if (file.mode) vfs.chmod(file.path, file.mode);
   }
 
   const services: SystemdUnitState[] = DEFAULT_UNITS.map(u => ({ ...u }));

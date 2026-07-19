@@ -89,4 +89,25 @@ describe('createHostState', () => {
     host.refreshSshdEffective();
     expect(host.sshdEffective).toEqual({ permitRootLogin: false, passwordAuthentication: false });
   });
+
+  it('applies an overlay file mode so a 600 SSH private key is not group/other-readable', () => {
+    const host = createHostState({
+      id: 'ansible01', hostname: 'ansible01',
+      vfsOverlay: {
+        files: [
+          { path: '/home/deploy/.ssh/id_ed25519', content: 'PRIVATE', mode: '600' },
+          { path: '/home/deploy/.ssh/id_ed25519.pub', content: 'ssh-ed25519 AAAA deploy@ansible01' },
+        ],
+      },
+    });
+    const priv = host.vfs.stat('/home/deploy/.ssh/id_ed25519');
+    expect(priv.ok).toBe(true);
+    if (priv.ok) {
+      expect(priv.value.permissions.group.read).toBe(false);
+      expect(priv.value.permissions.other.read).toBe(false);
+    }
+    // The public key keeps the default 644 (group-readable is fine for a pubkey).
+    const pub = host.vfs.stat('/home/deploy/.ssh/id_ed25519.pub');
+    expect(pub.ok && pub.value.permissions.group.read).toBe(true);
+  });
 });

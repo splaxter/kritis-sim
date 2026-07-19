@@ -25,7 +25,9 @@ export interface TerminalSolution {
 }
 
 export interface VFSOverlay {
-  files?: { path: string; content: string }[];
+  /** `mode` is an optional 3-digit octal string (e.g. '600') applied via chmod
+   *  after the file is written — needed to seed mode-600 SSH private keys. */
+  files?: { path: string; content: string; mode?: string }[];
   directories?: string[];
 }
 

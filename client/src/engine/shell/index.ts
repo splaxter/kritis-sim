@@ -97,7 +97,7 @@ export function createShellFromContext(context: {
   username: string;
   currentPath: string;
   vfsOverlay?: {
-    files?: { path: string; content: string }[];
+    files?: { path: string; content: string; mode?: string }[];
     directories?: string[];
   };
   env?: Record<string, string>;
@@ -141,6 +141,12 @@ export function createShellFromContext(context: {
   if (startPath) {
     vfs.addDirectory(startPath);
     vfs.setCurrentPath(startPath);
+  }
+
+  // Apply per-file modes on the primary host (createShell writes at 644) — a
+  // mode-600 SSH private key must be re-chmod'd or key auth ignores it.
+  for (const file of context.vfsOverlay?.files ?? []) {
+    if (file.mode) vfs.chmod(file.path, file.mode);
   }
 
   // Materialize every path the scenario talks about (canned cat/ls outputs,
