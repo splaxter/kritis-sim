@@ -134,7 +134,19 @@ export const LEARNING_TRACKS: LearningTrack[] = [
       { eventId: 'learn_net_04_spider', optional: true },
     ],
   },
-  // B5 will register the Ansible track once its levels are authored.
+  {
+    id: 'ansible_config',
+    title: 'Ansible & Konfigurationsmanagement',
+    description: 'Eine Wahrheit für alle Hosts: Playbooks, Drift, Idempotenz.',
+    icon: '📜',
+    order: 10,
+    levels: [
+      { eventId: 'learn_ans_01_inventory' },
+      { eventId: 'learn_ans_02_drift' },
+      { eventId: 'learn_ans_03_broken_playbook' },
+      { eventId: 'learn_ans_04_fleet_hardening' },
+    ],
+  },
   {
     id: 'finale',
     title: 'Finale: Root Awakening',

@@ -1,4 +1,4 @@
-import { GameEvent } from '@kritis/shared';
+import { GameEvent, TerminalHostSpec } from '@kritis/shared';
 
 /**
  * Advanced learning levels for the multi-host ShellEngine (real ssh/scp/
@@ -8,6 +8,60 @@ import { GameEvent } from '@kritis/shared';
  * Track: SSH & Remote-Zugriff (Task B2). The systemd/net/ansible tracks
  * (B3–B5) will append their levels to this same array.
  */
+
+// ============================================================================
+// Ansible track shared seeding (Task B5)
+// ----------------------------------------------------------------------------
+// Ansible connects controller → target via KEY AUTH ONLY. The controller
+// (ansible01, user `deploy`) holds a mode-600 private key; every target carries
+// the matching public key in deploy's authorized_keys. Same literal key on both
+// sides. The private key MUST be 600 — a 644 key is skipped as UNPROTECTED and
+// the connection fails UNREACHABLE.
+// ============================================================================
+
+const ANSIBLE_PUBKEY =
+  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKr1t1sd3pl0yAnsibleControllerKey0000000000000000 deploy@ansible01';
+
+const ANSIBLE_PRIVKEY =
+  '-----BEGIN OPENSSH PRIVATE KEY-----\n' +
+  'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gt\n' +
+  'ZWQyNTUxOQAAACCKr1t1sd3pl0yAnsibleControllerKey00000000000000000000AA\n' +
+  '-----END OPENSSH PRIVATE KEY-----\n';
+
+/** Controller ~/.ssh: private key (600) + matching public key. */
+const controllerSshFiles = [
+  { path: '/home/deploy/.ssh/id_ed25519', content: ANSIBLE_PRIVKEY, mode: '600' },
+  { path: '/home/deploy/.ssh/id_ed25519.pub', content: ANSIBLE_PUBKEY + '\n' },
+];
+
+/** The one authorized_keys line every target trusts for user `deploy`. */
+const authorizedKeysFile = {
+  path: '/home/deploy/.ssh/authorized_keys',
+  content: ANSIBLE_PUBKEY + '\n',
+};
+
+const ANSIBLE_INVENTORY = '[web]\nweb01\nweb02\nweb03\n';
+
+/** A managed web host: deploy account trusts the controller key; extra files
+ *  layer the level-specific config on top. */
+function webHost(
+  id: string,
+  ip: string,
+  files: { path: string; content: string; mode?: string }[] = [],
+): TerminalHostSpec {
+  return {
+    id,
+    hostname: id,
+    ip,
+    accounts: [{ name: 'deploy' }, { name: 'root' }, { name: 'admin' }],
+    vfsOverlay: { files: [authorizedKeysFile, ...files] },
+  };
+}
+
+/** sshd_config with exactly one PermitRootLogin/PasswordAuthentication line
+ *  each (lineinfile replaces the FIRST match — no duplicates allowed). */
+const sshdConfig = (permitRoot: 'yes' | 'no', passwordAuth: 'yes' | 'no'): string =>
+  `# Managed by Stadtwerke IT\nPort 22\nPermitRootLogin ${permitRoot}\nPasswordAuthentication ${passwordAuth}\nX11Forwarding no\n`;
 export const advancedLearningEvents: GameEvent[] = [
   // ==========================================================================
   // Track: SSH & Remote-Zugriff
@@ -1381,5 +1435,473 @@ und riegle den Port ab.
       ],
     },
     tags: ['learning', 'network', 'terminal', 'security', 'forensics', 'kritis'],
+  },
+
+  // ==========================================================================
+  // Track: Ansible & Konfigurationsmanagement (Task B5)
+  // ==========================================================================
+  {
+    id: 'learn_ans_01_inventory',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_04_grep_hunter'] },
+    category: 'training',
+    involvedCharacters: ['bert'],
+    title: 'Ansible 1: Die Inventur',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  TICKET #5001 — Ansible-Einstieg                            ║
+║  Melder: Bert (IT-Leitung)                                  ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Bert stellt dir einen frisch aufgesetzten Steuerungsrechner hin:
+„Das ist \`ansible01\`. Von hier aus pflegen wir ab jetzt die
+Webserver — web01, web02, web03 — an EINER Stelle, statt uns
+per Hand auf jeden Server einzeln zu klemmen. Die Schlüssel
+liegen schon, du kommst überall passwortlos rauf.
+
+Fang harmlos an: In \`/opt/playbooks\` liegt \`motd.yml\`. Das
+Playbook schreibt allen Hosts eine Login-Meldung. Schau dir
+zuerst mit einem Trockenlauf an, WAS es ändern würde — und
+dann roll es aus."
+
+**Deine Aufgabe:**
+- Sieh dir Inventar (\`/etc/ansible/hosts\`) und \`motd.yml\` an
+- Trockenlauf: zeig, was das Playbook ändern WÜRDE
+- Roll das Playbook wirklich aus
+- Prüf auf einem Host per SSH, dass die Meldung angekommen ist`,
+    mentorNote:
+      'Ansible arbeitet deklarativ: Du beschreibst den Soll-Zustand, das Werkzeug gleicht ihn ab. Der Trockenlauf (--check) zeigt die Änderungen, ohne etwas anzufassen — erst schauen, dann anwenden. Das Inventar sagt, WELCHE Hosts gemeint sind; das Playbook sagt, WAS passieren soll.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du setzt dich an ansible01 und öffnest die Playbooks.',
+      },
+      {
+        id: 'later',
+        text: 'Erst das Playbook zu Ende lesen (kostet Zeit, +Kontext)',
+        effects: { stress: -2 },
+        resultText:
+          'Ein Play, ein Host-Muster (web), eine Aufgabe: das copy-Modul schreibt /etc/motd. Nichts Wildes — ein sauberer Einstieg.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'ansible01',
+      username: 'deploy',
+      currentPath: '/opt/playbooks',
+      taskText:
+        'motd.yml zuerst mit --check ansehen, dann ausrollen; per SSH auf web01 prüfen, dass /etc/motd die Meldung enthält.',
+      vfsOverlay: {
+        files: [
+          ...controllerSshFiles,
+          { path: '/etc/ansible/hosts', content: ANSIBLE_INVENTORY },
+          {
+            path: '/opt/playbooks/motd.yml',
+            content:
+              '---\n' +
+              '- name: MOTD verteilen\n' +
+              '  hosts: web\n' +
+              '  become: true\n' +
+              '  tasks:\n' +
+              '    - name: Wartungshinweis setzen\n' +
+              '      copy:\n' +
+              "        content: 'WARTUNGSFENSTER aktiv. Zugriff nur nach Freigabe durch die IT-Leitung.'\n" +
+              '        dest: /etc/motd\n',
+          },
+        ],
+      },
+      hosts: [
+        webHost('web01', '10.0.20.11'),
+        webHost('web02', '10.0.20.12'),
+        webHost('web03', '10.0.20.13'),
+      ],
+      commandSkillGain: {
+        'ansible-playbook': { linux: 2, netzwerk: 1 },
+        cat: { linux: 1 },
+        ssh: { linux: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { host: 'web01', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+            { host: 'web02', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+          ],
+          resultText:
+            'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nUnd du hast es richtig gemacht: erst \`--check\` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. In der Produktion ist diese Reihenfolge kein Luxus, sondern Pflicht.',
+          skillGain: { linux: 3, security: 2, netzwerk: 1 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Verschaff dir erst den Überblick: Welche Hosts stehen im Inventar, und was steht im Playbook? Beide Dateien kannst du einfach anzeigen.',
+        '🤖 Jens: Das Werkzeug heißt ansible-playbook. Es gibt einen Schalter für einen Trockenlauf — er rechnet die Änderungen aus, ohne sie anzuwenden.',
+        '🤖 Jens: Trockenlauf zuerst, dann echt: derselbe Aufruf einmal mit dem Trockenlauf-Schalter, einmal ohne. Danach per SSH auf einen Host schauen.',
+        '🤖 Jens: `ansible-playbook motd.yml --check` (Trockenlauf) → `ansible-playbook motd.yml` (echt) → `ssh web01` → `cat /etc/motd`.',
+      ],
+    },
+    tags: ['learning', 'ansible', 'terminal', 'automation'],
+  },
+
+  {
+    id: 'learn_ans_02_drift',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_ans_01_inventory'] },
+    category: 'training',
+    involvedCharacters: ['bjorg'],
+    title: 'Ansible 2: Der Drift',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  BETREFF: Fwd: hab web02 kurz aufgemacht                    ║
+║  Von: Bjorg                                                 ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Eine Mail von Bjorg, quer über den Flur auch noch laut
+vorgetragen: „Jaaa, web02 — da hab ich für'n Test schnell
+\`PermitRootLogin yes\` reingesetzt, war einfacher so. Wollt
+ich später wieder zumachen, haha, weißt ja wie das ist. Mach
+du das mal eben, ne? Bin gleich im Termin."
+
+web01 und web03 stehen sauber auf \`no\`. Nur web02 driftet.
+Genau dafür gibt es \`harden.yml\`: Es setzt die Regel auf ALLEN
+Hosts — die konformen bleiben unberührt, der Ausreißer wird
+zurückgezogen. Und danach beweist du die Idempotenz.
+
+**Deine Aufgabe:**
+- Trockenlauf mit Diff: zeig, dass NUR web02 abweicht
+- Roll \`harden.yml\` aus und zieh web02 zurück auf \`no\`
+- Lauf es ein zweites Mal — der Beweis: \`changed=0\``,
+    mentorNote:
+      'Konfigurations-Drift = ein Host weicht heimlich vom Soll ab. Idempotenz heißt: Ein Playbook mehrfach anzuwenden ändert nach dem ersten Mal nichts mehr. Der zweite Lauf mit changed=0 ist der Beweis, dass der Soll-Zustand erreicht ist. --diff zeigt dir Zeile für Zeile, was sich ändert.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest harden.yml und machst dich an den Drift.',
+      },
+      {
+        id: 'later',
+        text: 'Bjorgs Mail zweimal lesen und tief durchatmen (+Ruhe)',
+        effects: { stress: -3 },
+        resultText:
+          '„Wollt ich später zumachen." Aha. Du atmest durch. Nicht dein Chaos — aber dein Aufräumen. Wenigstens sauber und nachvollziehbar.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'ansible01',
+      username: 'deploy',
+      currentPath: '/opt/playbooks',
+      taskText:
+        'harden.yml mit --check --diff prüfen (nur web02 weicht ab), ausrollen, dann ein zweites Mal laufen lassen (changed=0). Ziel: web02 sshd_config auf PermitRootLogin no.',
+      vfsOverlay: {
+        files: [
+          ...controllerSshFiles,
+          { path: '/etc/ansible/hosts', content: ANSIBLE_INVENTORY },
+          {
+            path: '/opt/playbooks/harden.yml',
+            content:
+              '---\n' +
+              '- name: SSH-Drift korrigieren\n' +
+              '  hosts: web\n' +
+              '  become: true\n' +
+              '  tasks:\n' +
+              '    - name: Root-Login abschalten\n' +
+              '      lineinfile:\n' +
+              '        path: /etc/ssh/sshd_config\n' +
+              "        regexp: '^#?PermitRootLogin'\n" +
+              "        line: 'PermitRootLogin no'\n",
+          },
+        ],
+      },
+      hosts: [
+        webHost('web01', '10.0.20.11', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('no', 'no') },
+        ]),
+        webHost('web02', '10.0.20.12', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('yes', 'no') },
+        ]),
+        webHost('web03', '10.0.20.13', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('no', 'no') },
+        ]),
+      ],
+      commandSkillGain: {
+        'ansible-playbook': { linux: 2, security: 1 },
+        ssh: { linux: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { host: 'web02', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+            { host: 'web02', file: '/etc/ssh/sshd_config', absentMatches: '^PermitRootLogin yes' },
+          ],
+          resultText:
+            'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer zweite Lauf ist der Beweis: \`changed=0\` auf allen Hosts. Wenn ein Playbook beim zweiten Mal noch etwas ändert, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
+          skillGain: { linux: 3, security: 3, troubleshooting: 2 },
+          effects: { stress: -3 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Schau erst, WO der Drift sitzt, bevor du etwas ausrollst. Ansible kann dir einen Trockenlauf mit Zeilen-Diff zeigen — dann siehst du, welcher Host abweicht.',
+        '🤖 Henry: Der Trockenlauf braucht zwei Schalter: einen für „nichts ändern", einen für „zeig mir den Diff". Nur web02 sollte als geändert auftauchen.',
+        '🤖 Henry: Nach dem Trockenlauf: Playbook echt ausrollen, dann ein zweites Mal starten. Beim zweiten Lauf muss changed=0 stehen.',
+        '🤖 Henry: `ansible-playbook harden.yml --check --diff` (nur web02 changed) → `ansible-playbook harden.yml` (anwenden) → `ansible-playbook harden.yml` nochmal (changed=0, der Idempotenz-Beweis).',
+      ],
+    },
+    tags: ['learning', 'ansible', 'terminal', 'security', 'automation'],
+  },
+
+  {
+    id: 'learn_ans_03_broken_playbook',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_ans_02_drift'] },
+    category: 'training',
+    involvedCharacters: ['jens'],
+    title: 'Ansible 3: Das kaputte Playbook',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  TICKET #5033 — Playbook bricht ab                          ║
+║  Melder: Jens                                               ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Jens, sachlich wie immer: „Ich hab \`deploy.yml\` angefangen —
+es soll allen Webservern ein Wartungsbanner unter
+\`/etc/banner.txt\` verpassen. Aber es bricht sofort ab. Muss
+ein Tippfehler sein, ich komm gerade nicht dazu. Schau's dir
+an: Die Fehlermeldung sagt dir, in welcher Aufgabe es hakt —
+und welcher Parameter fehlt."
+
+Ein Modul-Parameter ist verschrieben. Ansible nennt dir die
+Aufgabe und den fehlenden Pflichtparameter. Lies die Meldung,
+korrigier den Tippfehler in der Datei, lauf es sauber durch.
+
+**Deine Aufgabe:**
+- Starte \`deploy.yml\` und lies die Fehlermeldung
+- Finde und korrigier den Tippfehler im Playbook
+- Roll es sauber aus — Banner auf allen drei Hosts`,
+    mentorNote:
+      'Ansible-Fehler sind präzise: Sie nennen die Aufgabe (TASK) und den Grund (hier: ein Pflichtparameter fehlt, weil sein Name verschrieben ist). Das lineinfile-Modul braucht zwingend `path`. Ein verschriebenes `pathh` ist für Ansible schlicht ein unbekannter Parameter — und `path` fehlt. sed korrigiert den Tippfehler in der Datei an genau einer Stelle.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du startest das Playbook und liest, wo es klemmt.',
+      },
+      {
+        id: 'later',
+        text: 'Erst überlegen, welche Pflichtparameter lineinfile hat (+Kontext)',
+        effects: { stress: -1 },
+        resultText:
+          'lineinfile braucht eine Zieldatei — den Parameter `path`. Fehlt der, kann das Modul nicht wissen, WO es schreiben soll. Genau da wirst du den Fehler finden.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'ansible01',
+      username: 'deploy',
+      currentPath: '/opt/playbooks',
+      taskText:
+        'deploy.yml starten, Fehlermeldung lesen, den Tippfehler (pathh statt path) mit sed korrigieren, sauber ausrollen. Ziel: Banner auf web01/web02/web03.',
+      vfsOverlay: {
+        files: [
+          ...controllerSshFiles,
+          { path: '/etc/ansible/hosts', content: ANSIBLE_INVENTORY },
+          {
+            path: '/opt/playbooks/deploy.yml',
+            content:
+              '---\n' +
+              '- name: Wartungsbanner ausrollen\n' +
+              '  hosts: web\n' +
+              '  become: true\n' +
+              '  tasks:\n' +
+              '    - name: Banner-Datei schreiben\n' +
+              '      lineinfile:\n' +
+              '        pathh: /etc/banner.txt\n' +
+              "        line: 'KRITIS-Zone - Zugriff wird protokolliert.'\n" +
+              '        create: true\n',
+          },
+        ],
+      },
+      hosts: [
+        webHost('web01', '10.0.20.11'),
+        webHost('web02', '10.0.20.12'),
+        webHost('web03', '10.0.20.13'),
+      ],
+      commandSkillGain: {
+        'ansible-playbook': { linux: 2, troubleshooting: 1 },
+        sed: { linux: 1, troubleshooting: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { file: '/opt/playbooks/deploy.yml', absentMatches: 'pathh' },
+            { host: 'web01', file: '/etc/banner.txt', matches: 'KRITIS-Zone' },
+            { host: 'web02', file: '/etc/banner.txt', matches: 'KRITIS-Zone' },
+            { host: 'web03', file: '/etc/banner.txt', matches: 'KRITIS-Zone' },
+          ],
+          resultText:
+            'Ein Buchstabe zu viel — \`pathh\` statt \`path\` — und das ganze Playbook stand. So arbeitet Ansible: Es rät nicht, es meldet präzise, welche Aufgabe an welchem Pflichtparameter scheitert. Wer die Meldung liest, statt blind neu zu starten, ist in Sekunden fertig.\n\nNach der Korrektur lief es sauber durch: Das Banner steht jetzt auf allen drei Webservern. Und weil lineinfile idempotent ist, kannst du es beliebig oft wiederholen, ohne Schaden anzurichten.',
+          skillGain: { linux: 3, troubleshooting: 4, security: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Starte das Playbook und LIES die Fehlermeldung genau. Sie nennt die Aufgabe und den Pflichtparameter, der fehlt — das ist schon der halbe Weg.',
+        '🤖 Jens: Der Parameter heißt `path`, im Playbook steht aber etwas leicht anderes. Vergleich die Zeile mit dem, was das Modul erwartet.',
+        '🤖 Jens: Korrigier den Tippfehler direkt in der Datei — ein Stream-Editor ersetzt das falsche Wort in einem Rutsch. Danach dasselbe Playbook nochmal starten.',
+        "🤖 Jens: `sudo sed -i 's/pathh:/path:/' /opt/playbooks/deploy.yml` → dann `ansible-playbook deploy.yml`.",
+      ],
+    },
+    tags: ['learning', 'ansible', 'terminal', 'automation'],
+  },
+
+  {
+    id: 'learn_ans_04_fleet_hardening',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_ans_03_broken_playbook'] },
+    category: 'training',
+    involvedCharacters: ['bert'],
+    title: 'Ansible 4: Die Flottenhärtung',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  ★ ABSCHLUSS — Flottenhärtung nach Richtlinie               ║
+║  Melder: Bert (IT-Leitung)                                  ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Bert legt dir die Härtungsrichtlinie hin: „Auf ALLEN Webservern
+gilt ab sofort: kein Root-Login per SSH, und keine Passwort-
+Anmeldung mehr — nur noch Schlüssel. \`harden-fleet.yml\` gibt
+es schon, aber es deckt bisher nur den Root-Login ab. Erweiter
+es um die Passwort-Regel und roll es auf die ganze Flotte aus.
+
+Du kannst das jetzt — Inventar, Playbook, Idempotenz. Zeig mir,
+dass du eine Richtlinie in ein sauberes, wiederholbares Playbook
+gießen kannst."
+
+Das Playbook hat eine \`lineinfile\`-Aufgabe für PermitRootLogin.
+Du hängst eine zweite Aufgabe für PasswordAuthentication an —
+gleiche Struktur, andere Regel — und rollst dann aus.
+
+**Deine Aufgabe:**
+- Häng eine zweite lineinfile-Aufgabe für \`PasswordAuthentication no\` an \`harden-fleet.yml\` an
+- Roll das erweiterte Playbook auf web01/web02/web03 aus
+- Prüf auf einem Host per SSH, dass beide Regeln stehen`,
+    mentorNote:
+      'Die Synthese: Eine Richtlinie in ein Playbook übersetzen. Die zweite Aufgabe ist eine Kopie der ersten mit anderem Ziel — dieselbe Struktur (name, lineinfile, path, regexp, line). Anhängen kannst du zeilenweise mit echo und dem Anhänge-Umleiter >>. Achte auf die Einrückung: Aufgabe 4 Leerzeichen, Modul 6, Parameter 8. Danach: ausrollen, per SSH gegenprüfen.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest harden-fleet.yml und machst dich an die Erweiterung.',
+      },
+      {
+        id: 'later',
+        text: 'Erst die Richtlinie in Playbook-Struktur skizzieren (+Kontext)',
+        effects: { stress: -2 },
+        resultText:
+          'Zwei Regeln, zwei lineinfile-Aufgaben, ein Playbook. Die zweite ist die Kopie der ersten mit PasswordAuthentication statt PermitRootLogin. Sauber gedacht ist halb getippt.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'ansible01',
+      username: 'deploy',
+      currentPath: '/opt/playbooks',
+      taskText:
+        'harden-fleet.yml um eine zweite lineinfile-Aufgabe (PasswordAuthentication no) erweitern, dann auf web01/web02/web03 ausrollen. Ziel: alle drei Hosts mit PermitRootLogin no UND PasswordAuthentication no.',
+      vfsOverlay: {
+        files: [
+          ...controllerSshFiles,
+          { path: '/etc/ansible/hosts', content: ANSIBLE_INVENTORY },
+          {
+            // Ends with a trailing newline so an appended task starts on its
+            // own line and does not merge into `line: 'PermitRootLogin no'`.
+            path: '/opt/playbooks/harden-fleet.yml',
+            content:
+              '---\n' +
+              '- name: Flotte härten\n' +
+              '  hosts: web\n' +
+              '  become: true\n' +
+              '  tasks:\n' +
+              '    - name: Root-Login abschalten\n' +
+              '      lineinfile:\n' +
+              '        path: /etc/ssh/sshd_config\n' +
+              "        regexp: '^#?PermitRootLogin'\n" +
+              "        line: 'PermitRootLogin no'\n",
+          },
+        ],
+      },
+      hosts: [
+        webHost('web01', '10.0.20.11', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('yes', 'yes') },
+        ]),
+        webHost('web02', '10.0.20.12', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('yes', 'yes') },
+        ]),
+        webHost('web03', '10.0.20.13', [
+          { path: '/etc/ssh/sshd_config', content: sshdConfig('yes', 'yes') },
+        ]),
+      ],
+      commandSkillGain: {
+        'ansible-playbook': { linux: 2, security: 2 },
+        echo: { linux: 1 },
+        ssh: { linux: 1, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+            { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
+            { host: 'web02', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+            { host: 'web02', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
+            { host: 'web03', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+            { host: 'web03', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
+          ],
+          resultText:
+            'Die ganze Flotte steht: kein Root-Login, keine Passwort-Anmeldung, nur noch Schlüssel — auf allen drei Webservern, aus einem einzigen Playbook. Du hast eine Richtlinie in wiederholbaren, nachvollziehbaren Code übersetzt. Genau das ist Konfigurationsmanagement.\n\nUnd das Beste: Morgen kommt web04 dazu, du trägst einen Hostnamen ins Inventar ein, lässt das Playbook laufen — und der neue Server ist ohne Handarbeit konform. Eine Wahrheit für alle Hosts. Bert nickt zufrieden: „Das nehmen wir als Standard."',
+          skillGain: { security: 6, linux: 4, troubleshooting: 3 },
+          effects: { stress: -4 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Die zweite Regel ist strukturell die Kopie der ersten — nur mit PasswordAuthentication statt PermitRootLogin. Du hängst sie als weitere Aufgabe hinten an das Playbook an.',
+        '🤖 Henry: Anhängen geht zeilenweise: Jede YAML-Zeile mit echo ausgeben und mit dem Anhänge-Umleiter (zwei spitze Klammern) in die Datei schreiben. Pass auf die Einrückung auf — Aufgabe 4 Leerzeichen, Modul 6, Parameter 8.',
+        '🤖 Henry: Fünf Zeilen kommen dazu: die Aufgaben-Zeile (- name:), die Modul-Zeile (lineinfile:), und darunter path, regexp und line. Danach ausrollen und per SSH gegenprüfen.',
+        "🤖 Henry: `echo '    - name: Passwort-Login abschalten' >> harden-fleet.yml` → `echo '      lineinfile:' >> harden-fleet.yml` → `echo '        path: /etc/ssh/sshd_config' >> harden-fleet.yml` → `echo '        regexp: ^#?PasswordAuthentication' >> harden-fleet.yml` → `echo '        line: PasswordAuthentication no' >> harden-fleet.yml` → dann `ansible-playbook harden-fleet.yml`.",
+      ],
+    },
+    tags: ['learning', 'ansible', 'terminal', 'security', 'automation', 'kritis'],
   },
 ];
