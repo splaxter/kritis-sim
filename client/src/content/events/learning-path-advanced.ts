@@ -958,4 +958,428 @@ nicht. Und die Datenbank? Steht still.
     },
     tags: ['learning', 'systemd', 'terminal', 'troubleshooting'],
   },
+
+  // ==========================================================================
+  // Track: Netz-Forensik
+  // ==========================================================================
+
+  {
+    id: 'learn_net_01_open_doors',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_04_grep_hunter'] },
+    category: 'training',
+    involvedCharacters: ['henry'],
+    title: 'Netz 1: Offene Türen',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  PORT-AUDIT — srv-web                                        ║
+║  Soll-Portliste (freigegeben)                              ║
+╠══════════════════════════════════════════════════════════════╣
+║   22/tcp   SSH                                              ║
+║   80/tcp   HTTP                                             ║
+║  443/tcp   HTTPS                                            ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Henry legt dir die Freigabeliste hin: „Auf srv-web dürfen genau
+drei Ports nach außen lauschen — 22, 80 und 443, mehr nicht.
+Das Monitoring meldet aber, dass die Kiste auf einem Port
+horcht, der in keiner Freigabe steht. Vergleich die offenen
+Ports mit der Soll-Liste, und wenn was übrig bleibt: findest du
+raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
+
+**Deine Aufgabe:**
+- Liste die lauschenden Ports auf srv-web auf
+- Vergleiche sie mit der Soll-Liste (22/80/443)
+- Finde den fremden Prozess und beende ihn`,
+    mentorNote:
+      'Baseline kennen ist die halbe Miete: Wer weiß, was laufen SOLL, erkennt den Ausreißer sofort. `ss -tulpen` zeigt zu jedem lauschenden Port den Prozess (Programm + PID). Den beendest du gezielt über seine PID — nicht die legitimen Dienste.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
+      },
+      {
+        id: 'later',
+        text: 'Erst die Soll-Portliste einprägen (kostet Zeit, +Kontext)',
+        effects: { stress: -1 },
+        resultText:
+          'Drei Ports, mehr nicht. Alles andere ist per Definition verdächtig. Mit dieser Liste im Kopf fällt der Ausreißer sofort auf.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'srv-web',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Lauschende Ports auf srv-web auflisten, mit der Soll-Liste (22/80/443) vergleichen, den fremden Prozess über seine PID beenden.',
+      listeners: [
+        { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
+        { proto: 'tcp', port: 80, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+        { proto: 'tcp', port: 443, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+        { proto: 'tcp', port: 31337, address: '0.0.0.0', pid: 6666, program: 'nc' },
+      ],
+      commandSkillGain: {
+        ss: { linux: 2, security: 2 },
+        netstat: { linux: 1, security: 1 },
+        sudo: { linux: 1, security: 1 },
+        kill: { linux: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // The rogue listener on 31337 must be gone. kill removes the
+            // listener whose PID matches — a real "close the port", not a note.
+            { listenerAbsent: { port: 31337 } },
+          ],
+          resultText:
+            'Port 31337 ist zu — der Prozess „nc" (netcat) lauscht nicht mehr. Genau der stand in keiner Freigabe: eine offene Hintertür, über die jemand von außen eine Shell hätte abgreifen können. Die drei erlaubten Dienste (22/80/443) laufen unberührt weiter.\n\nMerke: Man muss nicht raten. Man kennt die Soll-Liste, listet den Ist-Zustand, und was übrig bleibt, ist der Befund. Jeder offene Port gehört einem Prozess — über dessen PID macht man ihn gezielt dicht.',
+          skillGain: { linux: 3, security: 4, troubleshooting: 1 },
+          effects: { stress: -3 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Du kennst die Soll-Liste — drei Ports. Lass dir anzeigen, worauf die Maschine WIRKLICH lauscht, und halt beides nebeneinander. Was nicht auf der Liste steht, ist dein Fund.',
+        '🤖 Jens: Die lauschenden Sockets mit Prozess und PID zeigt ss — die passenden Flags stehen für tcp, udp, listening, process, numeric. Ein Port fällt aus der Reihe.',
+        '🤖 Jens: Der Ausreißer ist Port 31337, dahinter der Prozess nc mit seiner PID. Einen Prozess beendest du gezielt über seine PID — als root, also mit sudo.',
+        '🤖 Jens: `ss -tulpen` → in der Zeile mit 31337 die PID (6666) ablesen → `sudo kill 6666`. Danach nochmal `ss -tulpen`: der Port ist weg.',
+      ],
+    },
+    tags: ['learning', 'network', 'terminal', 'security', 'forensics'],
+  },
+
+  {
+    id: 'learn_net_02_backchannel',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_net_01_open_doors'] },
+    category: 'training',
+    involvedCharacters: ['jens'],
+    title: 'Netz 2: Der Rückkanal',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  ANOMALIE — srv-web telefoniert nach draußen                ║
+║  Ziel: 91.203.5.77:443                                      ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Nicht jeder böse Port lauscht — manche rufen selbst raus. Das
+Monitoring zeigt eine stehende Verbindung von srv-web zu einer
+fremden Adresse auf Port 443. Sieht aus wie HTTPS, ist aber
+keiner deiner Dienste. Und in der \`/etc/hosts\` steht ein
+Eintrag, der diese IP auf einen harmlos klingenden Namen
+umbiegt — damit im Log niemand stutzig wird.
+
+Erst sicherst du den Beweis, DANN drehst du den Kanal zu.
+
+**Deine Aufgabe:**
+- Finde die stehende Verbindung nach draußen (welcher Prozess?)
+- Finde den manipulierten Eintrag in \`/etc/hosts\`
+- Sichere \`/etc/hosts\` als Beweis nach \`/root/incident/hosts.bak\`
+- Entferne die manipulierte Zeile aus \`/etc/hosts\``,
+    mentorNote:
+      'Beweissicherung zuerst: erst die Kopie ziehen, dann bereinigen — wer die Reihenfolge dreht, sichert nur noch den bereinigten Zustand. `ss -tp` zeigt auch stehende Verbindungen samt Prozess. Eine manipulierte /etc/hosts biegt eine IP auf einen vertrauenswürdig klingenden Namen um. Beides liegt root, also mit sudo arbeiten.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
+      },
+      {
+        id: 'later',
+        text: 'Erst überlegen, was „unauffällig" heißen soll (kostet Zeit, +Kontext)',
+        effects: { stress: -1 },
+        resultText:
+          'Ein Angreifer, der auffliegen will, benennt seine IP nicht um. Der Eintrag in /etc/hosts ist genau deshalb ein Alarmsignal: jemand wollte, dass die Verbindung harmlos aussieht.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'srv-web',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Stehende Ausgangsverbindung finden (ss -tp), manipulierten /etc/hosts-Eintrag finden, /etc/hosts als Beweis nach /root/incident/hosts.bak sichern, dann die Zeile entfernen.',
+      vfsOverlay: {
+        directories: ['/root/incident'],
+        files: [
+          {
+            path: '/etc/hosts',
+            content:
+              '127.0.0.1\tlocalhost\n::1\tlocalhost ip6-localhost ip6-loopback\n10.0.20.11\tsrv-web\n91.203.5.77\tupdate.vendor.de\n',
+          },
+        ],
+      },
+      connections: [
+        { proto: 'tcp', localPort: 54210, peer: '91.203.5.77:443', state: 'ESTAB', pid: 4242, program: 'updater' },
+      ],
+      commandSkillGain: {
+        ss: { linux: 1, security: 2 },
+        cat: { linux: 1 },
+        cp: { security: 2, linux: 1 },
+        sudo: { linux: 1, security: 1 },
+        sed: { security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Evidence must be the REAL /etc/hosts with the poison line still in
+            // it — only possible if the backup was taken BEFORE cleaning.
+            { file: '/root/incident/hosts.bak', matches: '91\\.203\\.5\\.77' },
+            // And the live /etc/hosts must no longer resolve the C2 IP.
+            { file: '/etc/hosts', absentMatches: '91\\.203\\.5\\.77' },
+          ],
+          resultText:
+            'Der Rückkanal ist zu: Die manipulierte Zeile aus /etc/hosts ist raus, und die Beweiskopie liegt in /root/incident — gezogen BEVOR du etwas verändert hast. Der Prozess „updater" gab sich als Update-Client aus und telefonierte in Wahrheit zu 91.203.5.77, getarnt hinter dem Namen „update.vendor.de".\n\nMerke: Erst sichern, dann bereinigen — immer in dieser Reihenfolge. Und ein Blick in /etc/hosts lohnt sich: Namensauflösung ist Vertrauen, und genau da setzen Angreifer gern den Hebel an.',
+          skillGain: { linux: 3, security: 5, troubleshooting: 2 },
+          effects: { stress: -3 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Nicht nur lauschende Ports sind gefährlich — eine Maschine, die selbst nach draußen telefoniert, auch. Schau dir die stehenden Verbindungen an und welcher Prozess dahintersteckt. Und wirf einen Blick darauf, wie Namen auf dieser Kiste aufgelöst werden.',
+        '🤖 Jens: Stehende TCP-Verbindungen mit Prozess zeigt ss -tp. Die fremde IP taucht auch in /etc/hosts auf — dort wurde sie auf einen harmlosen Namen umgebogen. Bevor du aufräumst: sichern.',
+        '🤖 Jens: Zieh erst eine Kopie von /etc/hosts nach /root/incident/hosts.bak (das gehört root, also sudo). ERST DANN entfernst du die Zeile mit der IP 91.203.5.77 gezielt aus /etc/hosts.',
+        "🤖 Jens: `ss -tp` → `cat /etc/hosts` → `sudo cp /etc/hosts /root/incident/hosts.bak` → `sudo sed -i '/91.203.5.77/d' /etc/hosts`.",
+      ],
+    },
+    tags: ['learning', 'network', 'terminal', 'security', 'forensics'],
+  },
+
+  {
+    id: 'learn_net_03_the_wall',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_net_02_backchannel'] },
+    category: 'training',
+    involvedCharacters: ['bert'],
+    title: 'Netz 3: Die Mauer',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  HÄRTUNG — Firewall srv-web                                  ║
+║  Auftrag: Bert (IT-Leitung)                                ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Bert: „Die Kiste steht mit offener Firewall im Netz — alles rein,
+was anklopft. Das drehen wir um: rein darf nur noch, was rein
+MUSS — 22, 80 und 443. Alles andere bleibt draußen. Aber pass
+auf die Reihenfolge auf: Wenn du erst alles zumachst und dich
+DANN um Port 22 kümmerst, sperrst du dich selbst aus. Erst die
+Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
+
+**Deine Aufgabe:**
+- Erlaube eingehend genau 22/tcp, 80/tcp und 443/tcp
+- Setze die Standard-Richtung für eingehend auf „deny"
+- Aktiviere die Firewall — in der richtigen Reihenfolge`,
+    mentorNote:
+      'Reihenfolge rettet dich: erst die nötigen Ports freigeben (ufw allow 22/tcp …), DANN die Standardrichtung auf deny setzen und die Firewall aktivieren. Wer die Regeln umdreht, kappt sich womöglich den eigenen SSH-Zugang. ufw braucht root — also sudo.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
+      },
+      {
+        id: 'later',
+        text: 'Erst die Reihenfolge durchdenken (kostet Zeit, +Ruhe)',
+        effects: { stress: -2 },
+        resultText:
+          'Erst aufschließen, was du brauchst — dann abriegeln. In dieser Reihenfolge sperrt man sich nicht aus. Du gehst es ruhig an.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'srv-web',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Firewall härten: eingehend 22/80/443 erlauben, Standard-Richtung eingehend auf deny, Firewall aktivieren — Reihenfolge beachten (erst allow 22, dann deny).',
+      firewall: {
+        enabled: false,
+        defaultIncoming: 'allow',
+        rules: [],
+      },
+      commandSkillGain: {
+        sudo: { linux: 1, security: 1 },
+        ufw: { linux: 2, security: 3 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // The three needed ports are open AND the default is deny. The
+            // "don't lock yourself out" order is taught in the hints; the goal
+            // only checks the end state.
+            { firewallRule: { action: 'allow', port: 22, present: true } },
+            { firewallRule: { action: 'allow', port: 80, present: true } },
+            { firewallRule: { action: 'allow', port: 443, present: true } },
+            { firewallDefaultIncoming: 'deny' },
+          ],
+          resultText:
+            'Die Mauer steht: Eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und weil du zuerst die Türen aufgeschlossen und erst dann die Mauer hochgezogen hast, sitzt du noch drin und nicht ausgesperrt vor der Tür.\n\nMerke: Bei Firewalls zählt die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren. Umgekehrt kappst du dir womöglich den eigenen Zugang.',
+          skillGain: { linux: 3, security: 5, troubleshooting: 1 },
+          effects: { stress: -3 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Im Moment lässt die Firewall alles rein. Das Ziel ist umgekehrt: standardmäßig zu, und nur die drei nötigen Türen offen. Denk an die Reihenfolge — erst aufschließen, was du brauchst, dann abriegeln.',
+        '🤖 Jens: Die unkomplizierte Firewall heißt ufw. Du gibst einzelne Ports frei (allow), setzt eine Standardrichtung (default) und schaltest sie scharf (enable). Alles davon braucht root, also sudo.',
+        '🤖 Jens: Erst die Freigaben für 22/tcp, 80/tcp und 443/tcp. DANN default deny incoming. Erst am Schluss enable. Drehst du das um, riskierst du deinen eigenen SSH-Zugang.',
+        '🤖 Jens: `sudo ufw allow 22/tcp` → `sudo ufw allow 80/tcp` → `sudo ufw allow 443/tcp` → `sudo ufw default deny incoming` → `sudo ufw enable`.',
+      ],
+    },
+    tags: ['learning', 'network', 'terminal', 'security', 'hardening'],
+  },
+
+  {
+    id: 'learn_net_04_spider',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_net_03_the_wall'] },
+    category: 'training',
+    involvedCharacters: ['henry'],
+    title: 'Netz ★: Die Spinne im Netz',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  ★ INCIDENT — Querbewegung im Netz                          ║
+║  Umfang: web01 → db01                                       ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Alles zusammen jetzt. Auf web01 zeigt das Journal eine
+SSH-Anmeldung, die dort nicht hingehört: jemand hat sich als
+admin eingeloggt — von \`10.0.20.12\`. Das ist db01, dein eigener
+Datenbankserver. Sprich: Der Angreifer sitzt schon auf db01 und
+hat sich von dort weitergehangelt. Eine Spinne, die von Host zu
+Host krabbelt.
+
+Du gehst der Spur auf db01 nach. Dort wartet mehr: ein
+Cron-Job, der im Minutentakt etwas nachlädt, und ein fremder
+Port, der lauscht. Sichere die Beweise, entferne den Cron-Job,
+und riegle den Port ab.
+
+**Deine Aufgabe:**
+- Finde im Journal von web01, von welchem Host die Anmeldung kam
+- Sichere db01s root-Crontab als Beweis nach \`~/evidenz_cron.txt\`
+- Entferne die Backdoor-Zeile (\`beacon\`) aus db01s Crontab
+- Riegle auf db01 den fremden Port \`31337\` per Firewall ab`,
+    mentorNote:
+      'Die Synthese: Journal lesen (Querbewegung erkennen), per SSH auf den Nachbarhost, Beweise sichern BEVOR du bereinigst (scp holt die Datei zu dir — die Kopie zuerst!), die Backdoor gezielt entfernen und den fremden Port eindämmen. Die root-Crontab liegt unter /var/spool/cron/crontabs/root und gehört root — auf db01 also mit sudo bearbeiten. ufw braucht ebenfalls root.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Terminal öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
+      },
+      {
+        id: 'later',
+        text: 'Erst die Angriffskette skizzieren (kostet Zeit, +Kontext)',
+        effects: { stress: -1 },
+        resultText:
+          'db01 → web01, als admin, per Schlüssel. Der Angreifer ist bereits drin und bewegt sich seitwärts. Der Ausgangspunkt ist db01 — dort fängst du an.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'web01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Im Journal von web01 den Herkunftshost (db01) finden, db01s root-Crontab per scp nach ~/evidenz_cron.txt sichern, die beacon-Zeile auf db01 entfernen, Port 31337 auf db01 per ufw sperren.',
+      vfsOverlay: {
+        files: [
+          {
+            path: '/home/timo/zugang-db01.txt',
+            content: 'db01 (Datenbank) / admin\nPasswort: notstrom-db-2024',
+          },
+        ],
+      },
+      journal: [
+        { ts: '2026-07-17 21:03:11', unit: 'sshd', priority: 'info', message: 'Accepted publickey for admin from 10.0.10.5 port 51022 ssh2: ED25519 SHA256:7c2b…' },
+        { ts: '2026-07-18 02:47:52', unit: 'sshd', priority: 'info', message: 'Accepted publickey for admin from 10.0.20.12 port 39114 ssh2: ED25519 SHA256:a1f9…' },
+        { ts: '2026-07-18 02:48:03', unit: 'sshd', priority: 'info', message: 'pam_unix(sshd:session): session opened for user admin by (uid=0)' },
+        { ts: '2026-07-18 03:15:40', unit: 'sshd', priority: 'info', message: 'Received disconnect from 10.0.20.12 port 39114:11: disconnected by user' },
+      ],
+      hosts: [
+        {
+          id: 'db01',
+          hostname: 'db01',
+          ip: '10.0.20.12',
+          accounts: [{ name: 'admin', password: 'notstrom-db-2024' }, { name: 'root' }],
+          listeners: [
+            { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
+            { proto: 'tcp', port: 3306, address: '0.0.0.0', pid: 2345, program: 'mysqld' },
+            { proto: 'tcp', port: 31337, address: '0.0.0.0', pid: 6666, program: 'beacon' },
+          ],
+          vfsOverlay: {
+            files: [
+              {
+                path: '/var/spool/cron/crontabs/root',
+                content:
+                  '# DO NOT EDIT THIS FILE - edit the master and reinstall.\n0 3 * * * /usr/local/bin/db-backup.sh\n* * * * * /tmp/.hidden/beacon.sh\n',
+              },
+            ],
+          },
+        },
+      ],
+      commandSkillGain: {
+        journalctl: { linux: 1, troubleshooting: 2, security: 1 },
+        ssh: { linux: 1, security: 1 },
+        scp: { security: 2, linux: 1 },
+        sudo: { linux: 1, security: 1 },
+        sed: { security: 1 },
+        ufw: { security: 2 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Evidence secured on web01 BEFORE cleaning (must still contain the
+            // backdoor line) — evidence-first coupling.
+            { file: '/home/timo/evidenz_cron.txt', matches: 'beacon' },
+            // Backdoor removed from db01's crontab.
+            { host: 'db01', file: '/var/spool/cron/crontabs/root', absentMatches: 'beacon' },
+            // Rogue port contained on db01 by firewall.
+            { host: 'db01', firewallRule: { action: 'deny', port: 31337, present: true } },
+          ],
+          resultText:
+            'Die Spinne sitzt fest: Die Beweiskopie der Crontab liegt sicher auf web01 (gezogen, bevor du db01 angefasst hast), die Backdoor-Zeile ist raus, und Port 31337 ist per Firewall dicht. Der Cron-Job hätte im Minutentakt \`/tmp/.hidden/beacon.sh\` nachgeladen — ein klassischer Persistenz-Mechanismus, versteckt in einem Punkt-Verzeichnis.\n\nDrei Tracks in einem Fall: Journal-Forensik hat die Querbewegung von db01 aufgedeckt, SSH hat dich sauber auf den Nachbarhost gebracht, und die Netz-Werkzeuge (ss, ufw) haben den Port geschlossen. Genau so arbeitet man einen Incident ab — der Reihe nach, mit Beweissicherung zuerst.\n\nHenry, leise: „Ein Beacon auf db01, eine Querbewegung nach web01… das war kein Skript-Kiddie. Das gehört in die FENRIS-Akte."',
+          skillGain: { security: 6, linux: 3, troubleshooting: 3 },
+          effects: { stress: -4 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Fang bei der Spur auf web01 an: Im Journal steht eine SSH-Anmeldung, die nicht hierher gehört — samt der IP, von der sie kam. Diese IP ist dein nächster Host. Und bevor du dort etwas veränderst: Beweise sichern.',
+        '🤖 Jens: Die IP 10.0.20.12 ist db01. Dort liegt die root-Crontab unter /var/spool/cron/crontabs/root — mit einer Zeile, die im Minutentakt etwas nachlädt (beacon). Und ein fremder Port lauscht. Hol dir die Crontab als Beweiskopie zu dir, BEVOR du db01 aufräumst.',
+        '🤖 Jens: Kopier db01s Crontab per scp nach ~/evidenz_cron.txt (das liest die Datei, ohne dass du dich einloggst). ERST DANN: per ssh auf db01, die beacon-Zeile mit sudo aus der Crontab entfernen und Port 31337 per ufw sperren.',
+        "🤖 Jens: `scp admin@db01:/var/spool/cron/crontabs/root ~/evidenz_cron.txt` → `ssh admin@db01` → `sudo sed -i '/beacon/d' /var/spool/cron/crontabs/root` → `sudo ufw deny 31337` (Passwort: siehe zugang-db01.txt).",
+      ],
+    },
+    tags: ['learning', 'network', 'terminal', 'security', 'forensics', 'kritis'],
+  },
 ];

@@ -121,8 +121,20 @@ export const LEARNING_TRACKS: LearningTrack[] = [
       { eventId: 'learn_sysd_04_chain_reaction' },
     ],
   },
-  // B4/B5 will register the remaining tracks once their levels are authored.
-  // Registering them now would list eventIds the LearningHub cannot resolve.
+  {
+    id: 'net_forensics',
+    title: 'Netz-Forensik',
+    description: 'Offene Ports, fremde Verbindungen, saubere Firewalls.',
+    icon: '🕸️',
+    order: 9,
+    levels: [
+      { eventId: 'learn_net_01_open_doors' },
+      { eventId: 'learn_net_02_backchannel' },
+      { eventId: 'learn_net_03_the_wall' },
+      { eventId: 'learn_net_04_spider', optional: true },
+    ],
+  },
+  // B5 will register the Ansible track once its levels are authored.
   {
     id: 'finale',
     title: 'Finale: Root Awakening',
