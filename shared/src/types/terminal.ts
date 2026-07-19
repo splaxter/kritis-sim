@@ -123,7 +123,10 @@ export interface TerminalHostSpec {
 
 /** Declarative win condition, checked against live engine state after every command. */
 export interface StateGoal {
-  /** Host id; defaults to the primary (first) host. */
+  /**
+   * Host addressed by id, full hostname, short hostname (before the first
+   * '.'), or IP. Defaults to the primary (base) host.
+   */
   host?: string;
   file?: string;
   /** Regex (multiline) the file must match. */

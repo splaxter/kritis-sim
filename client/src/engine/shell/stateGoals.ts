@@ -16,25 +16,61 @@ function safeRegex(pattern: string): RegExp | null {
   }
 }
 
+/**
+ * A goal must anchor at least one real assertion — `{}`, a bare `file`, or a
+ * `matches` without its `file` are authoring mistakes and never count as met.
+ */
+function hasAssertion(goal: StateGoal): boolean {
+  const fileAssertion = goal.file !== undefined && (
+    goal.matches !== undefined
+    || goal.absentMatches !== undefined
+    || goal.fileExists !== undefined
+    || goal.fileAbsent !== undefined
+  );
+  // serviceEnabled: false is a legal assertion — check "given", not truthiness.
+  const serviceAssertion = goal.service !== undefined && (
+    goal.serviceState !== undefined || goal.serviceEnabled !== undefined
+  );
+  return fileAssertion
+    || serviceAssertion
+    || goal.firewallRule !== undefined
+    || goal.firewallDefaultIncoming !== undefined;
+}
+
+const warnedGoals = new Set<string>();
+
+/** Warn once per unique malformed goal so authoring bugs surface without spam. */
+function warnVacuousGoal(goal: StateGoal): void {
+  const key = JSON.stringify(goal);
+  if (warnedGoals.has(key)) return;
+  warnedGoals.add(key);
+  console.warn(`stateGoals: goal has no evaluable assertion, treated as unmet: ${key}`);
+}
+
 function checkFileGoals(host: HostState, goal: StateGoal): boolean {
   if (!goal.file) return true;
   const { vfs } = host;
 
-  if (goal.fileExists === true && !vfs.exists(goal.file)) return false;
-  if (goal.fileAbsent === true && vfs.exists(goal.file)) return false;
+  // Explicit false inverts the assertion: fileExists:false ⇔ must NOT exist,
+  // fileAbsent:false ⇔ MUST exist. Undefined means "not asserted".
+  if (goal.fileExists !== undefined && vfs.exists(goal.file) !== goal.fileExists) return false;
+  if (goal.fileAbsent !== undefined && vfs.exists(goal.file) === goal.fileAbsent) return false;
 
   if (goal.matches !== undefined || goal.absentMatches !== undefined) {
-    const read = vfs.readFile(goal.file);
+    // Goal evaluation is omniscient: stat bypasses in-game read permissions,
+    // so a root-owned 600 file is still checkable from an unprivileged session.
+    const st = vfs.stat(goal.file);
     // NOTE: absentMatches requires the file to EXIST and be clean — a missing
     // file fails the goal. A level that wants "file is gone" uses fileAbsent.
-    if (!read.ok) return false;
+    if (!st.ok || st.value.type === 'directory') return false;
+    const content = st.value.content ?? '';
     if (goal.matches !== undefined) {
       const re = safeRegex(goal.matches);
-      if (!re || !re.test(read.value)) return false;
+      if (!re || !re.test(content)) return false;
     }
     if (goal.absentMatches !== undefined) {
       const re = safeRegex(goal.absentMatches);
-      if (!re || re.test(read.value)) return false;
+      if (!re || re.test(content)) return false;
     }
   }
   return true;
@@ -57,7 +93,7 @@ function checkServiceGoals(host: HostState, goal: StateGoal): boolean {
  * Goals have no proto field — matching is proto-insensitive by design: a
  * proto-less stored rule and a 22/tcp rule both satisfy a port-22 goal.
  */
-function ruleMatches(rule: UfwRule, goal: { action: 'allow' | 'deny'; port: number }): boolean {
+function ruleMatches(rule: UfwRule, goal: NonNullable<StateGoal['firewallRule']>): boolean {
   return rule.action === goal.action && rule.port === goal.port;
 }
 
@@ -88,6 +124,10 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
+    if (!hasAssertion(goal)) {
+      warnVacuousGoal(goal);
+      return false;
+    }
     // goal.host may be an id, hostname, short hostname, or IP; unset → base host.
     const host = goal.host ? engine.resolveHost(goal.host) : engine.getBaseHost();
     if (!host) return false;

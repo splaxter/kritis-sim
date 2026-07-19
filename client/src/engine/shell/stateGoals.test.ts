@@ -50,7 +50,64 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('omniscient reads', () => {
+    it('evaluates matches/absentMatches on a root-owned 600 file while the session user is unprivileged', () => {
+      const web = createHostState({ id: 'web02', hostname: 'web02' }, { user: 'www-data' });
+      engine.registerHost(web);
+      web.vfs.addFile('/etc/shadow-config', 'Secret=42\n');
+      web.vfs.chown('/etc/shadow-config', 'root', 'root');
+      web.vfs.chmod('/etc/shadow-config', '600');
+      engine.pushSession('web02', 'www-data');
+
+      // Sanity: the in-game user cannot read the file...
+      expect(web.vfs.readFile('/etc/shadow-config').ok).toBe(false);
+      // ...but goal evaluation is omniscient and still sees the content.
+      expect(checkStateGoal(engine, { host: 'web02', file: '/etc/shadow-config', matches: '^Secret=42$' })).toBe(true);
+      expect(checkStateGoal(engine, { host: 'web02', file: '/etc/shadow-config', absentMatches: 'Backdoor' })).toBe(true);
+    });
+
+    it('a directory path fails matches goals', () => {
+      engine.getBaseHost().vfs.addDirectory('/opt/data');
+      expect(checkStateGoal(engine, { file: '/opt/data', matches: '.' })).toBe(false);
+    });
+  });
+
+  describe('vacuous goals are rejected', () => {
+    it('an empty goal object is false', () => {
+      expect(checkStateGoal(engine, {})).toBe(false);
+    });
+
+    it('matches without file is false', () => {
+      expect(checkStateGoal(engine, { matches: 'x' } as StateGoal)).toBe(false);
+    });
+
+    it('file without any file assertion is false', () => {
+      engine.getBaseHost().vfs.addFile('/tmp/x', 'x');
+      expect(checkStateGoal(engine, { file: '/tmp/x' })).toBe(false);
+    });
+
+    it('serviceState without service is false', () => {
+      expect(checkStateGoal(engine, { serviceState: 'active' } as StateGoal)).toBe(false);
+    });
+
+    it('serviceEnabled: false with a service is a legal, non-vacuous assertion', () => {
+      const svc = engine.getBaseHost().services.find(s => s.unit === 'ssh.service')!;
+      svc.enabled = 'disabled';
+      expect(checkStateGoal(engine, { service: 'ssh', serviceEnabled: false })).toBe(true);
+    });
+  });
+
   describe('fileExists / fileAbsent', () => {
+    it('explicit false inverts the assertion', () => {
+      engine.getBaseHost().vfs.addFile('/tmp/present', 'x');
+      // fileExists: false ⇔ the file must NOT exist.
+      expect(checkStateGoal(engine, { file: '/tmp/present', fileExists: false })).toBe(false);
+      expect(checkStateGoal(engine, { file: '/tmp/absent', fileExists: false })).toBe(true);
+      // fileAbsent: false ⇔ the file MUST exist.
+      expect(checkStateGoal(engine, { file: '/tmp/present', fileAbsent: false })).toBe(true);
+      expect(checkStateGoal(engine, { file: '/tmp/absent', fileAbsent: false })).toBe(false);
+    });
+
     it('fileExists: true passes iff the file exists', () => {
       engine.getBaseHost().vfs.addFile('/var/backup/dump.sql', 'data');
       expect(checkStateGoal(engine, { file: '/var/backup/dump.sql', fileExists: true })).toBe(true);
