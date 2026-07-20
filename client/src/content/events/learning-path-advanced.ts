@@ -28,6 +28,32 @@ const ANSIBLE_PRIVKEY =
   'ZWQyNTUxOQAAACCKr1t1sd3pl0yAnsibleControllerKey00000000000000000000AA\n' +
   '-----END OPENSSH PRIVATE KEY-----\n';
 
+// ============================================================================
+// SSH track key continuity
+// ----------------------------------------------------------------------------
+// The player creates their personal keypair in SSH 1 (Onboarding). From SSH 2
+// onward that keypair is pre-seeded on the workstation, and ONLY web01 carries
+// the matching public key in admin's authorized_keys — that is the host the
+// player onboarded in SSH 1. jump01/db01 are DIFFERENT hosts where the player
+// legitimately receives password credentials in the briefing; they deliberately
+// do NOT trust the personal key.
+// ============================================================================
+
+const PLAYER_PUBKEY =
+  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAITimoOnboardingKey00000000000000000000000000 timo@ws-admin';
+
+const PLAYER_PRIVKEY =
+  '-----BEGIN OPENSSH PRIVATE KEY-----\n' +
+  'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gt\n' +
+  'ZWQyNTUxOQAAACATimoOnboardingKey0000000000000000000000000000000000AA\n' +
+  '-----END OPENSSH PRIVATE KEY-----\n';
+
+/** Player workstation ~/.ssh: the onboarding keypair from SSH 1 (600 private). */
+const playerSshFiles = [
+  { path: '/home/timo/.ssh/id_ed25519', content: PLAYER_PRIVKEY, mode: '600' },
+  { path: '/home/timo/.ssh/id_ed25519.pub', content: PLAYER_PUBKEY + '\n' },
+];
+
 /** Controller ~/.ssh: private key (600) + matching public key. */
 const controllerSshFiles = [
   { path: '/home/deploy/.ssh/id_ed25519', content: ANSIBLE_PRIVKEY, mode: '600' },
@@ -103,13 +129,6 @@ Home. Danach will ich sehen, dass du OHNE Passwort raufkommst.“
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst das Ticket zu Ende lesen (kostet Zeit, +Kontext)',
-        effects: { stress: -2 },
-        resultText:
-          'Du atmest durch und liest das Ticket zweimal. Kein Ruhm, aber ein klarer Kopf.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -148,9 +167,12 @@ Home. Danach will ich sehen, dass du OHNE Passwort raufkommst.“
           allRequired: false,
           stateGoals: [
             { host: 'web01', file: '/home/admin/.ssh/authorized_keys', matches: 'ssh-ed25519' },
+            // The passwordless login IS the win: installing the key alone does
+            // not finish the level — the player must actually get in via key.
+            { loggedIn: { host: 'web01', method: 'publickey' } },
           ],
           resultText:
-            'Der Schlüssel liegt auf web01. Beim nächsten `ssh admin@web01` fragt niemand mehr nach einem Passwort — und der Safe-Zettel kann in den Schredder.\n\nMerke: Der PRIVATE Schlüssel hat deinen Rechner nie verlassen. Genau so soll es sein.',
+            'Du bist drauf — und kein Passwort wurde gefragt. Der Schlüssel liegt auf web01, der Login läuft über das Schlüsselpaar, und der Safe-Zettel kann in den Schredder.\n\nMerke: Der PRIVATE Schlüssel hat deinen Rechner nie verlassen. Genau so soll es sein.',
           skillGain: { linux: 3, security: 3 },
           effects: { stress: -3 },
         },
@@ -184,17 +206,18 @@ Home. Danach will ich sehen, dass du OHNE Passwort raufkommst.“
 Bert schiebt dir den Audit-Befund über den Tisch: „Auf web01
 steht die Tür sperrangelweit offen — Root darf sich per SSH
 einloggen, und Passwort-Logins sind erlaubt. Beides gehört zu.
-Aber pass auf mit der Reihenfolge: Erst prüfst du, dass DEIN
+Dein Schlüssel aus dem Onboarding liegt schon auf web01. Aber
+pass auf mit der Reihenfolge: Erst prüfst du, dass DEIN
 Schlüssel greift, DANN drehst du die Passwörter ab. Wer das
 umdreht und keinen Key hat, sperrt sich selbst aus — und dann
 klingle ich dich nachts aus dem Rechenzentrum.“
 
 **Deine Aufgabe:**
-- Melde dich auf web01 an (admin)
+- Melde dich per Schlüssel auf web01 an (admin) — der Beweis, dass dein Key greift
 - Setze \`PermitRootLogin no\` und \`PasswordAuthentication no\`
-- Lade den SSH-Dienst neu, damit die Härtung greift`,
+- Starte den SSH-Dienst neu, damit die Härtung greift`,
     mentorNote:
-      'Reihenfolge ist alles: zuerst testen, dass der Schlüssel-Login funktioniert — erst dann Passwort-Authentifizierung abschalten. sshd wertet die erste passende Zeile aus; ändere die BESTEHENDE Zeile, häng keine zweite an (sonst gewinnt weiter das alte „yes“). Systemdateien unter /etc gehören root — dafür brauchst du sudo.',
+      'Reihenfolge ist alles: zuerst testen, dass der Schlüssel-Login funktioniert — erst dann Passwort-Authentifizierung abschalten. sshd wertet die erste passende Zeile aus; ändere die BESTEHENDE Zeile, häng keine zweite an (sonst gewinnt weiter das alte „yes“). Und: Die Datei zu ändern reicht nicht — der laufende Dienst liest sie erst beim Neustart neu ein. Systemdateien unter /etc gehören root — dafür brauchst du sudo.',
     choices: [
       {
         id: 'start',
@@ -203,13 +226,6 @@ klingle ich dich nachts aus dem Rechenzentrum.“
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst den Audit-Befund komplett lesen (kostet Zeit, +Kontext)',
-        effects: { stress: -2 },
-        resultText:
-          'Du liest den Befund zu Ende. Zwei Zeilen, ein klarer Auftrag — und eine Reihenfolge, die man nicht vertauschen darf.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -217,12 +233,15 @@ klingle ich dich nachts aus dem Rechenzentrum.“
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Auf web01 einloggen, PermitRootLogin no und PasswordAuthentication no setzen, sshd neu laden.',
+        'Per Schlüssel auf web01 einloggen (der Test!), PermitRootLogin no und PasswordAuthentication no setzen, sshd neu starten.',
       vfsOverlay: {
         files: [
+          // Key continuity: the onboarding keypair from SSH 1 is pre-seeded.
+          ...playerSshFiles,
           {
             path: '/home/timo/zugang-web01.txt',
-            content: 'web01 / admin\nPasswort: sonnenblume23',
+            content:
+              'web01 / admin\nDein Onboarding-Schlüssel ist hinterlegt — Login per Key.\n(Notfall-Passwort, solange Passwort-Auth noch an ist: sonnenblume23)',
           },
         ],
       },
@@ -232,9 +251,14 @@ klingle ich dich nachts aus dem Rechenzentrum.“
           hostname: 'web01',
           ip: '10.0.20.11',
           templateIds: ['linux-webserver'],
+          // Password auth is deliberately still ON (realistic pre-hardening
+          // state) — but the WIN requires a publickey login, so the player must
+          // have proven the key works before locking password auth out.
           accounts: [{ name: 'admin', password: 'sonnenblume23' }, { name: 'root' }],
           vfsOverlay: {
             files: [
+              // web01 trusts the player's onboarding key (deployed in SSH 1).
+              { path: '/home/admin/.ssh/authorized_keys', content: PLAYER_PUBKEY + '\n' },
               {
                 path: '/etc/ssh/sshd_config',
                 content:
@@ -255,6 +279,9 @@ klingle ich dich nachts aus dem Rechenzentrum.“
           commands: [],
           allRequired: false,
           stateGoals: [
+            // The lesson's order: the player must have PROVEN the key works by
+            // logging in via publickey — a password login does not count.
+            { loggedIn: { host: 'web01', method: 'publickey' } },
             // Both directives must end up on "no" AND the insecure "yes" line
             // must be GONE — otherwise appending a "no" below the surviving
             // "yes" would pass while sshd still honours the first (yes) match.
@@ -263,17 +290,21 @@ klingle ich dich nachts aus dem Rechenzentrum.“
             { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
             { host: 'web01', file: '/etc/ssh/sshd_config', absentMatches: '^PasswordAuthentication yes' },
             { host: 'web01', service: 'ssh', serviceState: 'active' },
+            // Effective-config enforcement: editing the file alone is not the
+            // win — only `systemctl restart/reload ssh` makes the daemon read
+            // it, and only then does this goal flip.
+            { host: 'web01', sshdEffective: { permitRootLogin: false, passwordAuthentication: false } },
           ],
           resultText:
-            'Beide Zeilen stehen jetzt auf „no“, der Dienst läuft mit der neuen Konfiguration. Root-Login und Passwort-Logins sind zu — ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten. Wer die Reihenfolge dreht und keinen Key hat, sperrt sich selbst aus.',
+            'Beide Zeilen stehen auf „no“, und der neu gestartete Dienst fährt wirklich mit der neuen Konfiguration — nicht mit der alten im Speicher. Root-Login und Passwort-Logins sind zu; ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat. Und dein eigener Zugang? Bewiesen, BEVOR die Tür zufiel: Du warst per Schlüssel drauf.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten — und nach jeder Änderung an der sshd-Konfiguration den Dienst neu starten, sonst gilt weiter der alte Stand.',
           skillGain: { linux: 3, security: 4 },
           effects: { stress: -3 },
         },
       ],
       hints: [
-        '🤖 Jens: Zwei Zeilen in der sshd-Konfiguration stehen auf „yes“, die gehören auf „no“. Aber log dich erst ein — und ändere die BESTEHENDEN Zeilen, häng keine neuen an.',
-        '🤖 Jens: Rein kommst du mit ssh admin@web01 (Passwort steht in zugang-web01.txt). Die Konfiguration liegt in /etc/ssh/sshd_config.',
-        '🤖 Jens: Zeilen gezielt ersetzen geht mit sed -i und einem Suchmuster am Zeilenanfang (^). Die Konfig liegt root, also mit sudo. Danach den Dienst neu laden.',
+        '🤖 Jens: Zwei Zeilen in der sshd-Konfiguration stehen auf „yes“, die gehören auf „no“. Aber zuerst der Test: Log dich per Schlüssel ein — dein Onboarding-Key liegt schon auf web01. Und ändere die BESTEHENDEN Zeilen, häng keine neuen an.',
+        '🤖 Jens: Rein kommst du mit ssh admin@web01 — ganz ohne Passwort, dein Schlüssel greift. Genau dieser Login ist der Beweis, dass du dich nicht aussperrst. Die Konfiguration liegt in /etc/ssh/sshd_config.',
+        '🤖 Jens: Zeilen gezielt ersetzen geht mit sed -i und einem Suchmuster am Zeilenanfang (^). Die Konfig liegt root, also mit sudo. Und ganz wichtig: Danach den Dienst neu starten — vorher fährt sshd weiter mit der alten Konfiguration.',
         "🤖 Jens: `ssh admin@web01` → `sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config` → dasselbe für `PasswordAuthentication` → `sudo systemctl restart ssh`.",
       ],
     },
@@ -316,13 +347,6 @@ kritischen Infrastruktur gebaut: Wer in die DB-Zone will, geht
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst den Zonenplan ansehen (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Du prägst dir den Weg ein: erst auf den Jumphost, von dort in die Zone. Nie direkt.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -333,6 +357,10 @@ kritischen Infrastruktur gebaut: Wer in die DB-Zone will, geht
         'Über jump01 auf db01 springen, /var/dbdumps/status.txt per scp auf jump01 nach /tmp/statusbericht.txt holen.',
       vfsOverlay: {
         files: [
+          // Key continuity: the onboarding keypair travels with the player —
+          // but jump01/db01 are foreign zones that deliberately do NOT trust
+          // it. Access there works via the briefed password credentials.
+          ...playerSshFiles,
           {
             path: '/home/timo/zonen-zugang.txt',
             content:
@@ -415,10 +443,10 @@ kritischen Infrastruktur gebaut: Wer in die DB-Zone will, geht
 \`\`\`
 
 Ein Key-Audit über alle drei Hosts. Auf den meisten Maschinen
-stehen nur die Schlüssel, die dort hingehören — die von Jens und
-Henry. Aber auf db01 hängt eine Zeile, die zu niemandem im Haus
-gehört: Kommentar \`wartung@extern-2019\`. Kein Offboarding-
-Protokoll kennt diesen Zugang.
+stehen nur die Schlüssel, die dort hingehören — deiner, die von
+Jens und Henry. Aber auf db01 hängt eine Zeile, die zu niemandem
+im Haus gehört: Kommentar \`wartung@extern-2019\`. Kein
+Offboarding-Protokoll kennt diesen Zugang.
 
 Erst sicherst du den Ist-Zustand als Beweis — DANN räumst du auf.
 In dieser Reihenfolge. Immer.
@@ -437,13 +465,6 @@ In dieser Reihenfolge. Immer.
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst die Offboarding-Liste gegenprüfen (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Kein einziger Eintrag passt zu „extern-2019“. Was auch immer das ist — geplant war es nicht.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -454,10 +475,13 @@ In dieser Reihenfolge. Immer.
         'authorized_keys von db01 als Beweis sichern, dann die verwaiste Zeile wartung@extern-2019 auf db01 entfernen.',
       vfsOverlay: {
         files: [
+          // Key continuity: the player's onboarding key opens web01; jump01
+          // and db01 stay password-based as briefed (they never trusted it).
+          ...playerSshFiles,
           {
             path: '/home/timo/zugangsdaten.txt',
             content:
-              'web01 / admin — Passwort: sonnenblume23\njump01 / admin — Passwort: sprungbrett07\ndb01 / admin — Passwort: kraftwerk-db-2024',
+              'web01 / admin — Login per Onboarding-Schlüssel\njump01 / admin — Passwort: sprungbrett07\ndb01 / admin — Passwort: kraftwerk-db-2024',
           },
         ],
       },
@@ -472,6 +496,7 @@ In dieser Reihenfolge. Immer.
               {
                 path: '/home/admin/.ssh/authorized_keys',
                 content:
+                  PLAYER_PUBKEY + '\n' +
                   'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILegitJensKeyMaterial01 jens@ws-jens\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILegitHenryKeyMaterial1 henry@ws-henry\n',
               },
             ],
@@ -583,13 +608,6 @@ System selbst mitschreibt.
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst kurz durchatmen (kostet Zeit, +Ruhe)',
-        effects: { stress: -2 },
-        resultText:
-          'Du legst das Telefon weg und atmest einmal durch. Bjørgs Lautstärke ist kein Argument — der Dienst wird methodisch repariert, nicht hektisch.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -644,7 +662,7 @@ System selbst mitschreibt.
             { service: 'telemetryd', serviceEnabled: true },
           ],
           resultText:
-            'Der Dienst läuft wieder — und diesmal kommt er nach einem Neustart von selbst hoch, weil du ihn aktiviert hast. Das Journal hat dir die Ursache frei Haus geliefert: eine fehlende Konfiguration, kein Drama.\n\nMerke: Erst lesen, was das System dir sagt (status + journalctl), dann gezielt handeln. Bjørgs „mach du das mal eben“ war ein 30-Sekunden-Fix — wenn man weiß, wo man hinschaut.',
+            'Der Dienst läuft wieder — und diesmal kommt er nach einem Neustart von selbst hoch, weil du ihn aktiviert hast. Die Ursache stand im Journal im Klartext: eine fehlende Konfiguration, kein Drama.\n\nMerke: Erst lesen, was das System sagt (status + journalctl), dann gezielt handeln. Bjørgs „mach du das mal eben“ war ein 30-Sekunden-Fix — wenn man weiß, wo man hinschaut.',
           skillGain: { linux: 3, troubleshooting: 4 },
           effects: { stress: -3 },
         },
@@ -697,13 +715,6 @@ in diesem Ticket — die holst du dir aus den Logs.
         terminalCommand: true,
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
-      },
-      {
-        id: 'later',
-        text: 'Erst den Alarm im Monitoring nachlesen (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Der Alarm feuerte um 02:14 das erste Mal. Ein Zeitfenster hast du damit schon — der Rest steht im Journal.',
       },
     ],
     terminalContext: {
@@ -810,13 +821,6 @@ bis man ihm ausdrücklich sagt, die Unit-Dateien neu einzulesen.
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst die Unit-Datei überfliegen (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Ein einziges fehlendes „i“ in --config legt eine ganze Pumpenüberwachung lahm. So klein können Ursachen sein.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -880,7 +884,7 @@ bis man ihm ausdrücklich sagt, die Unit-Dateien neu einzulesen.
             { file: '/etc/systemd/system/pumpmon.service', absentMatches: '--confg' },
           ],
           resultText:
-            'Die Pumpenüberwachung läuft. Aber der eigentliche Lerneffekt lag zwischendrin: Nach dem sed-Fix ist der Neustart TROTZDEM gescheitert — systemd hielt noch an der alten, gespeicherten Unit fest. Erst \`daemon-reload\` hat die korrigierte Datei eingelesen, dann klappte der Start.\n\nMerke: Nach jeder Änderung an einer Unit-Datei gilt: erst \`systemctl daemon-reload\`, dann starten. Sonst startet der Wiedergänger — die alte Fassung mit dem alten Fehler.',
+            'Die Pumpenüberwachung läuft. Der eigentliche Lerneffekt steckt in der Falle dazwischen: Wer nach dem sed-Fix sofort neu startet, scheitert trotzdem — systemd hält an der alten, gespeicherten Unit fest, bis \`daemon-reload\` die korrigierte Datei einliest.\n\nMerke: Nach jeder Änderung an einer Unit-Datei gilt: erst \`systemctl daemon-reload\`, dann starten. Sonst startet der Wiedergänger — die alte Fassung mit dem alten Fehler.',
           skillGain: { linux: 4, troubleshooting: 4 },
           effects: { stress: -3 },
         },
@@ -933,13 +937,6 @@ nicht. Und die Datenbank? Steht still.
         terminalCommand: true,
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
-      },
-      {
-        id: 'later',
-        text: 'Erst Henrys Hinweis sacken lassen (kostet Zeit, +Ruhe)',
-        effects: { stress: -2 },
-        resultText:
-          'Ursache statt Symptom. Du wirst nicht fünfmal denselben Dienst antippen, sondern einmal richtig hinschauen.',
       },
     ],
     terminalContext: {
@@ -998,7 +995,7 @@ nicht. Und die Datenbank? Steht still.
             { service: 'leitstand-api', serviceState: 'active' },
           ],
           resultText:
-            'Beide Dienste laufen — und du hast die API kein einziges Mal blind neu gestartet. Das Journal hat die Kette offengelegt: Die API hing an der Datenbank, die Datenbank stand still. Ursache zuerst (mysql), dann die abhängige Seite (leitstand-api), und die Kettenreaktion löst sich von selbst.\n\nMerke: Ein Dienst, der nicht startet, ist oft nur das letzte Glied. Lies, woran er hängt — und repariere die Wurzel.',
+            'Beide Dienste laufen. Blindes Neustarten der API hätte beliebig oft nichts gebracht — das Journal hat die Kette offengelegt: Die API hing an der Datenbank, die Datenbank stand still. Ursache zuerst (mysql), dann die abhängige Seite (leitstand-api), und die Kettenreaktion löst sich von selbst.\n\nMerke: Ein Dienst, der nicht startet, ist oft nur das letzte Glied. Lies, woran er hängt — und repariere die Wurzel.',
           skillGain: { linux: 3, troubleshooting: 5 },
           effects: { stress: -3 },
         },
@@ -1058,13 +1055,6 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst die Soll-Portliste einprägen (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Drei Ports, mehr nicht. Alles andere ist per Definition verdächtig. Mit dieser Liste im Kopf fällt der Ausreißer sofort auf.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -1094,6 +1084,12 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
             // The rogue listener on 31337 must be gone. kill removes the
             // listener whose PID matches — a real "close the port", not a note.
             { listenerAbsent: { port: 31337 } },
+            // …and the legitimate services must still be listening: the level
+            // promises "die drei erlaubten Dienste laufen unberührt weiter",
+            // so a kill-everything rampage does not win.
+            { listenerPresent: { port: 22 } },
+            { listenerPresent: { port: 80 } },
+            { listenerPresent: { port: 443 } },
           ],
           resultText:
             'Port 31337 ist zu — der Prozess „nc" (netcat) lauscht nicht mehr. Genau der stand in keiner Freigabe: eine offene Hintertür, über die jemand von außen eine Shell hätte abgreifen können. Die drei erlaubten Dienste (22/80/443) laufen unberührt weiter.\n\nMerke: Man muss nicht raten. Man kennt die Soll-Liste, listet den Ist-Zustand, und was übrig bleibt, ist der Befund. Jeder offene Port gehört einem Prozess — über dessen PID macht man ihn gezielt dicht.',
@@ -1150,13 +1146,6 @@ Erst sicherst du den Beweis, DANN drehst du den Kanal zu.
         terminalCommand: true,
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
-      },
-      {
-        id: 'later',
-        text: 'Erst überlegen, was „unauffällig" heißen soll (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'Ein Angreifer, der auffliegen will, benennt seine IP nicht um. Der Eintrag in /etc/hosts ist genau deshalb ein Alarmsignal: jemand wollte, dass die Verbindung harmlos aussieht.',
       },
     ],
     terminalContext: {
@@ -1251,13 +1240,6 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
       },
-      {
-        id: 'later',
-        text: 'Erst die Reihenfolge durchdenken (kostet Zeit, +Ruhe)',
-        effects: { stress: -2 },
-        resultText:
-          'Erst aufschließen, was du brauchst — dann abriegeln. In dieser Reihenfolge sperrt man sich nicht aus. Du gehst es ruhig an.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -1290,7 +1272,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
             { firewallDefaultIncoming: 'deny' },
           ],
           resultText:
-            'Die Mauer steht: Eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und weil du zuerst die Türen aufgeschlossen und erst dann die Mauer hochgezogen hast, sitzt du noch drin und nicht ausgesperrt vor der Tür.\n\nMerke: Bei Firewalls zählt die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren. Umgekehrt kappst du dir womöglich den eigenen Zugang.',
+            'Die Mauer steht: Eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Wer dabei zuerst die Türen aufschließt und erst dann die Mauer hochzieht, sitzt hinterher noch drin — und nicht ausgesperrt davor.\n\nMerke: Bei Firewalls zählt die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren. Umgekehrt kappst du dir womöglich den eigenen Zugang.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
         },
@@ -1347,13 +1329,6 @@ und riegle den Port ab.
         terminalCommand: true,
         effects: {},
         resultText: 'Du öffnest das Terminal und machst dich an die Arbeit.',
-      },
-      {
-        id: 'later',
-        text: 'Erst die Angriffskette skizzieren (kostet Zeit, +Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'db01 → web01, als admin, per Schlüssel. Der Angreifer ist bereits drin und bewegt sich seitwärts. Der Ausgangspunkt ist db01 — dort fängst du an.',
       },
     ],
     terminalContext: {
@@ -1482,13 +1457,6 @@ dann roll es aus."
         effects: {},
         resultText: 'Du setzt dich an ansible01 und öffnest die Playbooks.',
       },
-      {
-        id: 'later',
-        text: 'Erst das Playbook zu Ende lesen (kostet Zeit, +Kontext)',
-        effects: { stress: -2 },
-        resultText:
-          'Ein Play, ein Host-Muster (web), eine Aufgabe: das copy-Modul schreibt /etc/motd. Nichts Wildes — ein sauberer Einstieg.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -1536,7 +1504,7 @@ dann roll es aus."
             { host: 'web02', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
           ],
           resultText:
-            'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nUnd du hast es richtig gemacht: erst \`--check\` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. In der Produktion ist diese Reihenfolge kein Luxus, sondern Pflicht.',
+            'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nMerke dir die Reihenfolge für die Produktion: erst \`--check\` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. Dort ist das kein Luxus, sondern Pflicht.',
           skillGain: { linux: 3, security: 2, netzwerk: 1 },
           effects: { stress: -2 },
         },
@@ -1592,13 +1560,6 @@ zurückgezogen. Und danach beweist du die Idempotenz.
         effects: {},
         resultText: 'Du öffnest harden.yml und machst dich an den Drift.',
       },
-      {
-        id: 'later',
-        text: 'Bjorgs Mail zweimal lesen und tief durchatmen (+Ruhe)',
-        effects: { stress: -3 },
-        resultText:
-          '„Wollt ich später zumachen." Aha. Du atmest durch. Nicht dein Chaos — aber dein Aufräumen. Wenigstens sauber und nachvollziehbar.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -1652,7 +1613,7 @@ zurückgezogen. Und danach beweist du die Idempotenz.
             { host: 'web02', file: '/etc/ssh/sshd_config', absentMatches: '^PermitRootLogin yes' },
           ],
           resultText:
-            'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer zweite Lauf ist der Beweis: \`changed=0\` auf allen Hosts. Wenn ein Playbook beim zweiten Mal noch etwas ändert, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
+            'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer Beweis dafür ist immer der zweite Lauf: Steht dort \`changed=0\` auf allen Hosts, ist der Soll-Zustand erreicht. Ändert ein Playbook beim zweiten Mal noch etwas, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
           skillGain: { linux: 3, security: 3, troubleshooting: 2 },
           effects: { stress: -3 },
         },
@@ -1707,13 +1668,6 @@ korrigier den Tippfehler in der Datei, lauf es sauber durch.
         terminalCommand: true,
         effects: {},
         resultText: 'Du startest das Playbook und liest, wo es klemmt.',
-      },
-      {
-        id: 'later',
-        text: 'Erst überlegen, welche Pflichtparameter lineinfile hat (+Kontext)',
-        effects: { stress: -1 },
-        resultText:
-          'lineinfile braucht eine Zieldatei — den Parameter `path`. Fehlt der, kann das Modul nicht wissen, WO es schreiben soll. Genau da wirst du den Fehler finden.',
       },
     ],
     terminalContext: {
@@ -1798,23 +1752,22 @@ korrigier den Tippfehler in der Datei, lauf es sauber durch.
 Bert legt dir die Härtungsrichtlinie hin: „Auf ALLEN Webservern
 gilt ab sofort: kein Root-Login per SSH, und keine Passwort-
 Anmeldung mehr — nur noch Schlüssel. \`harden-fleet.yml\` gibt
-es schon, aber es deckt bisher nur den Root-Login ab. Erweiter
-es um die Passwort-Regel und roll es auf die ganze Flotte aus.
+es schon: Den Root-Login deckt es ab, und die Passwort-Regel
+hat Jens schon vorbereitet — sie steht auskommentiert im
+Playbook, aktiviert hat er sie nie. Aktivier sie, prüf die
+Syntax und roll auf die ganze Flotte aus.
 
 Du kannst das jetzt — Inventar, Playbook, Idempotenz. Zeig mir,
-dass du eine Richtlinie in ein sauberes, wiederholbares Playbook
-gießen kannst."
-
-Das Playbook hat eine \`lineinfile\`-Aufgabe für PermitRootLogin.
-Du hängst eine zweite Aufgabe für PasswordAuthentication an —
-gleiche Struktur, andere Regel — und rollst dann aus.
+dass du eine Richtlinie sauber und wiederholbar scharf schalten
+kannst."
 
 **Deine Aufgabe:**
-- Häng eine zweite lineinfile-Aufgabe für \`PasswordAuthentication no\` an \`harden-fleet.yml\` an
-- Roll das erweiterte Playbook auf web01/web02/web03 aus
+- Aktiviere die auskommentierte zweite Aufgabe (\`PasswordAuthentication no\`) in \`harden-fleet.yml\`
+- Prüf die Syntax, bevor du ausrollst
+- Roll das Playbook auf web01/web02/web03 aus
 - Prüf auf einem Host per SSH, dass beide Regeln stehen`,
     mentorNote:
-      'Die Synthese: Eine Richtlinie in ein Playbook übersetzen. Die zweite Aufgabe ist eine Kopie der ersten mit anderem Ziel — dieselbe Struktur (name, lineinfile, path, regexp, line). Anhängen kannst du zeilenweise mit echo und dem Anhänge-Umleiter >>. Achte auf die Einrückung: Aufgabe 4 Leerzeichen, Modul 6, Parameter 8. Prüf dein erweitertes Playbook mit --syntax-check auf Einrückungsfehler, BEVOR du ausrollst — so fängst du einen YAML-Fehler ab, bevor er auf die Flotte trifft. Danach: ausrollen, per SSH gegenprüfen.',
+      'Die Synthese: Eine vorbereitete Richtlinie kontrolliert scharf schalten. Die zweite Aufgabe steht schon im Playbook — jede Zeile beginnt mit „# “. Auskommentierte Zeilen aktiviert man nicht durch Abtippen, sondern durch gezieltes Entfernen des Kommentarzeichens am Zeilenanfang (ein sed-Einzeiler). Prüf das Playbook danach mit --syntax-check, BEVOR du ausrollst — so fängst du einen YAML-Fehler ab, bevor er auf die Flotte trifft. Danach: ausrollen, per SSH gegenprüfen.',
     choices: [
       {
         id: 'start',
@@ -1823,13 +1776,6 @@ gleiche Struktur, andere Regel — und rollst dann aus.
         effects: {},
         resultText: 'Du öffnest harden-fleet.yml und machst dich an die Erweiterung.',
       },
-      {
-        id: 'later',
-        text: 'Erst die Richtlinie in Playbook-Struktur skizzieren (+Kontext)',
-        effects: { stress: -2 },
-        resultText:
-          'Zwei Regeln, zwei lineinfile-Aufgaben, ein Playbook. Die zweite ist die Kopie der ersten mit PasswordAuthentication statt PermitRootLogin. Sauber gedacht ist halb getippt.',
-      },
     ],
     terminalContext: {
       type: 'linux',
@@ -1837,14 +1783,16 @@ gleiche Struktur, andere Regel — und rollst dann aus.
       username: 'deploy',
       currentPath: '/opt/playbooks',
       taskText:
-        'harden-fleet.yml um eine zweite lineinfile-Aufgabe (PasswordAuthentication no) erweitern, dann auf web01/web02/web03 ausrollen. Ziel: alle drei Hosts mit PermitRootLogin no UND PasswordAuthentication no.',
+        'Die auskommentierte PasswordAuthentication-Aufgabe in harden-fleet.yml aktivieren (Kommentarzeichen entfernen), Syntax prüfen, dann auf web01/web02/web03 ausrollen. Ziel: alle drei Hosts mit PermitRootLogin no UND PasswordAuthentication no.',
       vfsOverlay: {
         files: [
           ...controllerSshFiles,
           { path: '/etc/ansible/hosts', content: ANSIBLE_INVENTORY },
           {
-            // Ends with a trailing newline so an appended task starts on its
-            // own line and does not merge into `line: 'PermitRootLogin no'`.
+            // The second task is pre-authored but COMMENTED OUT ('# ' prefix on
+            // each line). NO other line starts with '# ', so the single
+            // uncomment sed (s/^# //) activates exactly these five lines and
+            // touches nothing else.
             path: '/opt/playbooks/harden-fleet.yml',
             content:
               '---\n' +
@@ -1856,7 +1804,12 @@ gleiche Struktur, andere Regel — und rollst dann aus.
               '      lineinfile:\n' +
               '        path: /etc/ssh/sshd_config\n' +
               '        regexp: ^#?PermitRootLogin\n' +
-              '        line: PermitRootLogin no\n',
+              '        line: PermitRootLogin no\n' +
+              '#     - name: Passwort-Login abschalten\n' +
+              '#       lineinfile:\n' +
+              '#         path: /etc/ssh/sshd_config\n' +
+              '#         regexp: ^#?PasswordAuthentication\n' +
+              '#         line: PasswordAuthentication no\n',
           },
         ],
       },
@@ -1873,7 +1826,7 @@ gleiche Struktur, andere Regel — und rollst dann aus.
       ],
       commandSkillGain: {
         'ansible-playbook': { linux: 2, security: 2 },
-        echo: { linux: 1 },
+        sed: { linux: 1 },
         ssh: { linux: 1, security: 1 },
       },
       commands: [],
@@ -1896,11 +1849,10 @@ gleiche Struktur, andere Regel — und rollst dann aus.
         },
       ],
       hints: [
-        '🤖 Henry: Die zweite Regel ist strukturell die Kopie der ersten — nur mit PasswordAuthentication statt PermitRootLogin. Du hängst sie als weitere Aufgabe hinten an das Playbook an.',
-        '🤖 Henry: Anhängen geht zeilenweise: Jede YAML-Zeile mit echo ausgeben und mit dem Anhänge-Umleiter (zwei spitze Klammern) in die Datei schreiben. Pass auf die Einrückung auf — Aufgabe 4 Leerzeichen, Modul 6, Parameter 8.',
-        '🤖 Henry: Fünf Zeilen kommen dazu: die Aufgaben-Zeile (- name:), die Modul-Zeile (lineinfile:), und darunter path, regexp und line.',
-        '🤖 Henry: Prüf mit `ansible-playbook harden-fleet.yml --syntax-check`, ob dein YAML sauber ist, bevor du ausrollst — der Trockenlauf zeigt dir Einrückungsfehler, solange sie noch harmlos sind.',
-        "🤖 Henry: `echo '    - name: Passwort-Login abschalten' >> harden-fleet.yml` → `echo '      lineinfile:' >> harden-fleet.yml` → `echo '        path: /etc/ssh/sshd_config' >> harden-fleet.yml` → `echo '        regexp: ^#?PasswordAuthentication' >> harden-fleet.yml` → `echo '        line: PasswordAuthentication no' >> harden-fleet.yml` → prüfen mit `ansible-playbook harden-fleet.yml --syntax-check`, dann `ansible-playbook harden-fleet.yml`.",
+        '🤖 Henry: Wirf erst einen Blick ins Playbook. Die zweite Aufgabe steht schon drin — Jens hat sie vorbereitet, aber jede ihrer Zeilen beginnt mit einem Kommentarzeichen. Solange das da steht, ist die Regel für Ansible unsichtbar.',
+        '🤖 Henry: Auskommentierte Zeilen tippst du nicht neu ab — du entfernst das Kommentarzeichen samt Leerzeichen am Zeilenanfang. Ein Stream-Editor macht das in einem Rutsch, für alle fünf Zeilen gleichzeitig.',
+        '🤖 Henry: Das Muster ist „# “ am Zeilenanfang (^). Nur die vorbereiteten Zeilen fangen so an — der Rest des Playbooks bleibt unberührt. Danach unbedingt die Syntax prüfen, bevor du ausrollst.',
+        "🤖 Henry: `sudo sed -i 's/^# //' /opt/playbooks/harden-fleet.yml` → prüfen mit `ansible-playbook harden-fleet.yml --syntax-check` → dann `ansible-playbook harden-fleet.yml`.",
       ],
     },
     tags: ['learning', 'ansible', 'terminal', 'security', 'automation', 'kritis'],

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
-import { createShellFromContext, checkStateGoals } from './shell';
+import { createShellFromContext, checkStateGoals, checkStateGoal } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
@@ -43,11 +43,8 @@ describe('ssh track — hint ladder discipline', () => {
 });
 
 describe('learn_ssh_01_first_key — keygen → copy-id → passwordless login', () => {
-  it('deploys the public key onto web01 (goal met)', () => {
-    const shell = engineOf('learn_ssh_01_first_key');
-    const goals = goalsOf('learn_ssh_01_first_key');
-    expect(checkStateGoals(shell, goals)).toBe(false);
-
+  /** Drive keygen + copy-id (the setup); the LOGIN is asserted separately. */
+  function deployKey(shell: ShellEngine): void {
     // ssh-keygen -t ed25519: prompt file location, then passphrase twice.
     let r = shell.execute('ssh-keygen -t ed25519');
     expect(shell.hasPendingInput()).toBe(true); // file location
@@ -64,46 +61,72 @@ describe('learn_ssh_01_first_key — keygen → copy-id → passwordless login',
     expect(shell.hasPendingInput()).toBe(true);
     const copied = shell.continueInput('sonnenblume23');
     expect(copied.exitCode).toBe(0);
+  }
 
-    // Core find: the key now lives in web01's authorized_keys.
-    expect(checkStateGoals(shell, goals)).toBe(true);
+  it('installing the key alone does NOT finish — the passwordless login is the win', () => {
+    const shell = engineOf('learn_ssh_01_first_key');
+    const goals = goalsOf('learn_ssh_01_first_key');
+    expect(checkStateGoals(shell, goals)).toBe(false);
 
-    // And the payoff: passwordless login, no prompt.
+    deployKey(shell);
+
+    // Key deployed, but the promised login has not happened yet.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+
+    // The payoff: passwordless login, no prompt — NOW the level is solved.
     run(shell, 'ssh admin@web01');
     expect(shell.getPromptInfo().hostname).toBe('web01');
+    expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('NEGATIVE: a password login does not satisfy the publickey login goal', () => {
+    const shell = engineOf('learn_ssh_01_first_key');
+    // No key deployed — log in via password instead.
+    shell.execute('ssh admin@web01');
+    expect(shell.hasPendingInput()).toBe(true);
+    expect(shell.continueInput('sonnenblume23').exitCode).toBe(0);
+    expect(shell.getPromptInfo().hostname).toBe('web01');
+    // The method matters: password does not meet the publickey goal.
+    expect(checkStateGoal(shell, { loggedIn: { host: 'web01', method: 'publickey' } })).toBe(false);
+    expect(checkStateGoal(shell, { loggedIn: { host: 'web01', method: 'password' } })).toBe(true);
+    expect(checkStateGoals(shell, goalsOf('learn_ssh_01_first_key'))).toBe(false);
   });
 });
 
-describe('learn_ssh_02_open_door — harden sshd_config on web01', () => {
-  const login = (shell: ShellEngine) => {
-    shell.execute('ssh admin@web01');
-    expect(shell.hasPendingInput()).toBe(true);
-    const r = shell.continueInput('sonnenblume23');
+describe('learn_ssh_02_open_door — key continuity + effective-config enforcement', () => {
+  /** The pre-seeded onboarding key logs the player in — no password prompt. */
+  const keyLogin = (shell: ShellEngine) => {
+    const r = shell.execute('ssh admin@web01');
+    expect(shell.hasPendingInput(), 'key login must not prompt for a password').toBe(false);
     expect(r.exitCode).toBe(0);
     expect(shell.getPromptInfo().hostname).toBe('web01');
   };
 
-  it('documented path: sudo sed -i on both directives + restart', () => {
+  it('documented path: key login → sudo sed -i on both directives → restart', () => {
     const shell = engineOf('learn_ssh_02_open_door');
     const goals = goalsOf('learn_ssh_02_open_door');
     expect(checkStateGoals(shell, goals)).toBe(false);
 
-    login(shell);
+    keyLogin(shell);
     run(shell, "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
     run(shell, "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
-    run(shell, 'sudo systemctl restart ssh');
 
+    // sshdEffective proof: the FILE is hardened, but without a restart the
+    // running daemon still honours the old config — the goals stay unmet.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+
+    run(shell, 'sudo systemctl restart ssh');
     expect(checkStateGoals(shell, goals)).toBe(true);
   });
 
   it('ALTERNATIVE path wins too: a different sed form (broad substitution)', () => {
-    // Proves the win is state-based, not tied to the documented command string:
-    // a single broad substitution reaches the same goal state (and removes the
-    // "yes" lines, satisfying the absentMatches guards).
+    // Proves the win is state-based, not tied to one command string: a single
+    // broad substitution reaches the same goal state (and removes the "yes"
+    // lines, satisfying the absentMatches guards).
     const shell = engineOf('learn_ssh_02_open_door');
     const goals = goalsOf('learn_ssh_02_open_door');
 
-    login(shell);
+    keyLogin(shell);
     run(shell, "sudo sed -i 's/yes/no/' /etc/ssh/sshd_config");
     run(shell, 'sudo systemctl restart ssh');
 
@@ -116,7 +139,7 @@ describe('learn_ssh_02_open_door — harden sshd_config on web01', () => {
     const shell = engineOf('learn_ssh_02_open_door');
     const goals = goalsOf('learn_ssh_02_open_door');
 
-    login(shell);
+    keyLogin(shell);
     run(shell, "echo 'PermitRootLogin no' >> /etc/ssh/sshd_config");
     run(shell, "echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config");
     run(shell, 'sudo systemctl restart ssh');
@@ -124,6 +147,28 @@ describe('learn_ssh_02_open_door — harden sshd_config on web01', () => {
     // The insecure "yes" lines still exist above the appended "no" lines.
     const cfg = shell.resolveHost('web01')!.vfs.readFile('/etc/ssh/sshd_config');
     expect(cfg.ok && cfg.value).toMatch(/^PermitRootLogin yes/m);
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('NEGATIVE: a password-only login leaves the publickey login goal unmet', () => {
+    // Player who never tested their key: hide the private key, fall back to
+    // the emergency password, then harden + restart. Everything else is done —
+    // but the "prove your key works" goal must reject the win.
+    const shell = engineOf('learn_ssh_02_open_door');
+    const goals = goalsOf('learn_ssh_02_open_door');
+
+    run(shell, 'mv /home/timo/.ssh/id_ed25519 /home/timo/.ssh/id_ed25519.weg');
+    shell.execute('ssh admin@web01');
+    expect(shell.hasPendingInput(), 'without the key a password prompt appears').toBe(true);
+    expect(shell.continueInput('sonnenblume23').exitCode).toBe(0);
+    expect(shell.getPromptInfo().hostname).toBe('web01');
+
+    run(shell, "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
+    run(shell, "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
+    run(shell, 'sudo systemctl restart ssh');
+
+    // File + effective config are hardened, but the key was never proven.
+    expect(checkStateGoal(shell, { loggedIn: { host: 'web01', method: 'publickey' } })).toBe(false);
     expect(checkStateGoals(shell, goals)).toBe(false);
   });
 });

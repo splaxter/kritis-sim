@@ -14,7 +14,8 @@ import { GameEvent, TerminalContext } from '@kritis/shared';
  * ans_01: --check shows would-change, real run converges.
  * ans_02: --check --diff fingers web02; apply; second run proves idempotency.
  * ans_03: broken playbook fails naming the task; sed fix; clean rerun.
- * ans_04: player extends the playbook via echo-append, then hardens all three.
+ * ans_04: player activates the pre-seeded commented-out task via one sed
+ *         uncomment, syntax-checks, then hardens all three.
  */
 
 const byId = (id: string): GameEvent => {
@@ -159,24 +160,37 @@ describe('learn_ans_03_broken_playbook — read the failure, fix the typo, rerun
   });
 });
 
-describe('learn_ans_04_fleet_hardening — extend the playbook, harden the fleet', () => {
+describe('learn_ans_04_fleet_hardening — activate the prepared task, harden the fleet', () => {
   const F = '/opt/playbooks/harden-fleet.yml';
-  function appendPasswordTask(shell: ShellEngine): void {
-    run(shell, `echo '    - name: Passwort-Login abschalten' >> ${F}`);
-    run(shell, `echo '      lineinfile:' >> ${F}`);
-    run(shell, `echo '        path: /etc/ssh/sshd_config' >> ${F}`);
-    run(shell, `echo '        regexp: ^#?PasswordAuthentication' >> ${F}`);
-    run(shell, `echo '        line: PasswordAuthentication no' >> ${F}`);
+  /** The documented activation: ONE sed strips the '# ' comment prefix. */
+  function uncommentPasswordTask(shell: ShellEngine): void {
+    expect(run(shell, `sudo sed -i 's/^# //' ${F}`).exitCode).toBe(0);
   }
 
-  it('the appended YAML parses and hardens both directives on all three hosts', () => {
+  it('the sed uncomment activates exactly the prepared task and damages nothing', () => {
+    const shell = engineOf('learn_ans_04_fleet_hardening');
+    uncommentPasswordTask(shell);
+    const after = run(shell, `cat ${F}`).output;
+    // The five prepared lines are live YAML now…
+    expect(after).toMatch(/^    - name: Passwort-Login abschalten$/m);
+    expect(after).toMatch(/^        line: PasswordAuthentication no$/m);
+    // …no commented line is left, and no other line was touched: the header,
+    // the first task and the inline `^#?` regexps survive verbatim.
+    expect(after).not.toMatch(/^# /m);
+    expect(after).toMatch(/^---$/m);
+    expect(after).toMatch(/^    - name: Root-Login abschalten$/m);
+    expect(after).toMatch(/regexp: \^#\?PermitRootLogin/);
+    expect(after).toMatch(/regexp: \^#\?PasswordAuthentication/);
+  });
+
+  it('the activated playbook passes --syntax-check and hardens both directives on all three hosts', () => {
     const shell = engineOf('learn_ans_04_fleet_hardening');
     const goals = goalsOf('learn_ans_04_fleet_hardening');
     expect(checkStateGoals(shell, goals)).toBe(false);
 
-    appendPasswordTask(shell);
+    uncommentPasswordTask(shell);
 
-    // The extended playbook must parse (no syntax error) and name both tasks.
+    // The activated playbook must parse (no syntax error).
     const syntax = run(shell, 'ansible-playbook harden-fleet.yml --syntax-check');
     expect(syntax.exitCode, syntax.error).toBe(0);
 
@@ -195,17 +209,20 @@ describe('learn_ans_04_fleet_hardening — extend the playbook, harden the fleet
 
   it('idempotent: a second run after hardening changes nothing', () => {
     const shell = engineOf('learn_ans_04_fleet_hardening');
-    appendPasswordTask(shell);
+    uncommentPasswordTask(shell);
     run(shell, 'ansible-playbook harden-fleet.yml');
     const second = run(shell, 'ansible-playbook harden-fleet.yml');
     expect(second.output).not.toMatch(/changed=[1-9]/);
   });
 
-  it('NEGATIVE: running without extending the playbook leaves PasswordAuthentication unmet', () => {
+  it('NEGATIVE: running with the task still commented out leaves PasswordAuthentication unmet', () => {
     const shell = engineOf('learn_ans_04_fleet_hardening');
     const goals = goalsOf('learn_ans_04_fleet_hardening');
-    run(shell, 'ansible-playbook harden-fleet.yml');
-    // PermitRootLogin is hardened, but PasswordAuthentication is not.
+    // The commented-out task is invisible to the parser: the run succeeds but
+    // only hardens the root login.
+    const r = run(shell, 'ansible-playbook harden-fleet.yml');
+    expect(r.exitCode, r.error).toBe(0);
+    expect(r.output).not.toMatch(/Passwort-Login abschalten/);
     expect(checkStateGoal(shell, goals[0])).toBe(true); // web01 PermitRootLogin no
     expect(checkStateGoal(shell, goals[1])).toBe(false); // web01 PasswordAuthentication no
     expect(checkStateGoals(shell, goals)).toBe(false);

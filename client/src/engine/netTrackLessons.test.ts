@@ -75,6 +75,16 @@ describe('learn_net_01_open_doors — spot the outlier, kill the listener', () =
     // The legitimate services (sshd/apache2) are untouched by the wrong kill.
     expect(run(shell, 'ss -tulpen').output).toMatch(/sshd/);
   });
+
+  it('NEGATIVE: a kill-everything rampage does not win — the legit listeners must survive', () => {
+    // The resultText promises "die drei erlaubten Dienste laufen unberührt
+    // weiter" — the listenerPresent goals enforce it.
+    const shell = engineOf('learn_net_01_open_doors');
+    const goals = goalsOf('learn_net_01_open_doors');
+    run(shell, 'sudo kill 6666'); // the rogue…
+    run(shell, 'sudo kill 1234'); // …but also apache2 (ports 80/443)
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
 });
 
 describe('learn_net_02_backchannel — evidence first, then clean', () => {
