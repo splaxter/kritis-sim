@@ -35,13 +35,16 @@ function hasAssertion(goal: StateGoal): boolean {
     || serviceAssertion
     || goal.firewallRule !== undefined
     || goal.firewallDefaultIncoming !== undefined
+    || goal.firewallEnabled !== undefined
     || goal.listenerAbsent !== undefined
     || goal.listenerPresent !== undefined
-    // loggedIn/sshdEffective are non-vacuous even with empty sub-objects: a bare
-    // `{loggedIn:{}}` asserts "logged into any host" and must be evaluated, not
-    // rejected as shapeless.
+    // loggedIn/sshdEffective/ansibleRan are non-vacuous even with empty
+    // sub-objects: a bare `{loggedIn:{}}` asserts "logged into any host",
+    // `{ansibleRan:{}}` asserts "ran any playbook" — both must be evaluated,
+    // not rejected as shapeless.
     || goal.loggedIn !== undefined
-    || goal.sshdEffective !== undefined;
+    || goal.sshdEffective !== undefined
+    || goal.ansibleRan !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -119,10 +122,13 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
       if (matching.length > 0) return false;
     }
   }
-  // Checks the CONFIGURED default policy; firewall.enabled is deliberately
-  // not part of the goal (levels gate enablement via commands/flags instead).
+  // Checks the CONFIGURED default policy; pair with `firewallEnabled: true`
+  // when the level requires the wall to actually be up.
   if (goal.firewallDefaultIncoming !== undefined
       && host.firewall.defaultIncoming !== goal.firewallDefaultIncoming) {
+    return false;
+  }
+  if (goal.firewallEnabled !== undefined && host.firewall.enabled !== goal.firewallEnabled) {
     return false;
   }
   return true;
@@ -173,6 +179,15 @@ function checkLoggedInGoal(engine: ShellEngine, goal: StateGoal): boolean {
   return engine.hasLoggedIn(undefined, method);
 }
 
+/**
+ * Session-aware ansible goal: ONE recorded ansible-playbook run must match all
+ * provided fields (playbook is basename-matched; omitted fields match any).
+ */
+function checkAnsibleRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
+  if (!goal.ansibleRan) return true;
+  return engine.hasAnsibleRun(goal.ansibleRan);
+}
+
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
@@ -190,7 +205,8 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       // sshdEffective and loggedIn may name their OWN target host, falling
       // back to goal.host / the base host like the checks above.
       && checkSshdEffectiveGoal(engine, host, goal)
-      && checkLoggedInGoal(engine, goal);
+      && checkLoggedInGoal(engine, goal)
+      && checkAnsibleRanGoal(engine, goal);
   } catch {
     return false;
   }

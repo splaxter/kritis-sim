@@ -201,6 +201,79 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('firewallEnabled', () => {
+    it('firewallEnabled: true holds iff the firewall is enabled', () => {
+      engine.getBaseHost().firewall.enabled = false;
+      expect(checkStateGoal(engine, { firewallEnabled: true })).toBe(false);
+      engine.getBaseHost().firewall.enabled = true;
+      expect(checkStateGoal(engine, { firewallEnabled: true })).toBe(true);
+    });
+
+    it('firewallEnabled: false holds iff the firewall is disabled', () => {
+      engine.getBaseHost().firewall.enabled = true;
+      expect(checkStateGoal(engine, { firewallEnabled: false })).toBe(false);
+      engine.getBaseHost().firewall.enabled = false;
+      expect(checkStateGoal(engine, { firewallEnabled: false })).toBe(true);
+    });
+
+    it('is a non-vacuous assertion on its own (registered in hasAssertion)', () => {
+      // Would be rejected as shapeless if unregistered — the guard treats every
+      // unregistered field as a vacuous goal and returns false regardless.
+      engine.getBaseHost().firewall.enabled = true;
+      expect(checkStateGoal(engine, { firewallEnabled: true })).toBe(true);
+    });
+
+    it('flips through the real ufw command: enable makes the goal true', () => {
+      engine.getBaseHost().firewall.enabled = false;
+      expect(checkStateGoal(engine, { firewallEnabled: true })).toBe(false);
+      expect(engine.execute('ufw enable').exitCode).toBe(0); // user is root
+      expect(checkStateGoal(engine, { firewallEnabled: true })).toBe(true);
+    });
+  });
+
+  describe('ansibleRan (session-aware)', () => {
+    it('matches a recorded run on all provided fields', () => {
+      engine.recordAnsibleRun({ playbook: 'harden-fleet.yml', mode: 'syntax-check', ok: true });
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'harden-fleet.yml', mode: 'syntax-check', ok: true } })).toBe(true);
+      // Every provided field must match ONE recorded run.
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'harden-fleet.yml', mode: 'apply', ok: true } })).toBe(false);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'other.yml', mode: 'syntax-check' } })).toBe(false);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'harden-fleet.yml', mode: 'syntax-check', ok: false } })).toBe(false);
+    });
+
+    it('matches on the playbook BASENAME however the path was recorded or asserted', () => {
+      engine.recordAnsibleRun({ playbook: '/opt/playbooks/harden-fleet.yml', mode: 'apply', ok: true });
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'harden-fleet.yml', mode: 'apply' } })).toBe(true);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: '/opt/playbooks/harden-fleet.yml' } })).toBe(true);
+    });
+
+    it('omitted fields match anything; a bare ansibleRan is non-vacuous', () => {
+      // Nothing recorded yet → false by evaluation, not by the vacuous guard.
+      expect(checkStateGoal(engine, { ansibleRan: {} })).toBe(false);
+      engine.recordAnsibleRun({ playbook: 'x.yml', mode: 'check', ok: false });
+      expect(checkStateGoal(engine, { ansibleRan: {} })).toBe(true);
+      expect(checkStateGoal(engine, { ansibleRan: { ok: true } })).toBe(false);
+    });
+
+    it('the ansible-playbook command records --syntax-check with ok:true', () => {
+      engine.getBaseHost().vfs.addFile(
+        '/root/site.yml',
+        '---\n- name: Test\n  hosts: all\n  tasks:\n    - name: t\n      lineinfile:\n        path: /tmp/x\n        line: hi\n'
+      );
+      expect(engine.execute('ansible-playbook /root/site.yml --syntax-check').exitCode).toBe(0);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'site.yml', mode: 'syntax-check', ok: true } })).toBe(true);
+      // No apply happened — an apply-mode goal stays unmet.
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'site.yml', mode: 'apply' } })).toBe(false);
+    });
+
+    it('a failed run records ok:false and does not satisfy an ok:true goal', () => {
+      engine.getBaseHost().vfs.addFile('/root/broken.yml', 'not: [valid playbook');
+      expect(engine.execute('ansible-playbook /root/broken.yml --syntax-check').exitCode).not.toBe(0);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'broken.yml', mode: 'syntax-check', ok: true } })).toBe(false);
+      expect(checkStateGoal(engine, { ansibleRan: { playbook: 'broken.yml', mode: 'syntax-check', ok: false } })).toBe(true);
+    });
+  });
+
   describe('host resolution', () => {
     it('unknown host returns false and never throws', () => {
       expect(() => checkStateGoal(engine, { host: 'ghost', fileExists: true, file: '/etc/passwd' })).not.toThrow();

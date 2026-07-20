@@ -13,6 +13,8 @@ import {
   HistoryEntry,
   VirtualFilesystemInterface,
   CompletionContext,
+  AnsibleRunRecord,
+  AnsibleRunMode,
 } from './types';
 import { HostState, wrapVfsAsHost } from './hosts';
 
@@ -26,6 +28,8 @@ export class ShellEngine implements ShellEngineInterface {
   private sessionStack: { hostId: string; user: string }[] = [];
   /** Successful SSH logins as `${hostId}::${method}`; survives session pop. */
   private loginRecords = new Set<string>();
+  /** Every ansible-playbook invocation (playbook stored as basename). */
+  private ansibleRuns: AnsibleRunRecord[] = [];
   /** Set while a command waits for another input line (password prompt etc.). */
   private pendingContinuation: ((line: string) => CommandResult) | null = null;
   private pendingPrompt: { prompt: string; mask: boolean } | null = null;
@@ -313,6 +317,7 @@ export class ShellEngine implements ShellEngineInterface {
         return this.popSession() ? { closedHostname: closing.hostname } : null;
       },
       sessionDepth: this.sessionStack.length,
+      recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
         this.pendingContinuation = next;
         this.pendingPrompt = { prompt, mask };
@@ -1210,6 +1215,30 @@ export class ShellEngine implements ShellEngineInterface {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Record an ansible-playbook invocation. The playbook is normalized to its
+   * BASENAME (authors assert 'harden-fleet.yml', the player may type any
+   * path). Like loginRecords, the list survives for the whole session.
+   */
+  recordAnsibleRun(run: AnsibleRunRecord): void {
+    const basename = run.playbook.split('/').pop() ?? run.playbook;
+    this.ansibleRuns.push({ ...run, playbook: basename });
+  }
+
+  /**
+   * Has a recorded ansible-playbook run matching ALL provided fields? The
+   * playbook query is basename-matched; omitted fields match anything. Used
+   * by the ansibleRan stateGoal evaluator.
+   */
+  hasAnsibleRun(query: { playbook?: string; mode?: AnsibleRunMode; ok?: boolean }): boolean {
+    const wantedPlaybook = query.playbook?.split('/').pop();
+    return this.ansibleRuns.some(run =>
+      (wantedPlaybook === undefined || run.playbook === wantedPlaybook)
+      && (query.mode === undefined || run.mode === query.mode)
+      && (query.ok === undefined || run.ok === query.ok)
+    );
   }
 
   /** Returns false at depth 1 — the base session is never popped. */

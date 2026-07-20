@@ -84,6 +84,19 @@ export interface CommandSideEffect {
   payload: Record<string, unknown>;
 }
 
+// ============================================================================
+// Ansible run records (for ansibleRan stateGoals)
+// ============================================================================
+
+export type AnsibleRunMode = 'syntax-check' | 'check' | 'apply';
+
+/** One recorded ansible-playbook invocation; `playbook` is stored as basename. */
+export interface AnsibleRunRecord {
+  playbook: string;
+  mode: AnsibleRunMode;
+  ok: boolean;
+}
+
 export interface ExecutionContext {
   vfs: VirtualFilesystemInterface;
   env: Record<string, string>;
@@ -120,6 +133,12 @@ export interface ExecutionContext {
   pushSession?: (hostId: string, user: string, method?: 'publickey' | 'password') => void;
   popSession?: () => { closedHostname: string } | null;
   sessionDepth?: number;
+  /**
+   * Record an ansible-playbook invocation (for ansibleRan stateGoals) — the
+   * command reports every run with its mode and exit status, like pushSession
+   * records ssh logins for loggedIn goals.
+   */
+  recordAnsibleRun?: (run: AnsibleRunRecord) => void;
   /**
    * Ask the player for one more input line. Returns the pendingInput result
    * to hand back from execute(); `next` runs on the line typed. Chaining is

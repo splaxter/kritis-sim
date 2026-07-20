@@ -188,6 +188,13 @@ export interface StateGoal {
   serviceEnabled?: boolean;
   firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean };
   firewallDefaultIncoming?: 'allow' | 'deny';
+  /**
+   * Asserts the firewall's enabled state (`ufw enable` / `ufw disable`). Rules
+   * and the default policy are only CONFIGURATION until the firewall is
+   * enabled — a hardening level uses `firewallEnabled: true` to require the
+   * player to actually activate the wall.
+   */
+  firewallEnabled?: boolean;
   /** True iff NO listener on the host binds this port (e.g. a killed rogue). */
   listenerAbsent?: { port: number };
   /** True iff at least one listener on the host binds this port. */
@@ -209,4 +216,13 @@ export interface StateGoal {
    * is compared for equality.
    */
   sshdEffective?: { host?: string; permitRootLogin?: boolean; passwordAuthentication?: boolean };
+  /**
+   * Session-aware: the player must have invoked `ansible-playbook` during this
+   * terminal session with a matching recorded run. `playbook` matches on the
+   * file's basename (e.g. 'harden-fleet.yml', however the player typed the
+   * path); `mode` distinguishes `--syntax-check` / `--check` / a real apply;
+   * `ok` pins the exit status (true = exit 0). Every provided field must
+   * match one single recorded run; omitted fields match anything.
+   */
+  ansibleRan?: { playbook?: string; mode?: 'syntax-check' | 'check' | 'apply'; ok?: boolean };
 }

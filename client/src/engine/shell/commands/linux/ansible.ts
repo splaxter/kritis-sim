@@ -26,21 +26,31 @@ export const ansiblePlaybookCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'ERROR! You must specify a playbook file to run' };
     }
 
+    // Every invocation with a named playbook is recorded (for ansibleRan
+    // stateGoals) — successes AND failures, so a level can require a CLEAN
+    // syntax-check without a failed one counting.
+    const mode = args.flags['syntax-check'] ? 'syntax-check' : args.flags['check'] ? 'check' : 'apply';
+    const record = (ok: boolean): void => ctx.recordAnsibleRun?.({ playbook: playbookArg, mode, ok });
+
     const path = ctx.vfs.resolvePath(playbookArg);
     const read = ctx.vfs.readFile(path);
     if (!read.ok) {
+      record(false);
       return { output: '', exitCode: 1, error: `ERROR! the playbook: ${playbookArg} could not be found` };
     }
 
     const parsed = parsePlaybook(read.value);
     if (!parsed.ok) {
+      record(false);
       return { output: '', exitCode: 4, error: parsed.error };
     }
     if (args.flags['syntax-check']) {
+      record(true);
       return { output: `\nplaybook: ${path}`, exitCode: 0 };
     }
 
     if (!ctx.host || !ctx.resolveHost) {
+      record(false);
       return { output: '', exitCode: 1, error: 'ansible-playbook: no host context available' };
     }
 
@@ -64,6 +74,7 @@ export const ansiblePlaybookCommand: ShellCommand = {
       diff: Boolean(args.flags['diff']),
     });
 
+    record(run.exitCode === 0);
     const output = warnings.length > 0 ? `${warnings.join('\n')}\n${run.output}` : run.output;
     return { output, exitCode: run.exitCode };
   },
