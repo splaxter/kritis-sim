@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { allEvents } from './index';
-import { LEARNING_TRACKS, getFoundationsExitLevelId } from './learning-tracks';
+import { LEARNING_TRACKS, getFoundationsExitLevelId, getTrackPosition } from './learning-tracks';
 import { GameEvent } from '@kritis/shared';
 
 const learningEvents: GameEvent[] = allEvents.filter(
@@ -31,6 +31,38 @@ describe('LEARNING_TRACKS registry', () => {
 
   it('getFoundationsExitLevelId returns the last foundations level', () => {
     expect(getFoundationsExitLevelId(LEARNING_TRACKS)).toBe('learn_04_grep_hunter');
+  });
+});
+
+describe('getTrackPosition', () => {
+  it('returns 1-based index over CORE levels for a core level', () => {
+    // ssh_remote: [first_key, open_door, jumphost, key_graveyard(optional)]
+    // → 3 core levels; jumphost is the 3rd.
+    expect(getTrackPosition('learn_ssh_03_jumphost')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 3,
+      coreCount: 3,
+      isOptional: false,
+    });
+    expect(getTrackPosition('learn_ssh_01_first_key')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 1,
+      coreCount: 3,
+      isOptional: false,
+    });
+  });
+
+  it('marks an optional level and does not consume a core index', () => {
+    expect(getTrackPosition('learn_ssh_04_key_graveyard')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 0,
+      coreCount: 3,
+      isOptional: true,
+    });
+  });
+
+  it('returns null for an id that is in no track', () => {
+    expect(getTrackPosition('not_a_real_event_id')).toBeNull();
   });
 });
 

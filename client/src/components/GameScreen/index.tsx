@@ -9,6 +9,7 @@ import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
 import { extractTaskText } from './extractTaskText';
+import { getTrackPosition } from '../../content/events/learning-tracks';
 import { CHAPTER_ART, CINEMATIC_EVENTS } from '../../content/adventure/chapterArt';
 import { adventureChapters } from '../../content/adventure/chapters';
 import { soundEngine, cueForEvent } from '../../audio/soundEngine';
@@ -151,14 +152,22 @@ export function GameScreen({
   const terminalContext = currentEvent?.terminalContext || currentScenario?.terminalContext;
   const guiContext = currentEvent?.guiContext || currentScenario?.guiContext;
 
-  // Learning-mode header shows a progress counter. With the track system a level
-  // id no longer encodes a global "lesson N" (GUI levels have no number, tracks
-  // are non-linear), so derive the current lesson from how many learning levels
-  // are already done: the active one is "next" → completed + 1.
-  const completedLearningLevels = state.completedEvents.filter((id) =>
-    id.startsWith('learn_') || id.startsWith('gui_')
-  ).length;
-  const currentLessonNumber = completedLearningLevels + 1;
+  // Learning-mode header shows track-local progress. The hub is nonlinear across
+  // ~47 levels, so a global "Lektion N/total" is meaningless. Instead we locate
+  // the current level in its track and show e.g. "SSH & Remote-Zugriff · 2/3"
+  // (core levels), or "… · ★" for an optional side level. Falls back to just the
+  // track title, then to nothing, when the level isn't in any track.
+  const currentTrackEventId = currentEvent?.id ?? currentScenario?.id;
+  const trackPos = currentTrackEventId ? getTrackPosition(currentTrackEventId) : null;
+  const lessonLabel = trackPos
+    ? trackPos.isOptional
+      ? `${trackPos.trackTitle} · ★`
+      : `${trackPos.trackTitle} · ${trackPos.indexInTrack}/${trackPos.coreCount}`
+    : undefined;
+  const lessonProgressPercent =
+    trackPos && !trackPos.isOptional && trackPos.coreCount > 0
+      ? Math.round((trackPos.indexInTrack / trackPos.coreCount) * 100)
+      : undefined;
 
   // Quest summary shown in the terminal's persistent task panel
   const terminalTask =
@@ -169,7 +178,7 @@ export function GameScreen({
     return (
       <div className="min-h-screen p-4 flex flex-col relative z-10">
         <div className="mb-4">
-          <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
+          <StatsBar state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />
         </div>
         <div className="flex-1">
           <Suspense
@@ -316,7 +325,7 @@ export function GameScreen({
   return (
     <div className="min-h-screen p-4 flex flex-col">
       <div className="mb-4">
-        <StatsBar state={state} currentLessonNumber={currentLessonNumber} totalLessons={11} />
+        <StatsBar state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />
       </div>
 
       <div className="flex-1">

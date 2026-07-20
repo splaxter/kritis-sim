@@ -159,6 +159,50 @@ export const LEARNING_TRACKS: LearningTrack[] = [
   },
 ];
 
+export interface TrackPosition {
+  /** Human-readable track title, e.g. "SSH & Remote-Zugriff". */
+  trackTitle: string;
+  /** 1-based position among the track's CORE (non-optional) levels. */
+  indexInTrack: number;
+  /** Number of CORE (non-optional) levels in the track. */
+  coreCount: number;
+  /** True if this level is an optional (★) side level. */
+  isOptional: boolean;
+}
+
+/**
+ * Locate an event within the learning tracks and return its track-local
+ * position. Optional (★) levels don't consume a core index; `indexInTrack`
+ * counts only core levels. Returns null if the id isn't in any track.
+ */
+export function getTrackPosition(
+  eventId: string,
+  tracks: LearningTrack[] = LEARNING_TRACKS
+): TrackPosition | null {
+  for (const track of tracks) {
+    const coreLevels = track.levels.filter((l) => !l.optional);
+    const coreIndex = coreLevels.findIndex((l) => l.eventId === eventId);
+    if (coreIndex !== -1) {
+      return {
+        trackTitle: track.title,
+        indexInTrack: coreIndex + 1,
+        coreCount: coreLevels.length,
+        isOptional: false,
+      };
+    }
+    const optional = track.levels.find((l) => l.eventId === eventId && l.optional);
+    if (optional) {
+      return {
+        trackTitle: track.title,
+        indexInTrack: 0,
+        coreCount: coreLevels.length,
+        isOptional: true,
+      };
+    }
+  }
+  return null;
+}
+
 /** Last level id of the Foundations track — the gate all other tracks open after. */
 export function getFoundationsExitLevelId(tracks: LearningTrack[]): string {
   const f = tracks.find((t) => t.isFoundations);
