@@ -203,6 +203,24 @@ export function getTrackPosition(
   return null;
 }
 
+/**
+ * How many CORE levels of the track containing `eventId` are already in
+ * `completedEventIds`? Optional (★) levels neither count nor block. Null when
+ * the id is in no track. Drives the HUD progress bar: completion-based, so the
+ * result screen of a just-finished level (already pushed to completedEvents)
+ * shows the NEW percentage instead of lagging one level behind.
+ */
+export function countCompletedCoreLevels(
+  eventId: string,
+  completedEventIds: readonly string[],
+  tracks: LearningTrack[] = LEARNING_TRACKS
+): number | null {
+  const track = tracks.find((t) => t.levels.some((l) => l.eventId === eventId));
+  if (!track) return null;
+  const completed = new Set(completedEventIds);
+  return track.levels.filter((l) => !l.optional && completed.has(l.eventId)).length;
+}
+
 /** Last level id of the Foundations track — the gate all other tracks open after. */
 export function getFoundationsExitLevelId(tracks: LearningTrack[]): string {
   const f = tracks.find((t) => t.isFoundations);

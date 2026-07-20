@@ -9,7 +9,7 @@ import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
 import { extractTaskText } from './extractTaskText';
-import { getTrackPosition } from '../../content/events/learning-tracks';
+import { getTrackPosition, countCompletedCoreLevels } from '../../content/events/learning-tracks';
 import { CHAPTER_ART, CINEMATIC_EVENTS } from '../../content/adventure/chapterArt';
 import { adventureChapters } from '../../content/adventure/chapters';
 import { soundEngine, cueForEvent } from '../../audio/soundEngine';
@@ -164,11 +164,18 @@ export function GameScreen({
       ? `${trackPos.trackTitle} · ★`
       : `${trackPos.trackTitle} · ${trackPos.indexInTrack}/${trackPos.coreCount}`
     : undefined;
-  // Percent shows COMPLETION, not position: level 1/3 means 0 of 3 done → 0%.
-  // Single-level tracks (e.g. the Finale) hide the bar — 0% would only confuse.
+  // Percent shows COMPLETION, counted from state.completedEvents — not the
+  // level's position, which lags on the result screen (closeTerminal pushes
+  // the solved level BEFORE the result phase renders, so the just-finished
+  // level already counts there). Single-level tracks (e.g. the Finale) hide
+  // the bar — 0% would only confuse.
   const lessonProgressPercent =
     trackPos && !trackPos.isOptional && trackPos.coreCount > 1
-      ? Math.round(((trackPos.indexInTrack - 1) / trackPos.coreCount) * 100)
+      ? Math.round(
+          ((countCompletedCoreLevels(currentTrackEventId!, state.completedEvents) ?? 0) /
+            trackPos.coreCount) *
+            100
+        )
       : undefined;
 
   // Quest summary shown in the terminal's persistent task panel

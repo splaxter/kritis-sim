@@ -140,6 +140,7 @@ describe('learn_net_03_the_wall — harden the firewall (order in the hints)', (
     run(shell, 'sudo ufw allow 22/tcp');
     run(shell, 'sudo ufw allow 80/tcp');
     run(shell, 'sudo ufw allow 443/tcp');
+    run(shell, 'sudo ufw enable');
     expect(checkStateGoals(shell, goals)).toBe(true);
   });
 
@@ -148,6 +149,26 @@ describe('learn_net_03_the_wall — harden the firewall (order in the hints)', (
     const goals = goalsOf('learn_net_03_the_wall');
     run(shell, 'sudo ufw allow 22/tcp');
     expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('NEGATIVE: rules + default deny WITHOUT ufw enable do not complete the level', () => {
+    const shell = engineOf('learn_net_03_the_wall');
+    const goals = goalsOf('learn_net_03_the_wall');
+
+    // The level seeds a DISABLED firewall — status renders inactive, and real
+    // ufw accepts rule-adds while inactive (they are configuration only).
+    expect(run(shell, 'sudo ufw status').output).toBe('Status: inactive');
+    expect(run(shell, 'sudo ufw allow 22/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw allow 80/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw allow 443/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw default deny incoming').exitCode).toBe(0);
+
+    // Everything configured, nothing active: the wall is NOT up yet.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+
+    expect(run(shell, 'sudo ufw enable').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw status').output).toMatch(/^Status: active/);
+    expect(checkStateGoals(shell, goals)).toBe(true);
   });
 });
 

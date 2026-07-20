@@ -183,7 +183,7 @@ describe('learn_ans_04_fleet_hardening — activate the prepared task, harden th
     expect(after).toMatch(/regexp: \^#\?PasswordAuthentication/);
   });
 
-  it('the activated playbook passes --syntax-check and hardens both directives on all three hosts', () => {
+  it('the documented path — uncomment, syntax-check, apply, ssh spot-check — completes the level', () => {
     const shell = engineOf('learn_ans_04_fleet_hardening');
     const goals = goalsOf('learn_ans_04_fleet_hardening');
     expect(checkStateGoals(shell, goals)).toBe(false);
@@ -198,13 +198,35 @@ describe('learn_ans_04_fleet_hardening — activate the prepared task, harden th
     expect(real.exitCode, real.error).toBe(0);
     expect(real.output).toMatch(/TASK \[Root-Login abschalten\]/);
     expect(real.output).toMatch(/TASK \[Passwort-Login abschalten\]/);
-    expect(checkStateGoals(shell, goals)).toBe(true);
 
-    // Spot-check via ssh: both directives really stand on web03.
+    // The fleet is hardened, but the briefing promised a spot-check: the level
+    // is NOT complete until the player verified per SSH on web03.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+
     run(shell, 'ssh web03');
     const cfg = run(shell, 'cat /etc/ssh/sshd_config').output;
     expect(cfg).toMatch(/^PermitRootLogin no/m);
     expect(cfg).toMatch(/^PasswordAuthentication no/m);
+    expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('NEGATIVE: apply without --syntax-check leaves the level open; syntax-check + web03 login close it', () => {
+    const shell = engineOf('learn_ans_04_fleet_hardening');
+    const goals = goalsOf('learn_ans_04_fleet_hardening');
+
+    uncommentPasswordTask(shell);
+    // Straight to apply — all target files converge, but the promised proof
+    // steps (syntax-check, ssh spot-check) never happened.
+    const real = run(shell, 'ansible-playbook harden-fleet.yml');
+    expect(real.exitCode, real.error).toBe(0);
+    expect(checkStateGoals(shell, goals)).toBe(false);
+
+    // A LATE syntax-check still proves the playbook parses…
+    expect(run(shell, 'ansible-playbook harden-fleet.yml --syntax-check').exitCode).toBe(0);
+    // …and the spot-check login on web03 (key auth, exit afterwards) closes it.
+    expect(run(shell, 'ssh web03').exitCode).toBe(0);
+    run(shell, 'exit');
+    expect(checkStateGoals(shell, goals)).toBe(true);
   });
 
   it('idempotent: a second run after hardening changes nothing', () => {

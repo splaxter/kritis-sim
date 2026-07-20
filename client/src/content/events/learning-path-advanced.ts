@@ -210,7 +210,8 @@ Dein Schlüssel aus dem Onboarding liegt schon auf web01. Aber
 pass auf mit der Reihenfolge: Erst prüfst du, dass DEIN
 Schlüssel greift, DANN drehst du die Passwörter ab. Wer das
 umdreht und keinen Key hat, sperrt sich selbst aus — und dann
-klingle ich dich nachts aus dem Rechenzentrum.“
+klingele ich dich nachts aus dem Bett, weil wir ins
+Rechenzentrum müssen.“
 
 **Deine Aufgabe:**
 - Melde dich per Schlüssel auf web01 an (admin) — der Beweis, dass dein Key greift
@@ -296,7 +297,7 @@ klingle ich dich nachts aus dem Rechenzentrum.“
             { host: 'web01', sshdEffective: { permitRootLogin: false, passwordAuthentication: false } },
           ],
           resultText:
-            'Beide Zeilen stehen auf „no“, und der neu gestartete Dienst fährt wirklich mit der neuen Konfiguration — nicht mit der alten im Speicher. Root-Login und Passwort-Logins sind zu; ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat. Und dein eigener Zugang? Bewiesen, BEVOR die Tür zufiel: Du warst per Schlüssel drauf.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten — und nach jeder Änderung an der sshd-Konfiguration den Dienst neu starten, sonst gilt weiter der alte Stand.',
+            'Beide Zeilen stehen auf „no“, und der neu gestartete Dienst fährt wirklich mit der neuen Konfiguration — nicht mit der alten im Speicher. Root-Login und Passwort-Logins sind zu; ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat. Und dein eigener Zugang? Per Schlüssel bewiesen — die Tür ist zu, du bist drin.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten — und nach jeder Änderung an der sshd-Konfiguration den Dienst neu starten, sonst gilt weiter der alte Stand.',
           skillGain: { linux: 3, security: 4 },
           effects: { stress: -3 },
         },
@@ -1229,7 +1230,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
 **Deine Aufgabe:**
 - Erlaube eingehend genau 22/tcp, 80/tcp und 443/tcp
 - Setze die Standard-Richtung für eingehend auf „deny"
-- Aktiviere die Firewall — in der richtigen Reihenfolge`,
+- Aktiviere die Firewall — ohne deinen SSH-Zugang zu gefährden`,
     mentorNote:
       'Reihenfolge rettet dich: erst die nötigen Ports freigeben (ufw allow 22/tcp …), DANN die Standardrichtung auf deny setzen und die Firewall aktivieren. Wer die Regeln umdreht, kappt sich womöglich den eigenen SSH-Zugang. ufw braucht root — also sudo.',
     choices: [
@@ -1247,7 +1248,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Firewall härten: eingehend 22/80/443 erlauben, Standard-Richtung eingehend auf deny, Firewall aktivieren — Reihenfolge beachten (erst allow 22, dann deny).',
+        'Firewall härten: eingehend 22/80/443 erlauben, Standard-Richtung eingehend auf deny, Firewall aktivieren — ohne deinen SSH-Zugang zu gefährden.',
       firewall: {
         enabled: false,
         defaultIncoming: 'allow',
@@ -1263,16 +1264,18 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
           commands: [],
           allRequired: false,
           stateGoals: [
-            // The three needed ports are open AND the default is deny. The
-            // "don't lock yourself out" order is taught in the hints; the goal
-            // only checks the end state.
+            // The three needed ports are open, the default is deny AND the
+            // firewall is actually enabled — rules and policy alone are just
+            // configuration until `ufw enable`. The "don't lock yourself out"
+            // order is taught in the hints; the goals only check the end state.
             { firewallRule: { action: 'allow', port: 22, present: true } },
             { firewallRule: { action: 'allow', port: 80, present: true } },
             { firewallRule: { action: 'allow', port: 443, present: true } },
             { firewallDefaultIncoming: 'deny' },
+            { firewallEnabled: true },
           ],
           resultText:
-            'Die Mauer steht: Eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Wer dabei zuerst die Türen aufschließt und erst dann die Mauer hochzieht, sitzt hinterher noch drin — und nicht ausgesperrt davor.\n\nMerke: Bei Firewalls zählt die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren. Umgekehrt kappst du dir womöglich den eigenen Zugang.',
+            'Die Mauer steht: Die Firewall ist aktiv, und eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und dein SSH-Zugang? Ungefährdet — Port 22 ist offen, du bleibst drin.\n\nMerke: Bei Firewalls hilft dir die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren — so gefährdest du deinen eigenen Zugang nie.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
         },
@@ -1758,16 +1761,16 @@ Playbook, aktiviert hat er sie nie. Aktivier sie, prüf die
 Syntax und roll auf die ganze Flotte aus.
 
 Du kannst das jetzt — Inventar, Playbook, Idempotenz. Zeig mir,
-dass du eine Richtlinie sauber und wiederholbar scharf schalten
-kannst."
+dass du eine Richtlinie kontrolliert aktivieren und ausrollen
+kannst — sauber und wiederholbar."
 
 **Deine Aufgabe:**
 - Aktiviere die auskommentierte zweite Aufgabe (\`PasswordAuthentication no\`) in \`harden-fleet.yml\`
 - Prüf die Syntax, bevor du ausrollst
 - Roll das Playbook auf web01/web02/web03 aus
-- Prüf auf einem Host per SSH, dass beide Regeln stehen`,
+- Prüf per SSH auf web03, dass beide Regeln stehen`,
     mentorNote:
-      'Die Synthese: Eine vorbereitete Richtlinie kontrolliert scharf schalten. Die zweite Aufgabe steht schon im Playbook — jede Zeile beginnt mit „# “. Auskommentierte Zeilen aktiviert man nicht durch Abtippen, sondern durch gezieltes Entfernen des Kommentarzeichens am Zeilenanfang (ein sed-Einzeiler). Prüf das Playbook danach mit --syntax-check, BEVOR du ausrollst — so fängst du einen YAML-Fehler ab, bevor er auf die Flotte trifft. Danach: ausrollen, per SSH gegenprüfen.',
+      'Die Synthese: Eine vorbereitete Richtlinie kontrolliert aktivieren und ausrollen. Die zweite Aufgabe steht schon im Playbook — jede Zeile beginnt mit „# “. Auskommentierte Zeilen aktiviert man nicht durch Abtippen, sondern durch gezieltes Entfernen des Kommentarzeichens am Zeilenanfang (ein sed-Einzeiler). Prüf das Playbook danach mit --syntax-check, BEVOR du ausrollst — so fängst du einen YAML-Fehler ab, bevor er auf die Flotte trifft. Danach: ausrollen, per SSH gegenprüfen.',
     choices: [
       {
         id: 'start',
@@ -1783,7 +1786,7 @@ kannst."
       username: 'deploy',
       currentPath: '/opt/playbooks',
       taskText:
-        'Die auskommentierte PasswordAuthentication-Aufgabe in harden-fleet.yml aktivieren (Kommentarzeichen entfernen), Syntax prüfen, dann auf web01/web02/web03 ausrollen. Ziel: alle drei Hosts mit PermitRootLogin no UND PasswordAuthentication no.',
+        'Die auskommentierte PasswordAuthentication-Aufgabe in harden-fleet.yml aktivieren (Kommentarzeichen entfernen), Syntax prüfen (--syntax-check), auf web01/web02/web03 ausrollen, per SSH auf web03 gegenprüfen. Ziel: alle drei Hosts mit PermitRootLogin no UND PasswordAuthentication no.',
       vfsOverlay: {
         files: [
           ...controllerSshFiles,
@@ -1841,6 +1844,12 @@ kannst."
             { host: 'web02', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
             { host: 'web03', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
             { host: 'web03', file: '/etc/ssh/sshd_config', matches: '^PasswordAuthentication no' },
+            // The briefing promises proof, so the goals demand it: a CLEAN
+            // --syntax-check of the playbook (a failed one does not count)…
+            { ansibleRan: { playbook: 'harden-fleet.yml', mode: 'syntax-check', ok: true } },
+            // …and the SSH spot-check on web03 (the controller key is trusted
+            // fleet-wide, so `ssh web03` as deploy logs in via publickey).
+            { loggedIn: { host: 'web03' } },
           ],
           resultText:
             'Die ganze Flotte steht: kein Root-Login, keine Passwort-Anmeldung, nur noch Schlüssel — auf allen drei Webservern, aus einem einzigen Playbook. Du hast eine Richtlinie in wiederholbaren, nachvollziehbaren Code übersetzt. Genau das ist Konfigurationsmanagement.\n\nUnd das Beste: Morgen kommt web04 dazu, du trägst einen Hostnamen ins Inventar ein, lässt das Playbook laufen — und der neue Server ist ohne Handarbeit konform. Eine Wahrheit für alle Hosts. Bert nickt zufrieden: „Das nehmen wir als Standard."',
@@ -1851,8 +1860,8 @@ kannst."
       hints: [
         '🤖 Henry: Wirf erst einen Blick ins Playbook. Die zweite Aufgabe steht schon drin — Jens hat sie vorbereitet, aber jede ihrer Zeilen beginnt mit einem Kommentarzeichen. Solange das da steht, ist die Regel für Ansible unsichtbar.',
         '🤖 Henry: Auskommentierte Zeilen tippst du nicht neu ab — du entfernst das Kommentarzeichen samt Leerzeichen am Zeilenanfang. Ein Stream-Editor macht das in einem Rutsch, für alle fünf Zeilen gleichzeitig.',
-        '🤖 Henry: Das Muster ist „# “ am Zeilenanfang (^). Nur die vorbereiteten Zeilen fangen so an — der Rest des Playbooks bleibt unberührt. Danach unbedingt die Syntax prüfen, bevor du ausrollst.',
-        "🤖 Henry: `sudo sed -i 's/^# //' /opt/playbooks/harden-fleet.yml` → prüfen mit `ansible-playbook harden-fleet.yml --syntax-check` → dann `ansible-playbook harden-fleet.yml`.",
+        '🤖 Henry: Das Muster ist „# “ am Zeilenanfang (^). Nur die vorbereiteten Zeilen fangen so an — der Rest des Playbooks bleibt unberührt. Danach unbedingt die Syntax prüfen, bevor du ausrollst — und am Ende die Gegenprobe: per SSH auf web03, ob beide Regeln wirklich stehen.',
+        "🤖 Henry: `sudo sed -i 's/^# //' /opt/playbooks/harden-fleet.yml` → prüfen mit `ansible-playbook harden-fleet.yml --syntax-check` → dann `ansible-playbook harden-fleet.yml` → Gegenprobe: `ssh web03` und `cat /etc/ssh/sshd_config`.",
       ],
     },
     tags: ['learning', 'ansible', 'terminal', 'security', 'automation', 'kritis'],
