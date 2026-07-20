@@ -93,13 +93,32 @@ describe('useGame.closeTerminal — solution skillGain', () => {
   });
 });
 
-// Regression: a terminal/GUI level must be marked completed ONLY through the
-// solve path, never via a flavor/secondary choice on the same event.
+// Regression: a terminal/GUI LEVEL (every choice opens the terminal/GUI, like
+// all learn_/gui_/blk_ levels) must be marked completed ONLY through the solve
+// path, never via makeChoice. Mixed-choice pool events (terminal choice PLUS
+// legitimate non-terminal resolutions, e.g. evt_drucker_fluch) must still
+// complete via a non-terminal choice, or eventEngine re-serves them forever.
 describe('useGame — terminal/GUI levels complete only via solve', () => {
+  const terminalContext = {
+    type: 'linux' as const,
+    hostname: 'srv',
+    username: 'admin',
+    currentPath: '/',
+    commands: [],
+    solutions: [],
+    hints: [],
+  };
   const startChoice: EventChoice = {
     id: 'start',
     text: 'Terminal öffnen',
     effects: { skills: { linux: 2 } },
+    resultText: 'gelöst',
+    terminalCommand: true,
+  };
+  const altTerminalChoice: EventChoice = {
+    id: 'start_alt',
+    text: 'Terminal öffnen (Variante)',
+    effects: {},
     resultText: 'gelöst',
     terminalCommand: true,
   };
@@ -109,6 +128,7 @@ describe('useGame — terminal/GUI levels complete only via solve', () => {
     effects: {},
     resultText: 'ok',
   };
+  // Shaped like a real learning level: EVERY choice opens the terminal.
   const terminalEvent: GameEvent = {
     id: 'test_terminal_event',
     weekRange: [1, 12],
@@ -117,25 +137,17 @@ describe('useGame — terminal/GUI levels complete only via solve', () => {
     involvedCharacters: [],
     title: 'Test Terminal',
     description: 'Test',
-    choices: [startChoice, flavorChoice],
+    choices: [startChoice, altTerminalChoice],
     tags: [],
-    terminalContext: {
-      type: 'linux',
-      hostname: 'srv',
-      username: 'admin',
-      currentPath: '/',
-      commands: [],
-      solutions: [],
-      hints: [],
-    },
+    terminalContext,
   };
 
-  it('a flavor choice does NOT complete a terminal event', () => {
+  it('makeChoice does NOT complete an all-terminal-choice level', () => {
     const { result } = renderHook(() => useGame());
     act(() => result.current.startNewGame('SEED', 'intermediate'));
 
     act(() => result.current.setEvent(terminalEvent));
-    act(() => result.current.makeChoice(flavorChoice));
+    act(() => result.current.makeChoice(altTerminalChoice));
 
     expect(result.current.state.completedEvents).not.toContain('test_terminal_event');
   });
@@ -149,6 +161,32 @@ describe('useGame — terminal/GUI levels complete only via solve', () => {
     act(() => result.current.closeTerminal(true, { linux: 3 }));
 
     expect(result.current.state.completedEvents).toContain('test_terminal_event');
+  });
+
+  it('a MIXED event (terminal + normal choices) completes via the non-terminal choice', () => {
+    // Shape of pool events like evt_drucker_fluch: terminalContext present, but
+    // the player may legitimately resolve without opening the terminal.
+    const mixedEvent: GameEvent = {
+      id: 'test_mixed_event',
+      weekRange: [1, 12],
+      probability: 1,
+      category: 'support',
+      involvedCharacters: [],
+      title: 'Test Mixed',
+      description: 'Test',
+      choices: [startChoice, flavorChoice],
+      tags: [],
+      terminalContext,
+    };
+    const { result } = renderHook(() => useGame());
+    act(() => result.current.startNewGame('SEED', 'intermediate'));
+
+    act(() => result.current.setEvent(mixedEvent));
+    act(() => result.current.makeChoice(flavorChoice));
+
+    // Must be completed, otherwise eventEngine (dedupe via completedEvents)
+    // would re-serve the event indefinitely.
+    expect(result.current.state.completedEvents).toContain('test_mixed_event');
   });
 
   it('a normal (non-terminal) event still completes on choice', () => {

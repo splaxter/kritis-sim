@@ -143,12 +143,19 @@ export function useGame(): UseGameReturn {
         newState.flags = flags;
       }
 
-      // Mark event as completed — but NOT for terminal/GUI levels. Those must
-      // only be completed through the solve path (closeTerminal). A flavor/
-      // secondary choice on such an event opens no level, so completing it here
-      // would skip the lesson and wrongly unlock the next level. The terminal
-      // `start` choice never reaches makeChoice (App routes it to openTerminal).
-      if (currentEvent && !currentEvent.terminalContext && !currentEvent.guiContext) {
+      // Mark event as completed — but NOT for pure terminal/GUI LEVELS (every
+      // choice opens the terminal/GUI, as in all learn_/gui_/blk_ levels).
+      // Those must only complete through the solve path (closeTerminal), or a
+      // stray makeChoice would skip the lesson and unlock the next level.
+      // Mixed-choice pool events (terminal choice PLUS legitimate non-terminal
+      // resolutions, e.g. evt_drucker_fluch) MUST still complete here — the
+      // event engine dedupes only via completedEvents and would otherwise
+      // re-serve them forever.
+      const isPureHandsOnLevel =
+        currentEvent &&
+        (currentEvent.terminalContext || currentEvent.guiContext) &&
+        currentEvent.choices.every((c) => c.terminalCommand || c.guiCommand);
+      if (currentEvent && !isPureHandsOnLevel) {
         newState.completedEvents = [...prev.completedEvents, currentEvent.id];
       }
 

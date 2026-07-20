@@ -155,8 +155,8 @@ export function GameScreen({
   // Learning-mode header shows track-local progress. The hub is nonlinear across
   // ~47 levels, so a global "Lektion N/total" is meaningless. Instead we locate
   // the current level in its track and show e.g. "SSH & Remote-Zugriff · 2/3"
-  // (core levels), or "… · ★" for an optional side level. Falls back to just the
-  // track title, then to nothing, when the level isn't in any track.
+  // (core levels), or "… · ★" for an optional side level. When the level isn't
+  // in any track, the lesson indicator is omitted.
   const currentTrackEventId = currentEvent?.id ?? currentScenario?.id;
   const trackPos = currentTrackEventId ? getTrackPosition(currentTrackEventId) : null;
   const lessonLabel = trackPos
@@ -164,9 +164,11 @@ export function GameScreen({
       ? `${trackPos.trackTitle} · ★`
       : `${trackPos.trackTitle} · ${trackPos.indexInTrack}/${trackPos.coreCount}`
     : undefined;
+  // Percent shows COMPLETION, not position: level 1/3 means 0 of 3 done → 0%.
+  // Single-level tracks (e.g. the Finale) hide the bar — 0% would only confuse.
   const lessonProgressPercent =
-    trackPos && !trackPos.isOptional && trackPos.coreCount > 0
-      ? Math.round((trackPos.indexInTrack / trackPos.coreCount) * 100)
+    trackPos && !trackPos.isOptional && trackPos.coreCount > 1
+      ? Math.round(((trackPos.indexInTrack - 1) / trackPos.coreCount) * 100)
       : undefined;
 
   // Quest summary shown in the terminal's persistent task panel
