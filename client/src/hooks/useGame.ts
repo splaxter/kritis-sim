@@ -143,8 +143,12 @@ export function useGame(): UseGameReturn {
         newState.flags = flags;
       }
 
-      // Mark event as completed
-      if (currentEvent) {
+      // Mark event as completed — but NOT for terminal/GUI levels. Those must
+      // only be completed through the solve path (closeTerminal). A flavor/
+      // secondary choice on such an event opens no level, so completing it here
+      // would skip the lesson and wrongly unlock the next level. The terminal
+      // `start` choice never reaches makeChoice (App routes it to openTerminal).
+      if (currentEvent && !currentEvent.terminalContext && !currentEvent.guiContext) {
         newState.completedEvents = [...prev.completedEvents, currentEvent.id];
       }
 

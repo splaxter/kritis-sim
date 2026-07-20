@@ -92,3 +92,83 @@ describe('useGame.closeTerminal — solution skillGain', () => {
     expect(result.current.phase).toBe('playing');
   });
 });
+
+// Regression: a terminal/GUI level must be marked completed ONLY through the
+// solve path, never via a flavor/secondary choice on the same event.
+describe('useGame — terminal/GUI levels complete only via solve', () => {
+  const startChoice: EventChoice = {
+    id: 'start',
+    text: 'Terminal öffnen',
+    effects: { skills: { linux: 2 } },
+    resultText: 'gelöst',
+    terminalCommand: true,
+  };
+  const flavorChoice: EventChoice = {
+    id: 'flavor',
+    text: 'Erst mal nachdenken',
+    effects: {},
+    resultText: 'ok',
+  };
+  const terminalEvent: GameEvent = {
+    id: 'test_terminal_event',
+    weekRange: [1, 12],
+    probability: 1,
+    category: 'training',
+    involvedCharacters: [],
+    title: 'Test Terminal',
+    description: 'Test',
+    choices: [startChoice, flavorChoice],
+    tags: [],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'srv',
+      username: 'admin',
+      currentPath: '/',
+      commands: [],
+      solutions: [],
+      hints: [],
+    },
+  };
+
+  it('a flavor choice does NOT complete a terminal event', () => {
+    const { result } = renderHook(() => useGame());
+    act(() => result.current.startNewGame('SEED', 'intermediate'));
+
+    act(() => result.current.setEvent(terminalEvent));
+    act(() => result.current.makeChoice(flavorChoice));
+
+    expect(result.current.state.completedEvents).not.toContain('test_terminal_event');
+  });
+
+  it('solving the terminal DOES complete the terminal event', () => {
+    const { result } = renderHook(() => useGame());
+    act(() => result.current.startNewGame('SEED', 'intermediate'));
+
+    act(() => result.current.setEvent(terminalEvent));
+    act(() => result.current.openTerminal(startChoice));
+    act(() => result.current.closeTerminal(true, { linux: 3 }));
+
+    expect(result.current.state.completedEvents).toContain('test_terminal_event');
+  });
+
+  it('a normal (non-terminal) event still completes on choice', () => {
+    const normalEvent: GameEvent = {
+      id: 'test_normal_event',
+      weekRange: [1, 12],
+      probability: 1,
+      category: 'training',
+      involvedCharacters: [],
+      title: 'Normal',
+      description: 'Test',
+      choices: [flavorChoice],
+      tags: [],
+    };
+    const { result } = renderHook(() => useGame());
+    act(() => result.current.startNewGame('SEED', 'intermediate'));
+
+    act(() => result.current.setEvent(normalEvent));
+    act(() => result.current.makeChoice(flavorChoice));
+
+    expect(result.current.state.completedEvents).toContain('test_normal_event');
+  });
+});
