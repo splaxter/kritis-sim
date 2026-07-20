@@ -285,6 +285,18 @@ describe('stateGoals', () => {
       expect(checkStateGoal(engine, { sshdEffective: { passwordAuthentication: false } })).toBe(true);
     });
 
+    it('honors the INNER sshdEffective.host (overrides goal.host / base host)', () => {
+      const web = createHostState({ id: 'web02', hostname: 'web02' });
+      web.vfs.addFile('/etc/ssh/sshd_config', 'PermitRootLogin no\n');
+      web.refreshSshdEffective();
+      engine.registerHost(web);
+      // Base host stays permissive; only the inner host names web02.
+      expect(checkStateGoal(engine, { sshdEffective: { host: 'web02', permitRootLogin: false } })).toBe(true);
+      expect(checkStateGoal(engine, { sshdEffective: { permitRootLogin: false } })).toBe(false);
+      // Unresolvable inner host → false, never throws.
+      expect(checkStateGoal(engine, { sshdEffective: { host: 'nix', permitRootLogin: false } })).toBe(false);
+    });
+
     it('evaluates against a named secondary host, defaults true when the value already holds', () => {
       const web = createHostState({
         id: 'web01', hostname: 'web01',

@@ -144,11 +144,14 @@ function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
  * Effective (running) sshd config on the host — proves `systemctl restart ssh`
  * was actually run. A file-content goal is met by editing sshd_config alone;
  * this one only flips after the daemon reloaded (host.refreshSshdEffective).
+ * An inner `sshdEffective.host` overrides the goal-level host (like loggedIn).
  */
-function checkSshdEffectiveGoal(host: HostState, goal: StateGoal): boolean {
+function checkSshdEffectiveGoal(engine: ShellEngine, host: HostState, goal: StateGoal): boolean {
   if (!goal.sshdEffective) return true;
-  const eff = host.sshdEffective;
   const g = goal.sshdEffective;
+  const target = g.host !== undefined ? engine.resolveHost(g.host) : host;
+  if (!target) return false;
+  const eff = target.sshdEffective;
   if (g.permitRootLogin !== undefined && eff.permitRootLogin !== g.permitRootLogin) return false;
   if (g.passwordAuthentication !== undefined && eff.passwordAuthentication !== g.passwordAuthentication) return false;
   return true;
@@ -184,9 +187,9 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       && checkServiceGoals(host, goal)
       && checkFirewallGoals(host, goal)
       && checkNetworkGoals(host, goal)
-      // sshdEffective resolves via goal.host like the host-scoped checks above;
-      // loggedIn resolves its OWN target (goal.loggedIn.host) at engine level.
-      && checkSshdEffectiveGoal(host, goal)
+      // sshdEffective and loggedIn may name their OWN target host, falling
+      // back to goal.host / the base host like the checks above.
+      && checkSshdEffectiveGoal(engine, host, goal)
       && checkLoggedInGoal(engine, goal);
   } catch {
     return false;
