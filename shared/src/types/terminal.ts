@@ -192,4 +192,21 @@ export interface StateGoal {
   listenerAbsent?: { port: number };
   /** True iff at least one listener on the host binds this port. */
   listenerPresent?: { port: number };
+  /**
+   * Session-aware: the player must have successfully SSH-logged into a host
+   * during this terminal session. `host` names the login TARGET (id, hostname,
+   * short hostname or IP); when omitted, any recorded login satisfies the goal.
+   * `method` pins the auth method — a `publickey`-required goal is NOT met by a
+   * password login, which is what makes "log in without a password" a real win
+   * condition. Logins persist after `exit` (you still logged in).
+   */
+  loggedIn?: { host?: string; method?: 'publickey' | 'password' };
+  /**
+   * The RUNNING sshd's effective config on the host (defaults to the base
+   * host). Editing /etc/ssh/sshd_config hardens the file, but the daemon only
+   * picks it up on `systemctl restart/reload ssh` — so this goal is unmet until
+   * the service is restarted, unlike a file-content goal. Each provided field
+   * is compared for equality.
+   */
+  sshdEffective?: { host?: string; permitRootLogin?: boolean; passwordAuthentication?: boolean };
 }

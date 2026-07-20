@@ -90,6 +90,18 @@ describe('stateGoals', () => {
       expect(checkStateGoal(engine, { serviceState: 'active' } as StateGoal)).toBe(false);
     });
 
+    it('a bare loggedIn goal is a non-vacuous assertion (not treated as unmet-by-shape)', () => {
+      // No login recorded → false, but by evaluation, not by the vacuous guard.
+      expect(checkStateGoal(engine, { loggedIn: {} })).toBe(false);
+      engine.recordLogin('local', 'password');
+      expect(checkStateGoal(engine, { loggedIn: {} })).toBe(true);
+    });
+
+    it('a bare sshdEffective goal is a non-vacuous assertion', () => {
+      // Empty sshdEffective object asserts nothing false → true on the base host.
+      expect(checkStateGoal(engine, { sshdEffective: {} })).toBe(true);
+    });
+
     it('serviceEnabled: false with a service is a legal, non-vacuous assertion', () => {
       const svc = engine.getBaseHost().services.find(s => s.unit === 'ssh.service')!;
       svc.enabled = 'disabled';
@@ -202,6 +214,91 @@ describe('stateGoals', () => {
       expect(checkStateGoal(engine, { host: 'web01', file: '/var/www/index.html', matches: 'hacked' })).toBe(true);
       // Base host does not have the file — an unset host must not hit web01.
       expect(checkStateGoal(engine, { file: '/var/www/index.html', matches: 'hacked' })).toBe(false);
+    });
+  });
+
+  describe('loggedIn (session-aware)', () => {
+    it('matches a recorded login by host + method', () => {
+      const web = createHostState({ id: 'web01', hostname: 'web01.stadtwerke.local', ip: '10.0.20.10' });
+      engine.registerHost(web);
+      engine.recordLogin('web01', 'publickey');
+      expect(checkStateGoal(engine, { loggedIn: { host: 'web01', method: 'publickey' } })).toBe(true);
+    });
+
+    it('a publickey-required goal is NOT satisfied by a password login', () => {
+      const web = createHostState({ id: 'web01', hostname: 'web01', ip: '10.0.20.10' });
+      engine.registerHost(web);
+      engine.recordLogin('web01', 'password');
+      expect(checkStateGoal(engine, { loggedIn: { host: 'web01', method: 'password' } })).toBe(true);
+      expect(checkStateGoal(engine, { loggedIn: { host: 'web01', method: 'publickey' } })).toBe(false);
+    });
+
+    it('host given but never logged into → false', () => {
+      const web = createHostState({ id: 'web01', hostname: 'web01', ip: '10.0.20.10' });
+      engine.registerHost(web);
+      expect(checkStateGoal(engine, { loggedIn: { host: 'web01' } })).toBe(false);
+    });
+
+    it('resolves the login host by hostname / IP, not only id', () => {
+      const web = createHostState({ id: 'web01', hostname: 'web01.stadtwerke.local', ip: '10.0.20.10' });
+      engine.registerHost(web);
+      engine.recordLogin('web01', 'publickey');
+      expect(checkStateGoal(engine, { loggedIn: { host: 'web01.stadtwerke.local', method: 'publickey' } })).toBe(true);
+      expect(checkStateGoal(engine, { loggedIn: { host: '10.0.20.10', method: 'publickey' } })).toBe(true);
+    });
+
+    it('unknown login host → false, never throws', () => {
+      engine.recordLogin('web01', 'publickey');
+      expect(() => checkStateGoal(engine, { loggedIn: { host: 'ghost' } })).not.toThrow();
+      expect(checkStateGoal(engine, { loggedIn: { host: 'ghost' } })).toBe(false);
+    });
+
+    it('host omitted → any recorded login matching the method counts', () => {
+      const web = createHostState({ id: 'web01', hostname: 'web01', ip: '10.0.20.10' });
+      engine.registerHost(web);
+      expect(checkStateGoal(engine, { loggedIn: { method: 'publickey' } })).toBe(false);
+      engine.recordLogin('web01', 'publickey');
+      expect(checkStateGoal(engine, { loggedIn: { method: 'publickey' } })).toBe(true);
+      // A password login does not satisfy a publickey-only, host-omitted goal.
+      expect(checkStateGoal(engine, { loggedIn: { method: 'password' } })).toBe(false);
+    });
+  });
+
+  describe('sshdEffective', () => {
+    it('permitRootLogin:false is FALSE when the file says no but sshd was NOT restarted', () => {
+      // File hardened, but the running daemon still has the default (permit=true).
+      engine.getBaseHost().vfs.addFile('/etc/ssh/sshd_config', 'PermitRootLogin no\n');
+      expect(checkStateGoal(engine, { file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no$' })).toBe(true);
+      expect(checkStateGoal(engine, { sshdEffective: { permitRootLogin: false } })).toBe(false);
+    });
+
+    it('permitRootLogin:false becomes TRUE only after systemctl restart ssh', () => {
+      engine.getBaseHost().vfs.addFile('/etc/ssh/sshd_config', 'PermitRootLogin no\n');
+      engine.execute('sudo systemctl restart ssh');
+      expect(checkStateGoal(engine, { sshdEffective: { permitRootLogin: false } })).toBe(true);
+    });
+
+    it('passwordAuthentication:false requires a restart to take effect', () => {
+      engine.getBaseHost().vfs.addFile('/etc/ssh/sshd_config', 'PasswordAuthentication no\n');
+      expect(checkStateGoal(engine, { sshdEffective: { passwordAuthentication: false } })).toBe(false);
+      engine.execute('sudo systemctl restart ssh');
+      expect(checkStateGoal(engine, { sshdEffective: { passwordAuthentication: false } })).toBe(true);
+    });
+
+    it('evaluates against a named secondary host, defaults true when the value already holds', () => {
+      const web = createHostState({
+        id: 'web01', hostname: 'web01',
+        vfsOverlay: { files: [{ path: '/etc/ssh/sshd_config', content: 'PermitRootLogin yes\n' }] },
+      });
+      engine.registerHost(web);
+      // Effective already permits root (file says yes, seeded at build).
+      expect(checkStateGoal(engine, { sshdEffective: { host: 'web01', permitRootLogin: true } })).toBe(true);
+      expect(checkStateGoal(engine, { sshdEffective: { host: 'web01', permitRootLogin: false } })).toBe(false);
+    });
+
+    it('unknown host → false, never throws', () => {
+      expect(() => checkStateGoal(engine, { sshdEffective: { host: 'ghost', permitRootLogin: false } })).not.toThrow();
+      expect(checkStateGoal(engine, { sshdEffective: { host: 'ghost', permitRootLogin: false } })).toBe(false);
     });
   });
 

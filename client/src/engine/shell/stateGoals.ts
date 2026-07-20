@@ -36,7 +36,12 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.firewallRule !== undefined
     || goal.firewallDefaultIncoming !== undefined
     || goal.listenerAbsent !== undefined
-    || goal.listenerPresent !== undefined;
+    || goal.listenerPresent !== undefined
+    // loggedIn/sshdEffective are non-vacuous even with empty sub-objects: a bare
+    // `{loggedIn:{}}` asserts "logged into any host" and must be evaluated, not
+    // rejected as shapeless.
+    || goal.loggedIn !== undefined
+    || goal.sshdEffective !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -135,6 +140,36 @@ function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
   return true;
 }
 
+/**
+ * Effective (running) sshd config on the host — proves `systemctl restart ssh`
+ * was actually run. A file-content goal is met by editing sshd_config alone;
+ * this one only flips after the daemon reloaded (host.refreshSshdEffective).
+ */
+function checkSshdEffectiveGoal(host: HostState, goal: StateGoal): boolean {
+  if (!goal.sshdEffective) return true;
+  const eff = host.sshdEffective;
+  const g = goal.sshdEffective;
+  if (g.permitRootLogin !== undefined && eff.permitRootLogin !== g.permitRootLogin) return false;
+  if (g.passwordAuthentication !== undefined && eff.passwordAuthentication !== g.passwordAuthentication) return false;
+  return true;
+}
+
+/**
+ * Session-aware login goal. `host` names the login TARGET (resolved to its id);
+ * when omitted, ANY recorded login matching `method` satisfies the goal. A
+ * `publickey` method is not met by a password login and vice versa.
+ */
+function checkLoggedInGoal(engine: ShellEngine, goal: StateGoal): boolean {
+  if (!goal.loggedIn) return true;
+  const { host, method } = goal.loggedIn;
+  if (host !== undefined) {
+    const resolved = engine.resolveHost(host);
+    if (!resolved) return false;
+    return engine.hasLoggedIn(resolved.id, method);
+  }
+  return engine.hasLoggedIn(undefined, method);
+}
+
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
@@ -148,7 +183,11 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
     return checkFileGoals(host, goal)
       && checkServiceGoals(host, goal)
       && checkFirewallGoals(host, goal)
-      && checkNetworkGoals(host, goal);
+      && checkNetworkGoals(host, goal)
+      // sshdEffective resolves via goal.host like the host-scoped checks above;
+      // loggedIn resolves its OWN target (goal.loggedIn.host) at engine level.
+      && checkSshdEffectiveGoal(host, goal)
+      && checkLoggedInGoal(engine, goal);
   } catch {
     return false;
   }

@@ -78,7 +78,9 @@ export const sshCommand: ShellCommand = {
     const target = resolveHost(targetName)!;
 
     if (auth.kind === 'ok') {
-      pushSession(target.id, targetUser);
+      // auth.method is 'publickey' here — record it so a loggedIn goal can
+      // require the passwordless key login specifically.
+      pushSession(target.id, targetUser, auth.method);
       return { output: loginBanner(target, auth.warning), exitCode: 0 };
     }
 
@@ -87,7 +89,7 @@ export const sshCommand: ShellCommand = {
       ctx, target, targetUser,
       { prompt: `${targetUser}@${targetName}'s password: ` },
       () => {
-        pushSession(target.id, targetUser);
+        pushSession(target.id, targetUser, 'password');
         return { output: loginBanner(target), exitCode: 0 };
       },
       () => ({ output: '', exitCode: 255, error: `${targetUser}@${targetName}: Permission denied (password).` })

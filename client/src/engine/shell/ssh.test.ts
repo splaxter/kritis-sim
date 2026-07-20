@@ -8,6 +8,7 @@ import { createShell } from './index';
 import { createHostState } from './hosts';
 import { ShellEngine } from './ShellEngine';
 import { homeDir } from './sshAuth';
+import { checkStateGoals } from './stateGoals';
 
 const PUBKEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5TimoKey timo@admin-ws';
 
@@ -262,6 +263,50 @@ describe('ssh: key auth', () => {
     })));
     const r = shell.execute('ssh web01');
     expect(r.pendingInput).toEqual({ prompt: "timo@web01's password: ", mask: true });
+  });
+});
+
+describe('ssh: loggedIn goal recording', () => {
+  it('a real key login records method publickey; a publickey goal is met, password is NOT', () => {
+    const shell = baseShell();
+    seedLocalKey(shell);
+    shell.registerHost(createHostState(web01Spec({
+      vfsOverlay: { files: [{ path: '/home/admin/.ssh/authorized_keys', content: `${PUBKEY}\n` }] },
+    })));
+    const r = shell.execute('ssh admin@web01');
+    expect(r.exitCode).toBe(0);
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01', method: 'publickey' } }])).toBe(true);
+    // The passwordless key login must NOT satisfy a password-method goal.
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01', method: 'password' } }])).toBe(false);
+  });
+
+  it('a real password login records method password, not publickey', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec()));
+    shell.execute('ssh admin@web01');
+    shell.continueInput('sonnenblume23');
+    expect(shell.getSessionDepth()).toBe(2);
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01', method: 'password' } }])).toBe(true);
+    // A publickey-required goal is NOT satisfied by a password login.
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01', method: 'publickey' } }])).toBe(false);
+  });
+
+  it('no login → loggedIn goal is false', () => {
+    const shell = baseShell();
+    shell.registerHost(createHostState(web01Spec()));
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01' } }])).toBe(false);
+  });
+
+  it('login persists after exit (you still logged in)', () => {
+    const shell = baseShell();
+    seedLocalKey(shell);
+    shell.registerHost(createHostState(web01Spec({
+      vfsOverlay: { files: [{ path: '/home/admin/.ssh/authorized_keys', content: `${PUBKEY}\n` }] },
+    })));
+    shell.execute('ssh admin@web01');
+    shell.execute('exit');
+    expect(shell.getSessionDepth()).toBe(1);
+    expect(checkStateGoals(shell, [{ loggedIn: { host: 'web01', method: 'publickey' } }])).toBe(true);
   });
 });
 

@@ -111,8 +111,13 @@ export interface ExecutionContext {
   host?: import('./hosts').HostState;
   /** Resolve another registered host by id, hostname or IP. */
   resolveHost?: (nameOrIp: string) => import('./hosts').HostState | undefined;
-  /** Open a session on another host (ssh) / leave it (exit). */
-  pushSession?: (hostId: string, user: string) => void;
+  /**
+   * Open a session on another host (ssh) / leave it (exit). An optional auth
+   * `method` records the login (for loggedIn stateGoals) — pass it on ssh's
+   * success paths so a passwordless key login is distinguishable from a
+   * password login.
+   */
+  pushSession?: (hostId: string, user: string, method?: 'publickey' | 'password') => void;
   popSession?: () => { closedHostname: string } | null;
   sessionDepth?: number;
   /**

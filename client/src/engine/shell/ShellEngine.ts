@@ -24,6 +24,8 @@ export class ShellEngine implements ShellEngineInterface {
   private hosts = new Map<string, HostState>();
   /** Bottom entry is the local session; ssh pushes, exit pops (never below 1). */
   private sessionStack: { hostId: string; user: string }[] = [];
+  /** Successful SSH logins as `${hostId}::${method}`; survives session pop. */
+  private loginRecords = new Set<string>();
   /** Set while a command waits for another input line (password prompt etc.). */
   private pendingContinuation: ((line: string) => CommandResult) | null = null;
   private pendingPrompt: { prompt: string; mask: boolean } | null = null;
@@ -304,7 +306,8 @@ export class ShellEngine implements ShellEngineInterface {
       execute: (input: string, nestedStdin?: string) => this.execute(input, nestedStdin),
       host: this.getCurrentHost(),
       resolveHost: (nameOrIp: string) => this.resolveHost(nameOrIp),
-      pushSession: (hostId: string, user: string) => this.pushSession(hostId, user),
+      pushSession: (hostId: string, user: string, method?: 'publickey' | 'password') =>
+        this.pushSession(hostId, user, method),
       popSession: () => {
         const closing = this.getCurrentHost();
         return this.popSession() ? { closedHostname: closing.hostname } : null;
@@ -1176,13 +1179,37 @@ export class ShellEngine implements ShellEngineInterface {
     return undefined;
   }
 
-  pushSession(hostId: string, user: string): void {
+  pushSession(hostId: string, user: string, method?: 'publickey' | 'password'): void {
     const host = this.hosts.get(hostId);
     if (!host) {
       throw new Error(`pushSession: unknown host '${hostId}'`);
     }
+    // An SSH login opens a session AND is recorded (with its auth method) so a
+    // loggedIn stateGoal can assert the player actually logged in.
+    if (method) this.recordLogin(hostId, method);
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
+  }
+
+  /** Record a successful SSH login; persists across session pop (`exit`). */
+  recordLogin(hostId: string, method: 'publickey' | 'password'): void {
+    this.loginRecords.add(`${hostId}::${method}`);
+  }
+
+  /**
+   * Has the player logged into `hostId` (any host when omitted) via `method`
+   * (any method when omitted)? Used by the loggedIn stateGoal evaluator.
+   */
+  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password'): boolean {
+    for (const rec of this.loginRecords) {
+      const sep = rec.lastIndexOf('::');
+      const h = rec.slice(0, sep);
+      const m = rec.slice(sep + 2);
+      if (hostId !== undefined && h !== hostId) continue;
+      if (method !== undefined && m !== method) continue;
+      return true;
+    }
+    return false;
   }
 
   /** Returns false at depth 1 — the base session is never popped. */
