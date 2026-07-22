@@ -2,29 +2,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { TerminalContext } from '@kritis/shared';
 import { Terminal } from './index';
-
-// Reuse the same xterm mock shape as the partial-feedback test: we only care
-// about the React chrome around the terminal (the task panel), not xterm.
-const terminalMock = vi.hoisted(() => ({
-  Terminal: class {
-    loadAddon() {}
-    open() {}
-    focus() {}
-    write() {}
-    writeln() {}
-    clear() {}
-    dispose() {}
-    onData() {
-      return { dispose: () => {} };
-    }
-  },
-  FitAddon: class {
-    fit() {}
-  },
-}));
-
-vi.mock('@xterm/xterm', () => ({ Terminal: terminalMock.Terminal }));
-vi.mock('@xterm/addon-fit', () => ({ FitAddon: terminalMock.FitAddon }));
+// We only care about the React chrome around the terminal (the task panel),
+// not xterm — the shared harness mock is a superset that serves fine here.
+vi.mock('@xterm/xterm', async () => ({ Terminal: (await import('./testHarness')).terminalMock.Terminal }));
+vi.mock('@xterm/addon-fit', async () => ({ FitAddon: (await import('./testHarness')).terminalMock.FitAddon }));
 
 const baseContext: TerminalContext = {
   type: 'linux',
