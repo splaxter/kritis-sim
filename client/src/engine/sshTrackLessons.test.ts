@@ -151,6 +151,38 @@ describe('learn_ssh_02_open_door — key continuity + effective-config enforceme
     expect(checkStateGoals(shell, goals)).toBe(false);
   });
 
+  it('after-action feedback: key-login before restart → ✓; harden+restart before the key test → ⚠', () => {
+    const fb = ctxOf('learn_ssh_02_open_door').solutions[0].feedback!;
+    const goals = goalsOf('learn_ssh_02_open_door');
+
+    // Clean: prove the key FIRST (publickey login, no prompt), then harden + restart.
+    const clean = engineOf('learn_ssh_02_open_door');
+    keyLogin(clean);
+    run(clean, "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
+    run(clean, "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
+    run(clean, 'sudo systemctl restart ssh');
+    expect(checkStateGoals(clean, goals)).toBe(true);
+    expect(selectFeedback(fb, clean.getExecutionLog())).toMatch(/^✓/);
+
+    // Risky: hide the key so the working login is via the emergency password;
+    // harden + restart; only THEN restore the key and test it — a Blindflug.
+    const risky = engineOf('learn_ssh_02_open_door');
+    run(risky, 'mv /home/timo/.ssh/id_ed25519 /home/timo/.ssh/id_ed25519.weg');
+    risky.execute('ssh admin@web01');
+    expect(risky.hasPendingInput(), 'without the key a password prompt appears').toBe(true);
+    expect(risky.continueInput('sonnenblume23').exitCode).toBe(0);
+    run(risky, "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config");
+    run(risky, "sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config");
+    run(risky, 'sudo systemctl restart ssh');
+    run(risky, 'exit');
+    // Restore the key and test it — AFTER the hardening already happened.
+    run(risky, 'mv /home/timo/.ssh/id_ed25519.weg /home/timo/.ssh/id_ed25519');
+    run(risky, 'ssh admin@web01'); // publickey now, after the restart
+    expect(risky.getPromptInfo().hostname).toBe('web01');
+    expect(checkStateGoals(risky, goals)).toBe(true);
+    expect(selectFeedback(fb, risky.getExecutionLog())).toMatch(/^⚠/);
+  });
+
   it('NEGATIVE: a password-only login leaves the publickey login goal unmet', () => {
     // Player who never tested their key: hide the private key, fall back to
     // the emergency password, then harden + restart. Everything else is done —

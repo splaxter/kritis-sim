@@ -300,6 +300,34 @@ Rechenzentrum müssen.“
             'Beide Zeilen stehen auf „no“, und der neu gestartete Dienst fährt wirklich mit der neuen Konfiguration — nicht mit der alten im Speicher. Root-Login und Passwort-Logins sind zu; ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat. Und dein eigener Zugang? Per Schlüssel bewiesen — die Tür ist zu, du bist drin.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten — und nach jeder Änderung an der sshd-Konfiguration den Dienst neu starten, sonst gilt weiter der alte Stand.',
           skillGain: { linux: 3, security: 4 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // Uses the log's authMethod: the publickey login is the "key proven" test.
+          feedback: [
+            // Risky: hardened + restarted BEFORE the key was ever proven by a
+            // publickey login — on a remote box that is flying blind.
+            {
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'systemctl\\s+restart\\s+ssh', outcome: 'succeeded' },
+                    second: { pattern: 'ssh\\s+admin@web01', outcome: 'succeeded', authMethod: 'publickey' },
+                  },
+                ],
+              },
+              text: '⚠ Erst gehärtet und neu gestartet, dann den Schlüssel getestet — auf einem entfernten Server ein Blindflug.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'ssh\\s+admin@web01', outcome: 'succeeded', authMethod: 'publickey' },
+                    second: { pattern: 'systemctl\\s+restart\\s+ssh', outcome: 'succeeded' },
+                  },
+                ],
+              },
+              text: '✓ Schlüsselzugang bestätigt, bevor die Passwort-Anmeldung abgeschaltet wurde.',
+            },
+          ],
         },
       ],
       hints: [
