@@ -14,6 +14,7 @@ export * from './scenarioSeed';
 export * from './hosts';
 export * from './unitControl';
 export * from './stateGoals';
+export * from './feedback';
 
 import {
   TerminalHostSpec, TerminalSolution, TerminalServiceSpec,

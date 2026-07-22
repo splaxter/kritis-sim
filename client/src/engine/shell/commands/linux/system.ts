@@ -398,11 +398,20 @@ export const killCommand: ShellCommand = {
 
     // Killing a pid drops any listener/connection it owns from the host's
     // socket table, so "kill the rogue listener" really closes the port.
+    // Signal permissions apply: a non-root user may only kill a socket it
+    // owns — a root-owned service needs `sudo`. Unowned pids (plain processes
+    // with no socket) keep the old always-succeeds behaviour.
     const host = ctx.host;
     if (host) {
       for (const raw of args.positional) {
         const pid = parseInt(raw, 10);
         if (!Number.isFinite(pid)) continue;
+        const target =
+          host.listeners.find(l => l.pid === pid) ??
+          host.connections.find(c => c.pid === pid);
+        if (target && (target.user ?? 'root') !== ctx.user && ctx.user !== 'root') {
+          return { output: '', exitCode: 1, error: `kill: (${pid}): Operation not permitted` };
+        }
         host.listeners = host.listeners.filter(l => l.pid !== pid);
         host.connections = host.connections.filter(c => c.pid !== pid);
       }

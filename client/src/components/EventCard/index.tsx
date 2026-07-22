@@ -16,6 +16,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
   const visibleChoices = getVisibleChoices(event, state);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const buttonRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const shouldScrollSelectionRef = useRef(false);
   const { setBackgroundImage, isStoryMode } = useStoryBackground();
 
   // Single commit path so the confirm cue plays exactly once per real choice
@@ -49,9 +50,13 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
     }
   }, [event.id, event.image, isStoryMode, setBackgroundImage]);
 
-  // Reset selection when event changes
+  // Reset selection when event changes and anchor the document at the top so a
+  // newly opened event always starts at title → description → action, never at
+  // an action mid-scroll. SPA navigation does not reset the scroll position.
   useEffect(() => {
+    shouldScrollSelectionRef.current = false;
     setSelectedIndex(0);
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [event.id]);
 
   // Keyboard navigation
@@ -77,10 +82,12 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
         soundEngine.tick();
+        shouldScrollSelectionRef.current = true;
         setSelectedIndex(prev => (prev - 1 + visibleChoices.length) % visibleChoices.length);
       } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
         soundEngine.tick();
+        shouldScrollSelectionRef.current = true;
         setSelectedIndex(prev => (prev + 1) % visibleChoices.length);
       } else if (e.key === 'Enter') {
         e.preventDefault();
@@ -93,10 +100,13 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [visibleChoices, selectedIndex, choose, typewriter.done, typewriter.skip]);
 
-  // Scroll selected button into view
+  // Scroll selected button into view only after real keyboard navigation.
+  // Mount and hover must not move the document.
   useEffect(() => {
+    if (!shouldScrollSelectionRef.current || visibleChoices.length <= 1) return;
+    shouldScrollSelectionRef.current = false;
     buttonRefs.current[selectedIndex]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  }, [selectedIndex]);
+  }, [selectedIndex, visibleChoices.length]);
 
   // ── Card kinds ──────────────────────────────────────────────────────────
   // Classify how this event's actions should read:
@@ -283,7 +293,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
 
       <h2 className="text-xl mb-4">&gt; {event.title}</h2>
 
-      <div className="whitespace-pre-wrap mb-6 text-terminal-green-dim leading-relaxed">
+      <div className="min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap mb-6 text-terminal-green-dim leading-relaxed">
         {replaceCharacterNames(event.description)}
       </div>
 

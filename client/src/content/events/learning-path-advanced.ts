@@ -300,6 +300,34 @@ Rechenzentrum müssen.“
             'Beide Zeilen stehen auf „no“, und der neu gestartete Dienst fährt wirklich mit der neuen Konfiguration — nicht mit der alten im Speicher. Root-Login und Passwort-Logins sind zu; ab jetzt kommt nur noch rein, wer einen hinterlegten Schlüssel hat. Und dein eigener Zugang? Per Schlüssel bewiesen — die Tür ist zu, du bist drin.\n\nMerke: Erst den Schlüssel-Login testen, DANN die Passwort-Authentifizierung abschalten — und nach jeder Änderung an der sshd-Konfiguration den Dienst neu starten, sonst gilt weiter der alte Stand.',
           skillGain: { linux: 3, security: 4 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // Uses the log's authMethod: the publickey login is the "key proven" test.
+          feedback: [
+            // Risky: hardened + restarted BEFORE the key was ever proven by a
+            // publickey login — on a remote box that is flying blind.
+            {
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'systemctl\\s+restart\\s+ssh', outcome: 'succeeded' },
+                    second: { pattern: 'ssh\\s+admin@web01', outcome: 'succeeded', authMethod: 'publickey' },
+                  },
+                ],
+              },
+              text: '⚠ Du hast gehärtet und neu gestartet, bevor der Schlüsselzugang bestätigt war. Auf einem entfernten System hättest du dir damit den Rückweg abschneiden können.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'ssh\\s+admin@web01', outcome: 'succeeded', authMethod: 'publickey' },
+                    second: { pattern: 'systemctl\\s+restart\\s+ssh', outcome: 'succeeded' },
+                  },
+                ],
+              },
+              text: '✓ Schlüsselzugang erfolgreich bestätigt, dann erst die Passwortanmeldung deaktiviert und SSH neu gestartet.',
+            },
+          ],
         },
       ],
       hints: [
@@ -549,11 +577,28 @@ In dieser Reihenfolge. Immer.
             // can't fake it); the live key must be gone from db01.
             { file: '/home/timo/evidenz_db01.txt', matches: 'RogueFenrisBackdoorKey00 wartung@extern-2019' },
             { host: 'db01', file: '/home/admin/.ssh/authorized_keys', absentMatches: 'wartung@extern' },
+            // Preservation: the legit keys MUST survive. Without these, emptying
+            // the file (`> authorized_keys`) satisfies absentMatches and falsely
+            // wins while the base text claims Jens' and Henry's keys are intact.
+            { host: 'db01', file: '/home/admin/.ssh/authorized_keys', matches: 'jens@ws-jens' },
+            { host: 'db01', file: '/home/admin/.ssh/authorized_keys', matches: 'henry@ws-henry' },
           ],
           resultText:
             'Der Wartungsschlüssel „wartung@extern-2019“ ist raus — und die Beweiskopie liegt sicher auf deinem Rechner, gezogen BEVOR du etwas verändert hast. Genau diese Reihenfolge zählt: erst sichern, dann bereinigen. Die legitimen Keys von Jens und Henry sind unangetastet.\n\nDer Kommentar „extern-2019“ passt in kein Offboarding-Protokoll, das wir haben. Jens wird still: „Das Ding liegt seit Jahren auf db01. Wenn das zu FENRIS gehört, reden wir nicht über einen Zufall.“ Du markierst den Fund für die Incident-Akte.',
           skillGain: { security: 6, linux: 3, troubleshooting: 2 },
           effects: { stress: -4 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // NB: a ⚠ trap for sacrificing the whole key file (rm / chmod 000 /
+          // truncate / redirect) would be unreachable on a win — the preservation
+          // goals (jens@/henry@ must survive) already make that path unsolvable, so
+          // feedback (which only fires on a solve) could never show it. Only the
+          // efficiency praise remains.
+          feedback: [
+            {
+              when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, min: 1, max: 1 } },
+              text: '⚡ Gezielt nur den verdächtigen Schlüssel entfernt; die legitimen Zugänge blieben erhalten.',
+            },
+          ],
         },
       ],
       hints: [
@@ -999,6 +1044,22 @@ nicht. Und die Datenbank? Steht still.
             'Beide Dienste laufen. Blindes Neustarten der API hätte beliebig oft nichts gebracht — das Journal hat die Kette offengelegt: Die API hing an der Datenbank, die Datenbank stand still. Ursache zuerst (mysql), dann die abhängige Seite (leitstand-api), und die Kettenreaktion löst sich von selbst.\n\nMerke: Ein Dienst, der nicht startet, ist oft nur das letzte Glied. Lies, woran er hängt — und repariere die Wurzel.',
           skillGain: { linux: 3, troubleshooting: 5 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          feedback: [
+            {
+              when: { commandCount: { matcher: { pattern: 'systemctl\\s+(re)?start\\s+leitstand-api' }, min: 2 } },
+              text: '⚠ Du hast die API erneut gestartet, obwohl ihre Abhängigkeit noch fehlte. Ein Blick ins Journal hätte dir den Umweg erspart.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'journalctl', outcome: 'succeeded' }, second: { pattern: 'systemctl\\s+start\\s+mysql', outcome: 'succeeded' } },
+                  { first: { pattern: 'systemctl\\s+start\\s+mysql', outcome: 'succeeded' }, second: { pattern: 'systemctl\\s+start\\s+leitstand-api', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚡ Erst den Fehler im Journal eingegrenzt, dann die fehlende Abhängigkeit gestartet — gezielt statt auf Verdacht.',
+            },
+          ],
         },
       ],
       hints: [
@@ -1096,6 +1157,15 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
             'Port 31337 ist zu — der Prozess „nc" (netcat) lauscht nicht mehr. Genau der stand in keiner Freigabe: eine offene Hintertür, über die jemand von außen eine Shell hätte abgreifen können. Die drei erlaubten Dienste (22/80/443) laufen unberührt weiter.\n\nMerke: Man muss nicht raten. Man kennt die Soll-Liste, listet den Ist-Zustand, und was übrig bleibt, ist der Befund. Jeder offene Port gehört einem Prozess — über dessen PID macht man ihn gezielt dicht.',
           skillGain: { linux: 3, security: 4, troubleshooting: 1 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Text → Prosa-Pass durch den Nutzer).
+          // Legit listener PIDs on this host: sshd 456, apache2 1234 (80+443).
+          // The rogue nc listens on 31337 as PID 6666 — killing THAT yields no line.
+          feedback: [
+            {
+              when: { commandMatches: { pattern: 'kill\\s+.*\\b(456|1234)\\b' } },
+              text: '⚠ Der anvisierte Prozess gehörte zu einem legitimen Dienst. Erst Prozess, Port und Dienst abgleichen, dann gezielt beenden.',
+            },
+          ],
         },
       ],
       hints: [
@@ -1278,6 +1348,53 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
             'Die Mauer steht: Die Firewall ist aktiv, und eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und dein SSH-Zugang? Ungefährdet — Port 22 ist offen, du bleibst drin.\n\nMerke: Bei Firewalls hilft dir die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren — so gefährdest du deinen eigenen Zugang nie.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // ufw runs under sudo, so the logged command is e.g. `sudo ufw enable`;
+          // the patterns match `ufw …` as a substring of the outer sudo line.
+          feedback: [
+            // Risky: firewall effective (deny + enable) before port 22 opened.
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
+                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
+                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
+            },
+            // Safe: port 22 allowed before the LATER of deny/enable, i.e. 22 was
+            // never in a blocked state. The risky rules above already caught the
+            // only unsafe case (allow22 last); anything reaching here where 22
+            // preceded EITHER lockout step is safe. Two rules = an OR: allow22
+            // before deny OR before enable. Covers allow22-first AND allow22-mid
+            // (enable→allow22→deny, deny→allow22→enable). Ambiguous same-attempt
+            // orderings (`allow 22 && enable`) match neither → stay silent.
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
+                ],
+              },
+              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
+                ],
+              },
+              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
+            },
+          ],
         },
       ],
       hints: [

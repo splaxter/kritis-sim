@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
 import { createShellFromContext, checkStateGoals, checkStateGoal } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
+import { selectFeedback } from './shell/feedback';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
 /**
@@ -76,6 +77,31 @@ describe('learn_net_01_open_doors — spot the outlier, kill the listener', () =
     expect(run(shell, 'ss -tulpen').output).toMatch(/sshd/);
   });
 
+  it('after-action feedback: the ⚠ fires ON A WON run — a denied kill at a legit PID still logs the risky command', () => {
+    const fb = ctxOf('learn_net_01_open_doors').solutions[0].feedback!;
+    const goals = goalsOf('learn_net_01_open_doors');
+
+    const risky = engineOf('learn_net_01_open_doors');
+    // As timo (non-root): aiming kill at sshd (PID 456, root-owned) is DENIED —
+    // Operation not permitted. The listener SURVIVES, so the level is NOT solved.
+    expect(run(risky, 'kill 456').exitCode).toBe(1);
+    expect(run(risky, 'ss -tulpen').output).toMatch(/:22\b/);
+    expect(checkStateGoals(risky, goals)).toBe(false);
+
+    // …then close the rogue properly with sudo → the level is genuinely WON…
+    expect(run(risky, 'sudo kill 6666').exitCode).toBe(0);
+    expect(checkStateGoals(risky, goals)).toBe(true);
+    // …and the ⚠ still appears, because the risky attempt was recorded (default
+    // outcome 'attempted' matches even a failed kill).
+    expect(selectFeedback(fb, risky.getExecutionLog())).toMatch(/^⚠/);
+
+    // Clean: only the rogue nc (PID 6666) is killed → no line.
+    const clean = engineOf('learn_net_01_open_doors');
+    run(clean, 'sudo kill 6666');
+    expect(checkStateGoals(clean, goalsOf('learn_net_01_open_doors'))).toBe(true);
+    expect(selectFeedback(fb, clean.getExecutionLog())).toBeNull();
+  });
+
   it('NEGATIVE: a kill-everything rampage does not win — the legit listeners must survive', () => {
     // The resultText promises "die drei erlaubten Dienste laufen unberührt
     // weiter" — the listenerPresent goals enforce it.
@@ -142,6 +168,42 @@ describe('learn_net_03_the_wall — harden the firewall (order in the hints)', (
     run(shell, 'sudo ufw allow 443/tcp');
     run(shell, 'sudo ufw enable');
     expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('after-action feedback: safe orderings → ✓, risky orderings → ⚠, chained allow22&&enable → null', () => {
+    const fb = ctxOf('learn_net_03_the_wall').solutions[0].feedback!;
+    const goals = goalsOf('learn_net_03_the_wall');
+
+    // A full firewall solve in the given step order; asserts goals then feedback.
+    const solve = (steps: string[]): string | null => {
+      const shell = engineOf('learn_net_03_the_wall');
+      for (const s of steps) run(shell, s);
+      expect(checkStateGoals(shell, goals), `goals unmet for [${steps.join(' | ')}]`).toBe(true);
+      return selectFeedback(fb, shell.getExecutionLog());
+    };
+
+    const allow80 = 'sudo ufw allow 80/tcp';
+    const allow443 = 'sudo ufw allow 443/tcp';
+    const allow22 = 'sudo ufw allow 22/tcp';
+    const deny = 'sudo ufw default deny incoming';
+    const enable = 'sudo ufw enable';
+
+    // Safe (allow22 first): port 22 opened before both the deny and the enable.
+    expect(solve([allow22, allow80, allow443, deny, enable])).toMatch(/^✓/); // allow22 → deny → enable
+    expect(solve([allow22, allow80, allow443, enable, deny])).toMatch(/^✓/); // allow22 → enable → deny
+
+    // Safe (allow22 in the MIDDLE): 22 opened before the LATER lockout step — the
+    // two orderings the design lists as safe. The OR-form safe rules cover them.
+    expect(solve([enable, allow80, allow443, allow22, deny])).toMatch(/^✓/); // enable → allow22 → deny
+    expect(solve([deny, allow80, allow443, allow22, enable])).toMatch(/^✓/); // deny → allow22 → enable
+
+    // Risky: firewall made effective (deny + enable) BEFORE port 22 was opened.
+    expect(solve([deny, allow80, allow443, enable, allow22])).toMatch(/^⚠/); // deny → enable → allow22
+    expect(solve([enable, allow80, allow443, deny, allow22])).toMatch(/^⚠/); // enable → deny → allow22
+
+    // Chained allow22 && enable is ONE attempt → strict order only BETWEEN
+    // attempts → neither the safe nor the risky rule holds → no line.
+    expect(solve([allow80, allow443, deny, 'sudo ufw allow 22/tcp && sudo ufw enable'])).toBeNull();
   });
 
   it('NEGATIVE: only opening 22 without flipping the default is not enough', () => {

@@ -15,6 +15,7 @@ import {
   CompletionContext,
   AnsibleRunRecord,
   AnsibleRunMode,
+  CommandAttempt,
 } from './types';
 import { HostState, wrapVfsAsHost } from './hosts';
 
@@ -33,6 +34,18 @@ export class ShellEngine implements ShellEngineInterface {
   /** Set while a command waits for another input line (password prompt etc.). */
   private pendingContinuation: ((line: string) => CommandResult) | null = null;
   private pendingPrompt: { prompt: string; mask: boolean } | null = null;
+  /** One CommandAttempt per outer player command, in issue order. */
+  private executionLog: CommandAttempt[] = [];
+  /** Re-entry counter: only the outermost execute (0→1) opens an attempt. */
+  private executionDepth = 0;
+  /** Monotonic, 1-based attempt sequence. */
+  private attemptSeq = 0;
+  /**
+   * The attempt of the current/most-recent outer command. Stays non-null across
+   * password prompts (execute→continueInput) until finalised, so it is NOT tied
+   * to executionDepth.
+   */
+  private openAttempt: CommandAttempt | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -113,12 +126,59 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: '', exitCode: 0 };
     }
 
-    // Command chaining (;, &&, ||) has the lowest precedence, so split it first.
-    // A single segment with no operators falls through to executePipeline.
-    // initialStdin lets a wrapper (sudo) forward its own piped stdin so
-    // `echo x | sudo tee f` reaches tee — the first stage would otherwise get
-    // no stdin.
-    return this.executeChain(trimmed, initialStdin);
+    // Only the outermost execute opens an attempt. Internal re-entries
+    // (sudo/source via ctx.execute) run at depth ≥1 and reuse the open attempt.
+    const outer = this.executionDepth === 0;
+    if (outer) {
+      const hostId = this.getCurrentHost().id;
+      this.openAttempt = {
+        command: trimmed,
+        sequence: ++this.attemptSeq,
+        hostBefore: hostId,
+        hostAfter: hostId,
+        exitCode: 0,
+      };
+    }
+    this.executionDepth++;
+    try {
+      // Command chaining (;, &&, ||) has the lowest precedence, so split it
+      // first. A single segment with no operators falls through to
+      // executePipeline. initialStdin lets a wrapper (sudo) forward its own
+      // piped stdin so `echo x | sudo tee f` reaches tee — the first stage
+      // would otherwise get no stdin.
+      const result = this.executeChain(trimmed, initialStdin);
+      if (outer) this.settleAttempt(result);
+      return result;
+    } catch (err) {
+      // Defensive: an unexpected throw in the stage plumbing (not a command,
+      // which executeCommand already catches) must still close the attempt —
+      // one entry per outer command, always. Degrades to a failed entry.
+      if (outer) this.closeOpenAttempt(1);
+      throw err;
+    } finally {
+      this.executionDepth--;
+    }
+  }
+
+  /** Snapshot of the execution log (one entry per finalised outer command). */
+  getExecutionLog(): CommandAttempt[] {
+    return [...this.executionLog];
+  }
+
+  /** Close the open attempt with an explicit exit code (host captured now). */
+  private closeOpenAttempt(exitCode: number): void {
+    if (!this.openAttempt) return;
+    this.openAttempt.exitCode = exitCode;
+    this.openAttempt.hostAfter = this.getCurrentHost().id;
+    this.executionLog.push(this.openAttempt);
+    this.openAttempt = null;
+  }
+
+  /** Finalise the open attempt unless the command is still awaiting input. */
+  private settleAttempt(result: CommandResult): void {
+    if (!this.openAttempt) return;
+    if (result.pendingInput) return; // stays open across the prompt
+    this.closeOpenAttempt(result.exitCode);
   }
 
   private executeChain(input: string, initialStdin?: string): CommandResult {
@@ -331,7 +391,11 @@ export class ShellEngine implements ShellEngineInterface {
       return result;
     } catch (error) {
       // The command may have armed a continuation before throwing — drop it.
-      this.cancelPendingInput();
+      // Only the pending state is cleared here (NOT the open attempt): the
+      // outer execute still settles the attempt with the real exit code (1),
+      // so a throwing command is logged as a failure, not a user cancel (130).
+      this.pendingContinuation = null;
+      this.pendingPrompt = null;
       this.state.exitCode = 1;
       return {
         output: '',
@@ -357,21 +421,32 @@ export class ShellEngine implements ShellEngineInterface {
     if (!next) {
       return { output: '', exitCode: 1, error: 'shell: no pending input' };
     }
+    // The continuation runs at depth ≥1 so a nested execute it triggers never
+    // opens a second attempt; it settles the SAME open attempt from execute.
+    this.executionDepth++;
+    let result: CommandResult;
     try {
-      const result = next(line);
+      result = next(line);
       this.state.exitCode = result.exitCode;
-      return result;
     } catch (error) {
       // A throwing continuation must not wedge the engine — even one that
-      // re-armed a new continuation before throwing.
-      this.cancelPendingInput();
+      // re-armed a new continuation before throwing. Close the owed attempt as
+      // a failure (exit 1), NOT a user cancel (130), then clear pending state
+      // WITHOUT re-closing.
+      this.closeOpenAttempt(1);
+      this.pendingContinuation = null;
+      this.pendingPrompt = null;
       this.state.exitCode = 1;
+      this.executionDepth--;
       return {
         output: '',
         exitCode: 1,
         error: `shell: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
+    this.executionDepth--;
+    this.settleAttempt(result); // closes the attempt unless another prompt is owed
+    return result;
   }
 
   hasPendingInput(): boolean {
@@ -385,6 +460,8 @@ export class ShellEngine implements ShellEngineInterface {
   cancelPendingInput(): void {
     this.pendingContinuation = null;
     this.pendingPrompt = null;
+    // A genuine user cancel finalises the owed attempt as SIGINT (130).
+    this.closeOpenAttempt(130);
   }
 
   // ============================================================================
@@ -1194,6 +1271,9 @@ export class ShellEngine implements ShellEngineInterface {
     if (method) this.recordLogin(hostId, method);
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
+    // Annotate the open attempt with the auth method that opened this session,
+    // so the execution log distinguishes publickey from password logins.
+    if (method && this.openAttempt) this.openAttempt.authMethod = method;
   }
 
   /** Record a successful SSH login; persists across session pop (`exit`). */

@@ -189,7 +189,7 @@ export function GameScreen({
         <div className="mb-4">
           <StatsBar state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <Suspense
             fallback={
               <div className="border border-terminal-border p-4 text-center">
@@ -337,7 +337,7 @@ export function GameScreen({
         <StatsBar state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />
       </div>
 
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         {/* Event display */}
         {phase === 'playing' && contentType === 'event' && currentEvent && (
           <EventCard

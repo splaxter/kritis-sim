@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
 import { createShellFromContext, checkStateGoals } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
+import { selectFeedback } from './shell/feedback';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
 /**
@@ -152,5 +153,26 @@ describe('learn_sysd_04_chain_reaction — dependency ordering', () => {
     expect(run(shell, 'sudo systemctl start leitstand-api').exitCode).toBe(0);
 
     expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('after-action feedback: blind-restart path → ⚠, clean journal→db→api path → ⚡', () => {
+    const fb = ctxOf('learn_sysd_04_chain_reaction').solutions[0].feedback!;
+
+    // Risky: restart the API blindly (twice) before starting its dependency.
+    const risky = engineOf('learn_sysd_04_chain_reaction');
+    run(risky, 'sudo systemctl start leitstand-api'); // fails (socket missing)
+    run(risky, 'sudo systemctl start leitstand-api'); // still fails
+    run(risky, 'sudo systemctl start mysql');
+    run(risky, 'sudo systemctl start leitstand-api');
+    expect(checkStateGoals(risky, goalsOf('learn_sysd_04_chain_reaction'))).toBe(true);
+    expect(selectFeedback(fb, risky.getExecutionLog())).toMatch(/^⚠/);
+
+    // Clean: read the journal, start the dependency, then the API.
+    const clean = engineOf('learn_sysd_04_chain_reaction');
+    run(clean, 'journalctl -u leitstand-api');
+    run(clean, 'sudo systemctl start mysql');
+    run(clean, 'sudo systemctl start leitstand-api');
+    expect(checkStateGoals(clean, goalsOf('learn_sysd_04_chain_reaction'))).toBe(true);
+    expect(selectFeedback(fb, clean.getExecutionLog())).toMatch(/^⚡/);
   });
 });

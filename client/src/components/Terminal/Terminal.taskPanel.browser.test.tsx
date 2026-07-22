@@ -78,4 +78,22 @@ describe('Terminal task panel — the quest stays reviewable', () => {
     render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} />);
     expect(screen.queryByText(/Aufgabe:/)).not.toBeInTheDocument();
   });
+
+  it('wraps terminal controls into readable mobile rows', () => {
+    render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} />);
+
+    const headerCancel = screen.getByRole('button', { name: /Abbrechen/ });
+    const hint = screen.getByRole('button', { name: /Hinweis/ });
+    const footerHint = screen
+      .getAllByText('[ESC] Abbrechen')
+      .find((node) => node.tagName === 'SPAN');
+
+    expect(headerCancel.parentElement).toHaveClass('flex-col', 'sm:flex-row');
+    expect(headerCancel).toHaveClass('min-h-11');
+    expect(hint.parentElement?.parentElement).toHaveClass('flex-col', 'sm:flex-row');
+    expect(hint.parentElement).toHaveClass('flex-col', 'sm:flex-row');
+    expect(hint).toHaveClass('min-h-11');
+    expect(footerHint).toBeDefined();
+    expect(footerHint).toHaveClass('shrink-0');
+  });
 });

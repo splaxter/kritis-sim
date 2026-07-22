@@ -73,6 +73,20 @@ describe('LearningHub', () => {
     expect(onPick.mock.calls.some((c) => c[0]?.id === 'learn_11_final_boss')).toBe(true);
   });
 
+  it('allows long track headers to shrink while keeping the status badge visible', () => {
+    render(<LearningHub state={mkState()} onPick={vi.fn()} />);
+
+    const title = screen.getByText('Ansible & Konfigurationsmanagement');
+    const content = title.parentElement?.parentElement;
+    const row = content?.parentElement;
+    const badge = screen.getAllByText('Gesperrt').find((node) => node.parentElement === row);
+
+    expect(content).toHaveClass('min-w-0', 'flex-1');
+    expect(title.parentElement).toHaveClass('flex-wrap');
+    expect(title).toHaveClass('break-words');
+    expect(badge).toHaveClass('shrink-0');
+  });
+
   it('clicking a next-level entry calls onPick with that event', async () => {
     const user = userEvent.setup();
     const onPick = vi.fn();

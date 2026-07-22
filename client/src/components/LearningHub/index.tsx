@@ -67,20 +67,20 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
 
           return (
             <div key={track.id} className="border border-terminal-border p-3">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">{track.icon}</span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">{track.title}</span>
-                    <span className="text-terminal-green-dim text-sm">
+              <div className="flex items-start gap-3 sm:items-center">
+                <span className="shrink-0 text-2xl">{track.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="min-w-0 break-words font-bold">{track.title}</span>
+                    <span className="shrink-0 text-sm text-terminal-green-dim">
                       {progress.doneCore}/{progress.totalCore}
                     </span>
                   </div>
                   {lockReason && (
-                    <div className="text-terminal-green-dim text-sm">{lockReason}</div>
+                    <div className="break-words text-sm text-terminal-green-dim">{lockReason}</div>
                   )}
                 </div>
-                <span className="text-xs border border-terminal-border px-1.5 py-0.5 tracking-wide">
+                <span className="shrink-0 border border-terminal-border px-1.5 py-0.5 text-xs tracking-wide">
                   {STATE_BADGE[trackState]}
                 </span>
               </div>
