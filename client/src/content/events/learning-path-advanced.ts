@@ -596,7 +596,7 @@ In dieser Reihenfolge. Immer.
               text: '⚠ Beinahe die ganze Schlüsseldatei geopfert — das hätte auch Jens und Henry ausgesperrt.',
             },
             {
-              when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, max: 1 } },
+              when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, min: 1, max: 1 } },
               text: '⚡ Genau eine verdächtige Zeile entfernt; die legitimen Schlüssel blieben erhalten.',
             },
           ],
@@ -1372,11 +1372,24 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
               },
               text: '⚠ Die Firewall war aktiv, bevor SSH freigegeben war. Auf einem entfernten Server wäre der nächste Login ausgesperrt.',
             },
-            // Safe: port 22 allowed before BOTH the deny and the enable.
+            // Safe: port 22 allowed before the LATER of deny/enable, i.e. 22 was
+            // never in a blocked state. The risky rules above already caught the
+            // only unsafe case (allow22 last); anything reaching here where 22
+            // preceded EITHER lockout step is safe. Two rules = an OR: allow22
+            // before deny OR before enable. Covers allow22-first AND allow22-mid
+            // (enable→allow22→deny, deny→allow22→enable). Ambiguous same-attempt
+            // orderings (`allow 22 && enable`) match neither → stay silent.
             {
               when: {
                 commandBefore: [
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
+                ],
+              },
+              text: '✓ Erst Port 22 freigegeben, dann gesperrt und aktiviert — dein Zugang blieb die ganze Zeit offen.',
+            },
+            {
+              when: {
+                commandBefore: [
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
                 ],
               },

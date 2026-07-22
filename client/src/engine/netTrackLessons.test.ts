@@ -179,9 +179,14 @@ describe('learn_net_03_the_wall — harden the firewall (order in the hints)', (
     const deny = 'sudo ufw default deny incoming';
     const enable = 'sudo ufw enable';
 
-    // Safe: port 22 opened BEFORE both the deny and the enable.
+    // Safe (allow22 first): port 22 opened before both the deny and the enable.
     expect(solve([allow22, allow80, allow443, deny, enable])).toMatch(/^✓/); // allow22 → deny → enable
     expect(solve([allow22, allow80, allow443, enable, deny])).toMatch(/^✓/); // allow22 → enable → deny
+
+    // Safe (allow22 in the MIDDLE): 22 opened before the LATER lockout step — the
+    // two orderings the design lists as safe. The OR-form safe rules cover them.
+    expect(solve([enable, allow80, allow443, allow22, deny])).toMatch(/^✓/); // enable → allow22 → deny
+    expect(solve([deny, allow80, allow443, allow22, enable])).toMatch(/^✓/); // deny → allow22 → enable
 
     // Risky: firewall made effective (deny + enable) BEFORE port 22 was opened.
     expect(solve([deny, allow80, allow443, enable, allow22])).toMatch(/^⚠/); // deny → enable → allow22
