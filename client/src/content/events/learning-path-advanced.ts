@@ -1294,6 +1294,40 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
             'Die Mauer steht: Die Firewall ist aktiv, und eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und dein SSH-Zugang? Ungefährdet — Port 22 ist offen, du bleibst drin.\n\nMerke: Bei Firewalls hilft dir die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren — so gefährdest du deinen eigenen Zugang nie.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // ufw runs under sudo, so the logged command is e.g. `sudo ufw enable`;
+          // the patterns match `ufw …` as a substring of the outer sudo line.
+          feedback: [
+            // Risky: firewall effective (deny + enable) before port 22 opened.
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
+                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚠ Die Firewall war aktiv, bevor SSH freigegeben war. Auf einem entfernten Server wäre der nächste Login ausgesperrt.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
+                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚠ Die Firewall war aktiv, bevor SSH freigegeben war. Auf einem entfernten Server wäre der nächste Login ausgesperrt.',
+            },
+            // Safe: port 22 allowed before BOTH the deny and the enable.
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
+                  { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
+                ],
+              },
+              text: '✓ Erst Port 22 freigegeben, dann gesperrt und aktiviert — dein Zugang blieb die ganze Zeit offen.',
+            },
+          ],
         },
       ],
       hints: [

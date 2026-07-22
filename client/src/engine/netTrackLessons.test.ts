@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
 import { createShellFromContext, checkStateGoals, checkStateGoal } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
+import { selectFeedback } from './shell/feedback';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
 /**
@@ -142,6 +143,37 @@ describe('learn_net_03_the_wall — harden the firewall (order in the hints)', (
     run(shell, 'sudo ufw allow 443/tcp');
     run(shell, 'sudo ufw enable');
     expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('after-action feedback: safe orderings → ✓, risky orderings → ⚠, chained allow22&&enable → null', () => {
+    const fb = ctxOf('learn_net_03_the_wall').solutions[0].feedback!;
+    const goals = goalsOf('learn_net_03_the_wall');
+
+    // A full firewall solve in the given step order; asserts goals then feedback.
+    const solve = (steps: string[]): string | null => {
+      const shell = engineOf('learn_net_03_the_wall');
+      for (const s of steps) run(shell, s);
+      expect(checkStateGoals(shell, goals), `goals unmet for [${steps.join(' | ')}]`).toBe(true);
+      return selectFeedback(fb, shell.getExecutionLog());
+    };
+
+    const allow80 = 'sudo ufw allow 80/tcp';
+    const allow443 = 'sudo ufw allow 443/tcp';
+    const allow22 = 'sudo ufw allow 22/tcp';
+    const deny = 'sudo ufw default deny incoming';
+    const enable = 'sudo ufw enable';
+
+    // Safe: port 22 opened BEFORE both the deny and the enable.
+    expect(solve([allow22, allow80, allow443, deny, enable])).toMatch(/^✓/); // allow22 → deny → enable
+    expect(solve([allow22, allow80, allow443, enable, deny])).toMatch(/^✓/); // allow22 → enable → deny
+
+    // Risky: firewall made effective (deny + enable) BEFORE port 22 was opened.
+    expect(solve([deny, allow80, allow443, enable, allow22])).toMatch(/^⚠/); // deny → enable → allow22
+    expect(solve([enable, allow80, allow443, deny, allow22])).toMatch(/^⚠/); // enable → deny → allow22
+
+    // Chained allow22 && enable is ONE attempt → strict order only BETWEEN
+    // attempts → neither the safe nor the risky rule holds → no line.
+    expect(solve([allow80, allow443, deny, 'sudo ufw allow 22/tcp && sudo ufw enable'])).toBeNull();
   });
 
   it('NEGATIVE: only opening 22 without flipping the default is not enough', () => {
