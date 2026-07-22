@@ -143,94 +143,113 @@ describe('learn_net_02_backchannel — evidence first, then clean', () => {
   });
 });
 
-describe('learn_net_03_the_wall — harden the firewall (order in the hints)', () => {
-  it('allow 22/80/443 then default deny reaches the goal state', () => {
+describe('learn_net_03_the_wall — remote firewall hardening enforces the safe order', () => {
+  // Password stated openly in the briefing; ssh here is transport, not the lesson.
+  const PW = 'wartung-web-2024';
+
+  /** Run a command that MAY raise one ufw disrupt (y/n) prompt; answer it. */
+  function confirmIfPrompted(shell: ShellEngine, cmd: string, answer: string): { exitCode: number; output: string } {
+    const r = shell.execute(cmd);
+    if (shell.hasPendingInput()) {
+      const r2 = shell.continueInput(answer);
+      expect(shell.hasPendingInput(), `prompt not consumed after "${cmd}"`).toBe(false);
+      return { exitCode: r2.exitCode, output: r2.output };
+    }
+    return { exitCode: r.exitCode, output: r.output };
+  }
+
+  it('all five firewall goals target srv-web', () => {
+    const goals = goalsOf('learn_net_03_the_wall');
+    expect(goals.length).toBe(5);
+    for (const g of goals) expect(g.host, `goal ${JSON.stringify(g)} must target srv-web`).toBe('srv-web');
+  });
+
+  it('safe path wins: ssh in, open 22/80/443, then deny + enable — session survives, goals met', () => {
     const shell = engineOf('learn_net_03_the_wall');
     const goals = goalsOf('learn_net_03_the_wall');
     expect(checkStateGoals(shell, goals)).toBe(false);
 
+    // Real password login onto srv-web (session depth 2).
+    expect(runAuth(shell, 'ssh timo@srv-web', PW).exitCode).toBe(0);
+    expect(shell.getSessionDepth()).toBe(2);
+
+    // Open the needed ports FIRST — 22 is allowed before the wall goes up, so
+    // neither the deny nor the enable prompts (the safe path is prompt-free).
     expect(run(shell, 'sudo ufw allow 22/tcp').exitCode).toBe(0);
     expect(run(shell, 'sudo ufw allow 80/tcp').exitCode).toBe(0);
     expect(run(shell, 'sudo ufw allow 443/tcp').exitCode).toBe(0);
     expect(run(shell, 'sudo ufw default deny incoming').exitCode).toBe(0);
     expect(run(shell, 'sudo ufw enable').exitCode).toBe(0);
 
+    // The session lived through the whole change, and the wall stands on srv-web.
+    expect(shell.getSessionDepth()).toBe(2);
     expect(checkStateGoals(shell, goals)).toBe(true);
   });
 
-  it('the goal is end-state only: default-deny first still reaches it (order is a hint lesson)', () => {
+  it('unsafe path loses: deny then enable over ssh cuts the caller — dropped to depth 1, goals unmet', () => {
     const shell = engineOf('learn_net_03_the_wall');
     const goals = goalsOf('learn_net_03_the_wall');
-    // Single-host local session (depth 1) → no lockout prompt to trip over.
-    run(shell, 'sudo ufw default deny incoming');
+
+    expect(runAuth(shell, 'ssh timo@srv-web', PW).exitCode).toBe(0);
+    expect(shell.getSessionDepth()).toBe(2);
+
+    // Flip the default while the firewall is still off: warns (over ssh, no
+    // allow-22), state changes, but no drop yet — the wall isn't active.
+    confirmIfPrompted(shell, 'sudo ufw default deny incoming', 'y');
+    expect(shell.getSessionDepth()).toBe(2);
+
+    // Activating now completes the block on port 22 → the session is cut.
+    const enable = shell.execute('sudo ufw enable');
+    expect(shell.hasPendingInput()).toBe(true);
+    const closed = shell.continueInput('y');
+    expect(closed.output).toMatch(/closed by remote host/);
+    expect(shell.getSessionDepth()).toBe(1);
+
+    // The allow-rules were never added on srv-web, so the goals stay unmet.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('retry via a fresh engine: a brand-new shell resets the firewall and the safe path wins again', () => {
+    // Proves the lockout is NOT persistent across a restart ([ESC] + re-enter):
+    // a genuinely new engine from the same context seeds a disabled firewall.
+    const shell = engineOf('learn_net_03_the_wall');
+    const goals = goalsOf('learn_net_03_the_wall');
+
+    expect(runAuth(shell, 'ssh timo@srv-web', PW).exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw allow 22/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw allow 80/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw allow 443/tcp').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw default deny incoming').exitCode).toBe(0);
+    expect(run(shell, 'sudo ufw enable').exitCode).toBe(0);
+
+    expect(shell.getSessionDepth()).toBe(2);
+    expect(checkStateGoals(shell, goals)).toBe(true);
+  });
+
+  it('feedback: the ⚠ rules are gone; the won safe run earns the ✓ line', () => {
+    const fb = ctxOf('learn_net_03_the_wall').solutions[0].feedback!;
+    // The drop mechanic replaced the ⚠ after-action rules — none may remain.
+    expect(fb.some((r) => r.text.startsWith('⚠'))).toBe(false);
+    expect(fb.every((r) => r.text.startsWith('✓'))).toBe(true);
+
+    const shell = engineOf('learn_net_03_the_wall');
+    const goals = goalsOf('learn_net_03_the_wall');
+    expect(runAuth(shell, 'ssh timo@srv-web', PW).exitCode).toBe(0);
     run(shell, 'sudo ufw allow 22/tcp');
     run(shell, 'sudo ufw allow 80/tcp');
     run(shell, 'sudo ufw allow 443/tcp');
+    run(shell, 'sudo ufw default deny incoming');
     run(shell, 'sudo ufw enable');
     expect(checkStateGoals(shell, goals)).toBe(true);
+    expect(selectFeedback(fb, shell.getExecutionLog())).toMatch(/^✓/);
   });
 
-  it('after-action feedback: safe orderings → ✓, risky orderings → ⚠, chained allow22&&enable → null', () => {
-    const fb = ctxOf('learn_net_03_the_wall').solutions[0].feedback!;
-    const goals = goalsOf('learn_net_03_the_wall');
-
-    // A full firewall solve in the given step order; asserts goals then feedback.
-    const solve = (steps: string[]): string | null => {
-      const shell = engineOf('learn_net_03_the_wall');
-      for (const s of steps) run(shell, s);
-      expect(checkStateGoals(shell, goals), `goals unmet for [${steps.join(' | ')}]`).toBe(true);
-      return selectFeedback(fb, shell.getExecutionLog());
-    };
-
-    const allow80 = 'sudo ufw allow 80/tcp';
-    const allow443 = 'sudo ufw allow 443/tcp';
-    const allow22 = 'sudo ufw allow 22/tcp';
-    const deny = 'sudo ufw default deny incoming';
-    const enable = 'sudo ufw enable';
-
-    // Safe (allow22 first): port 22 opened before both the deny and the enable.
-    expect(solve([allow22, allow80, allow443, deny, enable])).toMatch(/^✓/); // allow22 → deny → enable
-    expect(solve([allow22, allow80, allow443, enable, deny])).toMatch(/^✓/); // allow22 → enable → deny
-
-    // Safe (allow22 in the MIDDLE): 22 opened before the LATER lockout step — the
-    // two orderings the design lists as safe. The OR-form safe rules cover them.
-    expect(solve([enable, allow80, allow443, allow22, deny])).toMatch(/^✓/); // enable → allow22 → deny
-    expect(solve([deny, allow80, allow443, allow22, enable])).toMatch(/^✓/); // deny → allow22 → enable
-
-    // Risky: firewall made effective (deny + enable) BEFORE port 22 was opened.
-    expect(solve([deny, allow80, allow443, enable, allow22])).toMatch(/^⚠/); // deny → enable → allow22
-    expect(solve([enable, allow80, allow443, deny, allow22])).toMatch(/^⚠/); // enable → deny → allow22
-
-    // Chained allow22 && enable is ONE attempt → strict order only BETWEEN
-    // attempts → neither the safe nor the risky rule holds → no line.
-    expect(solve([allow80, allow443, deny, 'sudo ufw allow 22/tcp && sudo ufw enable'])).toBeNull();
-  });
-
-  it('NEGATIVE: only opening 22 without flipping the default is not enough', () => {
+  it('NEGATIVE: opening 22 without flipping the default and enabling is not enough', () => {
     const shell = engineOf('learn_net_03_the_wall');
     const goals = goalsOf('learn_net_03_the_wall');
+    runAuth(shell, 'ssh timo@srv-web', PW);
     run(shell, 'sudo ufw allow 22/tcp');
     expect(checkStateGoals(shell, goals)).toBe(false);
-  });
-
-  it('NEGATIVE: rules + default deny WITHOUT ufw enable do not complete the level', () => {
-    const shell = engineOf('learn_net_03_the_wall');
-    const goals = goalsOf('learn_net_03_the_wall');
-
-    // The level seeds a DISABLED firewall — status renders inactive, and real
-    // ufw accepts rule-adds while inactive (they are configuration only).
-    expect(run(shell, 'sudo ufw status').output).toBe('Status: inactive');
-    expect(run(shell, 'sudo ufw allow 22/tcp').exitCode).toBe(0);
-    expect(run(shell, 'sudo ufw allow 80/tcp').exitCode).toBe(0);
-    expect(run(shell, 'sudo ufw allow 443/tcp').exitCode).toBe(0);
-    expect(run(shell, 'sudo ufw default deny incoming').exitCode).toBe(0);
-
-    // Everything configured, nothing active: the wall is NOT up yet.
-    expect(checkStateGoals(shell, goals)).toBe(false);
-
-    expect(run(shell, 'sudo ufw enable').exitCode).toBe(0);
-    expect(run(shell, 'sudo ufw status').output).toMatch(/^Status: active/);
-    expect(checkStateGoals(shell, goals)).toBe(true);
   });
 });
 

@@ -1285,24 +1285,25 @@ Erst sicherst du den Beweis, DANN drehst du den Kanal zu.
     title: 'Netz 3: Die Mauer',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
-║  HÄRTUNG — Firewall srv-web                                  ║
+║  HÄRTUNG — Firewall srv-web (per SSH von ws-timo)          ║
 ║  Auftrag: Bert (IT-Leitung)                                ║
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Bert: „Die Kiste steht mit offener Firewall im Netz — alles rein,
-was anklopft. Das drehen wir um: rein darf nur noch, was rein
-MUSS — 22, 80 und 443. Alles andere bleibt draußen. Aber pass
-auf die Reihenfolge auf: Wenn du erst alles zumachst und dich
-DANN um Port 22 kümmerst, sperrst du dich selbst aus. Erst die
-Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
+Bert: „Du arbeitest von ws-timo aus per SSH auf srv-web. Wenn du
+die Firewall aktivierst, bevor Port 22 freigegeben ist, kappst du
+deine eigene Verbindung. Dann hilft nur noch die Konsole. Also:
+erst den Zugang sichern, dann die Mauer hochziehen."
+
+Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
 
 **Deine Aufgabe:**
+- Verbinde dich per SSH mit \`timo@srv-web\`
 - Erlaube eingehend genau 22/tcp, 80/tcp und 443/tcp
 - Setze die Standard-Richtung für eingehend auf „deny"
-- Aktiviere die Firewall — ohne deinen SSH-Zugang zu gefährden`,
+- Aktiviere die Firewall — ohne deinen SSH-Zugang zu verlieren`,
     mentorNote:
-      'Reihenfolge rettet dich: erst die nötigen Ports freigeben (ufw allow 22/tcp …), DANN die Standardrichtung auf deny setzen und die Firewall aktivieren. Wer die Regeln umdreht, kappt sich womöglich den eigenen SSH-Zugang. ufw braucht root — also sudo.',
+      'Reihenfolge ist hier Selbstschutz: Du sitzt per SSH auf srv-web. Gibst du erst die nötigen Ports frei (ufw allow 22/tcp …) und ziehst DANN die Mauer hoch (default deny + enable), bleibt dein Zugang bestehen. Drehst du es um, kappt die Firewall deine eigene Sitzung — dann kommst du nur noch per [ESC] und Neustart wieder rein. ufw braucht root, also sudo.',
     choices: [
       {
         id: 'start',
@@ -1314,17 +1315,26 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
     ],
     terminalContext: {
       type: 'linux',
-      hostname: 'srv-web',
+      hostname: 'ws-timo',
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Firewall härten: eingehend 22/80/443 erlauben, Standard-Richtung eingehend auf deny, Firewall aktivieren — ohne deinen SSH-Zugang zu gefährden.',
-      firewall: {
-        enabled: false,
-        defaultIncoming: 'allow',
-        rules: [],
-      },
+        'Verbinde dich per SSH mit timo@srv-web und härte dort die Firewall. Erlaube 22/tcp, 80/tcp und 443/tcp, setze eingehend auf deny und aktiviere die Firewall — ohne deine SSH-Verbindung zu verlieren. Falls du dich aussperrst: Terminal mit [ESC] verlassen und die Aufgabe neu starten.',
+      hosts: [
+        {
+          id: 'srv-web',
+          hostname: 'srv-web',
+          ip: '10.0.20.11',
+          accounts: [{ name: 'timo', password: 'wartung-web-2024' }],
+          firewall: {
+            enabled: false,
+            defaultIncoming: 'allow',
+            rules: [],
+          },
+        },
+      ],
       commandSkillGain: {
+        ssh: { linux: 1, security: 1 },
         sudo: { linux: 1, security: 1 },
         ufw: { linux: 2, security: 3 },
       },
@@ -1334,57 +1344,36 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
           commands: [],
           allRequired: false,
           stateGoals: [
-            // The three needed ports are open, the default is deny AND the
-            // firewall is actually enabled — rules and policy alone are just
+            // The firewall lives on srv-web now: the player must ssh there and
+            // harden it. The three needed ports are open, the default is deny AND
+            // the firewall is actually enabled — rules and policy alone are just
             // configuration until `ufw enable`. The "don't lock yourself out"
-            // order is taught in the hints; the goals only check the end state.
-            { firewallRule: { action: 'allow', port: 22, present: true } },
-            { firewallRule: { action: 'allow', port: 80, present: true } },
-            { firewallRule: { action: 'allow', port: 443, present: true } },
-            { firewallDefaultIncoming: 'deny' },
-            { firewallEnabled: true },
+            // order is no longer only a hint: an unsafe activation over ssh drops
+            // the session (port22Blocked), so a WON run cannot have done it wrong.
+            { host: 'srv-web', firewallRule: { action: 'allow', port: 22, present: true } },
+            { host: 'srv-web', firewallRule: { action: 'allow', port: 80, present: true } },
+            { host: 'srv-web', firewallRule: { action: 'allow', port: 443, present: true } },
+            { host: 'srv-web', firewallDefaultIncoming: 'deny' },
+            { host: 'srv-web', firewallEnabled: true },
           ],
           resultText:
-            'Die Mauer steht: Die Firewall ist aktiv, und eingehend kommt nur noch durch, was durch muss — 22, 80 und 443. Alles andere prallt an der Standardregel „deny" ab. Und dein SSH-Zugang? Ungefährdet — Port 22 ist offen, du bleibst drin.\n\nMerke: Bei Firewalls hilft dir die Reihenfolge. Erst die nötigen Freigaben, dann die Standardsperre, dann aktivieren — so gefährdest du deinen eigenen Zugang nie.',
+            'Die Firewall auf srv-web ist aktiv: 22, 80 und 443 bleiben erreichbar, alles andere scheitert an der Standardsperre. Deine SSH-Sitzung blieb während der gesamten Umstellung bestehen.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
-          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
-          // ufw runs under sudo, so the logged command is e.g. `sudo ufw enable`;
-          // the patterns match `ufw …` as a substring of the outer sudo line.
+          // After-action feedback. The two ⚠ risky-order rules were removed: an
+          // unsafe order now drops the ssh session for real (firewallCmd), so a
+          // won run can never contain a successful risky ordering. The ✓ stays in
+          // OR-form (allow22 before deny OR before enable), praising the safe
+          // intermediate orderings. ufw runs under sudo, so the logged command is
+          // e.g. `sudo ufw enable`; the patterns match `ufw …` as a substring.
           feedback: [
-            // Risky: firewall effective (deny + enable) before port 22 opened.
-            {
-              when: {
-                commandBefore: [
-                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
-                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
-                ],
-              },
-              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
-            },
-            {
-              when: {
-                commandBefore: [
-                  { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
-                  { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
-                ],
-              },
-              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
-            },
-            // Safe: port 22 allowed before the LATER of deny/enable, i.e. 22 was
-            // never in a blocked state. The risky rules above already caught the
-            // only unsafe case (allow22 last); anything reaching here where 22
-            // preceded EITHER lockout step is safe. Two rules = an OR: allow22
-            // before deny OR before enable. Covers allow22-first AND allow22-mid
-            // (enable→allow22→deny, deny→allow22→enable). Ambiguous same-attempt
-            // orderings (`allow 22 && enable`) match neither → stay silent.
             {
               when: {
                 commandBefore: [
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
+              text: '✓ Port 22 war freigegeben, bevor die Firewall deinen Zugang beschränken konnte — die SSH-Verbindung blieb bestehen.',
             },
             {
               when: {
@@ -1392,16 +1381,16 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
+              text: '✓ Port 22 war freigegeben, bevor die Firewall deinen Zugang beschränken konnte — die SSH-Verbindung blieb bestehen.',
             },
           ],
         },
       ],
       hints: [
-        '🤖 Jens: Im Moment lässt die Firewall alles rein. Das Ziel ist umgekehrt: standardmäßig zu, und nur die drei nötigen Türen offen. Denk an die Reihenfolge — erst aufschließen, was du brauchst, dann abriegeln.',
-        '🤖 Jens: Die unkomplizierte Firewall heißt ufw. Du gibst einzelne Ports frei (allow), setzt eine Standardrichtung (default) und schaltest sie scharf (enable). Alles davon braucht root, also sudo.',
-        '🤖 Jens: Erst die Freigaben für 22/tcp, 80/tcp und 443/tcp. DANN default deny incoming. Erst am Schluss enable. Drehst du das um, riskierst du deinen eigenen SSH-Zugang.',
-        '🤖 Jens: `sudo ufw allow 22/tcp` → `sudo ufw allow 80/tcp` → `sudo ufw allow 443/tcp` → `sudo ufw default deny incoming` → `sudo ufw enable`.',
+        '🤖 Jens: Du sitzt per SSH auf srv-web — die Firewall dort lässt gerade alles rein. Das drehst du um: standardmäßig zu, nur die nötigen Türen offen. Und weil du über genau diese Leitung arbeitest, ist die Reihenfolge Selbstschutz: erst den eigenen Zugang sichern, dann abriegeln.',
+        '🤖 Jens: Zuerst musst du überhaupt auf srv-web rauf — per SSH mit dem Benutzer timo (Passwort steht im Auftrag). Dort heißt die Firewall ufw: einzelne Ports freigeben (allow), Standardrichtung setzen (default) und scharf schalten (enable). Alles davon braucht root, also sudo.',
+        '🤖 Jens: Gib ZUERST 22/tcp frei — das ist deine eigene SSH-Leitung. Dann 80/tcp und 443/tcp. DANN default deny incoming, und erst ganz am Schluss enable. Drehst du das um, kappt die Firewall deine laufende Sitzung, und du kommst nur per [ESC] + Neustart wieder rein.',
+        '🤖 Jens: `ssh timo@srv-web` → `sudo ufw allow 22/tcp` → `sudo ufw allow 80/tcp` → `sudo ufw allow 443/tcp` → `sudo ufw default deny incoming` → `sudo ufw enable`.',
       ],
     },
     tags: ['learning', 'network', 'terminal', 'security', 'hardening'],
