@@ -1,7 +1,7 @@
 # Design: Mobile Lernbereich ohne Sprünge und abgeschnittene Inhalte
 
-**Datum:** 2026-07-22  
-**Status:** Approved  
+**Datum:** 2026-07-22
+**Status:** Approved
 **Motivation:** Auf kleinen Viewports öffnet ein Lernlevel mitten in seiner Beschreibung; außerdem verbreitern einzelne Hub-, HUD-, Event- und Terminal-Inhalte das gesamte Dokument. Das wirkt wie abgeschnittener oder umsortierter Content, obwohl die logische Event-Reihenfolge unverändert ist.
 
 ## Verifizierte Ausgangslage
