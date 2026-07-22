@@ -175,6 +175,14 @@ describe('copy', () => {
     expect(h.vfs.readFile('/etc/motd')).toMatchObject({ ok: true, value: 'alt\n' });
   });
 
+  it('fails loudly on an invalid mode instead of silently ignoring it', () => {
+    const h = host();
+    // '999' is not a valid octal mode → vfs.chmod rejects it. The task must
+    // surface that, not report a false success with the mode unapplied.
+    const r = copy(h, { dest: '/etc/motd', content: 'x\n', mode: '999' }, opts());
+    expect(r.failed).toContain('invalid mode');
+  });
+
   it('missing dest / missing content+src fail', () => {
     expect(copy(host(), { content: 'x' }, opts()).failed).toBe('missing required arguments: dest');
     expect(copy(host(), { dest: '/etc/x' }, opts()).failed).toContain('src (or content) is required');
