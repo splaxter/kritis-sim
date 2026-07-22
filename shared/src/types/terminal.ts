@@ -173,6 +173,12 @@ export interface NetListener {
   address?: string;
   pid?: number;
   program?: string;
+  /**
+   * Owning user of the process behind this socket; defaults to 'root' when
+   * materialised. A non-root shell cannot `kill` a socket it does not own
+   * (needs `sudo`) — mirrors real signal permissions.
+   */
+  user?: string;
 }
 
 /** An established connection shown by `ss -tp`/`netstat` — e.g. a backchannel. */
@@ -185,6 +191,8 @@ export interface NetConnection {
   state?: string;
   pid?: number;
   program?: string;
+  /** Owning user of the process; defaults to 'root'. See NetListener.user. */
+  user?: string;
 }
 
 export interface TerminalHostSpec {

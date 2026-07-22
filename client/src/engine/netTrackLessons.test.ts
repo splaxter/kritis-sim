@@ -77,13 +77,22 @@ describe('learn_net_01_open_doors — spot the outlier, kill the listener', () =
     expect(run(shell, 'ss -tulpen').output).toMatch(/sshd/);
   });
 
-  it('after-action feedback: aiming kill at a legit PID → ⚠; killing only the rogue → null', () => {
+  it('after-action feedback: the ⚠ fires ON A WON run — a denied kill at a legit PID still logs the risky command', () => {
     const fb = ctxOf('learn_net_01_open_doors').solutions[0].feedback!;
+    const goals = goalsOf('learn_net_01_open_doors');
 
-    // Targeting a legitimate service (sshd 456) — even the attempt earns ⚠.
     const risky = engineOf('learn_net_01_open_doors');
-    run(risky, 'sudo kill 456');
-    run(risky, 'sudo kill 6666'); // …then close the rogue anyway
+    // As timo (non-root): aiming kill at sshd (PID 456, root-owned) is DENIED —
+    // Operation not permitted. The listener SURVIVES, so the level is NOT solved.
+    expect(run(risky, 'kill 456').exitCode).toBe(1);
+    expect(run(risky, 'ss -tulpen').output).toMatch(/:22\b/);
+    expect(checkStateGoals(risky, goals)).toBe(false);
+
+    // …then close the rogue properly with sudo → the level is genuinely WON…
+    expect(run(risky, 'sudo kill 6666').exitCode).toBe(0);
+    expect(checkStateGoals(risky, goals)).toBe(true);
+    // …and the ⚠ still appears, because the risky attempt was recorded (default
+    // outcome 'attempted' matches even a failed kill).
     expect(selectFeedback(fb, risky.getExecutionLog())).toMatch(/^⚠/);
 
     // Clean: only the rogue nc (PID 6666) is killed → no line.

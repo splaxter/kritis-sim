@@ -69,8 +69,10 @@ export const DEFAULT_CONNECTIONS: NetConnection[] = [
   { proto: 'tcp', localPort: 22, peer: '192.168.1.50:52413', state: 'ESTABLISHED', pid: 3456, program: 'sshd' },
 ];
 
-const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ ...l }));
-const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ ...c }));
+// System services and a root-planted rogue both run as root unless a level
+// says otherwise, so ownership defaults to 'root' when a socket is materialised.
+const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ user: 'root', ...l }));
+const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ user: 'root', ...c }));
 
 /** Same defaults the static systemctl table has — kept consistent with `ps`. */
 export const DEFAULT_UNITS: SystemdUnitState[] = [
@@ -197,8 +199,8 @@ export function seedPrimaryHost(
   }
   // Listeners/connections replace the defaults when a level authors them —
   // a forensic level owns its full port view, not a merge of the baseline.
-  if (spec.listeners) host.listeners = spec.listeners.map(l => ({ ...l }));
-  if (spec.connections) host.connections = spec.connections.map(c => ({ ...c }));
+  if (spec.listeners) host.listeners = cloneListeners(spec.listeners);
+  if (spec.connections) host.connections = cloneConnections(spec.connections);
 }
 
 export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
