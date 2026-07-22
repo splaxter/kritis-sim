@@ -77,6 +77,22 @@ describe('learn_net_01_open_doors — spot the outlier, kill the listener', () =
     expect(run(shell, 'ss -tulpen').output).toMatch(/sshd/);
   });
 
+  it('after-action feedback: aiming kill at a legit PID → ⚠; killing only the rogue → null', () => {
+    const fb = ctxOf('learn_net_01_open_doors').solutions[0].feedback!;
+
+    // Targeting a legitimate service (sshd 456) — even the attempt earns ⚠.
+    const risky = engineOf('learn_net_01_open_doors');
+    run(risky, 'sudo kill 456');
+    run(risky, 'sudo kill 6666'); // …then close the rogue anyway
+    expect(selectFeedback(fb, risky.getExecutionLog())).toMatch(/^⚠/);
+
+    // Clean: only the rogue nc (PID 6666) is killed → no line.
+    const clean = engineOf('learn_net_01_open_doors');
+    run(clean, 'sudo kill 6666');
+    expect(checkStateGoals(clean, goalsOf('learn_net_01_open_doors'))).toBe(true);
+    expect(selectFeedback(fb, clean.getExecutionLog())).toBeNull();
+  });
+
   it('NEGATIVE: a kill-everything rampage does not win — the legit listeners must survive', () => {
     // The resultText promises "die drei erlaubten Dienste laufen unberührt
     // weiter" — the listenerPresent goals enforce it.

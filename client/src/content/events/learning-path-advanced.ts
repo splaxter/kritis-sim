@@ -1112,6 +1112,15 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
             'Port 31337 ist zu — der Prozess „nc" (netcat) lauscht nicht mehr. Genau der stand in keiner Freigabe: eine offene Hintertür, über die jemand von außen eine Shell hätte abgreifen können. Die drei erlaubten Dienste (22/80/443) laufen unberührt weiter.\n\nMerke: Man muss nicht raten. Man kennt die Soll-Liste, listet den Ist-Zustand, und was übrig bleibt, ist der Befund. Jeder offene Port gehört einem Prozess — über dessen PID macht man ihn gezielt dicht.',
           skillGain: { linux: 3, security: 4, troubleshooting: 1 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Text → Prosa-Pass durch den Nutzer).
+          // Legit listener PIDs on this host: sshd 456, apache2 1234 (80+443).
+          // The rogue nc listens on 31337 as PID 6666 — killing THAT yields no line.
+          feedback: [
+            {
+              when: { commandMatches: { pattern: 'kill\\s+.*\\b(456|1234)\\b' } },
+              text: '⚠ Du hast einen legitimen Dienst ins Visier genommen. Erst PID und Soll-Port abgleichen, dann gezielt beenden.',
+            },
+          ],
         },
       ],
       hints: [
