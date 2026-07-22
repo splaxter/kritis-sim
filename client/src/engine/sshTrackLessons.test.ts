@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
 import { createShellFromContext, checkStateGoals, checkStateGoal } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
+import { selectFeedback } from './shell/feedback';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
 /**
@@ -248,5 +249,61 @@ describe('learn_ssh_04_key_graveyard — evidence-first, then targeted removal',
     expect(ak.ok && ak.value).toMatch(/jens@ws-jens/);
     expect(ak.ok && ak.value).toMatch(/henry@ws-henry/);
     expect(ak.ok && ak.value).not.toMatch(/wartung@extern/);
+  });
+
+  /** Evidence secured, then logged into db01 — the shared trap/clean setup. */
+  const reachDb01WithEvidence = (shell: ShellEngine): void => {
+    shell.execute('scp admin@db01:/home/admin/.ssh/authorized_keys evidenz_db01.txt');
+    expect(shell.continueInput('kraftwerk-db-2024').exitCode).toBe(0);
+    shell.execute('ssh admin@db01');
+    expect(shell.continueInput('kraftwerk-db-2024').exitCode).toBe(0);
+  };
+
+  it('CORRECTNESS: emptying the key file no longer wins (preservation goals)', () => {
+    const shell = engineOf('learn_ssh_04_key_graveyard');
+    const goals = goalsOf('learn_ssh_04_key_graveyard');
+    reachDb01WithEvidence(shell);
+
+    // Sacrifice the whole file instead of the one orphan line.
+    run(shell, 'echo -n "" > /home/admin/.ssh/authorized_keys');
+
+    // The two ORIGINAL goals alone would have falsely won: evidence captured
+    // the rogue key AND the (now empty) live file no longer mentions it.
+    expect(checkStateGoal(shell, goals[0])).toBe(true); // evidence has the rogue line
+    expect(checkStateGoal(shell, goals[1])).toBe(true); // db01 file absent wartung@extern
+    // …but the preservation goals reject the emptied file — no false win.
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('CORRECTNESS: rm-ing the key file no longer wins either', () => {
+    const shell = engineOf('learn_ssh_04_key_graveyard');
+    const goals = goalsOf('learn_ssh_04_key_graveyard');
+    reachDb01WithEvidence(shell);
+    run(shell, 'rm /home/admin/.ssh/authorized_keys');
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('after-action feedback: sacrificing the file → ⚠; the targeted sed → ⚡', () => {
+    const fb = ctxOf('learn_ssh_04_key_graveyard').solutions[0].feedback!;
+
+    // Trap: empty the file (a redirect over authorized_keys) — earns ⚠.
+    const trap = engineOf('learn_ssh_04_key_graveyard');
+    reachDb01WithEvidence(trap);
+    run(trap, 'echo -n "" > /home/admin/.ssh/authorized_keys');
+    expect(selectFeedback(fb, trap.getExecutionLog())).toMatch(/^⚠/);
+
+    // Trap variant: rm also earns ⚠ (pattern coverage).
+    const trapRm = engineOf('learn_ssh_04_key_graveyard');
+    reachDb01WithEvidence(trapRm);
+    run(trapRm, 'rm /home/admin/.ssh/authorized_keys');
+    expect(selectFeedback(fb, trapRm.getExecutionLog())).toMatch(/^⚠/);
+
+    // Clean: exactly one targeted sed removes the orphan line — earns ⚡.
+    const clean = engineOf('learn_ssh_04_key_graveyard');
+    const goals = goalsOf('learn_ssh_04_key_graveyard');
+    reachDb01WithEvidence(clean);
+    run(clean, "sed -i '/wartung@extern/d' /home/admin/.ssh/authorized_keys");
+    expect(checkStateGoals(clean, goals)).toBe(true);
+    expect(selectFeedback(fb, clean.getExecutionLog())).toMatch(/^⚡/);
   });
 });

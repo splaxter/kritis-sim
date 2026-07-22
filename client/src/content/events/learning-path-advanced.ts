@@ -549,11 +549,29 @@ In dieser Reihenfolge. Immer.
             // can't fake it); the live key must be gone from db01.
             { file: '/home/timo/evidenz_db01.txt', matches: 'RogueFenrisBackdoorKey00 wartung@extern-2019' },
             { host: 'db01', file: '/home/admin/.ssh/authorized_keys', absentMatches: 'wartung@extern' },
+            // Preservation: the legit keys MUST survive. Without these, emptying
+            // the file (`> authorized_keys`) satisfies absentMatches and falsely
+            // wins while the base text claims Jens' and Henry's keys are intact.
+            { host: 'db01', file: '/home/admin/.ssh/authorized_keys', matches: 'jens@ws-jens' },
+            { host: 'db01', file: '/home/admin/.ssh/authorized_keys', matches: 'henry@ws-henry' },
           ],
           resultText:
             'Der Wartungsschlüssel „wartung@extern-2019“ ist raus — und die Beweiskopie liegt sicher auf deinem Rechner, gezogen BEVOR du etwas verändert hast. Genau diese Reihenfolge zählt: erst sichern, dann bereinigen. Die legitimen Keys von Jens und Henry sind unangetastet.\n\nDer Kommentar „extern-2019“ passt in kein Offboarding-Protokoll, das wir haben. Jens wird still: „Das Ding liegt seit Jahren auf db01. Wenn das zu FENRIS gehört, reden wir nicht über einen Zufall.“ Du markierst den Fund für die Incident-Akte.',
           skillGain: { security: 6, linux: 3, troubleshooting: 2 },
           effects: { stress: -4 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          feedback: [
+            // Risk before praise: sacrificing the whole key file (rm / chmod 000
+            // / truncate / redirect over it) would have locked Jens and Henry out.
+            {
+              when: { commandMatches: { pattern: '(rm\\s+.*authorized_keys|chmod\\s+0?00|truncate\\s+.*authorized_keys|>\\s*.*authorized_keys)' } },
+              text: '⚠ Beinahe die ganze Schlüsseldatei geopfert — das hätte auch Jens und Henry ausgesperrt.',
+            },
+            {
+              when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, max: 1 } },
+              text: '⚡ Genau eine verdächtige Zeile entfernt; die legitimen Schlüssel blieben erhalten.',
+            },
+          ],
         },
       ],
       hints: [
