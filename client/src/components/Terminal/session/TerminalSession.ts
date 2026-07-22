@@ -8,7 +8,7 @@
 // beginner auto-hint + first prompt) and the private prompt computation. The
 // keystroke methods (handleData/handleHintRequest/tick) are STUBS returning [].
 import { TerminalContext, Skills, GameModeId, EventEffects, FeedbackRule, TerminalSolution } from '@kritis/shared';
-import { ShellEngine, checkStateGoals, selectFeedback } from '../../../engine/shell';
+import { ShellEngine, checkStateGoals, selectFeedback, CommandResult } from '../../../engine/shell';
 import { buildPrompt } from '../prompt';
 import { TerminalEffect } from './effects';
 
@@ -52,7 +52,18 @@ export class TerminalSession {
   private pendingSolutionEffects: EventEffects | undefined = undefined;
 
   // --- masked/interactive input (e.g. ssh password prompts) ---
-  private pendingInput: { prompt: string; mask: boolean; resume: (answer: string) => void } | null = null;
+  // When set, the next keystrokes feed the buffered answer, NOT the command
+  // line. `resume(answer)` funnels shell.continueInput back through the single
+  // handleShellResult path (which may re-arm pendingInput for a retry/chain).
+  private pendingInput: { prompt: string; mask: boolean; resume: (answer: string) => TerminalEffect[] } | null = null;
+  // Buffered pending answer — LOCAL state, NEVER echoed when masked, NEVER
+  // exposed via getSnapshot() (would leak passwords).
+  private pendingBuffer = '';
+  private pendingMask = false;
+  private pendingCmdName = '';
+
+  // beginner + learning modes get extra error tips (see writeShellError).
+  private readonly isBeginnerMode: boolean;
 
   // --- credited commands + live skill drip ---
   private creditedCommands = new Set<string>();
@@ -75,6 +86,7 @@ export class TerminalSession {
   private prompt = '';
 
   constructor(private deps: TerminalSessionDeps) {
+    this.isBeginnerMode = deps.gameMode === 'beginner' || deps.gameMode === 'learning';
     this.prompt = this.computePrompt();
   }
 
@@ -118,9 +130,51 @@ export class TerminalSession {
   }
 
   handleData(data: string): TerminalEffect[] {
-    // NOTE: Enter (`\r`), Tab (`\t`), the empty-line `?` hint, and the
-    // pending-input / streaming / solved branches are owned by later tasks.
-    // Anything not handled below falls through to `return []`.
+    // NOTE: Tab (`\t`), the empty-line `?` hint, and the streaming / solved
+    // guard head of onData are owned by later tasks. Anything not handled below
+    // falls through to `return []`.
+
+    // A command owns the next line (ssh password prompt etc.). The buffered
+    // answer bypasses history/canned matching; masked input echoes NOTHING
+    // (like real ssh) and never lands in an effect, the exec log, or the
+    // snapshot. History, arrows and tab are disabled while pending.
+    if (this.pendingInput) {
+      if (data === '\r') {
+        const answer = this.pendingBuffer;
+        const resume = this.pendingInput.resume;
+        // INVARIANT 2: clear pending BEFORE the continuation so a synchronous
+        // follow-up prompt (retry / chained question) can re-arm pendingInput.
+        this.pendingInput = null;
+        this.pendingBuffer = '';
+        // SINGLE PATH: resume() routes shell.continueInput through handleShellResult.
+        return [{ type: 'writeLine', text: '' }, ...resume(answer)];
+      }
+      if (data === '\x03') {
+        // INVARIANT 4: Ctrl+C closes the pending continuation exactly once. A
+        // second Ctrl+C (pendingInput already null) falls through to the normal
+        // handler below and never re-calls cancelPendingInput.
+        this.deps.shell.cancelPendingInput();
+        this.pendingInput = null;
+        this.pendingBuffer = '';
+        return [{ type: 'writeLine', text: '^C' }, this.resetLineAndPrompt()];
+      }
+      if (data === '') { // Backspace edits the buffered answer
+        if (this.pendingBuffer.length > 0) {
+          this.pendingBuffer = this.pendingBuffer.slice(0, -1);
+          if (!this.pendingMask) return [{ type: 'write', text: '\b \b' }];
+        }
+        return [];
+      }
+      if (data.startsWith('\x1b') || data === '\t') {
+        return [];
+      }
+      if (data >= ' ') {
+        this.pendingBuffer += data;
+        // INVARIANT 3: masked answers echo nothing; unmasked echo the char inline.
+        if (!this.pendingMask) return [{ type: 'write', text: data }];
+      }
+      return [];
+    }
 
     // --- escape sequences (arrow keys, Home/End, Delete) ---
     if (data.startsWith('\x1b[')) {
@@ -367,8 +421,13 @@ export class TerminalSession {
         }
       }
 
-      // No scenario match — Task 7 wires real shell.execute + handleShellResult
-      // here. For now, fall through to a fresh prompt.
+      // No scenario match — run the real shell and route the result through the
+      // single shell-result tail: output/errors, pending-input prompt, solution
+      // check (incl. stateGoals), skill drip, fresh prompt.
+      const cmdName = trimmed.split(/\s+/)[0];
+      const result = this.deps.shell.execute(trimmed);
+      effects.push(...this.handleShellResult(result, cmdName));
+      return effects;
     }
 
     effects.push(this.resetLineAndPrompt());
@@ -455,6 +514,79 @@ export class TerminalSession {
     if (!gain || this.creditedCommands.has(cmdName)) return;
     this.creditedCommands.add(cmdName);
     this.liveSkillGain = mergeSkillGain(this.liveSkillGain, gain);
+  }
+
+  // Writes an error line plus a beginner/learning-mode tip for common cases.
+  private writeShellError(error: string): TerminalEffect[] {
+    const out: TerminalEffect[] = [{ type: 'writeLine', text: `\x1b[31m${error}\x1b[0m` }];
+    if (this.isBeginnerMode) {
+      if (error.includes('command not found') || error.includes('not recognized')) {
+        out.push({ type: 'writeLine', text: '\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m' });
+      } else if (error.includes('No such file') || error.includes('cannot find')) {
+        out.push({ type: 'writeLine', text: '\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m' });
+      } else if (error.includes('Permission denied')) {
+        out.push({ type: 'writeLine', text: '\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m' });
+      } else if (error.includes('not a directory')) {
+        out.push({ type: 'writeLine', text: '\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m' });
+      }
+    }
+    return out;
+  }
+
+  // Tail of every real shell.execute/continueInput result: print output+errors,
+  // then either arm the pending-input prompt, announce a solve, or write a fresh
+  // prompt. Both entry points (Enter's execute and the pending resume's
+  // continueInput) funnel through here — the SINGLE processing path. Solutions
+  // are NEVER checked while a password prompt is still owed.
+  private handleShellResult(result: CommandResult, cmdName: string): TerminalEffect[] {
+    const effects: TerminalEffect[] = [];
+
+    const finish = (): TerminalEffect[] => {
+      if (result.pendingInput) {
+        // Arm pending-input. The next line is fed to shell.continueInput and its
+        // CommandResult routed back through THIS method (re-arming is allowed).
+        this.pendingMask = result.pendingInput.mask;
+        this.pendingCmdName = cmdName;
+        this.pendingBuffer = '';
+        this.pendingInput = {
+          prompt: result.pendingInput.prompt,
+          mask: result.pendingInput.mask,
+          resume: (answer: string) =>
+            this.handleShellResult(this.deps.shell.continueInput(answer), cmdName),
+        };
+        // Prompt is written WITHOUT a newline (real ssh: `…password: ` inline).
+        return [{ type: 'write', text: result.pendingInput.prompt }];
+      }
+      if (result.exitCode === 0) {
+        this.creditSkillDrip(cmdName);
+      }
+      const solution = this.checkSolutions(this.teachedCommands);
+      if (solution) {
+        return this.announceSolved(solution);
+      }
+      return [this.resetLineAndPrompt()];
+    };
+
+    if (result.clearScreen) {
+      effects.push({ type: 'clearScreen' });
+      effects.push(...finish());
+      return effects;
+    }
+
+    // Show stdout AND stderr — a pipeline can produce both
+    // (`grep x missing | wc -l` prints grep's error and wc's 0).
+    // TODO(Task 9): pacing — ping-style reply lines are emitted instantly here;
+    // Task 9 restores the drip pacing (emitScenarioOutput) around this output.
+    if (result.output) {
+      for (const shellLine of result.output.split('\n')) {
+        effects.push({ type: 'writeLine', text: shellLine });
+      }
+    }
+    if (result.error) {
+      effects.push(...this.writeShellError(result.error));
+    }
+    effects.push(...finish());
+    return effects;
   }
 
   handleHintRequest(): TerminalEffect[] { return []; }              // stub — later task
