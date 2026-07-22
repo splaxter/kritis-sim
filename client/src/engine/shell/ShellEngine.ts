@@ -149,6 +149,12 @@ export class ShellEngine implements ShellEngineInterface {
       const result = this.executeChain(trimmed, initialStdin);
       if (outer) this.settleAttempt(result);
       return result;
+    } catch (err) {
+      // Defensive: an unexpected throw in the stage plumbing (not a command,
+      // which executeCommand already catches) must still close the attempt —
+      // one entry per outer command, always. Degrades to a failed entry.
+      if (outer) this.closeOpenAttempt(1);
+      throw err;
     } finally {
       this.executionDepth--;
     }
