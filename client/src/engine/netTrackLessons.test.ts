@@ -305,4 +305,53 @@ describe('learn_net_04_spider — journal → scp → ssh → sed → ufw', () =
     expect(listing.output).toMatch(/31337/);
     expect(listing.output).toMatch(/beacon/);
   });
+
+  it('a preservation goal guards the legit db-backup cron job', () => {
+    // The fourth goal pins the FULL legit line (schedule + command) so a cleanup
+    // cannot silently destroy db01's nightly backup.
+    const goals = goalsOf('learn_net_04_spider');
+    expect(goals.length).toBe(4);
+  });
+
+  it('NEGATIVE: emptying the crontab after securing evidence passes the old goals but fails preservation', () => {
+    const shell = engineOf('learn_net_04_spider');
+    const goals = goalsOf('learn_net_04_spider');
+
+    // Secure evidence FIRST so the evidence goal is genuinely met…
+    runAuth(shell, 'scp admin@db01:/var/spool/cron/crontabs/root ~/evidenz_cron.txt', PW);
+    expect(checkStateGoal(shell, goals[0])).toBe(true);
+
+    // …contain the port so the firewall goal is met too…
+    runAuth(shell, 'ssh admin@db01', PW);
+    expect(run(shell, 'sudo ufw deny 31337').exitCode).toBe(0);
+
+    // …but blow away the WHOLE crontab (`sh -c` is unavailable here; tee an empty
+    // stdin). The file still EXISTS, just empty — so absentMatches is satisfied.
+    expect(run(shell, "echo -n '' | sudo tee /var/spool/cron/crontabs/root").exitCode).toBe(0);
+
+    // The original three goals all pass on the emptied file…
+    expect(checkStateGoal(shell, goals[0])).toBe(true); // evidence holds beacon
+    expect(checkStateGoal(shell, goals[1])).toBe(true); // beacon absent from crontab
+    expect(checkStateGoal(shell, goals[2])).toBe(true); // port 31337 denied
+    // …but the legit db-backup job is gone, so the preservation goal — and thus
+    // the level — is NOT solved.
+    expect(checkStateGoal(shell, goals[3])).toBe(false);
+    expect(checkStateGoals(shell, goals)).toBe(false);
+  });
+
+  it('NEGATIVE: an over-broad sed that also deletes the backup job is not a win', () => {
+    const shell = engineOf('learn_net_04_spider');
+    const goals = goalsOf('learn_net_04_spider');
+
+    runAuth(shell, 'scp admin@db01:/var/spool/cron/crontabs/root ~/evidenz_cron.txt', PW);
+    runAuth(shell, 'ssh admin@db01', PW);
+    run(shell, 'sudo ufw deny 31337');
+
+    // Too aggressive: every cron line ends in `.sh`, so this nukes the db-backup
+    // job alongside the beacon.
+    expect(run(shell, "sudo sed -i '/\\.sh/d' /var/spool/cron/crontabs/root").exitCode).toBe(0);
+
+    expect(checkStateGoal(shell, goals[1])).toBe(true); // beacon really is gone
+    expect(checkStateGoals(shell, goals)).toBe(false); // but backup destroyed → no win
+  });
 });

@@ -1505,6 +1505,9 @@ und riegle den Port ab.
             { host: 'db01', file: '/var/spool/cron/crontabs/root', absentMatches: 'beacon' },
             // Rogue port contained on db01 by firewall.
             { host: 'db01', firewallRule: { action: 'deny', port: 31337, present: true } },
+            // Legit nightly backup job PRESERVED — anchored to the full line so a
+            // too-broad cleanup (empty/overwrite/over-deletion) can't nuke it.
+            { host: 'db01', file: '/var/spool/cron/crontabs/root', matches: '^0 3 \\* \\* \\* /usr/local/bin/db-backup\\.sh$' },
           ],
           resultText:
             'Die Spinne sitzt fest: Die Beweiskopie der Crontab liegt sicher auf web01 (gezogen, bevor du db01 angefasst hast), die Backdoor-Zeile ist raus, und Port 31337 ist per Firewall dicht. Der Cron-Job hätte im Minutentakt \`/tmp/.hidden/beacon.sh\` nachgeladen — ein klassischer Persistenz-Mechanismus, versteckt in einem Punkt-Verzeichnis.\n\nDrei Tracks in einem Fall: Journal-Forensik hat die Querbewegung von db01 aufgedeckt, SSH hat dich sauber auf den Nachbarhost gebracht, und die Netz-Werkzeuge (ss, ufw) haben den Port geschlossen. Genau so arbeitet man einen Incident ab — der Reihe nach, mit Beweissicherung zuerst.\n\nHenry, leise: „Ein Beacon auf db01, eine Querbewegung nach web01… das war kein Skript-Kiddie. Das gehört in die FENRIS-Akte."',
