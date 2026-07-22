@@ -588,13 +588,12 @@ In dieser Reihenfolge. Immer.
           skillGain: { security: 6, linux: 3, troubleshooting: 2 },
           effects: { stress: -4 },
           // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          // NB: a ⚠ trap for sacrificing the whole key file (rm / chmod 000 /
+          // truncate / redirect) would be unreachable on a win — the preservation
+          // goals (jens@/henry@ must survive) already make that path unsolvable, so
+          // feedback (which only fires on a solve) could never show it. Only the
+          // efficiency praise remains.
           feedback: [
-            // Risk before praise: sacrificing the whole key file (rm / chmod 000
-            // / truncate / redirect over it) would have locked Jens and Henry out.
-            {
-              when: { commandMatches: { pattern: '(rm\\s+.*authorized_keys|chmod\\s+0?00|truncate\\s+.*authorized_keys|>\\s*.*authorized_keys)' } },
-              text: '⚠ Beinahe die gesamte Schlüsseldatei geopfert — damit wären auch Jens und Henry ausgesperrt gewesen.',
-            },
             {
               when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, min: 1, max: 1 } },
               text: '⚡ Gezielt nur den verdächtigen Schlüssel entfernt; die legitimen Zugänge blieben erhalten.',

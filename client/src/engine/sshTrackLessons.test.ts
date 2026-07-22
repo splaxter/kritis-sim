@@ -315,20 +315,12 @@ describe('learn_ssh_04_key_graveyard — evidence-first, then targeted removal',
     expect(checkStateGoals(shell, goals)).toBe(false);
   });
 
-  it('after-action feedback: sacrificing the file → ⚠; the targeted sed → ⚡', () => {
+  it('after-action feedback: the targeted sed → ⚡ (no unreachable ⚠ trap)', () => {
+    // The ⚠ trap for sacrificing the whole key file was dropped: the
+    // preservation goals (jens@/henry@ must survive) make that path
+    // unsolvable, and feedback only shows on a solve — so the warning could
+    // never appear. Correctness is enforced by the CORRECTNESS tests above.
     const fb = ctxOf('learn_ssh_04_key_graveyard').solutions[0].feedback!;
-
-    // Trap: empty the file (a redirect over authorized_keys) — earns ⚠.
-    const trap = engineOf('learn_ssh_04_key_graveyard');
-    reachDb01WithEvidence(trap);
-    run(trap, 'echo -n "" > /home/admin/.ssh/authorized_keys');
-    expect(selectFeedback(fb, trap.getExecutionLog())).toMatch(/^⚠/);
-
-    // Trap variant: rm also earns ⚠ (pattern coverage).
-    const trapRm = engineOf('learn_ssh_04_key_graveyard');
-    reachDb01WithEvidence(trapRm);
-    run(trapRm, 'rm /home/admin/.ssh/authorized_keys');
-    expect(selectFeedback(fb, trapRm.getExecutionLog())).toMatch(/^⚠/);
 
     // Clean: exactly one targeted sed removes the orphan line — earns ⚡.
     const clean = engineOf('learn_ssh_04_key_graveyard');
