@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createShellFromContext } from '../../../engine/shell';
-import { TerminalContext } from '@kritis/shared';
+import { TerminalContext, GameModeId } from '@kritis/shared';
 import { TerminalSession } from './TerminalSession';
 
 const baseCtx: TerminalContext = {
@@ -8,7 +8,7 @@ const baseCtx: TerminalContext = {
   currentPath: '/home/timo', hints: [], commands: [], solutions: [],
 };
 
-function makeSession(overrides: Partial<TerminalContext> = {}, gameMode = 'intermediate' as const) {
+function makeSession(overrides: Partial<TerminalContext> = {}, gameMode: GameModeId = 'intermediate') {
   const context = { ...baseCtx, ...overrides };
   const shell = createShellFromContext({
     type: context.type, hostname: context.hostname, username: context.username,

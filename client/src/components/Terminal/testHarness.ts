@@ -19,7 +19,7 @@ export interface MockTerm {
 export const terminalMock = {
   instances: [] as MockTerm[],
   Terminal: class {
-    private handlers: DataHandler[] = [];
+    handlers: DataHandler[] = [];
     buffer: string[] = [];
     cols = 80;
     constructor() {

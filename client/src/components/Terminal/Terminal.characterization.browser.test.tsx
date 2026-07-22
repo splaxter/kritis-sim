@@ -20,6 +20,7 @@ function bareContext(overrides: Partial<TerminalContext> = {}): TerminalContext 
     currentPath: '/home/timo',
     hints: [],
     commands: [],
+    solutions: [],
     ...overrides,
   };
 }
