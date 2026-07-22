@@ -377,6 +377,10 @@ export class ShellEngine implements ShellEngineInterface {
         return this.popSession() ? { closedHostname: closing.hostname } : null;
       },
       sessionDepth: this.sessionStack.length,
+      sessionSourceHost:
+        this.sessionStack.length > 1
+          ? this.hosts.get(this.sessionStack[this.sessionStack.length - 2].hostId)
+          : undefined,
       recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
         this.pendingContinuation = next;

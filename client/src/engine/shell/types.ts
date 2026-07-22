@@ -149,6 +149,8 @@ export interface ExecutionContext {
   pushSession?: (hostId: string, user: string, method?: 'publickey' | 'password') => void;
   popSession?: () => { closedHostname: string } | null;
   sessionDepth?: number;
+  /** Host of the PREVIOUS session frame (where the current ssh came from); undefined at depth 1. */
+  sessionSourceHost?: import('./hosts').HostState;
   /**
    * Record an ansible-playbook invocation (for ansibleRan stateGoals) — the
    * command reports every run with its mode and exit status, like pushSession
