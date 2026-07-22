@@ -42,25 +42,23 @@ const RELATIONSHIP_LABELS: Record<string, { name: string; color: string }> = {
 function LearningModeHeader({ lessonLabel, lessonProgressPercent }: StatsBarProps) {
   return (
     <div className="border border-terminal-border p-3">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <span className="text-lg text-terminal-green">📚 LERNMODUS</span>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1">
+          <span className="shrink-0 text-lg text-terminal-green">📚 LERNMODUS</span>
           {lessonLabel && (
-            <span className="text-terminal-green-dim text-sm">{lessonLabel}</span>
+            <span className="min-w-0 break-words text-sm text-terminal-green-dim">{lessonLabel}</span>
           )}
         </div>
         {lessonProgressPercent !== undefined && (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-terminal-green-dim">Fortschritt:</span>
-              <div className="w-32 h-2 bg-terminal-bg-dark border border-terminal-border rounded overflow-hidden">
-                <div
-                  className="h-full bg-terminal-green transition-all duration-500"
-                  style={{ width: `${lessonProgressPercent}%` }}
-                />
-              </div>
-              <span className="text-terminal-green">{lessonProgressPercent}%</span>
+          <div className="flex w-full min-w-0 items-center gap-2 text-sm sm:w-auto">
+            <span className="shrink-0 text-terminal-green-dim">Fortschritt:</span>
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded border border-terminal-border bg-terminal-bg-dark sm:w-32 sm:flex-none">
+              <div
+                className="h-full bg-terminal-green transition-all duration-500"
+                style={{ width: `${lessonProgressPercent}%` }}
+              />
             </div>
+            <span className="shrink-0 text-terminal-green">{lessonProgressPercent}%</span>
           </div>
         )}
       </div>
