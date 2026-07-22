@@ -999,6 +999,22 @@ nicht. Und die Datenbank? Steht still.
             'Beide Dienste laufen. Blindes Neustarten der API hätte beliebig oft nichts gebracht — das Journal hat die Kette offengelegt: Die API hing an der Datenbank, die Datenbank stand still. Ursache zuerst (mysql), dann die abhängige Seite (leitstand-api), und die Kettenreaktion löst sich von selbst.\n\nMerke: Ein Dienst, der nicht startet, ist oft nur das letzte Glied. Lies, woran er hängt — und repariere die Wurzel.',
           skillGain: { linux: 3, troubleshooting: 5 },
           effects: { stress: -3 },
+          // After-action feedback (PLATZHALTER-Texte → Prosa-Pass durch den Nutzer).
+          feedback: [
+            {
+              when: { commandCount: { matcher: { pattern: 'systemctl\\s+(re)?start\\s+leitstand-api' }, min: 2 } },
+              text: '⚠ Du hast die API erneut gestartet, obwohl ihre Abhängigkeit noch fehlte. Das Journal hätte dir den Umweg erspart.',
+            },
+            {
+              when: {
+                commandBefore: [
+                  { first: { pattern: 'journalctl', outcome: 'succeeded' }, second: { pattern: 'systemctl\\s+start\\s+mysql', outcome: 'succeeded' } },
+                  { first: { pattern: 'systemctl\\s+start\\s+mysql', outcome: 'succeeded' }, second: { pattern: 'systemctl\\s+start\\s+leitstand-api', outcome: 'succeeded' } },
+                ],
+              },
+              text: '⚡ Erst die Ursache gelesen, dann die Abhängigkeit zuerst gestartet — kein Blindflug.',
+            },
+          ],
         },
       ],
       hints: [
