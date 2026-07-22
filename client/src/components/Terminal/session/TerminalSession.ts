@@ -101,7 +101,154 @@ export class TerminalSession {
     return effects;
   }
 
-  handleData(_data: string): TerminalEffect[] { return []; }        // stub — later task
+  // Emit a single full-line redraw of the current input area. Every edit path
+  // ends here so the pure renderInput renderer reproduces the identical visible
+  // state (behavior-preserving vs. the original incremental writes).
+  private render(): TerminalEffect {
+    return { type: 'renderInput', prompt: this.prompt, line: this.line, cursor: this.cursorPos };
+  }
+
+  handleData(data: string): TerminalEffect[] {
+    // NOTE: Enter (`\r`), Tab (`\t`), the empty-line `?` hint, and the
+    // pending-input / streaming / solved branches are owned by later tasks.
+    // Anything not handled below falls through to `return []`.
+
+    // --- escape sequences (arrow keys, Home/End, Delete) ---
+    if (data.startsWith('\x1b[')) {
+      const seq = data.slice(2);
+      switch (seq) {
+        case 'A': // Up arrow - history navigation
+          if (this.savedLine === '' && this.line !== '') {
+            this.savedLine = this.line;
+          }
+          {
+            const prevCmd = this.deps.shell.navigateHistory('up');
+            if (prevCmd !== undefined) {
+              this.line = prevCmd;
+              this.cursorPos = prevCmd.length;
+              return [this.render()];
+            }
+          }
+          return [];
+
+        case 'B': // Down arrow - history navigation
+          {
+            const nextCmd = this.deps.shell.navigateHistory('down');
+            if (nextCmd !== undefined) {
+              this.line = nextCmd;
+              this.cursorPos = nextCmd.length;
+              return [this.render()];
+            }
+            if (this.savedLine !== '') {
+              this.line = this.savedLine;
+              this.cursorPos = this.savedLine.length;
+              this.savedLine = '';
+              return [this.render()];
+            }
+          }
+          return [];
+
+        case 'C': // Right arrow
+          if (this.cursorPos < this.line.length) {
+            this.cursorPos++;
+            return [this.render()];
+          }
+          return [];
+
+        case 'D': // Left arrow
+          if (this.cursorPos > 0) {
+            this.cursorPos--;
+            return [this.render()];
+          }
+          return [];
+
+        case 'H': // Home
+          this.cursorPos = 0;
+          return [this.render()];
+
+        case 'F': // End
+          this.cursorPos = this.line.length;
+          return [this.render()];
+
+        case '3~': // Delete
+          if (this.cursorPos < this.line.length) {
+            this.line = this.line.slice(0, this.cursorPos) + this.line.slice(this.cursorPos + 1);
+            return [this.render()];
+          }
+          return [];
+      }
+      // Unrecognized escape sequence — fall through like the original.
+      return [];
+    }
+
+    // --- control chars + printable default ---
+    switch (data) {
+      case '': // Backspace
+        if (this.cursorPos > 0) {
+          this.line = this.line.slice(0, this.cursorPos - 1) + this.line.slice(this.cursorPos);
+          this.cursorPos--;
+          return [this.render()];
+        }
+        return [];
+
+      case '\x03': // Ctrl+C — echo ^C, reset to a fresh empty prompt
+        this.line = '';
+        this.cursorPos = 0;
+        return [{ type: 'writeLine', text: '^C' }, this.render()];
+
+      case '\x0c': // Ctrl+L — clear screen, preserve the current line & cursor
+        return [{ type: 'clearScreen' }, this.render()];
+
+      case '\x15': // Ctrl+U — clear line
+        this.line = '';
+        this.cursorPos = 0;
+        return [this.render()];
+
+      case '\x0b': // Ctrl+K — clear to end of line
+        this.line = this.line.slice(0, this.cursorPos);
+        return [this.render()];
+
+      case '\x01': // Ctrl+A — move to start
+        this.cursorPos = 0;
+        return [this.render()];
+
+      case '\x05': // Ctrl+E — move to end
+        this.cursorPos = this.line.length;
+        return [this.render()];
+
+      case '\x17': // Ctrl+W — delete word backwards
+        if (this.cursorPos > 0) {
+          let newPos = this.cursorPos - 1;
+          // Skip trailing spaces
+          while (newPos > 0 && this.line[newPos] === ' ') newPos--;
+          // Find word boundary
+          while (newPos > 0 && this.line[newPos - 1] !== ' ') newPos--;
+          this.line = this.line.slice(0, newPos) + this.line.slice(this.cursorPos);
+          this.cursorPos = newPos;
+          return [this.render()];
+        }
+        return [];
+
+      case '?': // ? — insert as a normal char only on a non-empty line.
+        // The empty-line hint branch is deferred to Task 8; return [] for now.
+        if (this.line.length > 0) {
+          this.line = this.line.slice(0, this.cursorPos) + data + this.line.slice(this.cursorPos);
+          this.cursorPos++;
+          return [this.render()];
+        }
+        return [];
+
+      default:
+        if (data >= ' ') {
+          // Insert printable character at cursor position.
+          this.line = this.line.slice(0, this.cursorPos) + data + this.line.slice(this.cursorPos);
+          this.cursorPos++;
+          return [this.render()];
+        }
+        // Enter (`\r`), Tab (`\t`), and any other unowned keystroke — later task.
+        return [];
+    }
+  }
   handleHintRequest(): TerminalEffect[] { return []; }              // stub — later task
   tick(_kind: 'drip'): TerminalEffect[] { return []; }              // stub — later task
 
