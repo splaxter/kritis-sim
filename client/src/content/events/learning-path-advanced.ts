@@ -1285,25 +1285,26 @@ Erst sicherst du den Beweis, DANN drehst du den Kanal zu.
     title: 'Netz 3: Die Mauer',
     description: `\`\`\`
 ╔══════════════════════════════════════════════════════════════╗
-║  HÄRTUNG — Firewall srv-web (per SSH von ws-timo)          ║
-║  Auftrag: Bert (IT-Leitung)                                ║
+║  HÄRTUNG — Firewall srv-web (per SSH von ws-timo)            ║
+║  Auftrag: Bert (IT-Leitung)                                  ║
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Bert: „Du arbeitest von ws-timo aus per SSH auf srv-web. Wenn du
-die Firewall aktivierst, bevor Port 22 freigegeben ist, kappst du
-deine eigene Verbindung. Dann hilft nur noch die Konsole. Also:
-erst den Zugang sichern, dann die Mauer hochziehen."
+Bert: „Du arbeitest von ws-timo aus per SSH auf srv-web. Wenn die
+Firewall aktiv ist und eingehend standardmäßig sperrt, bevor Port 22
+freigegeben ist, trennt sie deine eigene SSH-Verbindung. Dann hilft
+nur noch die Serverkonsole. Also: erst Port 22 freigeben, dann die
+Mauer hochziehen."
 
-Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
+Zugangsdaten für srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
 
 **Deine Aufgabe:**
 - Verbinde dich per SSH mit \`timo@srv-web\`
 - Erlaube eingehend genau 22/tcp, 80/tcp und 443/tcp
 - Setze die Standard-Richtung für eingehend auf „deny"
-- Aktiviere die Firewall — ohne deinen SSH-Zugang zu verlieren`,
+- Aktiviere die Firewall, ohne deine SSH-Verbindung zu verlieren`,
     mentorNote:
-      'Reihenfolge ist hier Selbstschutz: Du sitzt per SSH auf srv-web. Gibst du erst die nötigen Ports frei (ufw allow 22/tcp …) und ziehst DANN die Mauer hoch (default deny + enable), bleibt dein Zugang bestehen. Drehst du es um, kappt die Firewall deine eigene Sitzung — dann kommst du nur noch per [ESC] und Neustart wieder rein. ufw braucht root, also sudo.',
+      'Reihenfolge ist hier Selbstschutz: Du arbeitest per SSH auf srv-web. Gib zuerst 22/tcp und die benötigten Webports frei; setze danach die eingehende Standardregel auf deny und aktiviere die Firewall. Drehst du die Reihenfolge um, trennt die Firewall deine SSH-Verbindung. Dann bleibt nur [ESC] und ein neuer Versuch. ufw braucht root, also sudo.',
     choices: [
       {
         id: 'start',
@@ -1319,7 +1320,7 @@ Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Verbinde dich per SSH mit timo@srv-web und härte dort die Firewall. Erlaube 22/tcp, 80/tcp und 443/tcp, setze eingehend auf deny und aktiviere die Firewall — ohne deine SSH-Verbindung zu verlieren. Falls du dich aussperrst: Terminal mit [ESC] verlassen und die Aufgabe neu starten.',
+        'Verbinde dich per SSH mit timo@srv-web und härte dort die Firewall. Erlaube 22/tcp, 80/tcp und 443/tcp, setze eingehend auf deny und aktiviere die Firewall, ohne deine SSH-Verbindung zu verlieren. Falls die Verbindung abbricht, war Port 22 beim Wirksamwerden der Firewall nicht freigegeben. Verlasse das Terminal mit [ESC] und starte die Aufgabe neu.',
       hosts: [
         {
           id: 'srv-web',
@@ -1357,7 +1358,7 @@ Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
             { host: 'srv-web', firewallEnabled: true },
           ],
           resultText:
-            'Die Firewall auf srv-web ist aktiv: 22, 80 und 443 bleiben erreichbar, alles andere scheitert an der Standardsperre. Deine SSH-Sitzung blieb während der gesamten Umstellung bestehen.',
+            'Die Firewall auf srv-web ist aktiv: 22, 80 und 443 bleiben erreichbar, alles andere scheitert an der Standardsperre. Deine SSH-Verbindung blieb während der gesamten Umstellung bestehen.',
           skillGain: { linux: 3, security: 5, troubleshooting: 1 },
           effects: { stress: -3 },
           // After-action feedback. The two ⚠ risky-order rules were removed: an
@@ -1373,7 +1374,7 @@ Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Port 22 war freigegeben, bevor die Firewall deinen Zugang beschränken konnte — die SSH-Verbindung blieb bestehen.',
+              text: '✓ Port 22 war freigegeben, bevor die Firewall eingehende Verbindungen standardmäßig sperrte — deine SSH-Verbindung blieb bestehen.',
             },
             {
               when: {
@@ -1381,7 +1382,7 @@ Zugang zu srv-web: Benutzer \`timo\`, Passwort \`wartung-web-2024\`.
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Port 22 war freigegeben, bevor die Firewall deinen Zugang beschränken konnte — die SSH-Verbindung blieb bestehen.',
+              text: '✓ Port 22 war freigegeben, bevor die Firewall eingehende Verbindungen standardmäßig sperrte — deine SSH-Verbindung blieb bestehen.',
             },
           ],
         },
