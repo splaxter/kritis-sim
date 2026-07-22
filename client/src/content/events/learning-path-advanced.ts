@@ -1505,6 +1505,9 @@ und riegle den Port ab.
             { host: 'db01', file: '/var/spool/cron/crontabs/root', absentMatches: 'beacon' },
             // Rogue port contained on db01 by firewall.
             { host: 'db01', firewallRule: { action: 'deny', port: 31337, present: true } },
+            // Legit nightly backup job PRESERVED — anchored to the full line so a
+            // too-broad cleanup (empty/overwrite/over-deletion) can't nuke it.
+            { host: 'db01', file: '/var/spool/cron/crontabs/root', matches: '^0 3 \\* \\* \\* /usr/local/bin/db-backup\\.sh$' },
           ],
           resultText:
             'Die Spinne sitzt fest: Die Beweiskopie der Crontab liegt sicher auf web01 (gezogen, bevor du db01 angefasst hast), die Backdoor-Zeile ist raus, und Port 31337 ist per Firewall dicht. Der Cron-Job hätte im Minutentakt \`/tmp/.hidden/beacon.sh\` nachgeladen — ein klassischer Persistenz-Mechanismus, versteckt in einem Punkt-Verzeichnis.\n\nDrei Tracks in einem Fall: Journal-Forensik hat die Querbewegung von db01 aufgedeckt, SSH hat dich sauber auf den Nachbarhost gebracht, und die Netz-Werkzeuge (ss, ufw) haben den Port geschlossen. Genau so arbeitet man einen Incident ab — der Reihe nach, mit Beweissicherung zuerst.\n\nHenry, leise: „Ein Beacon auf db01, eine Querbewegung nach web01… das war kein Skript-Kiddie. Das gehört in die FENRIS-Akte."',
@@ -1726,6 +1729,28 @@ zurückgezogen. Und danach beweist du die Idempotenz.
             'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer Beweis dafür ist immer der zweite Lauf: Steht dort \`changed=0\` auf allen Hosts, ist der Soll-Zustand erreicht. Ändert ein Playbook beim zweiten Mal noch etwas, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
           skillGain: { linux: 3, security: 3, troubleshooting: 2 },
           effects: { stress: -3 },
+          feedback: [
+            {
+              // ✓ only when the full careful process ran: a successful --check
+              // BEFORE the first successful real apply, plus ≥2 successful real
+              // applies (the second proves idempotency). The apply matcher
+              // excludes --check runs via negative lookahead so firstMatch(apply)
+              // can't collide with the --check line.
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'ansible-playbook.*--check', outcome: 'succeeded' },
+                    second: { pattern: '^ansible-playbook(?!.*--check).*harden\\.yml', outcome: 'succeeded' },
+                  },
+                ],
+                commandCount: {
+                  matcher: { pattern: '^ansible-playbook(?!.*--check).*harden\\.yml', outcome: 'succeeded' },
+                  min: 2,
+                },
+              },
+              text: '✓ Erst geprüft, dann angewendet und mit einem zweiten Lauf bestätigt: Die Konfiguration ist reproduzierbar und idempotent.',
+            },
+          ],
         },
       ],
       hints: [
