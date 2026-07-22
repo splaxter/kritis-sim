@@ -185,13 +185,27 @@ describe('execution log — pending input & ssh', () => {
     expect(log[0]).toMatchObject({ authMethod: 'publickey', hostAfter: 'web01' });
   });
 
-  it('three wrong passwords then correct → still ONE attempt', () => {
+  it('two wrong passwords then correct → still ONE attempt', () => {
     const { shell } = makeSshFixture();
     shell.execute('ssh admin@web01');
     shell.continueInput('nope');
     shell.continueInput('nope');
-    shell.continueInput('pw');
-    expect(shell.getExecutionLog()).toHaveLength(1);
+    shell.continueInput('pw'); // 3rd attempt is the correct one — within the 3-try limit
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ exitCode: 0, authMethod: 'password' });
+  });
+
+  it('three wrong passwords exhaust the limit → ONE attempt, exit 255, no authMethod', () => {
+    const { shell } = makeSshFixture();
+    shell.execute('ssh admin@web01');
+    shell.continueInput('nope');
+    shell.continueInput('nope');
+    shell.continueInput('nope'); // 3rd wrong → ssh gives up, attempt finalises
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].exitCode).toBe(255);
+    expect(log[0].authMethod).toBeUndefined();
   });
 
   it('cancelling a pending prompt finalises the attempt with exit 130', () => {
@@ -215,9 +229,27 @@ describe('execution log — pending input & ssh', () => {
 
 Run → FAIL.
 
-**Step 2 — implement.** Wrap `continueInput`'s `next(line)` in the depth guard and settle afterwards; annotate on `pushSession`; finalise on cancel.
+**Step 2 — implement.** One shared closer, so the exit code is explicit per path — **130 is reserved for a genuine user cancel; a throwing continuation closes with 1**.
 
-`continueInput` (l.353) — add depth guard + settle:
+Add a private helper and route `settleAttempt` through it:
+```ts
+/** Close the open attempt with an explicit exit code (host captured now). */
+private closeOpenAttempt(exitCode: number): void {
+  if (!this.openAttempt) return;
+  this.openAttempt.exitCode = exitCode;
+  this.openAttempt.hostAfter = this.getCurrentHost().id;
+  this.executionLog.push(this.openAttempt);
+  this.openAttempt = null;
+}
+
+private settleAttempt(result: CommandResult): void {
+  if (!this.openAttempt) return;
+  if (result.pendingInput) return; // stays open across the prompt
+  this.closeOpenAttempt(result.exitCode);
+}
+```
+
+`continueInput` (l.353) — depth guard + settle; the catch closes with **1**, NOT 130:
 ```ts
 continueInput(line: string): CommandResult {
   const next = this.pendingContinuation;
@@ -230,7 +262,11 @@ continueInput(line: string): CommandResult {
     result = next(line);
     this.state.exitCode = result.exitCode;
   } catch (error) {
-    this.cancelPendingInput(); // now also settles the open attempt (see below)
+    // A throw closes the owed attempt as a failure (exit 1), then clears
+    // pending state WITHOUT re-closing (130 is only for a real user cancel).
+    this.closeOpenAttempt(1);
+    this.pendingContinuation = null;
+    this.pendingPrompt = null;
     this.state.exitCode = 1;
     this.executionDepth--;
     return { output: '', exitCode: 1, error: `shell: ${error instanceof Error ? error.message : 'Unknown error'}` };
@@ -240,19 +276,14 @@ continueInput(line: string): CommandResult {
   return result;
 }
 ```
-(Keep the existing behaviour otherwise; just thread depth + settle. Ensure the catch path decrements depth and the throwing-continuation test in `pendingInput.test.ts` stays green.)
+(Ensure the throwing-continuation test in `pendingInput.test.ts` stays green — it must now also see the engine un-wedged AND the attempt logged with exit 1. Add that assertion.)
 
-`cancelPendingInput` (l.385):
+`cancelPendingInput` (l.385) — clears pending state and closes the open attempt as a **user cancel (130)**:
 ```ts
 cancelPendingInput(): void {
   this.pendingContinuation = null;
   this.pendingPrompt = null;
-  if (this.openAttempt) {
-    this.openAttempt.exitCode = 130;
-    this.openAttempt.hostAfter = this.getCurrentHost().id;
-    this.executionLog.push(this.openAttempt);
-    this.openAttempt = null;
-  }
+  this.closeOpenAttempt(130);
 }
 ```
 
