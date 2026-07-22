@@ -14,6 +14,39 @@ export interface TerminalCommand {
   isSolution?: boolean;
 }
 
+/**
+ * Matches an entry in the shell's execution log (`CommandAttempt`). Plain
+ * serializable data so content stays data.
+ */
+export interface CommandMatcher {
+  /** Regex tested against the recorded `CommandAttempt.command`. */
+  pattern: string;
+  /** attempted (default) = any exit; succeeded = exit 0; failed = exit ≠ 0. */
+  outcome?: 'attempted' | 'succeeded' | 'failed';
+  /** When set, the matched attempt must have opened an SSH session with this auth method. */
+  authMethod?: 'publickey' | 'password';
+}
+
+/**
+ * One authored after-action rule. All declared `when` sub-conditions are
+ * AND-verknüpft; rules are evaluated top-to-bottom and the first match wins
+ * (author orders risk before praise). See `selectFeedback`.
+ */
+export interface FeedbackRule {
+  when: {
+    /** At least one attempt matches. */
+    commandMatches?: CommandMatcher;
+    /** No attempt matches. */
+    commandAbsent?: CommandMatcher;
+    /** Each pair holds iff `first` and `second` both match and first.sequence < second.sequence. */
+    commandBefore?: Array<{ first: CommandMatcher; second: CommandMatcher }>;
+    /** Count of matching attempts must fall within [min, max]. */
+    commandCount?: { matcher: CommandMatcher; min?: number; max?: number };
+  };
+  /** The line appended to the solve banner (emoji ⚠/⚡/✓ live in the text). */
+  text: string;
+}
+
 export interface TerminalSolution {
   commands: string[];
   allRequired: boolean;
@@ -22,6 +55,8 @@ export interface TerminalSolution {
   effects: EventEffects;
   /** When set, these state conditions must ALL hold (in addition to `commands`, which may be []). */
   stateGoals?: StateGoal[];
+  /** Optional after-action feedback: a narrative line reflecting HOW the level was solved. */
+  feedback?: FeedbackRule[];
 }
 
 export interface VFSOverlay {
