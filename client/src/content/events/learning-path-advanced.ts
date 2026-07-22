@@ -314,7 +314,7 @@ Rechenzentrum müssen.“
                   },
                 ],
               },
-              text: '⚠ Erst gehärtet und neu gestartet, dann den Schlüssel getestet — auf einem entfernten Server ein Blindflug.',
+              text: '⚠ Du hast gehärtet und neu gestartet, bevor der Schlüsselzugang bestätigt war. Auf einem entfernten System hättest du dir damit den Rückweg abschneiden können.',
             },
             {
               when: {
@@ -325,7 +325,7 @@ Rechenzentrum müssen.“
                   },
                 ],
               },
-              text: '✓ Schlüsselzugang bestätigt, bevor die Passwort-Anmeldung abgeschaltet wurde.',
+              text: '✓ Schlüsselzugang erfolgreich bestätigt, dann erst die Passwortanmeldung deaktiviert und SSH neu gestartet.',
             },
           ],
         },
@@ -593,11 +593,11 @@ In dieser Reihenfolge. Immer.
             // / truncate / redirect over it) would have locked Jens and Henry out.
             {
               when: { commandMatches: { pattern: '(rm\\s+.*authorized_keys|chmod\\s+0?00|truncate\\s+.*authorized_keys|>\\s*.*authorized_keys)' } },
-              text: '⚠ Beinahe die ganze Schlüsseldatei geopfert — das hätte auch Jens und Henry ausgesperrt.',
+              text: '⚠ Beinahe die gesamte Schlüsseldatei geopfert — damit wären auch Jens und Henry ausgesperrt gewesen.',
             },
             {
               when: { commandCount: { matcher: { pattern: 'sed\\s+-i.*wartung@extern', outcome: 'succeeded' }, min: 1, max: 1 } },
-              text: '⚡ Genau eine verdächtige Zeile entfernt; die legitimen Schlüssel blieben erhalten.',
+              text: '⚡ Gezielt nur den verdächtigen Schlüssel entfernt; die legitimen Zugänge blieben erhalten.',
             },
           ],
         },
@@ -1049,7 +1049,7 @@ nicht. Und die Datenbank? Steht still.
           feedback: [
             {
               when: { commandCount: { matcher: { pattern: 'systemctl\\s+(re)?start\\s+leitstand-api' }, min: 2 } },
-              text: '⚠ Du hast die API erneut gestartet, obwohl ihre Abhängigkeit noch fehlte. Das Journal hätte dir den Umweg erspart.',
+              text: '⚠ Du hast die API erneut gestartet, obwohl ihre Abhängigkeit noch fehlte. Ein Blick ins Journal hätte dir den Umweg erspart.',
             },
             {
               when: {
@@ -1058,7 +1058,7 @@ nicht. Und die Datenbank? Steht still.
                   { first: { pattern: 'systemctl\\s+start\\s+mysql', outcome: 'succeeded' }, second: { pattern: 'systemctl\\s+start\\s+leitstand-api', outcome: 'succeeded' } },
                 ],
               },
-              text: '⚡ Erst die Ursache gelesen, dann die Abhängigkeit zuerst gestartet — kein Blindflug.',
+              text: '⚡ Erst den Fehler im Journal eingegrenzt, dann die fehlende Abhängigkeit gestartet — gezielt statt auf Verdacht.',
             },
           ],
         },
@@ -1164,7 +1164,7 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
           feedback: [
             {
               when: { commandMatches: { pattern: 'kill\\s+.*\\b(456|1234)\\b' } },
-              text: '⚠ Du hast einen legitimen Dienst ins Visier genommen. Erst PID und Soll-Port abgleichen, dann gezielt beenden.',
+              text: '⚠ Der anvisierte Prozess gehörte zu einem legitimen Dienst. Erst Prozess, Port und Dienst abgleichen, dann gezielt beenden.',
             },
           ],
         },
@@ -1361,7 +1361,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
                   { first: { pattern: 'ufw\\s+enable', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
                 ],
               },
-              text: '⚠ Die Firewall war aktiv, bevor SSH freigegeben war. Auf einem entfernten Server wäre der nächste Login ausgesperrt.',
+              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
             },
             {
               when: {
@@ -1370,7 +1370,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
                   { first: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' } },
                 ],
               },
-              text: '⚠ Die Firewall war aktiv, bevor SSH freigegeben war. Auf einem entfernten Server wäre der nächste Login ausgesperrt.',
+              text: '⚠ Die Firewall war bereits aktiv, bevor SSH freigegeben war. Auf einem entfernten System hättest du dich beim nächsten Verbindungsversuch ausgesperrt.',
             },
             // Safe: port 22 allowed before the LATER of deny/enable, i.e. 22 was
             // never in a blocked state. The risky rules above already caught the
@@ -1385,7 +1385,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+default\\s+deny', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Erst Port 22 freigegeben, dann gesperrt und aktiviert — dein Zugang blieb die ganze Zeit offen.',
+              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
             },
             {
               when: {
@@ -1393,7 +1393,7 @@ Türen aufschließen, die du brauchst — dann die Mauer hochziehen."
                   { first: { pattern: 'ufw\\s+allow.*22', outcome: 'succeeded' }, second: { pattern: 'ufw\\s+enable', outcome: 'succeeded' } },
                 ],
               },
-              text: '✓ Erst Port 22 freigegeben, dann gesperrt und aktiviert — dein Zugang blieb die ganze Zeit offen.',
+              text: '✓ Erst SSH freigegeben, dann die Firewall aktiviert — der Zugang blieb durchgehend erhalten.',
             },
           ],
         },
