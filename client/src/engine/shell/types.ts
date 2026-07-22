@@ -84,6 +84,22 @@ export interface CommandSideEffect {
   payload: Record<string, unknown>;
 }
 
+/**
+ * One player-issued command line, as recorded by the ShellEngine execution log.
+ * Exactly one attempt per OUTER execute() (chained `a && b` is one line; sudo
+ * and other internal re-entries never open a second attempt). The attempt stays
+ * open across password prompts and is finalised once no more input is owed.
+ * Passwords are never stored — only the original command line.
+ */
+export interface CommandAttempt {
+  command: string;
+  sequence: number;
+  hostBefore: string;
+  hostAfter: string;
+  exitCode: number;
+  authMethod?: 'publickey' | 'password';
+}
+
 // ============================================================================
 // Ansible run records (for ansibleRan stateGoals)
 // ============================================================================
@@ -293,6 +309,7 @@ export interface ShellEngineInterface {
   // Execution
   execute(input: string): CommandResult;
   executeCommand(name: string, args: ParsedArgs, stdin?: string, isTty?: boolean): CommandResult;
+  getExecutionLog(): CommandAttempt[];
 
   // Interactive input continuations
   continueInput(line: string): CommandResult;
