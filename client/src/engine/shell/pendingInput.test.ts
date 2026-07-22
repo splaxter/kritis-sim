@@ -156,6 +156,10 @@ describe('pending input continuations', () => {
     expect(r.exitCode).toBe(1);
     expect(r.error).toContain('kaputt');
     expect(shell.hasPendingInput()).toBe(false);
+    // The owed attempt is closed as a failure (exit 1), NOT a user cancel (130).
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ command: 'boom', exitCode: 1 });
     expect(shell.execute('echo ok').output).toBe('ok');
   });
 

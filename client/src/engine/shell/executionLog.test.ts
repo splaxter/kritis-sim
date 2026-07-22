@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createShell } from './index';
+import { createHostState } from './hosts';
+import { ShellEngine } from './ShellEngine';
 
 describe('execution log — basic', () => {
   it('logs one attempt per outer command with sequence, host, exit code', () => {
@@ -31,5 +33,101 @@ describe('execution log — basic', () => {
     const shell = createShell({ type: 'bash', user: 'root', hostname: 'srv' });
     shell.execute('   ');
     expect(shell.getExecutionLog()).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// A2: pending input lifecycle + authMethod + cancel
+// ============================================================================
+
+const PUBKEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5TimoKey timo@admin-ws';
+
+/** local (admin-ws) + web01 with a password-login admin account (pw). */
+function makeSshFixture(): { shell: ShellEngine } {
+  const shell = createShell({ type: 'bash', user: 'timo', hostname: 'admin-ws' });
+  shell.registerHost(createHostState({
+    id: 'web01',
+    hostname: 'web01',
+    ip: '10.0.20.11',
+    accounts: [{ name: 'admin', password: 'pw' }, { name: 'root' }],
+  }));
+  return { shell };
+}
+
+/** local + web01 with the player key seeded locally and trusted on web01. */
+function makeKeyFixture(): { shell: ShellEngine } {
+  const shell = createShell({ type: 'bash', user: 'timo', hostname: 'admin-ws' });
+  const vfs = shell.getVfs();
+  vfs.addFile('/home/timo/.ssh/id_ed25519', '-----BEGIN OPENSSH PRIVATE KEY-----\nfake\n-----END OPENSSH PRIVATE KEY-----\n');
+  vfs.chmod('/home/timo/.ssh/id_ed25519', '600');
+  vfs.addFile('/home/timo/.ssh/id_ed25519.pub', `${PUBKEY}\n`);
+  shell.registerHost(createHostState({
+    id: 'web01',
+    hostname: 'web01',
+    ip: '10.0.20.11',
+    accounts: [{ name: 'admin', password: 'pw' }, { name: 'root' }],
+    vfsOverlay: { files: [{ path: '/home/admin/.ssh/authorized_keys', content: `${PUBKEY}\n` }] },
+  }));
+  return { shell };
+}
+
+describe('execution log — pending input & ssh', () => {
+  it('a password ssh login is ONE attempt, closed after the password, authMethod password', () => {
+    const { shell } = makeSshFixture();
+    const r1 = shell.execute('ssh admin@web01');
+    expect(r1.pendingInput).toBeTruthy();
+    expect(shell.getExecutionLog()).toHaveLength(0); // still open
+    const r2 = shell.continueInput('pw');
+    expect(r2.pendingInput).toBeFalsy();
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ command: 'ssh admin@web01', exitCode: 0, authMethod: 'password', hostBefore: 'local', hostAfter: 'web01' });
+  });
+
+  it('a key ssh login logs authMethod publickey, no prompt', () => {
+    const { shell } = makeKeyFixture();
+    shell.execute('ssh admin@web01');
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ authMethod: 'publickey', hostAfter: 'web01' });
+  });
+
+  it('two wrong passwords then correct → ONE attempt, exit 0, authMethod password', () => {
+    const { shell } = makeSshFixture();
+    shell.execute('ssh admin@web01');
+    shell.continueInput('nope');
+    shell.continueInput('nope');
+    shell.continueInput('pw'); // 3rd attempt is the correct one — within the 3-try limit
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ exitCode: 0, authMethod: 'password' });
+  });
+
+  it('three wrong passwords exhaust the limit → ONE attempt, exit 255, no authMethod', () => {
+    const { shell } = makeSshFixture();
+    shell.execute('ssh admin@web01');
+    shell.continueInput('nope');
+    shell.continueInput('nope');
+    shell.continueInput('nope'); // 3rd wrong → ssh gives up, attempt finalises
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].exitCode).toBe(255);
+    expect(log[0].authMethod).toBeUndefined();
+  });
+
+  it('cancelling a pending prompt finalises the attempt with exit 130', () => {
+    const { shell } = makeSshFixture();
+    shell.execute('ssh admin@web01');
+    shell.cancelPendingInput();
+    const log = shell.getExecutionLog();
+    expect(log).toHaveLength(1);
+    expect(log[0].exitCode).toBe(130);
+  });
+
+  it('a nested execute inside a continuation does not open a second attempt', () => {
+    const { shell } = makeSshFixture();
+    shell.execute('ssh admin@web01');
+    shell.continueInput('wrong'); // re-prompts
+    expect(shell.getExecutionLog()).toHaveLength(0); // still open, no extra
   });
 });

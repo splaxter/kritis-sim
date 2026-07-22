@@ -385,7 +385,11 @@ export class ShellEngine implements ShellEngineInterface {
       return result;
     } catch (error) {
       // The command may have armed a continuation before throwing — drop it.
-      this.cancelPendingInput();
+      // Only the pending state is cleared here (NOT the open attempt): the
+      // outer execute still settles the attempt with the real exit code (1),
+      // so a throwing command is logged as a failure, not a user cancel (130).
+      this.pendingContinuation = null;
+      this.pendingPrompt = null;
       this.state.exitCode = 1;
       return {
         output: '',
@@ -411,21 +415,32 @@ export class ShellEngine implements ShellEngineInterface {
     if (!next) {
       return { output: '', exitCode: 1, error: 'shell: no pending input' };
     }
+    // The continuation runs at depth ≥1 so a nested execute it triggers never
+    // opens a second attempt; it settles the SAME open attempt from execute.
+    this.executionDepth++;
+    let result: CommandResult;
     try {
-      const result = next(line);
+      result = next(line);
       this.state.exitCode = result.exitCode;
-      return result;
     } catch (error) {
       // A throwing continuation must not wedge the engine — even one that
-      // re-armed a new continuation before throwing.
-      this.cancelPendingInput();
+      // re-armed a new continuation before throwing. Close the owed attempt as
+      // a failure (exit 1), NOT a user cancel (130), then clear pending state
+      // WITHOUT re-closing.
+      this.closeOpenAttempt(1);
+      this.pendingContinuation = null;
+      this.pendingPrompt = null;
       this.state.exitCode = 1;
+      this.executionDepth--;
       return {
         output: '',
         exitCode: 1,
         error: `shell: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
+    this.executionDepth--;
+    this.settleAttempt(result); // closes the attempt unless another prompt is owed
+    return result;
   }
 
   hasPendingInput(): boolean {
@@ -439,6 +454,8 @@ export class ShellEngine implements ShellEngineInterface {
   cancelPendingInput(): void {
     this.pendingContinuation = null;
     this.pendingPrompt = null;
+    // A genuine user cancel finalises the owed attempt as SIGINT (130).
+    this.closeOpenAttempt(130);
   }
 
   // ============================================================================
@@ -1248,6 +1265,9 @@ export class ShellEngine implements ShellEngineInterface {
     if (method) this.recordLogin(hostId, method);
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
+    // Annotate the open attempt with the auth method that opened this session,
+    // so the execution log distinguishes publickey from password logins.
+    if (method && this.openAttempt) this.openAttempt.authMethod = method;
   }
 
   /** Record a successful SSH login; persists across session pop (`exit`). */
