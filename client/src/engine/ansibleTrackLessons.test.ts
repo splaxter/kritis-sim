@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { advancedLearningEvents } from '../content/events/learning-path-advanced';
 import { createShellFromContext, checkStateGoals, checkStateGoal } from './shell';
 import { ShellEngine } from './shell/ShellEngine';
+import { selectFeedback } from './shell/feedback';
 import { GameEvent, TerminalContext } from '@kritis/shared';
 
 /**
@@ -114,6 +115,59 @@ describe('learn_ans_02_drift — only web02 drifts; the second run is the proof'
     expect(second.output).toMatch(/web02\s+: ok=1\s+changed=0/);
     expect(second.output).toMatch(/web03\s+: ok=1\s+changed=0/);
     expect(second.output).not.toMatch(/changed=[1-9]/);
+  });
+
+  describe('after-action ✓ — the careful check→apply→re-run process', () => {
+    const fbOf = () => ctxOf('learn_ans_02_drift').solutions[0].feedback!;
+
+    it('✓ fires on the full path: --check --diff → apply → apply, and the goals are met', () => {
+      const shell = engineOf('learn_ans_02_drift');
+      const goals = goalsOf('learn_ans_02_drift');
+      run(shell, 'ansible-playbook harden.yml --check --diff');
+      run(shell, 'ansible-playbook harden.yml');
+      run(shell, 'ansible-playbook harden.yml');
+      expect(checkStateGoals(shell, goals)).toBe(true);
+      expect(selectFeedback(fbOf(), shell.getExecutionLog())).toMatch(/^✓/);
+    });
+
+    it('NO ✓ on one apply only (check → single apply): the idempotency proof is missing', () => {
+      const shell = engineOf('learn_ans_02_drift');
+      run(shell, 'ansible-playbook harden.yml --check --diff');
+      run(shell, 'ansible-playbook harden.yml');
+      expect(selectFeedback(fbOf(), shell.getExecutionLog())).toBeNull();
+    });
+
+    it('NO ✓ on apply-twice WITHOUT a check first', () => {
+      const shell = engineOf('learn_ans_02_drift');
+      run(shell, 'ansible-playbook harden.yml');
+      run(shell, 'ansible-playbook harden.yml');
+      expect(selectFeedback(fbOf(), shell.getExecutionLog())).toBeNull();
+    });
+
+    it('NO ✓ on Apply → Check → Apply (apply came before the first check)', () => {
+      // Precision guard: the APPLY matcher excludes --check runs via negative
+      // lookahead, so firstMatch(apply) is the leading real apply — which is
+      // BEFORE the first check → commandBefore fails, no praise.
+      const shell = engineOf('learn_ans_02_drift');
+      run(shell, 'ansible-playbook harden.yml');
+      run(shell, 'ansible-playbook harden.yml --check --diff');
+      run(shell, 'ansible-playbook harden.yml');
+      expect(selectFeedback(fbOf(), shell.getExecutionLog())).toBeNull();
+    });
+
+    it('failed applies do not count: check → (broken apply) → fixed single apply → no ✓', () => {
+      const shell = engineOf('learn_ans_02_drift');
+      run(shell, 'ansible-playbook harden.yml --check --diff');
+      // Break the playbook, then attempt an apply that FAILS (exit ≠ 0)…
+      run(shell, "sudo sed -i 's/lineinfile:/bogusmod:/' /opt/playbooks/harden.yml");
+      const broken = run(shell, 'ansible-playbook harden.yml');
+      expect(broken.exitCode).not.toBe(0);
+      // …fix it and apply exactly once successfully. Only ONE succeeded apply →
+      // below the min:2 idempotency bar → no ✓.
+      run(shell, "sudo sed -i 's/bogusmod:/lineinfile:/' /opt/playbooks/harden.yml");
+      run(shell, 'ansible-playbook harden.yml');
+      expect(selectFeedback(fbOf(), shell.getExecutionLog())).toBeNull();
+    });
   });
 
   it('web01 and web03 are never touched (they already said no)', () => {

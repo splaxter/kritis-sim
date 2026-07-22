@@ -1729,6 +1729,28 @@ zurückgezogen. Und danach beweist du die Idempotenz.
             'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer Beweis dafür ist immer der zweite Lauf: Steht dort \`changed=0\` auf allen Hosts, ist der Soll-Zustand erreicht. Ändert ein Playbook beim zweiten Mal noch etwas, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
           skillGain: { linux: 3, security: 3, troubleshooting: 2 },
           effects: { stress: -3 },
+          feedback: [
+            {
+              // ✓ only when the full careful process ran: a successful --check
+              // BEFORE the first successful real apply, plus ≥2 successful real
+              // applies (the second proves idempotency). The apply matcher
+              // excludes --check runs via negative lookahead so firstMatch(apply)
+              // can't collide with the --check line.
+              when: {
+                commandBefore: [
+                  {
+                    first: { pattern: 'ansible-playbook.*--check', outcome: 'succeeded' },
+                    second: { pattern: '^ansible-playbook(?!.*--check).*harden\\.yml', outcome: 'succeeded' },
+                  },
+                ],
+                commandCount: {
+                  matcher: { pattern: '^ansible-playbook(?!.*--check).*harden\\.yml', outcome: 'succeeded' },
+                  min: 2,
+                },
+              },
+              text: '✓ Erst geprüft, dann angewendet und mit einem zweiten Lauf bestätigt: Die Konfiguration ist reproduzierbar und idempotent.',
+            },
+          ],
         },
       ],
       hints: [
