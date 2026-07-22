@@ -2,8 +2,8 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
-import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid, checkStateGoals, CommandResult } from '../../engine/shell';
+import { TerminalContext, Skills, GameModeId, EventEffects, FeedbackRule } from '@kritis/shared';
+import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid, checkStateGoals, CommandResult, selectFeedback } from '../../engine/shell';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
 import { buildPrompt } from './prompt';
 
@@ -339,6 +339,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       resultText?: string;
       skillGain?: Partial<Skills>;
       effects?: EventEffects;
+      feedback?: FeedbackRule[];
     }) => {
       term.writeln('');
       term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
@@ -346,7 +347,16 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
       term.writeln('');
       if (solution.resultText) {
-        term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
+        // Append the after-action line (how it was solved) below the base
+        // resultText (what was achieved); only the written string changes.
+        const extra =
+          solution.feedback && shellRef.current
+            ? selectFeedback(solution.feedback, shellRef.current.getExecutionLog())
+            : null;
+        const resultText = extra ? `${solution.resultText}\n\n${extra}` : solution.resultText;
+        for (const line of resultText.split('\n')) {
+          term.writeln('\x1b[36m' + line + '\x1b[0m');
+        }
         term.writeln('');
       }
       // Wait for the player to confirm with Enter (all modes) so the
