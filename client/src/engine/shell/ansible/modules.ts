@@ -129,7 +129,8 @@ const copyModule: AnsibleModule = (target, params, opts) => {
     const mode = str(params.mode);
     if (mode) {
       // vfs.chmod takes 3-digit octal; ansible modes carry a leading 0.
-      target.vfs.chmod(dest, mode.replace(/^0(?=[0-7]{3}$)/, ''));
+      const c = target.vfs.chmod(dest, mode.replace(/^0(?=[0-7]{3}$)/, ''));
+      if (!c.ok) return failed(c.error);
     }
   }
   return changed ? { changed: true, diff: { before, after: content } } : { changed: false };
