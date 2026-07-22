@@ -5,6 +5,7 @@
  */
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
 import { FirewallState, UfwRule } from '../../hosts';
+import { port22Blocked } from '../../sshAuth';
 
 const ROOT_ERROR = 'ERROR: You need to be root to run this script';
 const NO_SUCH_RULE = 'ERROR: Could not delete non-existent rule';
@@ -76,8 +77,14 @@ function statusOutput(fw: FirewallState, numbered: boolean): string {
   return lines.join('\n');
 }
 
+/**
+ * A GLOBAL (from-less) allow-22 keeps port 22 open for everyone, so the
+ * disruption prompt can be skipped. A from-restricted allow only admits its
+ * own source and must NOT suppress the warning — the caller may still be cut,
+ * which the post-apply port22Blocked check decides for real.
+ */
 function hasAllow22(fw: FirewallState): boolean {
-  return fw.rules.some(r => r.action === 'allow' && r.port === 22 && (!r.proto || r.proto === 'tcp'));
+  return fw.rules.some(r => r.action === 'allow' && r.port === 22 && (!r.proto || r.proto === 'tcp') && !r.from);
 }
 
 /** Would enabling this firewall block a hypothetical NEW ssh connection? */
@@ -107,7 +114,21 @@ export const ufwCommand: ShellCommand = {
     const confirmSshDisrupt = (proceed: () => CommandResult): CommandResult =>
       ctx.requestInput(SSH_DISRUPT_PROMPT, false, answer => {
         const a = answer.trim().toLowerCase();
-        return a === 'y' || a === 'yes' ? proceed() : { output: 'Aborted', exitCode: 1 };
+        if (a !== 'y' && a !== 'yes') return { output: 'Aborted', exitCode: 1 };
+        const result = proceed();
+        // If applying the change cut THIS session's own inbound path, drop it.
+        // The source is the previous session frame (where the ssh came from).
+        if (
+          result.exitCode === 0 &&
+          ctx.host && ctx.sessionSourceHost &&
+          port22Blocked(ctx.host, ctx.sessionSourceHost) &&
+          ctx.popSession
+        ) {
+          const closed = ctx.host.hostname;
+          ctx.popSession();
+          return { ...result, output: `${result.output}\nConnection to ${closed} closed by remote host.` };
+        }
+        return result;
       });
     const overSsh = (ctx.sessionDepth ?? 1) > 1;
 

@@ -244,7 +244,7 @@ describe('ufw ssh-disruption warning (remote session)', () => {
     return { shell, target };
   }
 
-  it('enable at depth 2 without allow-22 while default deny warns; y proceeds', () => {
+  it('enable at depth 2 without allow-22 while default deny warns; y enables AND drops the session', () => {
     const { shell, target } = remoteSetup({ enabled: false, defaultIncoming: 'deny' });
     const r = shell.execute('sudo ufw enable');
     expect(r.pendingInput).toEqual({
@@ -252,9 +252,12 @@ describe('ufw ssh-disruption warning (remote session)', () => {
       mask: false,
     });
     const r2 = shell.continueInput('y');
-    expect(r2.output).toBe('Firewall is active and enabled on system startup');
+    // Enabling with no allow-22 cuts the caller's own inbound path → session drops.
+    expect(r2.output).toContain('Firewall is active and enabled on system startup');
+    expect(r2.output).toContain('Connection to web01 closed by remote host.');
     expect(r2.exitCode).toBe(0);
     expect(target.firewall.enabled).toBe(true);
+    expect(shell.getSessionDepth()).toBe(1);
   });
 
   it('enable warning answered n aborts without enabling', () => {
@@ -277,7 +280,7 @@ describe('ufw ssh-disruption warning (remote session)', () => {
     expect(target.firewall.enabled).toBe(true);
   });
 
-  it('default deny incoming at depth 2 without allow-22 warns; y proceeds', () => {
+  it('default deny incoming at depth 2 without allow-22 warns; y applies AND drops the session', () => {
     const { shell, target } = remoteSetup({ enabled: true, defaultIncoming: 'allow' });
     const r = shell.execute('sudo ufw default deny incoming');
     expect(r.pendingInput).toEqual({
@@ -285,11 +288,14 @@ describe('ufw ssh-disruption warning (remote session)', () => {
       mask: false,
     });
     const r2 = shell.continueInput('y');
+    // Firewall already active: flipping to default-deny with no allow-22 cuts us.
     expect(r2.output).toContain("Default incoming policy changed to 'deny'");
+    expect(r2.output).toContain('Connection to web01 closed by remote host.');
     expect(target.firewall.defaultIncoming).toBe('deny');
+    expect(shell.getSessionDepth()).toBe(1);
   });
 
-  it('enable warns when an explicit deny-22 rule exists, even with default allow', () => {
+  it('enable warns (and drops) when an explicit deny-22 rule exists, even with default allow', () => {
     const { shell, target } = remoteSetup({
       enabled: false,
       defaultIncoming: 'allow',
@@ -301,20 +307,25 @@ describe('ufw ssh-disruption warning (remote session)', () => {
       mask: false,
     });
     const r2 = shell.continueInput('y');
+    // Enabling activates the deny-22 rule → the caller is cut → session drops.
     expect(r2.exitCode).toBe(0);
+    expect(r2.output).toContain('Connection to web01 closed by remote host.');
     expect(target.firewall.enabled).toBe(true);
+    expect(shell.getSessionDepth()).toBe(1);
   });
 
-  it('confirmation accepts Y and yes case-insensitively', () => {
+  it('confirmation accepts Y and yes case-insensitively (both enable AND drop)', () => {
     const first = remoteSetup({ enabled: false, defaultIncoming: 'deny' });
     first.shell.execute('sudo ufw enable');
     expect(first.shell.continueInput('Y').exitCode).toBe(0);
     expect(first.target.firewall.enabled).toBe(true);
+    expect(first.shell.getSessionDepth()).toBe(1);
 
     const second = remoteSetup({ enabled: false, defaultIncoming: 'deny' });
     second.shell.execute('sudo ufw enable');
     expect(second.shell.continueInput('yes').exitCode).toBe(0);
     expect(second.target.firewall.enabled).toBe(true);
+    expect(second.shell.getSessionDepth()).toBe(1);
   });
 
   it('no warning at depth 1 (local console) even without allow-22', () => {
@@ -371,5 +382,136 @@ describe('ufw vs live ssh sessions', () => {
     const r = shell.execute('ssh admin@web01');
     expect(r.pendingInput).toEqual({ prompt: "admin@web01's password: ", mask: true });
     expect(shell.continueInput('sonnenblume23').exitCode).toBe(0);
+  });
+});
+
+describe('ufw unsafe enable/deny over ssh drops the caller session', () => {
+  const DROP_LINE = 'Connection to srv-web closed by remote host.';
+
+  // ws-timo (base, 10.0.10.5) → srv-web (10.0.20.11); firewall starts disabled
+  // + default-allow. Run as root on srv-web via sudo (NOPASSWD lab style).
+  function wallSetup(firewall: Record<string, unknown> = { enabled: false, defaultIncoming: 'allow' }) {
+    const shell = createShell({ type: 'bash', user: 'timo', hostname: 'ws-timo' });
+    shell.getBaseHost().ip = '10.0.10.5';
+    const target = createHostState({
+      id: 'srv-web',
+      hostname: 'srv-web',
+      ip: '10.0.20.11',
+      accounts: [{ name: 'timo', password: 'pw' }],
+      firewall,
+    });
+    shell.registerHost(target);
+    shell.pushSession('srv-web', 'timo');
+    return { shell, target };
+  }
+
+  it('deny (while disabled, no drop) then enable + y cuts the caller session', () => {
+    const { shell, target } = wallSetup();
+
+    // default deny while the firewall is still disabled: warns, applies, NO drop.
+    const deny = shell.execute('sudo ufw default deny incoming');
+    expect(deny.pendingInput).toBeTruthy();
+    const denyDone = shell.continueInput('y');
+    expect(target.firewall.defaultIncoming).toBe('deny');
+    expect(shell.getSessionDepth()).toBe(2);
+    expect(denyDone.output).not.toContain('closed by remote host');
+
+    // enable now completes the block (active + deny + no allow-22) → drop.
+    const en = shell.execute('sudo ufw enable');
+    expect(en.pendingInput).toBeTruthy();
+    const enDone = shell.continueInput('y');
+    expect(target.firewall.enabled).toBe(true);
+    expect(enDone.output).toContain(DROP_LINE);
+    expect(shell.getSessionDepth()).toBe(1);
+  });
+
+  it('enable (default-allow, no prompt) then deny + y cuts the caller session', () => {
+    const { shell, target } = wallSetup();
+
+    // enable under default-allow blocks nothing → no prompt, no drop.
+    const en = shell.execute('sudo ufw enable');
+    expect(en.pendingInput).toBeUndefined();
+    expect(target.firewall.enabled).toBe(true);
+    expect(shell.getSessionDepth()).toBe(2);
+
+    const deny = shell.execute('sudo ufw default deny incoming');
+    expect(deny.pendingInput).toBeTruthy();
+    const denyDone = shell.continueInput('y');
+    expect(target.firewall.defaultIncoming).toBe('deny');
+    expect(denyDone.output).toContain(DROP_LINE);
+    expect(shell.getSessionDepth()).toBe(1);
+  });
+
+  it('default deny while the firewall is disabled warns but does not drop (prompt ≠ drop)', () => {
+    const { shell, target } = wallSetup();
+    const deny = shell.execute('sudo ufw default deny incoming');
+    expect(deny.pendingInput).toBeTruthy();
+    const done = shell.continueInput('y');
+    expect(target.firewall.defaultIncoming).toBe('deny');
+    expect(shell.getSessionDepth()).toBe(2);
+    expect(done.output).not.toContain('closed by remote host');
+  });
+
+  it("answering 'n' leaves firewall state and session untouched", () => {
+    const { shell, target } = wallSetup();
+    shell.execute('sudo ufw default deny incoming');
+    shell.continueInput('y'); // deny set, disabled → no drop, depth 2
+    const en = shell.execute('sudo ufw enable');
+    expect(en.pendingInput).toBeTruthy();
+    const r = shell.continueInput('n');
+    expect(r.output).toBe('Aborted');
+    expect(r.exitCode).toBe(1);
+    expect(target.firewall.enabled).toBe(false);
+    expect(shell.getSessionDepth()).toBe(2);
+  });
+
+  it('a from-restricted allow for a DIFFERENT ip does not save the caller', () => {
+    const { shell } = wallSetup();
+    // Admits 10.0.99.9 only — ws-timo (10.0.10.5) is not admitted.
+    shell.execute('sudo ufw allow from 10.0.99.9 to any port 22');
+
+    const deny = shell.execute('sudo ufw default deny incoming');
+    expect(deny.pendingInput).toBeTruthy();
+    shell.continueInput('y'); // disabled → no drop yet
+    expect(shell.getSessionDepth()).toBe(2);
+
+    const en = shell.execute('sudo ufw enable');
+    expect(en.pendingInput).toBeTruthy();
+    const done = shell.continueInput('y');
+    expect(done.output).toContain(DROP_LINE);
+    expect(shell.getSessionDepth()).toBe(1);
+  });
+
+  it('a GLOBAL allow-22 keeps the safe path prompt-free and never drops', () => {
+    const { shell, target } = wallSetup();
+    expect(shell.execute('sudo ufw allow 22/tcp').output).toBe('Rule added');
+
+    const deny = shell.execute('sudo ufw default deny incoming');
+    expect(deny.pendingInput).toBeUndefined();
+    expect(shell.hasPendingInput()).toBe(false);
+
+    const en = shell.execute('sudo ufw enable');
+    expect(en.pendingInput).toBeUndefined();
+    expect(shell.hasPendingInput()).toBe(false);
+
+    expect(target.firewall.enabled).toBe(true);
+    expect(target.firewall.defaultIncoming).toBe('deny');
+    expect(shell.getSessionDepth()).toBe(2);
+  });
+
+  it('logs the confirmed drop as srv-web → local, exit 0', () => {
+    const { shell } = wallSetup();
+    shell.execute('sudo ufw default deny incoming');
+    shell.continueInput('y');
+    shell.execute('sudo ufw enable');
+    shell.continueInput('y');
+    expect(shell.getSessionDepth()).toBe(1);
+
+    const log = shell.getExecutionLog();
+    const enableAttempt = log.reverse().find(a => a.command === 'sudo ufw enable');
+    expect(enableAttempt).toBeDefined();
+    expect(enableAttempt!.hostBefore).toBe('srv-web');
+    expect(enableAttempt!.hostAfter).toBe('local');
+    expect(enableAttempt!.exitCode).toBe(0);
   });
 });

@@ -131,3 +131,43 @@ describe('execution log — pending input & ssh', () => {
     expect(shell.getExecutionLog()).toHaveLength(0); // still open, no extra
   });
 });
+
+// ============================================================================
+// ctx.sessionSourceHost — the previous session frame's host
+// ============================================================================
+
+describe('ExecutionContext.sessionSourceHost', () => {
+  it('names the previous frame host, undefined at depth 1', () => {
+    const shell = createShell({ type: 'bash', user: 'timo', hostname: 'ws-timo' });
+    const web = createHostState({ id: 'srv-web', hostname: 'srv-web', accounts: [{ name: 'timo', password: 'pw' }] });
+    shell.registerHost(web);
+    let seen: string | undefined | null = null;
+    shell.registerCommand({
+      name: 'probe', description: '', usage: 'probe',
+      execute: (_a, ctx) => { seen = ctx.sessionSourceHost ? ctx.sessionSourceHost.id : undefined; return { output: '', exitCode: 0 }; },
+    });
+
+    shell.execute('probe');
+    expect(seen).toBeUndefined(); // depth 1 → no source
+
+    shell.pushSession('srv-web', 'timo');
+    shell.execute('probe');
+    expect(seen).toBe('local'); // depth 2 → previous frame is the base host
+  });
+
+  it('at depth 3 sees the direct predecessor, not the base', () => {
+    const shell = createShell({ type: 'bash', user: 'timo', hostname: 'ws-timo' });
+    shell.registerHost(createHostState({ id: 'srv-web', hostname: 'srv-web', accounts: [{ name: 'timo', password: 'pw' }] }));
+    shell.registerHost(createHostState({ id: 'srv-db', hostname: 'srv-db', accounts: [{ name: 'timo', password: 'pw' }] }));
+    let seen: string | undefined | null = null;
+    shell.registerCommand({
+      name: 'probe', description: '', usage: 'probe',
+      execute: (_a, ctx) => { seen = ctx.sessionSourceHost ? ctx.sessionSourceHost.id : undefined; return { output: '', exitCode: 0 }; },
+    });
+
+    shell.pushSession('srv-web', 'timo');
+    shell.pushSession('srv-db', 'timo');
+    shell.execute('probe');
+    expect(seen).toBe('srv-web'); // depth 3 → previous frame, not the base 'local'
+  });
+});
