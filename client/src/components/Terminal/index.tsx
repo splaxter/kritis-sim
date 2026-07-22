@@ -25,11 +25,14 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
   const taskText = context.taskText ?? task;
 
   return (
-    <div className="border border-terminal-border h-full flex flex-col">
+    <div className="flex h-full min-w-0 flex-col border border-terminal-border">
       {/* Header */}
-      <div className="flex justify-between items-center p-2 border-b border-terminal-border bg-terminal-bg-secondary">
-        <span>Terminal: {context.hostname} [{context.type === 'linux' ? 'Linux' : 'Windows'}]</span>
-        <button onClick={onCancel} className="text-terminal-danger hover:underline">
+      <div className="flex flex-col items-start gap-2 border-b border-terminal-border bg-terminal-bg-secondary p-2 sm:flex-row sm:items-center sm:justify-between">
+        <span className="min-w-0 break-all">Terminal: {context.hostname} [{context.type === 'linux' ? 'Linux' : 'Windows'}]</span>
+        <button
+          onClick={onCancel}
+          className="inline-flex min-h-11 shrink-0 items-center text-terminal-danger hover:underline"
+        >
           [ESC] Abbrechen
         </button>
       </div>
@@ -55,18 +58,20 @@ export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate
       )}
 
       {/* Footer */}
-      <div className="p-2 border-t border-terminal-border bg-terminal-bg-secondary flex justify-between text-sm">
-        <span className="flex gap-4">
+      <div className="flex flex-col gap-2 border-t border-terminal-border bg-terminal-bg-secondary p-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+        <span className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
           <span className="text-terminal-green-muted">[Tab] Autovervollständigung</span>
           <button
             onClick={showHint}
             disabled={hintsRemaining === 0}
-            className={hintsRemaining > 0 ? 'hover:underline' : 'text-terminal-green-muted'}
+            className={`inline-flex min-h-11 items-center ${
+              hintsRemaining > 0 ? 'hover:underline' : 'text-terminal-green-muted'
+            }`}
           >
             [?] Hinweis ({hintsRemaining} übrig)
           </button>
         </span>
-        <span className="text-terminal-green-muted">
+        <span className="shrink-0 text-terminal-green-muted">
           [ESC] Abbrechen
         </span>
       </div>
