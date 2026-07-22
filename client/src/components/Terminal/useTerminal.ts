@@ -3,9 +3,18 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
-import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid } from '../../engine/shell';
+import { createShellFromContext, ShellEngine, Completion, resolveTemplateIds, formatGrid, checkStateGoals, CommandResult } from '../../engine/shell';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from './completion';
 import { buildPrompt } from './prompt';
+
+/** Sum two skill-gain maps; overlapping keys add up (live drip + solution gain). */
+function mergeSkillGain(a: Partial<Skills>, b: Partial<Skills>): Partial<Skills> {
+  const out: Partial<Skills> = { ...a };
+  for (const [key, value] of Object.entries(b) as [keyof Skills, number][]) {
+    out[key] = (out[key] ?? 0) + value;
+  }
+  return out;
+}
 
 interface UseTerminalOptions {
   context: TerminalContext;
@@ -48,6 +57,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       commands: context.commands,
       hints: context.hints,
       taskText: context.taskText,
+      hosts: context.hosts,
     });
   }, [context]);
 
@@ -57,20 +67,27 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     teachedCommandsRef.current = teachedCommands;
   }, [teachedCommands]);
 
-  // Check if any solution condition is met
+  // Check if any solution condition is met: the command condition (when
+  // commands are listed) AND all stateGoals (when present) must hold.
   const checkSolutions = useCallback((newTeachedCommands: Set<string>) => {
     if (!context.solutions || context.solutions.length === 0) return null;
 
     for (const solution of context.solutions) {
-      if (solution.allRequired) {
-        // All commands must be learned - exact match required
-        const allMet = solution.commands.every(cmd => newTeachedCommands.has(cmd));
-        if (allMet) return solution;
-      } else {
-        // Any command matches
-        const anyMet = solution.commands.some(cmd => newTeachedCommands.has(cmd));
-        if (anyMet) return solution;
+      // A solution with neither commands nor stateGoals would be vacuously
+      // true — treat it as an authoring mistake and never match it.
+      if (solution.commands.length === 0 && !solution.stateGoals) continue;
+
+      const commandsMet = solution.commands.length === 0
+        || (solution.allRequired
+          ? solution.commands.every(cmd => newTeachedCommands.has(cmd))
+          : solution.commands.some(cmd => newTeachedCommands.has(cmd)));
+      if (!commandsMet) continue;
+
+      if (solution.stateGoals) {
+        const engine = shellRef.current;
+        if (!engine || !checkStateGoals(engine, solution.stateGoals)) continue;
       }
+      return solution;
     }
     return null;
   }, [context.solutions]);
@@ -90,13 +107,15 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
   }, [shell]);
 
   const getPrompt = useCallback(() => {
-    const vfs = shellRef.current?.getVfs();
+    // Live prompt info from the engine so ssh sessions change the prompt;
+    // context fields are only the fallback while the shell isn't ready.
+    const info = shellRef.current?.getPromptInfo();
     return buildPrompt({
       type: context.type,
-      username: context.username,
-      hostname: context.hostname,
-      path: vfs?.getCurrentPath() || context.currentPath,
-      home: vfs?.getEnv('HOME'),
+      username: info?.username ?? context.username,
+      hostname: info?.hostname ?? context.hostname,
+      path: info?.path || context.currentPath,
+      home: info?.home,
     });
   }, [context.type, context.username, context.hostname, context.currentPath]);
 
@@ -135,15 +154,15 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     xtermRef.current = term;
     fitAddonRef.current = fitAddon;
 
-    // Get initial prompt
+    // Get initial prompt — live engine info so ssh sessions swap the prompt.
     const getTermPrompt = () => {
-      const vfs = shellRef.current?.getVfs();
+      const info = shellRef.current?.getPromptInfo();
       return buildPrompt({
         type: context.type,
-        username: context.username,
-        hostname: context.hostname,
-        path: vfs?.getCurrentPath() || context.currentPath,
-        home: vfs?.getEnv('HOME'),
+        username: info?.username ?? context.username,
+        hostname: info?.hostname ?? context.hostname,
+        path: info?.path || context.currentPath,
+        home: info?.home,
       });
     };
 
@@ -199,6 +218,20 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     let solved = false;
     let pendingSkillGain: Partial<Skills> = {};
     let pendingSolutionEffects: EventEffects = {};
+
+    // Pending-input mode: a command (ssh password prompt etc.) owns the next
+    // line. The buffered answer bypasses history, canned matching and echo
+    // (when masked), and is fed to shell.continueInput on Enter.
+    let pendingActive = false;
+    let pendingMask = false;
+    let pendingLine = '';
+    // First token of the command that opened the prompt — skill drip is
+    // credited to it when the chain finally completes with exit 0.
+    let pendingCmdName = '';
+
+    // Live skill drip: first successful use of a commandSkillGain command.
+    const creditedCommands = new Set<string>();
+    let liveSkillGain: Partial<Skills> = {};
 
     // While a command "streams" its output line-by-line (e.g. ping printing one
     // reply per interval), the terminal swallows input until it finishes.
@@ -276,6 +309,116 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       step();
     };
 
+    const resetLineAndPrompt = () => {
+      line = '';
+      cursorPos = 0;
+      setCurrentLine('');
+      prompt = getTermPrompt();
+      term.write(prompt);
+    };
+
+    // Writes an error line plus a beginner-mode tip for common cases.
+    const writeShellError = (error: string) => {
+      term.writeln(`\x1b[31m${error}\x1b[0m`);
+      if (isBeginnerMode) {
+        if (error.includes('command not found') || error.includes('not recognized')) {
+          term.writeln('\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m');
+        } else if (error.includes('No such file') || error.includes('cannot find')) {
+          term.writeln('\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m');
+        } else if (error.includes('Permission denied')) {
+          term.writeln('\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m');
+        } else if (error.includes('not a directory')) {
+          term.writeln('\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m');
+        }
+      }
+    };
+
+    // Success banner + [ENTER] confirmation — shared by the canned-command
+    // and real-shell solve paths. Live skill drip is merged in here.
+    const announceSolved = (solution: {
+      resultText?: string;
+      skillGain?: Partial<Skills>;
+      effects?: EventEffects;
+    }) => {
+      term.writeln('');
+      term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
+      term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
+      term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
+      term.writeln('');
+      if (solution.resultText) {
+        term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
+        term.writeln('');
+      }
+      // Wait for the player to confirm with Enter (all modes) so the
+      // solution stays readable instead of auto-advancing.
+      term.writeln(
+        gameMode === 'learning'
+          ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
+          : '\x1b[33m[ENTER] Weiter...\x1b[0m'
+      );
+      solved = true;
+      pendingSkillGain = mergeSkillGain(liveSkillGain, solution.skillGain || {});
+      pendingSolutionEffects = solution.effects || {};
+    };
+
+    const creditSkillDrip = (cmdName: string) => {
+      const gain = context.commandSkillGain?.[cmdName];
+      if (!gain || creditedCommands.has(cmdName)) return;
+      creditedCommands.add(cmdName);
+      liveSkillGain = mergeSkillGain(liveSkillGain, gain);
+    };
+
+    // Tail of every real shell.execute/continueInput result: print output,
+    // then either arm the pending-input prompt, announce a solve, or write a
+    // fresh prompt. Solutions are never checked mid password prompt.
+    const handleShellResult = (result: CommandResult, cmdName: string) => {
+      const finish = () => {
+        if (result.pendingInput) {
+          pendingActive = true;
+          pendingMask = result.pendingInput.mask;
+          pendingCmdName = cmdName;
+          pendingLine = '';
+          term.write(result.pendingInput.prompt);
+          return;
+        }
+        if (result.exitCode === 0) {
+          creditSkillDrip(cmdName);
+        }
+        const solution = checkSolutions(teachedCommandsRef.current);
+        if (solution) {
+          announceSolved(solution);
+          return;
+        }
+        resetLineAndPrompt();
+      };
+
+      if (result.clearScreen) {
+        term.clear();
+        finish();
+        return;
+      }
+      if (!result.pendingInput && result.output && result.output.split('\n').some(isPingReplyLine)) {
+        // Live network command (ping etc.): pace the reply lines so it
+        // feels like the host is actually being probed, then finish up.
+        emitScenarioOutput(result.output, true, () => {
+          if (result.error) writeShellError(result.error);
+          finish();
+        });
+        return;
+      }
+      // Show stdout AND stderr — a pipeline can produce both
+      // (`grep x missing | wc -l` prints grep's error and wc's 0).
+      if (result.output) {
+        for (const shellLine of result.output.split('\n')) {
+          term.writeln(shellLine);
+        }
+      }
+      if (result.error) {
+        writeShellError(result.error);
+      }
+      finish();
+    };
+
     term.onData((data) => {
       // Reset idle timer on any input
       resetIdleTimer();
@@ -292,6 +435,49 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
         if (data === '\r') {
           solved = false;
           onSolvedRef.current(pendingSkillGain, undefined, pendingSolutionEffects);
+        }
+        return;
+      }
+
+      // A command owns the next line (ssh password prompt etc.). The answer
+      // bypasses history/canned matching; masked input echoes nothing (like
+      // real ssh). History, arrows and tab are disabled while pending.
+      if (pendingActive) {
+        if (data === '\r') {
+          term.writeln('');
+          const answer = pendingLine;
+          pendingActive = false;
+          pendingLine = '';
+          const result = shellRef.current?.continueInput(answer);
+          if (result) {
+            // May carry pendingInput again (retry prompt / chained question).
+            handleShellResult(result, pendingCmdName);
+          } else {
+            resetLineAndPrompt();
+          }
+          return;
+        }
+        if (data === '\x03') { // Ctrl+C aborts the prompt
+          shellRef.current?.cancelPendingInput();
+          pendingActive = false;
+          pendingLine = '';
+          term.writeln('^C');
+          resetLineAndPrompt();
+          return;
+        }
+        if (data === '\u007F') { // Backspace edits the buffered answer
+          if (pendingLine.length > 0) {
+            pendingLine = pendingLine.slice(0, -1);
+            if (!pendingMask) term.write('\b \b');
+          }
+          return;
+        }
+        if (data.startsWith('\x1b') || data === '\t') {
+          return;
+        }
+        if (data >= ' ') {
+          pendingLine += data;
+          if (!pendingMask) term.write(data);
         }
         return;
       }
@@ -425,25 +611,9 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
 
                 if (cmd.isSolution) {
                   // Stream output (ping-style commands pace their reply lines),
-                  // then show the exit code + success banner.
+                  // then show the success banner.
                   emitScenarioOutput(output, isPingLike, () => {
-                    term.writeln('');
-
-                    // Show success feedback
-                    term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
-                    term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
-                    term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
-                    term.writeln('');
-
-                    // Wait for the player to confirm with Enter (all modes) so the
-                    // solution stays readable instead of auto-advancing.
-                    term.writeln(
-                      gameMode === 'learning'
-                        ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
-                        : '\x1b[33m[ENTER] Weiter...\x1b[0m'
-                    );
-                    solved = true;
-                    pendingSkillGain = cmd.skillGain || {};
+                    announceSolved({ skillGain: cmd.skillGain });
                   });
                   return; // Don't write prompt after solution
                 }
@@ -473,87 +643,23 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
                   // Check if all solution requirements are now met
                   const solution = checkSolutions(teachedCommandsRef.current);
                   if (solution) {
-                    term.writeln('');
-                    term.writeln('\x1b[32m╔══════════════════════════════════════════════════════════════╗\x1b[0m');
-                    term.writeln('\x1b[32m║  ✓ AUFGABE ABGESCHLOSSEN                                     ║\x1b[0m');
-                    term.writeln('\x1b[32m╚══════════════════════════════════════════════════════════════╝\x1b[0m');
-                    term.writeln('');
-                    // Show full result text for learning mode
-                    if (solution.resultText) {
-                      term.writeln('\x1b[36m' + solution.resultText + '\x1b[0m');
-                      term.writeln('');
-                    }
-
-                    // Wait for the player to confirm with Enter (all modes) so the
-                    // solution stays readable instead of auto-advancing.
-                    term.writeln(
-                      gameMode === 'learning'
-                        ? '\x1b[33m[ENTER] Weiter zur nächsten Lektion...\x1b[0m'
-                        : '\x1b[33m[ENTER] Weiter...\x1b[0m'
-                    );
-                    solved = true;
-                    pendingSkillGain = solution.skillGain || {};
-                    pendingSolutionEffects = solution.effects || {};
+                    announceSolved(solution);
                     return;
                   }
-
-                  line = '';
-                  cursorPos = 0;
-                  setCurrentLine('');
-                  prompt = getTermPrompt();
-                  term.write(prompt);
+                  resetLineAndPrompt();
                 });
                 return;
               }
             }
 
-            // No scenario match - use shell engine for command execution
+            // No scenario match - use shell engine for command execution.
+            // handleShellResult owns the tail: output, pending-input prompt,
+            // solution check (incl. stateGoals), skill drip, fresh prompt.
             if (!scenarioMatch && shellRef.current) {
+              const cmdName = trimmed.split(/\s+/)[0];
               const result = shellRef.current.execute(trimmed);
-
-              // Writes an error line plus a beginner-mode tip for common cases.
-              const writeShellError = (error: string) => {
-                term.writeln(`\x1b[31m${error}\x1b[0m`);
-                if (isBeginnerMode) {
-                  if (error.includes('command not found') || error.includes('not recognized')) {
-                    term.writeln('\x1b[33m💡 Tipp: Tippe "help" für eine Liste verfügbarer Befehle.\x1b[0m');
-                  } else if (error.includes('No such file') || error.includes('cannot find')) {
-                    term.writeln('\x1b[33m💡 Tipp: Nutze "ls" um zu sehen, welche Dateien und Ordner existieren.\x1b[0m');
-                  } else if (error.includes('Permission denied')) {
-                    term.writeln('\x1b[33m💡 Tipp: Du hast keine Berechtigung für diese Aktion. Vielleicht mit "sudo"?\x1b[0m');
-                  } else if (error.includes('not a directory')) {
-                    term.writeln('\x1b[33m💡 Tipp: Du versuchst, in eine Datei zu wechseln. Nutze "cd" nur für Ordner.\x1b[0m');
-                  }
-                }
-              };
-
-              // Handle clear screen
-              if (result.clearScreen) {
-                term.clear();
-              } else if (result.output && result.output.split('\n').some(isPingReplyLine)) {
-                // Live network command (ping etc.): pace the reply lines so it
-                // feels like the host is actually being probed, then finish up.
-                emitScenarioOutput(result.output, true, () => {
-                  if (result.error) writeShellError(result.error);
-                  line = '';
-                  cursorPos = 0;
-                  setCurrentLine('');
-                  prompt = getTermPrompt();
-                  term.write(prompt);
-                });
-                return; // prompt is written in the done callback above
-              } else {
-                // Show stdout AND stderr — a pipeline can produce both
-                // (`grep x missing | wc -l` prints grep's error and wc's 0).
-                if (result.output) {
-                  for (const shellLine of result.output.split('\n')) {
-                    term.writeln(shellLine);
-                  }
-                }
-                if (result.error) {
-                  writeShellError(result.error);
-                }
-              }
+              handleShellResult(result, cmdName);
+              return;
             }
           }
           line = '';

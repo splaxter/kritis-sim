@@ -169,6 +169,8 @@ Ein Ordner namens "geheim" hat deine Aufmerksamkeit erregt...`,
           skillGain: { linux: 2 },
         },
         {
+          // Anchored: bare `ls` must not shadow `ls -l` / `ls -la` below.
+          patternRegex: '^ls\\s*$',
           pattern: 'ls',
           output: `Desktop   geheim   logs   scripts
 
@@ -177,6 +179,7 @@ Ein Ordner namens "geheim" hat deine Aufmerksamkeit erregt...`,
           skillGain: { linux: 2 },
         },
         {
+          patternRegex: '^ls\\s+-l\\s*$',
           pattern: 'ls -l',
           output: `drwxr-xr-x 2 azubi azubi 4096 Mär 15 09:00 Desktop
 drwx------ 2 azubi azubi 4096 Mär 15 03:00 geheim     # <-- Nur du hast Zugriff!
@@ -185,6 +188,7 @@ drwxr-xr-x 2 azubi azubi 4096 Mär 15 09:00 scripts`,
           skillGain: { linux: 3 },
         },
         {
+          patternRegex: '^ls\\s+-(la|al|a)(\\s|$)',
           pattern: 'ls -la',
           output: `drwxr-xr-x 6 azubi azubi 4096 Mär 15 09:00 .
 drwxr-xr-x 3 root  root  4096 Mär 14 08:00 ..
@@ -619,7 +623,8 @@ Aber was haben sie gesucht? Die Pipes werden es verraten...`,
       taskText: `Der Eindringling hat Spuren in /var/log hinterlassen:
 1. grep "ALERT" syslog — finde die Alarm-Meldungen
 2. grep -c "ERROR" syslog — zähle die Fehler
-3. Wer ist um 02:47 eingebrochen? Finde die IP-Adresse.`,
+3. Wer ist um 02:47 eingebrochen? Finde die IP-Adresse (grep 185 syslog).
+Schritt 3 löst den Fall — Schritt 1 & 2 sind dein Warm-up (Übung + Skillpunkte).`,
       // Real files back every command: whatever the player greps that isn't a
       // scripted beat below falls through to the shell engine and still shows
       // correct grep output.
@@ -646,7 +651,9 @@ Aber was haben sie gesucht? Die Pipes werden es verraten...`,
 Mar 15 02:47:14 warm-srv-01 kernel: [ALERT] Session terminated: jens
 Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
 
-# Da ist sie! Die IP: 185.234.72.15`,
+# ✓ Schritt 1/3 — die Alarme sind da, und die IP taucht auf: 185.234.72.15
+# Weiter mit Schritt 2: zähle die Fehler mit  grep -c "ERROR" syslog`,
+          teachesCommand: 'step_alert',
           skillGain: { linux: 3, security: 2 },
         },
         // Catch common mistake: searching for the alerts in the wrong file.
@@ -671,17 +678,19 @@ Mar 15 02:47:15 warm-srv-01 kernel: [ALERT] Memory wipe executed
 Mar 15 02:47:13 warm-srv-01 sshd: Connection from 185.234.72.15
 Mar 15 02:47:13 warm-srv-01 sshd: Accepted key for root from 185.234.72.15
 
-# Sie hatten einen SSH-Key für ROOT?! Das war ein Insider-Job!`,
-          teachesCommand: 'grep',
-          skillGain: { linux: 3, security: 3 },
+# ✓ Schritt 3/3 — sie hatten einen SSH-Key für ROOT?! Das war ein Insider-Job!`,
+          teachesCommand: 'step_ip',
           isSolution: true,
+          skillGain: { linux: 3, security: 3 },
         },
         {
           patternRegex: '^grep\\s+-c\\s+["\']?ERROR["\']?\\s+syslog',
           pattern: 'grep -c "ERROR" syslog',
           output: `7
 
-# 7 Fehler in syslog. Nicht dramatisch.`,
+# ✓ Schritt 2/3 — nur 7 gewöhnliche Fehler. Reines Rauschen, keine Spur vom Angriff.
+# Bleibt Schritt 3: Wer kam um 02:47 rein? Grep nach der IP  185`,
+          teachesCommand: 'step_errors',
           skillGain: { linux: 2 },
         },
         {
@@ -701,11 +710,11 @@ Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
           pattern: 'grep "Accepted" auth.log',
           output: `Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
 
-# 02:47:10 — Publickey-Login als ROOT von 185.234.72.15.
+# ✓ Schritt 3/3 — 02:47:10 Publickey-Login als ROOT von 185.234.72.15.
 # Erst Passwörter raten, dann plötzlich ein SSH-Key?! Das war ein Insider!`,
-          teachesCommand: 'grep',
-          skillGain: { linux: 3, security: 4 },
+          teachesCommand: 'step_ip',
           isSolution: true,
+          skillGain: { linux: 3, security: 4 },
         },
         {
           patternRegex: '^grep\\s+-n\\s+["\']?185[\\d.]*["\']?\\s+auth\\.log',
@@ -716,9 +725,10 @@ Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
 52:Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
 55:Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
 
-# -n zeigt Zeilennummern. Zeile 55 war der erfolgreiche Einbruch!`,
-          skillGain: { linux: 2 },
+# ✓ Schritt 3/3 — -n zeigt Zeilennummern. Zeile 55 war der erfolgreiche Einbruch!`,
+          teachesCommand: 'step_ip',
           isSolution: true,
+          skillGain: { linux: 2 },
         },
         {
           patternRegex: '^grep\\s+["\']?185[\\d.]*["\']?\\s+auth\\.log',
@@ -729,27 +739,22 @@ Mar 15 02:40:05 warm-srv-01 sshd: Failed password for admin from 185.234.72.15
 Mar 15 02:45:00 warm-srv-01 sshd: Failed password for root from 185.234.72.15
 Mar 15 02:47:10 warm-srv-01 sshd: Accepted publickey for root from 185.234.72.15
 
-# Da ist die ganze Geschichte: 4× Passwort probiert, dann Publickey-Login als ROOT.`,
-          teachesCommand: 'grep',
-          skillGain: { linux: 3, security: 3 },
+# ✓ Schritt 3/3 — die ganze Geschichte: 4× Passwort probiert, dann Publickey-Login als ROOT.`,
+          teachesCommand: 'step_ip',
           isSolution: true,
+          skillGain: { linux: 3, security: 3 },
         },
       ],
-      solutions: [
-        {
-          commands: ['grep', '185'],
-          allRequired: false,
-          resultText: 'IP-Adresse des Angreifers identifiziert: 185.234.72.15',
-          skillGain: { linux: 5, security: 5, troubleshooting: 3 },
-          effects: { stress: -5 },
-        },
-      ],
+      // Der Kern-Fund schließt ab: die Angreifer-IP zu finden (jeder isSolution-
+      // Beat oben, via syslog ODER auth.log) löst den Fall. Schritt 1 & 2 sind
+      // belohntes Warm-up, kein Zwang.
+      solutions: [],
       hints: [
         '🤖 Jens: "grep ist dein Freund. grep MUSTER datei durchsucht nach dem Muster."',
         '🤖 Jens: "Such mal nach ALERT oder ERROR in syslog. Da verstecken sich die Probleme."',
         '🤖 Jens: "Mit grep -i ignorierst du Groß/Klein. Praktisch bei failed/FAILED in auth.log."',
         '🤖 Jens: "Du suchst eine IP? Die fängt mit 185 an. Traust du dich?"',
-        '🤖 Jens: "Okay, die Lösung: grep 185 syslog — die IP steht direkt in den ALERT-Zeilen."',
+        '🤖 Jens: "Schritt 3: grep 185 syslog — die IP steht direkt in den ALERT-Zeilen. Damit ist der Fall gelöst."',
       ],
     },
     tags: ['learning', 'terminal', 'linux', 'level2', 'grep', 'story'],
@@ -817,8 +822,78 @@ Zeit die Prozesse zu checken...`,
       hostname: 'warm-srv-01',
       username: 'azubi',
       currentPath: '/etc',
+      // WICHTIG: Alle Beats sind mit ^…-Regex verankert. Ein Plain-Pattern
+      // 'cat /etc/passwd' würde per startsWith JEDE Pipe-Eingabe verschlucken
+      // (cat … | grep …), sodass die Pipe-Lösung nie erreichbar wäre.
       commands: [
+        // Schritt 1: Fake-Account per Pipe finden.
         {
+          patternRegex: '^cat\\s+/etc/passwd\\s*\\|\\s*grep\\s+["\']?malware["\']?',
+          pattern: 'cat /etc/passwd | grep malware',
+          output: `malware:x:0:0:System Service:/tmp:/bin/bash
+
+# ✓ Schritt 1 — GEFUNDEN! UID 0 = Root-Rechte! Das ist eine Backdoor!
+# Jetzt Schritt 2: zähl die User mit  cat /etc/passwd | wc -l`,
+          teachesCommand: 'step_find',
+          isSolution: true,
+          skillGain: { linux: 3, security: 3 },
+        },
+        // Fortgeschritten: alle UID-0-Accounts außer root — findet die Backdoor ebenso.
+        {
+          patternRegex:
+            '^cat\\s+/etc/passwd\\s*\\|\\s*grep\\s+["\']?:0:["\']?\\s*\\|\\s*grep\\s+-v\\s+["\']?root["\']?',
+          pattern: 'cat /etc/passwd | grep ":0:" | grep -v root',
+          output: `malware:x:0:0:System Service:/tmp:/bin/bash
+
+# ✓ Schritt 1 — wer hat außer root noch UID 0? Genau der Eindringling.
+# Jetzt Schritt 2: cat /etc/passwd | wc -l`,
+          teachesCommand: 'step_find',
+          isSolution: true,
+          skillGain: { linux: 4, security: 4 },
+        },
+        // Schritt 2: alle User per Pipe zählen (wc -l).
+        {
+          patternRegex: '^cat\\s+/etc/passwd\\s*\\|\\s*wc\\s+-l',
+          pattern: 'cat /etc/passwd | wc -l',
+          output: `847
+
+# ✓ Schritt 2 — 847 User im System, und einer davon war untergeschoben.`,
+          teachesCommand: 'step_count',
+          skillGain: { linux: 2 },
+        },
+        // Nudge: wc ohne -l zählt Zeilen/Wörter/Zeichen.
+        {
+          patternRegex: '^cat\\s+/etc/passwd\\s*\\|\\s*wc(\\s|$)',
+          pattern: 'cat /etc/passwd | wc',
+          output: `# Fast! wc allein zählt Zeilen, Wörter UND Zeichen auf einmal.
+# Für die reine User-Zahl brauchst du das -l:  cat /etc/passwd | wc -l`,
+        },
+        // Direkt-grep ohne Pipe: gilt als gefunden, aber Pipes sind mächtiger.
+        {
+          patternRegex: '^grep\\s+["\']?malware["\']?\\s+/etc/passwd',
+          pattern: 'grep malware /etc/passwd',
+          output: `malware:x:0:0:System Service:/tmp:/bin/bash
+
+# ✓ Schritt 1 — geht auch direkt. Für Kombis sind Pipes aber mächtiger.
+# Schritt 2 braucht eine Pipe:  cat /etc/passwd | wc -l`,
+          teachesCommand: 'step_find',
+          isSolution: true,
+          skillGain: { linux: 2, security: 2 },
+        },
+        // Bonus-Filter.
+        {
+          patternRegex: '^cat\\s+/etc/passwd\\s*\\|\\s*grep\\s+["\']?bash["\']?',
+          pattern: 'cat /etc/passwd | grep bash',
+          output: `root:x:0:0:root:/root:/bin/bash
+azubi:x:1000:1000:Azubi:/home/azubi:/bin/bash
+malware:x:0:0:System Service:/tmp:/bin/bash
+
+# Nur 3 User haben bash-Zugang. Einer davon ist verdächtig.`,
+          skillGain: { linux: 3 },
+        },
+        // Plain cat — NUR ohne Pipe (verankert mit $), damit es die Pipe-Beats nicht verdeckt.
+        {
+          patternRegex: '^cat\\s+/etc/passwd\\s*$',
           pattern: 'cat /etc/passwd',
           output: `root:x:0:0:root:/root:/bin/bash
 daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
@@ -832,56 +907,10 @@ malware:x:0:0:System Service:/tmp:/bin/bash
           wrongApproachFeedback: 'Zu viele Zeilen! Nutze | grep um zu filtern.',
           skillGain: { linux: 1 },
         },
-        {
-          pattern: 'cat /etc/passwd | grep malware',
-          output: `malware:x:0:0:System Service:/tmp:/bin/bash
-
-# GEFUNDEN! UID 0 = Root-Rechte! Das ist eine Backdoor!`,
-          teachesCommand: 'pipe',
-          skillGain: { linux: 3, security: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'grep malware /etc/passwd',
-          output: `malware:x:0:0:System Service:/tmp:/bin/bash
-
-# Das geht auch direkt. Aber Pipes sind mächtiger für Kombis!`,
-          skillGain: { linux: 2, security: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat /etc/passwd | wc -l',
-          output: `847
-
-# 847 User im System. Einer davon ist fake...`,
-          skillGain: { linux: 2 },
-        },
-        {
-          pattern: 'cat /etc/passwd | grep ":0:" | grep -v root',
-          output: `malware:x:0:0:System Service:/tmp:/bin/bash
-
-# Wer hat noch UID 0 außer root? Da ist der Eindringling!`,
-          skillGain: { linux: 4, security: 4 },
-        },
-        {
-          pattern: 'cat /etc/passwd | grep bash',
-          output: `root:x:0:0:root:/root:/bin/bash
-azubi:x:1000:1000:Azubi:/home/azubi:/bin/bash
-malware:x:0:0:System Service:/tmp:/bin/bash
-
-# Nur 3 User haben bash-Zugang. Einer davon ist verdächtig.`,
-          skillGain: { linux: 3 },
-        },
       ],
-      solutions: [
-        {
-          commands: ['|', 'malware'],
-          allRequired: false,
-          resultText: 'Backdoor-Account identifiziert! Der Angreifer hat Root-Rechte eingerichtet.',
-          skillGain: { linux: 6, security: 5, troubleshooting: 3 },
-          effects: { stress: -5 },
-        },
-      ],
+      // Kern-Fund schließt ab: den Backdoor-Account zu finden (jeder step_find-
+      // Beat oben, isSolution) löst den Fall. wc -l ist belohntes Extra, kein Zwang.
+      solutions: [],
       hints: [
         '🤖 Jens: "Die Pipe | leitet Output weiter. Wie: befehl1 | befehl2"',
         '🤖 Jens: "cat datei | grep muster — erst lesen, dann filtern."',
@@ -958,6 +987,8 @@ Jetzt müssen wir die Dienste kontrollieren...`,
       currentPath: '~',
       commands: [
         {
+          // Anchored: bare `ps aux` must not shadow the piped beats below.
+          patternRegex: '^ps\\s+aux\\s*$',
           pattern: 'ps aux',
           output: `USER       PID %CPU %MEM    VSZ   RSS TTY  STAT START   TIME COMMAND
 root         1  0.0  0.1  12345  6789 ?    Ss   08:00   0:01 /sbin/init
@@ -972,6 +1003,20 @@ root      7890  0.0  0.1  12345  2345 pts/0 R+   10:00   0:00 ps aux
           skillGain: { linux: 3 },
         },
         {
+          // Instruierter Filter-Schritt (Aufgabe: "Filtere und limitiere").
+          patternRegex: '^ps\\s+aux\\s*\\|\\s*grep\\s+-v\\s+["\']?root["\']?\\s*\\|\\s*head',
+          pattern: 'ps aux | grep -v root | head',
+          output: `USER       PID %CPU %MEM    VSZ   RSS TTY  STAT START   TIME COMMAND
+www-data   567  0.5  2.0 234567 12345 ?    S    08:00   0:15 /usr/sbin/apache2
+mysql      890  1.2  4.0 567890 45678 ?    Sl   08:00   0:45 /usr/sbin/mysqld
+malware   6666 99.0  8.0 999999 88888 ?    R    02:48  47:23 /tmp/.hidden/miner.sh
+
+# Ohne root-Prozesse bleibt wenig übrig — "malware" mit 99% CPU sticht sofort raus!`,
+          teachesCommand: 'grep',
+          skillGain: { linux: 3, security: 2 },
+        },
+        {
+          patternRegex: '^ps\\s+aux\\s*\\|\\s*grep\\s+["\']?miner["\']?',
           pattern: 'ps aux | grep miner',
           output: `malware   6666 99.0  8.0 999999 88888 ?    R    02:48  47:23 /tmp/.hidden/miner.sh
 root      7891  0.0  0.0  12345   987 pts/0 S+   10:00   0:00 grep miner
@@ -2323,6 +2368,8 @@ Der Security-Incident muss aufgeklärt werden.`,
       currentPath: 'C:\\Users\\Administrator',
       commands: [
         {
+          // Anchored: bare `Get-Service` must not shadow the Where-Object filter below.
+          patternRegex: '^Get-Service\\s*$',
           pattern: 'Get-Service',
           output: `Status   Name               DisplayName
 ------   ----               -----------
@@ -2347,6 +2394,8 @@ Stopped  SensorService      Sensordienst
           skillGain: { windows: 4 },
         },
         {
+          // Anchored: bare `Get-Process` must not shadow the Sort/Select pipeline (isSolution) below.
+          patternRegex: '^Get-Process\\s*$',
           pattern: 'Get-Process',
           output: `Handles  NPM(K)  PM(K)   WS(K)   CPU(s)    Id  ProcessName
 -------  ------  -----   -----   ------    --  -----------
@@ -2664,6 +2713,8 @@ Jens wäre stolz auf dich... er würde es nur nie laut sagen.
       currentPath: '~',
       commands: [
         {
+          // Anchored: bare `ps aux` must not shadow `ps aux | grep -E …` (isSolution) below.
+          patternRegex: '^ps\\s+aux\\s*$',
           pattern: 'ps aux',
           output: `USER       PID %CPU %MEM COMMAND
 root         1  0.0  0.1 /sbin/init

@@ -11,8 +11,16 @@ export * from './gridLayout';
 export { allLinuxCommands } from './commands/linux';
 export { allPowerShellCommands } from './commands/powershell';
 export * from './scenarioSeed';
+export * from './hosts';
+export * from './unitControl';
+export * from './stateGoals';
 
+import {
+  TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
+  TerminalJournalEntry, TerminalFirewallSpec, NetListener, NetConnection,
+} from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
+import { createHostState, seedPrimaryHost } from './hosts';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
 import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
@@ -89,7 +97,7 @@ export function createShellFromContext(context: {
   username: string;
   currentPath: string;
   vfsOverlay?: {
-    files?: { path: string; content: string }[];
+    files?: { path: string; content: string; mode?: string }[];
     directories?: string[];
   };
   env?: Record<string, string>;
@@ -98,6 +106,20 @@ export function createShellFromContext(context: {
   commands?: { pattern: string; output: string }[];
   hints?: string[];
   taskText?: string;
+  /** Accepted (unused here) so a full terminal context can be passed through. */
+  solutions?: TerminalSolution[];
+  /** Additional machines reachable via ssh from the local host. */
+  hosts?: TerminalHostSpec[];
+  /** Custom services seeded onto the PRIMARY host (single-host levels). */
+  services?: TerminalServiceSpec[];
+  /** Journal seeded onto the PRIMARY host (single-host forensic levels). */
+  journal?: TerminalJournalEntry[];
+  /** Firewall state seeded onto the PRIMARY host. */
+  firewall?: TerminalFirewallSpec;
+  /** Listening sockets seeded onto the PRIMARY host. */
+  listeners?: NetListener[];
+  /** Established connections seeded onto the PRIMARY host. */
+  connections?: NetConnection[];
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -121,6 +143,12 @@ export function createShellFromContext(context: {
     vfs.setCurrentPath(startPath);
   }
 
+  // Apply per-file modes on the primary host (createShell writes at 644) — a
+  // mode-600 SSH private key must be re-chmod'd or key auth ignores it.
+  for (const file of context.vfsOverlay?.files ?? []) {
+    if (file.mode) vfs.chmod(file.path, file.mode);
+  }
+
   // Materialize every path the scenario talks about (canned cat/ls outputs,
   // hint/task mentions) so free exploration matches the story. Runs AFTER
   // templates/overlay/currentPath are applied; its vfs.exists() guards mean it
@@ -130,6 +158,22 @@ export function createShellFromContext(context: {
     hints: context.hints,
     taskText: context.taskText,
   });
+
+  // Seed custom services/journal/firewall onto the primary host AFTER the VFS
+  // overlay is in place (unit files must exist when snapshotted).
+  if (context.services || context.journal || context.firewall || context.listeners || context.connections) {
+    seedPrimaryHost(shell.getBaseHost(), {
+      services: context.services,
+      journal: context.journal,
+      firewall: context.firewall,
+      listeners: context.listeners,
+      connections: context.connections,
+    });
+  }
+
+  for (const spec of context.hosts ?? []) {
+    shell.registerHost(createHostState(spec));
+  }
 
   return shell;
 }

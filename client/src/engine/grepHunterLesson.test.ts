@@ -92,7 +92,10 @@ describe(`learning lesson: ${ID}`, () => {
     expect(route('grep "Accepted" auth.log')).not.toBe(nudge);
   });
 
-  it('the lesson is winnable via every hinted path, with or without quotes', () => {
+  it('the core find (the attacker IP) solves the level via every hinted path', () => {
+    // Design: finding the IP completes the level immediately (isSolution),
+    // via any hinted path. Steps 1 & 2 (ALERT / ERROR count) are rewarded
+    // warm-up, not a hard gate — so the player is never stuck.
     for (const input of [
       'grep "185.234" syslog',
       'grep 185 syslog',
@@ -101,8 +104,15 @@ describe(`learning lesson: ${ID}`, () => {
       'grep Accepted auth.log',
     ]) {
       const beat = route(input);
-      expect(beat?.isSolution, `"${input}" must reach a solution beat`).toBe(true);
+      expect(beat?.isSolution, `"${input}" must complete the level`).toBe(true);
     }
+  });
+
+  it('the warm-up steps reward but do not complete the level', () => {
+    expect(route('grep "ALERT" syslog')?.isSolution).toBeFalsy();
+    expect(route('grep -c "ERROR" syslog')?.isSolution).toBeFalsy();
+    // No hard-gating solution set — completion is driven by the isSolution beats.
+    expect(ctx.solutions).toEqual([]);
   });
 
   it('unscripted greps fall through to real, correct output (no dead world)', () => {

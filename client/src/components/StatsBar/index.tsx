@@ -12,8 +12,10 @@ import {
 
 interface StatsBarProps {
   state: GameState;
-  currentLessonNumber?: number;
-  totalLessons?: number;
+  /** Track-local lesson label, e.g. "SSH & Remote-Zugriff · 2/3" or "… · ★". */
+  lessonLabel?: string;
+  /** 0–100 progress within the current track (core levels). Omit to hide the bar. */
+  lessonProgressPercent?: number;
 }
 
 const DAYS = ['', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
@@ -35,41 +37,41 @@ const RELATIONSHIP_LABELS: Record<string, { name: string; color: string }> = {
   kollegen: { name: 'Kollegen', color: '#44ff88' },
 };
 
-// Learning mode: minimal header focused on lesson progress
-function LearningModeHeader({ state, currentLessonNumber = 1, totalLessons = 11 }: StatsBarProps) {
-  const completedLessons = state.completedEvents.filter(id => id.startsWith('learn_')).length;
-  const progressPercent = Math.round((completedLessons / totalLessons) * 100);
-
+// Learning mode: minimal header focused on the current track's progress.
+// The label is track-local (nonlinear hub → no meaningful global "Lektion N/47").
+function LearningModeHeader({ lessonLabel, lessonProgressPercent }: StatsBarProps) {
   return (
     <div className="border border-terminal-border p-3">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-4">
           <span className="text-lg text-terminal-green">📚 LERNMODUS</span>
-          <span className="text-terminal-green-dim text-sm">
-            Lektion {currentLessonNumber}/{totalLessons}
-          </span>
+          {lessonLabel && (
+            <span className="text-terminal-green-dim text-sm">{lessonLabel}</span>
+          )}
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-terminal-green-dim">Fortschritt:</span>
-            <div className="w-32 h-2 bg-terminal-bg-dark border border-terminal-border rounded overflow-hidden">
-              <div
-                className="h-full bg-terminal-green transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
+        {lessonProgressPercent !== undefined && (
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-terminal-green-dim">Fortschritt:</span>
+              <div className="w-32 h-2 bg-terminal-bg-dark border border-terminal-border rounded overflow-hidden">
+                <div
+                  className="h-full bg-terminal-green transition-all duration-500"
+                  style={{ width: `${lessonProgressPercent}%` }}
+                />
+              </div>
+              <span className="text-terminal-green">{lessonProgressPercent}%</span>
             </div>
-            <span className="text-terminal-green">{progressPercent}%</span>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-export function StatsBar({ state, currentLessonNumber, totalLessons }: StatsBarProps) {
+export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBarProps) {
   // Learning mode gets minimal header
   if (state.gameMode === 'learning') {
-    return <LearningModeHeader state={state} currentLessonNumber={currentLessonNumber} totalLessons={totalLessons} />;
+    return <LearningModeHeader state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />;
   }
 
   const modeConfig = getGameModeConfig(state.gameMode);

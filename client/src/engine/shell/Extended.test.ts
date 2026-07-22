@@ -156,3 +156,167 @@ describe('tee / nl / tac / rev / strings / stat / file / xxd', () => {
     expect(r.output).toBe('00000000: 6162 63                                  abc');
   });
 });
+
+describe('sudo passes wrapped -i/-s flags through to the command', () => {
+  let shell: ShellEngine;
+  beforeEach(() => { shell = bash(); });
+
+  it('sudo sed -i actually edits the file (does not mistake sed -i for a login shell)', () => {
+    shell.execute("echo 'PermitRootLogin yes' > /home/azubi/conf");
+    const r = shell.execute("sudo sed -i 's/yes/no/' /home/azubi/conf");
+    expect(r.exitCode).toBe(0);
+    expect(r.error).toBeUndefined();
+    const read = shell.getVfs().readFile('/home/azubi/conf');
+    expect(read.ok && read.value).toMatch(/PermitRootLogin no/);
+  });
+
+  it('sudo -u root sed -i works (leading -u, then wrapped -i)', () => {
+    shell.execute("echo 'a' > /home/azubi/conf2");
+    const r = shell.execute("sudo -u root sed -i 's/a/b/' /home/azubi/conf2");
+    expect(r.exitCode).toBe(0);
+    const read = shell.getVfs().readFile('/home/azubi/conf2');
+    expect(read.ok && read.value).toMatch(/b/);
+  });
+
+  it('sudo -i alone (leading interactive request) still errors', () => {
+    const r = shell.execute('sudo -i');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/interactive shell is not available/);
+  });
+
+  it('sudo -s alone still errors', () => {
+    const r = shell.execute('sudo -s');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/interactive shell is not available/);
+  });
+
+  it('bare sudo still prints usage', () => {
+    const r = shell.execute('sudo');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/usage: sudo/);
+  });
+});
+
+describe('chown', () => {
+  let shell: ShellEngine;
+  beforeEach(() => { shell = bash(); });
+
+  it('root changes owner and group (owner:group form)', () => {
+    const r = shell.execute('sudo chown www-data:www-data abc.txt');
+    expect(r.exitCode).toBe(0);
+    const stat = shell.getVfs().stat('/home/azubi/abc.txt');
+    expect(stat.ok).toBe(true);
+    if (stat.ok) {
+      expect(stat.value.owner).toBe('www-data');
+      expect(stat.value.group).toBe('www-data');
+    }
+  });
+
+  it('owner-only form keeps the existing group', () => {
+    const before = shell.getVfs().stat('/home/azubi/abc.txt');
+    const group = before.ok ? before.value.group : '';
+    shell.execute('sudo chown backup abc.txt');
+    const stat = shell.getVfs().stat('/home/azubi/abc.txt');
+    expect(stat.ok).toBe(true);
+    if (stat.ok) {
+      expect(stat.value.owner).toBe('backup');
+      expect(stat.value.group).toBe(group);
+    }
+  });
+
+  it(':group form changes only the group, owner stays', () => {
+    const before = shell.getVfs().stat('/home/azubi/abc.txt');
+    const owner = before.ok ? before.value.owner : '';
+    const r = shell.execute('sudo chown :www-data abc.txt');
+    expect(r.exitCode).toBe(0);
+    const stat = shell.getVfs().stat('/home/azubi/abc.txt');
+    expect(stat.ok).toBe(true);
+    if (stat.ok) {
+      expect(stat.value.owner).toBe(owner);
+      expect(stat.value.group).toBe('www-data');
+    }
+  });
+
+  it('non-root is denied with Operation not permitted', () => {
+    const r = shell.execute('chown azubi abc.txt');
+    expect(r.error).toBe("chown: changing ownership of 'abc.txt': Operation not permitted");
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('-R recurses into directories', () => {
+    shell.execute('mkdir -p projekt/sub');
+    shell.execute('touch projekt/a.txt projekt/sub/b.txt');
+    const r = shell.execute('sudo chown -R www-data:www-data projekt');
+    expect(r.exitCode).toBe(0);
+    const vfs = shell.getVfs();
+    for (const p of ['/home/azubi/projekt', '/home/azubi/projekt/a.txt', '/home/azubi/projekt/sub/b.txt']) {
+      const stat = vfs.stat(p);
+      expect(stat.ok && stat.value.owner).toBe('www-data');
+      expect(stat.ok && stat.value.group).toBe('www-data');
+    }
+  });
+
+  it('missing file reports cannot access', () => {
+    const r = shell.execute('sudo chown backup nix.txt');
+    expect(r.error).toBe("chown: cannot access 'nix.txt': No such file or directory");
+    expect(r.exitCode).toBe(1);
+  });
+});
+
+describe('crontab', () => {
+  let shell: ShellEngine;
+  beforeEach(() => { shell = bash(); });
+
+  it('-l without a crontab fails with no crontab for <user>', () => {
+    const r = shell.execute('crontab -l');
+    expect(r.error).toBe('no crontab for azubi');
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('installing from a file writes the spool; -l then lists it', () => {
+    const line = '0 3 * * * /usr/local/bin/backup.sh';
+    shell.getVfs().addFile('/home/azubi/cron.txt', `${line}\n`);
+    const install = shell.execute('crontab cron.txt');
+    expect(install.exitCode).toBe(0);
+    const spool = shell.getVfs().readFile('/var/spool/cron/crontabs/azubi');
+    expect(spool.ok && spool.value).toContain(line);
+    const r = shell.execute('crontab -l');
+    expect(r.output).toBe(line);
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('-e prints the German editor note and exits 0', () => {
+    const r = shell.execute('crontab -e');
+    expect(r.exitCode).toBe(0);
+    expect(r.output).toBe('crontab -e ist in dieser Simulation nicht verfügbar. Bearbeite die Datei direkt, z.B. mit: cat/tee/sed auf /var/spool/cron/crontabs/azubi');
+  });
+
+  it('-u requires root', () => {
+    const r = shell.execute('crontab -u backup -l');
+    expect(r.error).toBe('must be privileged to use -u');
+    expect(r.exitCode).toBe(1);
+  });
+
+  it("root reads another user's crontab via -u", () => {
+    shell.getVfs().addFile('/var/spool/cron/crontabs/backup', '15 2 * * * /opt/backup/run.sh\n');
+    const r = shell.execute('sudo crontab -u backup -l');
+    expect(r.output).toBe('15 2 * * * /opt/backup/run.sh');
+    expect(r.exitCode).toBe(0);
+  });
+
+  it('installing from a missing file fails', () => {
+    const r = shell.execute('crontab nix.txt');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('No such file');
+  });
+
+  it("installed spool is mode 600 — other users cannot read someone else's crontab", () => {
+    shell.getVfs().addFile('/home/azubi/cron.txt', '0 4 * * * /opt/cleanup.sh\n');
+    const install = shell.execute('sudo crontab -u backup cron.txt');
+    expect(install.exitCode).toBe(0);
+    // Root installed it for backup — azubi must not be able to read it.
+    const r = shell.execute('cat /var/spool/cron/crontabs/backup');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('Permission denied');
+  });
+});

@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { allEvents } from './index';
-import { LEARNING_TRACKS, getFoundationsExitLevelId } from './learning-tracks';
+import {
+  LEARNING_TRACKS,
+  getFoundationsExitLevelId,
+  getTrackPosition,
+  countCompletedCoreLevels,
+} from './learning-tracks';
 import { GameEvent } from '@kritis/shared';
 
 const learningEvents: GameEvent[] = allEvents.filter(
@@ -31,6 +36,75 @@ describe('LEARNING_TRACKS registry', () => {
 
   it('getFoundationsExitLevelId returns the last foundations level', () => {
     expect(getFoundationsExitLevelId(LEARNING_TRACKS)).toBe('learn_04_grep_hunter');
+  });
+});
+
+describe('getTrackPosition', () => {
+  it('returns 1-based index over CORE levels for a core level', () => {
+    // ssh_remote: [first_key, open_door, jumphost, key_graveyard(optional)]
+    // → 3 core levels; jumphost is the 3rd.
+    expect(getTrackPosition('learn_ssh_03_jumphost')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 3,
+      coreCount: 3,
+      isOptional: false,
+    });
+    expect(getTrackPosition('learn_ssh_01_first_key')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 1,
+      coreCount: 3,
+      isOptional: false,
+    });
+  });
+
+  it('marks an optional level and does not consume a core index', () => {
+    expect(getTrackPosition('learn_ssh_04_key_graveyard')).toEqual({
+      trackTitle: 'SSH & Remote-Zugriff',
+      indexInTrack: 0,
+      coreCount: 3,
+      isOptional: true,
+    });
+  });
+
+  it('returns null for an id that is in no track', () => {
+    expect(getTrackPosition('not_a_real_event_id')).toBeNull();
+  });
+});
+
+describe('countCompletedCoreLevels (completed-based HUD progress)', () => {
+  it('nothing completed → 0 (the bar starts at 0%, not at position-1)', () => {
+    expect(countCompletedCoreLevels('learn_ssh_02_open_door', [])).toBe(0);
+  });
+
+  it('counts the CURRENT level once completed — the result screen shows the new state', () => {
+    // After finishing SSH 2, completedEvents already contains it: 2 of 3 done.
+    expect(
+      countCompletedCoreLevels('learn_ssh_02_open_door', [
+        'learn_ssh_01_first_key',
+        'learn_ssh_02_open_door',
+      ])
+    ).toBe(2);
+  });
+
+  it('ignores completed events outside the track and optional (★) levels', () => {
+    expect(
+      countCompletedCoreLevels('learn_ssh_02_open_door', [
+        'learn_ssh_01_first_key',
+        'learn_ssh_04_key_graveyard', // optional — does not count
+        'learn_net_01_open_doors',    // different track
+        'evt_unrelated',
+      ])
+    ).toBe(1);
+  });
+
+  it('resolves the track from an optional level id too', () => {
+    expect(
+      countCompletedCoreLevels('learn_ssh_04_key_graveyard', ['learn_ssh_01_first_key'])
+    ).toBe(1);
+  });
+
+  it('returns null for an id in no track', () => {
+    expect(countCompletedCoreLevels('not_a_real_event_id', ['learn_ssh_01_first_key'])).toBeNull();
   });
 });
 

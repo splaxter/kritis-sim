@@ -94,7 +94,7 @@ These four modes remain defined and playable. They are now reached through the m
 
 **Icon:** `🎓`
 
-**Philosophy:** Guided training path with forgiving values. Players learn through 31 lessons in 8 hub-selectable tracks (Linux CLI, Windows GUI apps, Blackout incident) rather than broad random scenario pressure.
+**Philosophy:** Guided training path with forgiving values. Players learn through 47 lessons in 12 hub-selectable tracks (Linux CLI, Windows GUI apps, Blackout incident, and four advanced CLI tracks) rather than broad random scenario pressure.
 
 ### Configuration
 
@@ -142,7 +142,7 @@ These four modes remain defined and playable. They are now reached through the m
 
 - **Mentor mode enabled by default** through game state initialization
 - **CLI-only event selection** via the mode feature flag
-- **31 lessons across 8 tracks** (16 CLI, 10 Windows-GUI, 5 Blackout) shown through the learning hub
+- **47 lessons across 12 tracks** (32 CLI, 10 Windows-GUI, 5 Blackout) shown through the learning hub
 - **Fast stress recovery** to keep attention on practice rather than survival pressure
 
 ### Learning Objectives Covered
@@ -157,6 +157,19 @@ These four modes remain defined and playable. They are now reached through the m
 □ Social Engineering (Phishing, Pretexting)
 □ Physical Security (Clean Desk, Tailgating)
 ```
+
+### Hub Track Roster
+
+The learning hub serves tracks in `order` (see `client/src/content/events/learning-tracks.ts`). Foundations (order 0) is the gate; the finale (now order 11) unlocks after 3 tracks are completed. The four **advanced CLI tracks** (orders 7–10) were added on top of the original roster and run on the multi-host terminal engine (see `docs/specs/terminal-cli-specification.md` §11):
+
+| Order | Track | Title | Focus (one-liner) |
+|-------|-------|-------|-------------------|
+| 7 | `ssh_remote` | 🗝️ SSH & Remote-Zugriff | Schlüssel statt Passwörter: sichere Fernzugriffe über Zonen hinweg. |
+| 8 | `systemd_journal` | ⚙️ systemd & Journal | Dienste verstehen, Logs lesen, Ursachen statt Symptome. |
+| 9 | `net_forensics` | 🕸️ Netz-Forensik | Offene Ports, fremde Verbindungen, saubere Firewalls. |
+| 10 | `ansible_config` | 📜 Ansible & Konfigurationsmanagement | Eine Wahrheit für alle Hosts: Playbooks, Drift, Idempotenz. |
+
+Each advanced track ships 4 levels (16 total, in `client/src/content/events/learning-path-advanced.ts`); `learn_ssh_04_key_graveyard` and `learn_net_04_spider` are optional.
 
 ---
 

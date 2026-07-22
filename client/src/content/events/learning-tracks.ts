@@ -96,16 +96,130 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     ],
   },
   {
+    id: 'ssh_remote',
+    title: 'SSH & Remote-Zugriff',
+    description: 'Schlüssel statt Passwörter: sichere Fernzugriffe über Zonen hinweg.',
+    icon: '🗝️',
+    order: 7,
+    levels: [
+      { eventId: 'learn_ssh_01_first_key' },
+      { eventId: 'learn_ssh_02_open_door' },
+      { eventId: 'learn_ssh_03_jumphost' },
+      { eventId: 'learn_ssh_04_key_graveyard', optional: true },
+    ],
+  },
+  {
+    id: 'systemd_journal',
+    title: 'systemd & Journal',
+    description: 'Dienste verstehen, Logs lesen, Ursachen statt Symptome.',
+    icon: '⚙️',
+    order: 8,
+    levels: [
+      { eventId: 'learn_sysd_01_silent_service' },
+      { eventId: 'learn_sysd_02_time_travel' },
+      { eventId: 'learn_sysd_03_revenant' },
+      { eventId: 'learn_sysd_04_chain_reaction' },
+    ],
+  },
+  {
+    id: 'net_forensics',
+    title: 'Netz-Forensik',
+    description: 'Offene Ports, fremde Verbindungen, saubere Firewalls.',
+    icon: '🕸️',
+    order: 9,
+    levels: [
+      { eventId: 'learn_net_01_open_doors' },
+      { eventId: 'learn_net_02_backchannel' },
+      { eventId: 'learn_net_03_the_wall' },
+      { eventId: 'learn_net_04_spider', optional: true },
+    ],
+  },
+  {
+    id: 'ansible_config',
+    title: 'Ansible & Konfigurationsmanagement',
+    description: 'Eine Wahrheit für alle Hosts: Playbooks, Drift, Idempotenz.',
+    icon: '📜',
+    order: 10,
+    levels: [
+      { eventId: 'learn_ans_01_inventory' },
+      { eventId: 'learn_ans_02_drift' },
+      { eventId: 'learn_ans_03_broken_playbook' },
+      { eventId: 'learn_ans_04_fleet_hardening' },
+    ],
+  },
+  {
     id: 'finale',
     title: 'Finale: Root Awakening',
     description: 'Die Abschlussprüfung. Schalte 3 Tracks frei.',
     icon: '🎓',
-    order: 7,
+    order: 11,
     isFinale: true,
     unlockAfterTracksCompleted: 3,
     levels: [{ eventId: 'learn_11_final_boss' }],
   },
 ];
+
+export interface TrackPosition {
+  /** Human-readable track title, e.g. "SSH & Remote-Zugriff". */
+  trackTitle: string;
+  /** 1-based position among the track's CORE (non-optional) levels. */
+  indexInTrack: number;
+  /** Number of CORE (non-optional) levels in the track. */
+  coreCount: number;
+  /** True if this level is an optional (★) side level. */
+  isOptional: boolean;
+}
+
+/**
+ * Locate an event within the learning tracks and return its track-local
+ * position. Optional (★) levels don't consume a core index; `indexInTrack`
+ * counts only core levels. Returns null if the id isn't in any track.
+ */
+export function getTrackPosition(
+  eventId: string,
+  tracks: LearningTrack[] = LEARNING_TRACKS
+): TrackPosition | null {
+  for (const track of tracks) {
+    const coreLevels = track.levels.filter((l) => !l.optional);
+    const coreIndex = coreLevels.findIndex((l) => l.eventId === eventId);
+    if (coreIndex !== -1) {
+      return {
+        trackTitle: track.title,
+        indexInTrack: coreIndex + 1,
+        coreCount: coreLevels.length,
+        isOptional: false,
+      };
+    }
+    const optional = track.levels.find((l) => l.eventId === eventId && l.optional);
+    if (optional) {
+      return {
+        trackTitle: track.title,
+        indexInTrack: 0,
+        coreCount: coreLevels.length,
+        isOptional: true,
+      };
+    }
+  }
+  return null;
+}
+
+/**
+ * How many CORE levels of the track containing `eventId` are already in
+ * `completedEventIds`? Optional (★) levels neither count nor block. Null when
+ * the id is in no track. Drives the HUD progress bar: completion-based, so the
+ * result screen of a just-finished level (already pushed to completedEvents)
+ * shows the NEW percentage instead of lagging one level behind.
+ */
+export function countCompletedCoreLevels(
+  eventId: string,
+  completedEventIds: readonly string[],
+  tracks: LearningTrack[] = LEARNING_TRACKS
+): number | null {
+  const track = tracks.find((t) => t.levels.some((l) => l.eventId === eventId));
+  if (!track) return null;
+  const completed = new Set(completedEventIds);
+  return track.levels.filter((l) => !l.optional && completed.has(l.eventId)).length;
+}
 
 /** Last level id of the Foundations track — the gate all other tracks open after. */
 export function getFoundationsExitLevelId(tracks: LearningTrack[]): string {

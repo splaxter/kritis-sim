@@ -71,11 +71,30 @@ export interface CommandResult {
   error?: string;
   sideEffects?: CommandSideEffect[];
   clearScreen?: boolean;
+  /**
+   * Set when the command wants ANOTHER input line (password prompt etc.).
+   * The UI shows `prompt` (masking input if `mask`) and feeds the typed line
+   * to ShellEngine.continueInput instead of executing it.
+   */
+  pendingInput?: { prompt: string; mask: boolean };
 }
 
 export interface CommandSideEffect {
   type: 'skill_gain' | 'flag_set' | 'stress_change' | 'solution';
   payload: Record<string, unknown>;
+}
+
+// ============================================================================
+// Ansible run records (for ansibleRan stateGoals)
+// ============================================================================
+
+export type AnsibleRunMode = 'syntax-check' | 'check' | 'apply';
+
+/** One recorded ansible-playbook invocation; `playbook` is stored as basename. */
+export interface AnsibleRunRecord {
+  playbook: string;
+  mode: AnsibleRunMode;
+  ok: boolean;
 }
 
 export interface ExecutionContext {
@@ -95,8 +114,39 @@ export interface ExecutionContext {
   termCols?: number;
   /** Registry of all commands, so which/type/man/help can answer truthfully. */
   commands?: Map<string, ShellCommand>;
-  /** Re-enter the shell (used by sudo/source to run nested commands). */
-  execute?: (input: string) => CommandResult;
+  /**
+   * Re-enter the shell (used by sudo/source to run nested commands). The
+   * optional stdin lets a wrapper forward its own piped input so
+   * `echo x | sudo tee f` reaches the wrapped command.
+   */
+  execute?: (input: string, stdin?: string) => CommandResult;
+  /** Multi-host: state of the host this command runs on. */
+  host?: import('./hosts').HostState;
+  /** Resolve another registered host by id, hostname or IP. */
+  resolveHost?: (nameOrIp: string) => import('./hosts').HostState | undefined;
+  /**
+   * Open a session on another host (ssh) / leave it (exit). An optional auth
+   * `method` records the login (for loggedIn stateGoals) — pass it on ssh's
+   * success paths so a passwordless key login is distinguishable from a
+   * password login.
+   */
+  pushSession?: (hostId: string, user: string, method?: 'publickey' | 'password') => void;
+  popSession?: () => { closedHostname: string } | null;
+  sessionDepth?: number;
+  /**
+   * Record an ansible-playbook invocation (for ansibleRan stateGoals) — the
+   * command reports every run with its mode and exit status, like pushSession
+   * records ssh logins for loggedIn goals.
+   */
+  recordAnsibleRun?: (run: AnsibleRunRecord) => void;
+  /**
+   * Ask the player for one more input line. Returns the pendingInput result
+   * to hand back from execute(); `next` runs on the line typed. Chaining is
+   * allowed — `next` may call requestInput again. Requesting input aborts any
+   * remaining chain segments / pipeline stages of the current command line
+   * (deviation from bash, acceptable for the simulation).
+   */
+  requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => CommandResult;
 }
 
 export interface CompletionContext {
@@ -225,6 +275,8 @@ export interface VirtualFilesystemInterface {
   // Permissions
   checkPermission(path: string, action: 'read' | 'write' | 'execute'): boolean;
   chmod(path: string, mode: string): Result<void>;
+  /** Omitting owner (undefined) changes only the group. */
+  chown(path: string, owner: string | undefined, group?: string, recursive?: boolean): Result<void>;
 
   // Completion helpers
   getPathCompletions(partial: string): Completion[];
@@ -241,6 +293,12 @@ export interface ShellEngineInterface {
   // Execution
   execute(input: string): CommandResult;
   executeCommand(name: string, args: ParsedArgs, stdin?: string, isTty?: boolean): CommandResult;
+
+  // Interactive input continuations
+  continueInput(line: string): CommandResult;
+  hasPendingInput(): boolean;
+  getPendingPrompt(): { prompt: string; mask: boolean } | null;
+  cancelPendingInput(): void;
 
   // Completion
   complete(input: string, cursorPos: number): Completion[];

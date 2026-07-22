@@ -13,20 +13,34 @@ import {
   HistoryEntry,
   VirtualFilesystemInterface,
   CompletionContext,
+  AnsibleRunRecord,
+  AnsibleRunMode,
 } from './types';
+import { HostState, wrapVfsAsHost } from './hosts';
 
 export class ShellEngine implements ShellEngineInterface {
-  private vfs: VirtualFilesystemInterface;
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
   private state: ShellState;
   private termCols = 80;
+  private hosts = new Map<string, HostState>();
+  /** Bottom entry is the local session; ssh pushes, exit pops (never below 1). */
+  private sessionStack: { hostId: string; user: string }[] = [];
+  /** Successful SSH logins as `${hostId}::${method}`; survives session pop. */
+  private loginRecords = new Set<string>();
+  /** Every ansible-playbook invocation (playbook stored as basename). */
+  private ansibleRuns: AnsibleRunRecord[] = [];
+  /** Set while a command waits for another input line (password prompt etc.). */
+  private pendingContinuation: ((line: string) => CommandResult) | null = null;
+  private pendingPrompt: { prompt: string; mask: boolean } | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
   ) {
-    this.vfs = vfs;
+    const local = wrapVfsAsHost(vfs);
+    this.hosts.set(local.id, local);
+    this.sessionStack.push({ hostId: local.id, user: vfs.getUser() });
     this.state = {
       type: shellType,
       history: [],
@@ -86,7 +100,13 @@ export class ShellEngine implements ShellEngineInterface {
   // Execution
   // ============================================================================
 
-  execute(input: string): CommandResult {
+  execute(input: string, initialStdin?: string): CommandResult {
+    // While an input line is owed, refuse to run anything: re-show the prompt.
+    // Callers should route the line through continueInput instead.
+    if (this.pendingContinuation) {
+      return { output: '', exitCode: 1, pendingInput: { ...this.pendingPrompt! } };
+    }
+
     const trimmed = input.trim();
 
     if (!trimmed) {
@@ -95,16 +115,21 @@ export class ShellEngine implements ShellEngineInterface {
 
     // Command chaining (;, &&, ||) has the lowest precedence, so split it first.
     // A single segment with no operators falls through to executePipeline.
-    return this.executeChain(trimmed);
+    // initialStdin lets a wrapper (sudo) forward its own piped stdin so
+    // `echo x | sudo tee f` reaches tee — the first stage would otherwise get
+    // no stdin.
+    return this.executeChain(trimmed, initialStdin);
   }
 
-  private executeChain(input: string): CommandResult {
+  private executeChain(input: string, initialStdin?: string): CommandResult {
     // Split into segments, recording the operator that PRECEDES each segment.
     const segments = this.splitChain(input);
 
     let lastResult: CommandResult = { output: '', exitCode: 0 };
     const outputs: string[] = [];
     let executedAny = false;
+    // Forwarded stdin (from a sudo wrapper) feeds only the FIRST segment.
+    let pendingInitialStdin = initialStdin;
 
     for (const { cmd, operator } of segments) {
       // Short-circuit based on the operator before this segment.
@@ -115,13 +140,19 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
-      lastResult = this.executePipeline(cmd);
+      lastResult = this.executePipeline(cmd, pendingInitialStdin);
+      pendingInitialStdin = undefined;
       executedAny = true;
       if (lastResult.output) {
         outputs.push(lastResult.output);
       }
       if (lastResult.error) {
         outputs.push(lastResult.error);
+      }
+      // A command awaiting input aborts the remaining chain segments —
+      // deviation from bash, but keeps hasPendingInput() ⟺ result.pendingInput.
+      if (lastResult.pendingInput) {
+        break;
       }
     }
 
@@ -134,10 +165,11 @@ export class ShellEngine implements ShellEngineInterface {
     return {
       output: outputs.join('\n'),
       exitCode: lastResult.exitCode,
+      ...(lastResult.pendingInput ? { pendingInput: lastResult.pendingInput } : {}),
     };
   }
 
-  private executePipeline(input: string): CommandResult {
+  private executePipeline(input: string, initialStdin?: string): CommandResult {
     const stages = this.splitPipes(input);
 
     // Real pipelines run EVERY stage, even when an earlier one fails:
@@ -146,7 +178,7 @@ export class ShellEngine implements ShellEngineInterface {
     // The pipeline's exit code is the LAST stage's (bash without pipefail).
     // The first stage has NO stdin (undefined); later stages always have one,
     // even if it's empty — that difference matters to grep/wc/cat.
-    let stdin: string | undefined = undefined;
+    let stdin: string | undefined = initialStdin;
     let result: CommandResult = { output: '', exitCode: 0 };
     const errors: string[] = [];
 
@@ -155,6 +187,14 @@ export class ShellEngine implements ShellEngineInterface {
       result = this.executeStage(stages[i], stdin, isLast);
       if (result.error) {
         errors.push(result.error);
+      }
+      // A stage awaiting input aborts the pipeline: later stages never run.
+      if (result.pendingInput) {
+        this.state.exitCode = result.exitCode;
+        return {
+          ...result,
+          error: errors.length > 0 ? errors.join('\n') : undefined,
+        };
       }
       stdin = result.output;
     }
@@ -172,6 +212,9 @@ export class ShellEngine implements ShellEngineInterface {
    * the previous pipeline stage (overridden by an explicit `< file`).
    */
   private executeStage(input: string, pipedStdin: string | undefined, isLastStage = true): CommandResult {
+    // Captured once: redirects apply on the host the stage STARTED on, even
+    // when the command itself pops the session (e.g. `exit > file`).
+    const vfs = this.getVfs();
     const expanded = this.expandAliases(input);
     const withEnv = this.expandEnvVars(expanded);
     const { command: cmdString, redirects } = this.parseRedirection(withEnv);
@@ -184,7 +227,7 @@ export class ShellEngine implements ShellEngineInterface {
       // Strip one layer of quotes, like the shell would.
       const value = rawValue.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
       this.state.env[name] = value;
-      this.vfs.setEnv(name, value);
+      vfs.setEnv(name, value);
       return { output: '', exitCode: 0 };
     }
 
@@ -193,8 +236,8 @@ export class ShellEngine implements ShellEngineInterface {
     // Input redirection: `< file` feeds the file as stdin.
     const inRedirect = redirects.find(r => r.type === '<');
     if (inRedirect) {
-      const path = this.vfs.resolvePath(inRedirect.file);
-      const read = this.vfs.readFile(path);
+      const path = vfs.resolvePath(inRedirect.file);
+      const read = vfs.readFile(path);
       if (!read.ok) {
         return { output: '', exitCode: 1, error: `bash: ${inRedirect.file}: ${read.error}` };
       }
@@ -216,10 +259,10 @@ export class ShellEngine implements ShellEngineInterface {
         const rd = outRedirects[i];
         const isLast = i === outRedirects.length - 1;
         const content = isLast ? this.ensureTrailingNewline(result.output) : '';
-        const path = this.vfs.resolvePath(rd.file);
+        const path = vfs.resolvePath(rd.file);
         const write = rd.type === '>>'
-          ? this.vfs.appendFile(path, content)
-          : this.vfs.writeFile(path, content);
+          ? vfs.appendFile(path, content)
+          : vfs.writeFile(path, content);
         if (!write.ok) {
           return { output: '', exitCode: 1, error: `bash: ${rd.file}: ${write.error}` };
         }
@@ -253,17 +296,33 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: this.formatHelp(command), exitCode: 0 };
     }
 
+    const vfs = this.getVfs();
     const ctx: ExecutionContext = {
-      vfs: this.vfs,
+      vfs,
       env: { ...this.state.env },
       stdin,
       shell: this.state,
-      cwd: this.vfs.getCurrentPath(),
-      user: this.vfs.getUser(),
+      cwd: vfs.getCurrentPath(),
+      user: vfs.getUser(),
       isTty,
       termCols: this.termCols,
       commands: this.commands,
-      execute: (input: string) => this.execute(input),
+      execute: (input: string, nestedStdin?: string) => this.execute(input, nestedStdin),
+      host: this.getCurrentHost(),
+      resolveHost: (nameOrIp: string) => this.resolveHost(nameOrIp),
+      pushSession: (hostId: string, user: string, method?: 'publickey' | 'password') =>
+        this.pushSession(hostId, user, method),
+      popSession: () => {
+        const closing = this.getCurrentHost();
+        return this.popSession() ? { closedHostname: closing.hostname } : null;
+      },
+      sessionDepth: this.sessionStack.length,
+      recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
+      requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
+        this.pendingContinuation = next;
+        this.pendingPrompt = { prompt, mask };
+        return { output: '', exitCode: 0, pendingInput: { prompt, mask } };
+      },
     };
 
     try {
@@ -271,12 +330,61 @@ export class ShellEngine implements ShellEngineInterface {
       this.state.exitCode = result.exitCode;
       return result;
     } catch (error) {
+      // The command may have armed a continuation before throwing — drop it.
+      this.cancelPendingInput();
+      this.state.exitCode = 1;
       return {
         output: '',
         exitCode: 1,
         error: `${name}: ${error instanceof Error ? error.message : 'Unknown error'}`,
       };
     }
+  }
+
+  // ============================================================================
+  // Interactive input continuations
+  // ============================================================================
+
+  /**
+   * Feed the pending continuation the line the player typed. Cleared BEFORE
+   * the run so a continuation that calls ctx.requestInput again (chaining)
+   * lands its new continuation cleanly.
+   */
+  continueInput(line: string): CommandResult {
+    const next = this.pendingContinuation;
+    this.pendingContinuation = null;
+    this.pendingPrompt = null;
+    if (!next) {
+      return { output: '', exitCode: 1, error: 'shell: no pending input' };
+    }
+    try {
+      const result = next(line);
+      this.state.exitCode = result.exitCode;
+      return result;
+    } catch (error) {
+      // A throwing continuation must not wedge the engine — even one that
+      // re-armed a new continuation before throwing.
+      this.cancelPendingInput();
+      this.state.exitCode = 1;
+      return {
+        output: '',
+        exitCode: 1,
+        error: `shell: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      };
+    }
+  }
+
+  hasPendingInput(): boolean {
+    return this.pendingContinuation !== null;
+  }
+
+  getPendingPrompt(): { prompt: string; mask: boolean } | null {
+    return this.pendingPrompt ? { ...this.pendingPrompt } : null;
+  }
+
+  cancelPendingInput(): void {
+    this.pendingContinuation = null;
+    this.pendingPrompt = null;
   }
 
   // ============================================================================
@@ -718,7 +826,7 @@ export class ShellEngine implements ShellEngineInterface {
 
   /** Expand a glob pattern to matching paths, preserving the directory prefix. */
   private expandGlob(token: string): string[] {
-    const matches = this.vfs.glob(token);
+    const matches = this.getVfs().glob(token);
     // VFS.glob returns the original pattern unchanged when nothing matches;
     // in that case bash leaves the literal pattern in place.
     if (matches.length === 1 && matches[0] === token) {
@@ -728,7 +836,7 @@ export class ShellEngine implements ShellEngineInterface {
     // so `*.txt` expands to bare names and `logs/*.log` keeps the `logs/` part.
     const slash = token.lastIndexOf('/');
     const prefix = slash >= 0 ? token.slice(0, slash + 1) : '';
-    return matches.map(m => prefix + this.vfs.basename(m)).sort();
+    return matches.map(m => prefix + this.getVfs().basename(m)).sort();
   }
 
   private expandAliases(input: string): string {
@@ -777,7 +885,7 @@ export class ShellEngine implements ShellEngineInterface {
         const plain = input.slice(i + 1).match(/^(\w+)/);
         const name = braced?.[1] ?? plain?.[1];
         if (name) {
-          result += this.vfs.getEnv(name) || this.state.env[name] || '';
+          result += this.getVfs().getEnv(name) || this.state.env[name] || '';
           i += (braced ? braced[0].length : plain![0].length);
           continue;
         }
@@ -808,7 +916,7 @@ export class ShellEngine implements ShellEngineInterface {
     const command = this.commands.get(this.resolveName(commandName));
 
     const ctx: CompletionContext = {
-      vfs: this.vfs,
+      vfs: this.getVfs(),
       input,
       cursorPos,
       args: tokens.slice(1),
@@ -830,7 +938,7 @@ export class ShellEngine implements ShellEngineInterface {
     }
 
     // Default to path completion
-    return this.vfs.getPathCompletions(currentArg);
+    return this.getVfs().getPathCompletions(currentArg);
   }
 
   private getCommandCompletions(prefix: string): Completion[] {
@@ -1038,7 +1146,126 @@ export class ShellEngine implements ShellEngineInterface {
   }
 
   getVfs(): VirtualFilesystemInterface {
-    return this.vfs;
+    return this.getCurrentHost().vfs;
+  }
+
+  // ============================================================================
+  // Hosts & sessions
+  // ============================================================================
+
+  registerHost(host: HostState): void {
+    if (this.hosts.has(host.id)) {
+      throw new Error(`registerHost: duplicate host id '${host.id}'`);
+    }
+    this.hosts.set(host.id, host);
+  }
+
+  getHost(id: string): HostState | undefined {
+    return this.hosts.get(id);
+  }
+
+  getBaseHost(): HostState {
+    return this.hosts.get(this.sessionStack[0].hostId)!;
+  }
+
+  getCurrentHost(): HostState {
+    return this.hosts.get(this.sessionStack[this.sessionStack.length - 1].hostId)!;
+  }
+
+  /** Match a host by id, full hostname, short hostname (before first '.'), or IP. */
+  resolveHost(nameOrIp: string): HostState | undefined {
+    const byId = this.hosts.get(nameOrIp);
+    if (byId) return byId;
+    for (const host of this.hosts.values()) {
+      if (host.hostname === nameOrIp) return host;
+      if (host.hostname.split('.')[0] === nameOrIp) return host;
+      if (host.ip === nameOrIp) return host;
+    }
+    return undefined;
+  }
+
+  pushSession(hostId: string, user: string, method?: 'publickey' | 'password'): void {
+    const host = this.hosts.get(hostId);
+    if (!host) {
+      throw new Error(`pushSession: unknown host '${hostId}'`);
+    }
+    // An SSH login opens a session AND is recorded (with its auth method) so a
+    // loggedIn stateGoal can assert the player actually logged in.
+    if (method) this.recordLogin(hostId, method);
+    host.vfs.setUser(user);
+    this.sessionStack.push({ hostId, user });
+  }
+
+  /** Record a successful SSH login; persists across session pop (`exit`). */
+  recordLogin(hostId: string, method: 'publickey' | 'password'): void {
+    this.loginRecords.add(`${hostId}::${method}`);
+  }
+
+  /**
+   * Has the player logged into `hostId` (any host when omitted) via `method`
+   * (any method when omitted)? Used by the loggedIn stateGoal evaluator.
+   */
+  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password'): boolean {
+    for (const rec of this.loginRecords) {
+      const sep = rec.lastIndexOf('::');
+      const h = rec.slice(0, sep);
+      const m = rec.slice(sep + 2);
+      if (hostId !== undefined && h !== hostId) continue;
+      if (method !== undefined && m !== method) continue;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Record an ansible-playbook invocation. The playbook is normalized to its
+   * BASENAME (authors assert 'harden-fleet.yml', the player may type any
+   * path). Like loginRecords, the list survives for the whole session.
+   */
+  recordAnsibleRun(run: AnsibleRunRecord): void {
+    const basename = run.playbook.split('/').pop() ?? run.playbook;
+    this.ansibleRuns.push({ ...run, playbook: basename });
+  }
+
+  /**
+   * Has a recorded ansible-playbook run matching ALL provided fields? The
+   * playbook query is basename-matched; omitted fields match anything. Used
+   * by the ansibleRan stateGoal evaluator.
+   */
+  hasAnsibleRun(query: { playbook?: string; mode?: AnsibleRunMode; ok?: boolean }): boolean {
+    const wantedPlaybook = query.playbook?.split('/').pop();
+    return this.ansibleRuns.some(run =>
+      (wantedPlaybook === undefined || run.playbook === wantedPlaybook)
+      && (query.mode === undefined || run.mode === query.mode)
+      && (query.ok === undefined || run.ok === query.ok)
+    );
+  }
+
+  /** Returns false at depth 1 — the base session is never popped. */
+  popSession(): boolean {
+    if (this.sessionStack.length <= 1) return false;
+    this.sessionStack.pop();
+    // Restore the resumed session's user — the closed session may have logged
+    // into the same host as a different user.
+    const top = this.sessionStack[this.sessionStack.length - 1];
+    this.hosts.get(top.hostId)!.vfs.setUser(top.user);
+    return true;
+  }
+
+  getSessionDepth(): number {
+    return this.sessionStack.length;
+  }
+
+  getPromptInfo(): { hostname: string; username: string; path: string; home: string } {
+    const top = this.sessionStack[this.sessionStack.length - 1];
+    const host = this.getCurrentHost();
+    const vfs = host.vfs;
+    return {
+      hostname: host.hostname,
+      username: top.user,
+      path: vfs.getCurrentPath(),
+      home: vfs.getEnv('HOME') ?? vfs.getEnv('USERPROFILE') ?? '',
+    };
   }
 
   setTermCols(cols: number): void {
@@ -1051,7 +1278,7 @@ export class ShellEngine implements ShellEngineInterface {
 
   setEnv(key: string, value: string): void {
     this.state.env[key] = value;
-    this.vfs.setEnv(key, value);
+    this.getVfs().setEnv(key, value);
   }
 
   setAlias(name: string, value: string): void {

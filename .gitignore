@@ -10,3 +10,6 @@ test-results/
 test_screenshots/
 test_game.py
 .worktrees/
+
+# Runtime play-tracking log (NDJSON), written by the prod server
+server/data/

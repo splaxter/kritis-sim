@@ -4,6 +4,8 @@
  */
 
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion } from '../../types';
+import { DEFAULT_UNITS, SystemdUnitState, canonicalUnitName, derivedUnitPid, formatJournalTs } from '../../hosts';
+import { applyUnitState } from '../../unitControl';
 
 export const whoamiCommand: ShellCommand = {
   name: 'whoami',
@@ -382,7 +384,7 @@ export const killCommand: ShellCommand = {
     { short: 'l', description: 'List signal names' },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.flags['l']) {
       return {
         output: ' 1) SIGHUP       2) SIGINT       3) SIGQUIT      4) SIGILL\n 5) SIGTRAP      6) SIGABRT      7) SIGBUS       8) SIGFPE\n 9) SIGKILL     10) SIGUSR1     11) SIGSEGV     12) SIGUSR2\n13) SIGPIPE     14) SIGALRM     15) SIGTERM     16) SIGSTKFLT',
@@ -394,10 +396,19 @@ export const killCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'kill: usage: kill [-s sigspec | -n signum | -sigspec] pid | jobspec ... or kill -l [sigspec]' };
     }
 
-    const signal = args.flags['9'] ? 'SIGKILL' : 'SIGTERM';
-    const pids = args.positional;
+    // Killing a pid drops any listener/connection it owns from the host's
+    // socket table, so "kill the rogue listener" really closes the port.
+    const host = ctx.host;
+    if (host) {
+      for (const raw of args.positional) {
+        const pid = parseInt(raw, 10);
+        if (!Number.isFinite(pid)) continue;
+        host.listeners = host.listeners.filter(l => l.pid !== pid);
+        host.connections = host.connections.filter(c => c.pid !== pid);
+      }
+    }
 
-    // Simulate kill (always succeeds in our simulation)
+    // Simulate kill (always succeeds in our simulation).
     return {
       output: '',
       exitCode: 0,
@@ -454,33 +465,77 @@ export const exportCommand: ShellCommand = {
   },
 };
 
-// A curated set of systemd units, kept consistent with the `ps` process list
-// (sshd, apache2, mysqld) so the two commands tell the same story.
-interface SystemdUnit {
-  unit: string;
-  active: 'active' | 'inactive' | 'failed';
-  sub: 'running' | 'exited' | 'dead' | 'failed';
-  enabled: 'enabled' | 'disabled' | 'static';
-  pid?: number;
-  exec?: string;
-  desc: string;
-}
+// File-backed crontab: the spool file IS the state, editable with cat/tee/sed.
+const cronSpool = (user: string): string => `/var/spool/cron/crontabs/${user}`;
 
-const SYSTEMD_UNITS: SystemdUnit[] = [
-  { unit: 'ssh.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 456, exec: '/usr/sbin/sshd -D', desc: 'OpenBSD Secure Shell server' },
-  { unit: 'apache2.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 1234, exec: '/usr/sbin/apache2 -k start', desc: 'The Apache HTTP Server' },
-  { unit: 'mysql.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 2345, exec: '/usr/sbin/mysqld', desc: 'MySQL Community Server' },
-  { unit: 'cron.service', active: 'active', sub: 'running', enabled: 'enabled', pid: 512, exec: '/usr/sbin/cron -f', desc: 'Regular background program processing daemon' },
-  { unit: 'systemd-journald.service', active: 'active', sub: 'running', enabled: 'static', pid: 210, exec: '/lib/systemd/systemd-journald', desc: 'Journal Service' },
-  { unit: 'networking.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Raise network interfaces' },
-  { unit: 'ufw.service', active: 'active', sub: 'exited', enabled: 'enabled', desc: 'Uncomplicated firewall' },
-];
+export const crontabCommand: ShellCommand = {
+  name: 'crontab',
+  description: 'Maintain crontab files for individual users',
+  usage: 'crontab [-u user] { -l | -e | file }',
+  options: [
+    { short: 'u', description: 'Target user (root only)', takesValue: true },
+    { short: 'l', description: 'List the crontab' },
+    { short: 'e', description: 'Edit the crontab' },
+  ],
 
-const findUnit = (name: string): SystemdUnit | undefined => {
-  // Accept both `ssh` and `ssh.service`.
-  const full = name.includes('.') ? name : `${name}.service`;
-  return SYSTEMD_UNITS.find(u => u.unit === full);
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    let user = ctx.user;
+    if (args.options['u'] !== undefined) {
+      if (ctx.user !== 'root') {
+        return { output: '', exitCode: 1, error: 'must be privileged to use -u' };
+      }
+      user = args.options['u'];
+    }
+    const spool = cronSpool(user);
+
+    if (args.flags['l']) {
+      const read = ctx.vfs.readFile(spool);
+      if (!read.ok) {
+        return { output: '', exitCode: 1, error: `no crontab for ${user}` };
+      }
+      return { output: read.value.replace(/\n$/, ''), exitCode: 0 };
+    }
+
+    if (args.flags['e']) {
+      return {
+        output: `crontab -e ist in dieser Simulation nicht verfügbar. Bearbeite die Datei direkt, z.B. mit: cat/tee/sed auf ${spool}`,
+        exitCode: 0,
+      };
+    }
+
+    const file = args.positional[0];
+    if (!file) {
+      return { output: '', exitCode: 1, error: 'usage: crontab [-u user] file\n       crontab [-u user] { -e | -l }' };
+    }
+    const read = ctx.vfs.readFile(file);
+    if (!read.ok) {
+      return { output: '', exitCode: 1, error: `crontab: ${file}: No such file or directory` };
+    }
+    if (!ctx.vfs.isDirectory('/var/spool/cron/crontabs')) {
+      ctx.vfs.mkdir('/var/spool/cron/crontabs', true);
+    }
+    const write = ctx.vfs.writeFile(spool, read.value);
+    if (!write.ok) {
+      return { output: '', exitCode: 1, error: `crontab: ${write.error}` };
+    }
+    // Spool files are private — makes the root gate on -u real.
+    ctx.vfs.chmod(spool, '600');
+    return { output: '', exitCode: 0 };
+  },
 };
+
+// systemctl operates on the mutable per-host unit table (ctx.host.services).
+// The hostless fallback only exists so a stray call without a host can't crash.
+const findUnit = (services: SystemdUnitState[], name: string): SystemdUnitState | undefined => {
+  // Accepts `ssh`, `ssh.service` and aliases like `sshd`.
+  return services.find(u => u.unit === canonicalUnitName(name));
+};
+
+// Real systemctl's answer for enable/disable on a static unit.
+const STATIC_UNIT_MESSAGE =
+  'The unit files have no installation config (WantedBy=, RequiredBy=, Also=,\n' +
+  'Alias= settings in the [Install] section, and DefaultInstance for template\n' +
+  'units). This means they are not meant to be enabled or disabled using systemctl.';
 
 export const systemctlCommand: ShellCommand = {
   name: 'systemctl',
@@ -494,28 +549,33 @@ export const systemctlCommand: ShellCommand = {
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const [subcommand, ...units] = args.positional;
+    // Base host always exists; the fallback keeps a hostless call from crashing.
+    const host = ctx.host;
+    const services = host ? host.services : DEFAULT_UNITS.map(u => ({ ...u }));
 
     // Default (no args) or list-units → the unit table.
     if (!subcommand || subcommand === 'list-units' || subcommand === 'list-unit-files') {
-      const rows = SYSTEMD_UNITS.map(u =>
+      const rows = services.map(u =>
         `  ${u.unit.padEnd(28)} loaded ${u.active.padEnd(8)} ${u.sub.padEnd(8)} ${u.desc}`
       );
       const header = 'UNIT                          LOAD   ACTIVE   SUB      DESCRIPTION';
-      const footer = `\n${SYSTEMD_UNITS.length} loaded units listed.`;
+      const footer = `\n${services.length} loaded units listed.`;
       return { output: [header, ...rows].join('\n') + footer, exitCode: 0 };
     }
 
     const unitName = units[0];
+    const fullName = canonicalUnitName(unitName || '');
 
     if (subcommand === 'status') {
-      const unit = findUnit(unitName || '');
+      const unit = findUnit(services, unitName || '');
       if (!unit) {
-        return { output: `Unit ${unitName}.service could not be found.`, exitCode: 4 };
+        return { output: `Unit ${fullName} could not be found.`, exitCode: 4 };
       }
       const dot = unit.active === 'active' ? '\x1b[32m●\x1b[0m' : unit.active === 'failed' ? '\x1b[31m●\x1b[0m' : '○';
+      const unitFilePath = unit.unitFile ?? `/lib/systemd/system/${unit.unit}`;
       const lines = [
         `${dot} ${unit.unit} - ${unit.desc}`,
-        `     Loaded: loaded (/lib/systemd/system/${unit.unit}; ${unit.enabled}; vendor preset: enabled)`,
+        `     Loaded: loaded (${unitFilePath}; ${unit.enabled}; vendor preset: enabled)`,
         `     Active: ${unit.active} (${unit.sub}) since Mon 2026-07-09 09:00:01 UTC; 2h 15min ago`,
       ];
       if (unit.pid) {
@@ -525,17 +585,32 @@ export const systemctlCommand: ShellCommand = {
         lines.push(`     CGroup: /system.slice/${unit.unit}`);
         lines.push(`             └─${unit.pid} ${unit.exec}`);
       }
+      if (host) {
+        // Like real systemctl: the most recent journal lines for this unit.
+        // Canonical comparison reaches entries authored under an alias (sshd).
+        const hostShort = host.hostname.split('.')[0];
+        const recent = host.journal
+          .filter(e => canonicalUnitName(e.unit) === unit.unit)
+          .slice(-3);
+        if (recent.length > 0) {
+          lines.push('');
+          for (const e of recent) {
+            // Same fallback as journalctl so both render one consistent pid.
+            lines.push(`${formatJournalTs(e.ts)} ${hostShort} ${e.unit}[${unit.pid ?? derivedUnitPid(unit.unit)}]: ${e.message}`);
+          }
+        }
+      }
       return { output: lines.join('\n'), exitCode: unit.active === 'active' ? 0 : 3 };
     }
 
     if (subcommand === 'is-active') {
-      const unit = findUnit(unitName || '');
+      const unit = findUnit(services, unitName || '');
       return { output: unit ? unit.active : 'inactive', exitCode: unit && unit.active === 'active' ? 0 : 3 };
     }
 
     if (subcommand === 'is-enabled') {
-      const unit = findUnit(unitName || '');
-      if (!unit) return { output: '', exitCode: 1, error: `Failed to get unit file state for ${unitName}.service: No such file or directory` };
+      const unit = findUnit(services, unitName || '');
+      if (!unit) return { output: '', exitCode: 1, error: `Failed to get unit file state for ${fullName}: No such file or directory` };
       return { output: unit.enabled, exitCode: unit.enabled === 'disabled' ? 1 : 0 };
     }
 
@@ -544,34 +619,85 @@ export const systemctlCommand: ShellCommand = {
       if (!unitName) {
         return { output: '', exitCode: 1, error: `Too few arguments.` };
       }
-      if (!findUnit(unitName)) {
-        return { output: '', exitCode: 5, error: `Failed to ${subcommand} ${unitName}.service: Unit ${unitName}.service not found.` };
+      const unit = findUnit(services, unitName);
+      if (!unit) {
+        return { output: '', exitCode: 5, error: `Failed to ${subcommand} ${fullName}: Unit ${fullName} not found.` };
       }
       if (ctx.user !== 'root') {
         return {
           output: '',
           exitCode: 1,
-          error: `Failed to ${subcommand} ${unitName}.service: Access denied\nSee system logs and 'systemctl status ${unitName}.service' for details.\n(Hinweis: mit 'sudo' erneut versuchen.)`,
+          error: `Failed to ${subcommand} ${fullName}: Access denied\nSee system logs and 'systemctl status ${fullName}' for details.\n(Hinweis: mit 'sudo' erneut versuchen.)`,
         };
       }
-      // As root the action "succeeds" silently, like real systemctl.
+      if (!host) {
+        return { output: '', exitCode: 0 };
+      }
+
+      if (subcommand === 'start' || subcommand === 'restart') {
+        const out = applyUnitState(host, unitName, subcommand === 'start' ? 'started' : 'restarted');
+        if (!out.ok) {
+          return {
+            output: '',
+            exitCode: 1,
+            error: `Job for ${unit.unit} failed because the control process exited with error code.\nSee "systemctl status ${unit.unit}" and "journalctl -xeu ${unit.unit}" for details.`,
+          };
+        }
+        return { output: '', exitCode: 0 };
+      }
+      if (subcommand === 'stop') {
+        applyUnitState(host, unitName, 'stopped');
+        return { output: '', exitCode: 0 };
+      }
+      if (subcommand === 'enable' || subcommand === 'disable') {
+        if (unit.enabled === 'static') {
+          return { output: STATIC_UNIT_MESSAGE, exitCode: 0 };
+        }
+        if (subcommand === 'enable') {
+          unit.enabled = 'enabled';
+          return {
+            output: `Created symlink /etc/systemd/system/multi-user.target.wants/${unit.unit} → ${unit.unitFile ?? `/lib/systemd/system/${unit.unit}`}.`,
+            exitCode: 0,
+          };
+        }
+        unit.enabled = 'disabled';
+        return {
+          output: `Removed /etc/systemd/system/multi-user.target.wants/${unit.unit}.`,
+          exitCode: 0,
+        };
+      }
+      if (subcommand === 'reload' && unit.unit === 'ssh.service') {
+        // Reload re-reads the config, like restart does.
+        host.refreshSshdEffective();
+      }
+      // reload/mask/unmask "succeed" silently, like real systemctl.
       return { output: '', exitCode: 0 };
     }
 
     if (subcommand === 'daemon-reload') {
-      return ctx.user === 'root'
-        ? { output: '', exitCode: 0 }
-        : { output: '', exitCode: 1, error: 'Failed to reload daemon: Access denied' };
+      if (ctx.user !== 'root') {
+        return { output: '', exitCode: 1, error: 'Failed to reload daemon: Access denied' };
+      }
+      if (host) {
+        for (const unit of host.services) {
+          if (unit.unitFile) {
+            const read = host.vfs.readFile(unit.unitFile);
+            unit.loadedUnitContent = read.ok ? read.value : '';
+          }
+        }
+      }
+      return { output: '', exitCode: 0 };
     }
 
     return { output: '', exitCode: 1, error: `Unknown command verb ${subcommand}.` };
   },
 
   getCompletions(partial: string): Completion[] {
-    const verbs = ['status', 'start', 'stop', 'restart', 'enable', 'disable', 'is-active', 'is-enabled', 'list-units'];
+    // CompletionContext carries no host — complete from the default unit set.
+    const verbs = ['status', 'start', 'stop', 'restart', 'enable', 'disable', 'is-active', 'is-enabled', 'list-units', 'daemon-reload'];
     return [
       ...verbs.filter(v => v.startsWith(partial)).map(v => ({ value: v, display: v, type: 'argument' as const })),
-      ...SYSTEMD_UNITS.filter(u => u.unit.startsWith(partial)).map(u => ({ value: u.unit, display: u.unit, type: 'argument' as const })),
+      ...DEFAULT_UNITS.filter(u => u.unit.startsWith(partial)).map(u => ({ value: u.unit, display: u.unit, type: 'argument' as const })),
     ];
   },
 };
@@ -590,5 +716,6 @@ export const systemCommands: ShellCommand[] = [
   killCommand,
   envCommand,
   exportCommand,
+  crontabCommand,
   systemctlCommand,
 ];

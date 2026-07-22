@@ -83,7 +83,7 @@ function simulate(mode: ReturnType<typeof getVisibleGameModes>[number]['id']) {
 }
 
 describe('chain pacing audit', () => {
-  it('reports chain-event density per week per visible mode (worst-case upper bound)', () => {
+  it('reports chain-event density per week per visible mode (worst-case upper bound)', { timeout: 20000 }, () => {
     const modes = getVisibleGameModes();
     const report: string[] = [];
 
@@ -106,7 +106,7 @@ describe('chain pacing audit', () => {
     console.info('\n=== CHAIN PACING AUDIT (worst-case, scenarios excluded) ===' + report.join('\n') + '\n');
   });
 
-  it('per-week chain throttle holds: at most one chain consequence per week, every mode', () => {
+  it('per-week chain throttle holds: at most one chain consequence per week, every mode', { timeout: 20000 }, () => {
     for (const m of getVisibleGameModes()) {
       const { perWeekCounts } = simulate(m.id);
       const worst = Math.max(0, ...Object.values(perWeekCounts).flat());

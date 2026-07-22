@@ -8,18 +8,26 @@ import { navigationCommands } from './navigation';
 import { fileOpsCommands } from './fileops';
 import { textProcCommands } from './textproc';
 import { systemCommands } from './system';
+import { journalCommands } from './journal';
 import { networkCommands } from './network';
 import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
+import { remoteCommands } from './remote';
+import { firewallCommands } from './firewallCmd';
+import { ansibleCommands } from './ansible';
 
 export const allLinuxCommands: ShellCommand[] = [
   ...navigationCommands,
   ...fileOpsCommands,
   ...textProcCommands,
   ...systemCommands,
+  ...journalCommands,
   ...networkCommands,
   ...builtinCommands,
   ...extendedCommands,
+  ...remoteCommands,
+  ...firewallCommands,
+  ...ansibleCommands,
 ];
 
 export {
@@ -27,7 +35,11 @@ export {
   fileOpsCommands,
   textProcCommands,
   systemCommands,
+  journalCommands,
   networkCommands,
   builtinCommands,
   extendedCommands,
+  remoteCommands,
+  firewallCommands,
+  ansibleCommands,
 };
