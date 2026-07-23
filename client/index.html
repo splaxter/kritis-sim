@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Keep the whole app (and the Impressum data in its bundle) out of
+         search-engine indexes. Belt-and-suspenders with public/robots.txt and
+         the X-Robots-Tag header set by the production server. -->
+    <meta name="robots" content="noindex, nofollow" />
     <title>KRITIS Admin Simulator</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
