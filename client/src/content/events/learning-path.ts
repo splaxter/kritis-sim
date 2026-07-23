@@ -947,7 +947,7 @@ malware:x:0:0:System Service:/tmp:/bin/bash
 
 Der Server glüht! Die Lüfter drehen durch!
 
-Irgendein Prozess frisst 99% CPU. Das riecht nach Cryptominer.
+Ein unbekannter Prozess treibt die CPU auf 99 %. Finde heraus, was dahintersteckt, bevor du ihn beendest.
 
 Zeit für eine Zombie-Jagd.
 
@@ -977,7 +977,7 @@ Zeit für eine Zombie-Jagd.
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Cryptominer eliminiert! Der Angreifer hat Bitcoin auf deinem Server geschürft.
+Der verdächtige Miner-Prozess ist beendet. Er lief unter dem Backdoor-Account "malware" und trieb die CPU auf 99 %.
 
 Jetzt müssen wir die Dienste kontrollieren...`,
         terminalCommand: true,
@@ -1001,7 +1001,8 @@ mysql      890  1.2  4.0 567890 45678 ?    Sl   08:00   0:45 /usr/sbin/mysqld
 malware   6666 99.0  8.0 999999 88888 ?    R    02:48  47:23 /tmp/.hidden/miner.sh
 root      7890  0.0  0.1  12345  2345 pts/0 R+   10:00   0:00 ps aux
 
-# PID 6666 mit 99% CPU?! Das ist der Cryptominer!`,
+# PID 6666 läuft unter "malware" aus /tmp/.hidden/miner.sh.
+# Das sieht nach einem Cryptominer aus.`,
           teachesCommand: 'ps',
           skillGain: { linux: 3 },
         },
