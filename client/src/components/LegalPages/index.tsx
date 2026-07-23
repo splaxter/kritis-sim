@@ -2,21 +2,19 @@
 import { useState } from 'react';
 
 // ═════════════════════════════════════════════════════════════════════
-// ⚠️  BETREIBER-DATEN — VOR PRODUKTIV-DEPLOYMENT AUSFÜLLEN!  ⚠️
-// Pflichtangaben nach § 5 TMG (Impressum) und Art. 13 DSGVO
-// (Verantwortliche Stelle). Solange hier TODO-Platzhalter stehen, ist
-// die Seite NICHT rechtskonform. Der Guard-Test in LegalPages.test.tsx
-// ist deshalb als `it.fails` markiert — nach dem Eintragen echter Daten
-// dort `it.fails` → `it` umstellen, damit er dauerhaft wacht.
+// BETREIBER-DATEN — Pflichtangaben nach § 5 TMG (Impressum) und Art. 13
+// DSGVO (Verantwortliche Stelle). Echte Daten eingetragen; der Guard-Test
+// in LegalPages.browser.test.tsx läuft dauerhaft (`it`) und bricht den
+// Build, falls je wieder ein TODO/XXX/example.com-Platzhalter einzieht.
 // ═════════════════════════════════════════════════════════════════════
 export const LEGAL_OWNER = {
-  name: 'TODO Vorname Nachname',
-  street: 'TODO Straße Hausnummer',
-  city: 'TODO PLZ Ort',
+  name: 'Timo Klingenberger',
+  street: 'Schlehenweg 16',
+  city: '71364 Winnenden',
   country: 'Deutschland',
-  email: 'TODO ihre-email@example.com',
+  email: 'hi@timoklinge.com',
   /** Nach § 5 TMG optional — auf '' setzen, um die Zeile auszublenden. */
-  phone: 'TODO +49 XXX XXXXXXX',
+  phone: '',
 };
 
 /** True solange irgendein Feld noch einen TODO-Platzhalter trägt. */

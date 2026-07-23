@@ -10,6 +10,13 @@ const PORT = process.env.PORT || 3000;
 // Serve the built SPA in production. Registered AFTER the API/stats routes in
 // createApp, so the catch-all never shadows /api/* or /stats.
 if (process.env.NODE_ENV === 'production') {
+  // Keep the whole SPA out of search-engine indexes — this header also covers
+  // the JS bundle responses (which contain the Impressum data), which the
+  // robots.txt / noindex-meta alone cannot. Belt-and-suspenders with both.
+  app.use((_req, res, next) => {
+    res.set('X-Robots-Tag', 'noindex, nofollow');
+    next();
+  });
   app.use(express.static(join(__dirname, '../../client/dist')));
   app.get('*', (_req, res) => {
     res.sendFile(join(__dirname, '../../client/dist/index.html'));
