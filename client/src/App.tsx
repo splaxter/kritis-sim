@@ -24,6 +24,9 @@ import { LegalPages } from './components/LegalPages';
 import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
 import { StoryBackground } from './components/StoryBackground';
 import { LearningHub } from './components/LearningHub';
+import { BackButton } from './components/BackButton';
+import { RunLeaveDialog } from './components/RunLeaveDialog';
+import { resolveBack, BackAction } from './engine/backNavigation';
 import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
 import { useAutosave } from './hooks/useAutosave';
 import { readAutosave, AutosaveEnvelope } from './engine/autosave';
@@ -418,6 +421,60 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [legalPage]);
 
+  // Learning mode (cliOnly): drives both the hub render below AND the back-nav
+  // resolver's `isLearning` signal, so ESC/BackButton classification always
+  // agrees with what's actually on screen.
+  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
+
+  // ── Back-navigation layer ──────────────────────────────────────────────
+  // ONE global ESC listener + the shared BackButton both consume resolveBack()
+  // and route through executeBack(). The `anyModalOpen` guard makes the global
+  // listener a no-op while any overlay is up, so modal-local ESC still wins and
+  // there is never a double action.
+  const [runLeaveOpen, setRunLeaveOpen] = useState(false);
+
+  const anyModalOpen =
+    showIntro || showNamePrompt || saveLoadModal.show || !!newGamePicker || !!legalPage || runLeaveOpen;
+
+  const backAction = resolveBack({
+    anyModalOpen,
+    phase: game.phase,
+    isLearning: learningCliOnly,
+    hasCurrentContent: !!game.currentEvent || !!game.currentScenario,
+  });
+
+  const executeBack = useCallback((action: BackAction) => {
+    switch (action.kind) {
+      case 'cancel-level':
+        game.closeTerminal(false);
+        break;
+      case 'learning-hub':
+        game.clearCurrentContent();
+        break;
+      case 'confirm-leave-run':
+        setRunLeaveOpen(true);
+        break;
+      case 'main-menu':
+        setRunLeaveOpen(false);
+        game.returnToMenu();
+        // Re-read the (preserved) autosave so "Weiter spielen" reappears on the
+        // menu. returnToMenu never touches GameState/autosave.
+        setResumeSave(readAutosave(playerId));
+        break;
+    }
+  }, [game, playerId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (!backAction) return; // modal open or forward-only phase → do nothing
+      e.preventDefault();
+      executeBack(backAction);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [backAction, executeBack]);
+
   // ⚠️ DEV-ONLY: GUI level preview harness (?preview=<id>). Not shipped to prod.
   if (import.meta.env.DEV && DevGuiPreview) {
     const previewId = new URLSearchParams(window.location.search).get('preview');
@@ -722,6 +779,11 @@ function AppContent() {
           learningTip={learningTip}
           onRetry={() => setNewGamePicker('experience')}
         />
+        {backAction && (
+          <div className="fixed bottom-4 left-4 z-30">
+            <BackButton label={backAction.label} onClick={() => executeBack(backAction)} />
+          </div>
+        )}
         {/* Progressive new-game selection */}
         <Suspense fallback={null}>
           {newGamePicker === 'experience' && (
@@ -741,11 +803,6 @@ function AppContent() {
       </>
     );
   }
-
-  // Learning mode (cliOnly): when no level is active, render the hub instead of
-  // GameScreen's "no content" fallback. The player picks their next lesson here;
-  // we never auto-serve in learning mode.
-  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
 
   // Learning result-screen CTAs. Only in learning mode, on the result of a level.
   // Computed against the post-completion state: the just-finished level is
@@ -795,6 +852,11 @@ function AppContent() {
     return (
       <>
         <StoryBackground />
+        {backAction && (
+          <div className="fixed top-4 left-4 z-30">
+            <BackButton label={backAction.label} onClick={() => executeBack(backAction)} />
+          </div>
+        )}
         <LearningHub state={game.state} onPick={handlePickLearningLevel} />
       </>
     );
@@ -839,7 +901,17 @@ function AppContent() {
         onTerminalCancel={() => game.closeTerminal(false)}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}
+        backAction={backAction}
+        onBack={() => backAction && executeBack(backAction)}
       />
+
+      {/* Confirm leaving an active run → main menu (preserves the run). */}
+      {runLeaveOpen && (
+        <RunLeaveDialog
+          onContinue={() => setRunLeaveOpen(false)}
+          onLeave={() => executeBack({ kind: 'main-menu', label: 'Zum Hauptmenü' })}
+        />
+      )}
 
       {/* Save/Load Modal */}
       <Suspense fallback={null}>
