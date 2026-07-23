@@ -2,46 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { TerminalContext } from '@kritis/shared';
 import { Terminal } from './index';
+import { terminalMock } from './testHarness';
 
-type DataHandler = (data: string) => void;
-
-const terminalMock = vi.hoisted(() => ({
-  instances: [] as Array<{ emitData: (data: string) => void }>,
-  Terminal: class {
-    private handlers: DataHandler[] = [];
-
-    constructor() {
-      terminalMock.instances.push(this);
-    }
-
-    loadAddon() {}
-    open() {}
-    focus() {}
-    write() {}
-    writeln() {}
-    clear() {}
-    dispose() {}
-
-    onData(handler: DataHandler) {
-      this.handlers.push(handler);
-      return { dispose: () => {} };
-    }
-
-    emitData(data: string) {
-      this.handlers.forEach((handler) => handler(data));
-    }
-  },
-  FitAddon: class {
-    fit() {}
-  },
+vi.mock('@xterm/xterm', async () => ({
+  Terminal: (await import('./testHarness')).terminalMock.Terminal,
 }));
 
-vi.mock('@xterm/xterm', () => ({
-  Terminal: terminalMock.Terminal,
-}));
-
-vi.mock('@xterm/addon-fit', () => ({
-  FitAddon: terminalMock.FitAddon,
+vi.mock('@xterm/addon-fit', async () => ({
+  FitAddon: (await import('./testHarness')).terminalMock.FitAddon,
 }));
 
 const context: TerminalContext = {

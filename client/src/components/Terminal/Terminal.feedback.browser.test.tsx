@@ -2,50 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import { TerminalContext } from '@kritis/shared';
 import { Terminal } from './index';
+import { enter, written, latestTerm, resetTerms } from './testHarness';
 
-type DataHandler = (data: string) => void;
-
-// xterm mock that captures writes — the solve banner (incl. the after-action
-// feedback line) is asserted against what the hook actually printed.
-const terminalMock = vi.hoisted(() => ({
-  instances: [] as Array<{ emitData: (data: string) => void; buffer: string[] }>,
-  Terminal: class {
-    private handlers: DataHandler[] = [];
-    buffer: string[] = [];
-    cols = 80;
-
-    constructor() {
-      terminalMock.instances.push(this);
-    }
-
-    loadAddon() {}
-    open() {}
-    focus() {}
-    write(data: string) {
-      this.buffer.push(data);
-    }
-    writeln(data: string) {
-      this.buffer.push(data + '\n');
-    }
-    clear() {}
-    dispose() {}
-
-    onData(handler: DataHandler) {
-      this.handlers.push(handler);
-      return { dispose: () => {} };
-    }
-
-    emitData(data: string) {
-      this.handlers.forEach((handler) => handler(data));
-    }
-  },
-  FitAddon: class {
-    fit() {}
-  },
-}));
-
-vi.mock('@xterm/xterm', () => ({ Terminal: terminalMock.Terminal }));
-vi.mock('@xterm/addon-fit', () => ({ FitAddon: terminalMock.FitAddon }));
+vi.mock('@xterm/xterm', async () => ({ Terminal: (await import('./testHarness')).terminalMock.Terminal }));
+vi.mock('@xterm/addon-fit', async () => ({ FitAddon: (await import('./testHarness')).terminalMock.FitAddon }));
 
 const RISK_LINE = '⚠ RISKANT-MARKER: legitime Datei angetastet.';
 
@@ -72,24 +32,13 @@ const context: TerminalContext = {
 
 function setup(onSolved = vi.fn()) {
   render(<Terminal context={context} onSolved={onSolved} onCancel={() => {}} />);
-  const term = terminalMock.instances.at(-1)!;
+  const term = latestTerm();
   expect(term).toBeDefined();
   return { term, onSolved };
 }
 
-function type(term: { emitData: (d: string) => void }, text: string) {
-  for (const char of text) term.emitData(char);
-}
-
-function enter(term: { emitData: (d: string) => void }, text: string) {
-  type(term, text);
-  term.emitData('\r');
-}
-
-const written = (term: { buffer: string[] }) => term.buffer.join('');
-
 beforeEach(() => {
-  terminalMock.instances.length = 0;
+  resetTerms();
 });
 
 describe('Terminal after-action feedback on the solve banner', () => {
