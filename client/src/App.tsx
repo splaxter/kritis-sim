@@ -450,12 +450,19 @@ function AppContent() {
   const anyModalOpen =
     showIntro || saveLoadModal.show || !!newGamePicker || !!legalPage || runLeaveOpen;
 
-  const backAction = resolveBack({
-    anyModalOpen,
-    phase: game.phase,
-    isLearning: learningCliOnly,
-    hasCurrentContent: !!game.currentEvent || !!game.currentScenario,
-  });
+  // Memoized so its identity is stable across renders unless a navigation-
+  // relevant input actually changes — otherwise the ESC listener effect below
+  // would re-subscribe on every render (listener churn).
+  const backAction = useMemo(
+    () =>
+      resolveBack({
+        anyModalOpen,
+        phase: game.phase,
+        isLearning: learningCliOnly,
+        hasCurrentContent: !!game.currentEvent || !!game.currentScenario,
+      }),
+    [anyModalOpen, game.phase, learningCliOnly, game.currentEvent, game.currentScenario]
+  );
 
   const executeBack = useCallback((action: BackAction) => {
     switch (action.kind) {
@@ -476,7 +483,10 @@ function AppContent() {
         setResumeSave(readAutosave(playerId));
         break;
     }
-  }, [game, playerId]);
+    // Depend on the specific stable useGame methods rather than the whole `game`
+    // object (a fresh literal each render) so executeBack — and the ESC effect
+    // that lists it — stay stable.
+  }, [game.closeTerminal, game.clearCurrentContent, game.returnToMenu, playerId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
