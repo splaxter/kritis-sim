@@ -21,11 +21,6 @@ function mergeSkillGain(a: Partial<Skills>, b: Partial<Skills>): Partial<Skills>
   }
   return out;
 }
-// renderInput is used by later tasks (handleData/tab/history redraws); kept here
-// so the class shape is stable. Referenced now via a discarded call would be
-// premature, so we only import the type surface we need.
-import { renderInput } from './renderInput';
-
 export interface TerminalSessionDeps {
   shell: ShellEngine;
   context: TerminalContext;
@@ -61,7 +56,6 @@ export class TerminalSession {
   // exposed via getSnapshot() (would leak passwords).
   private pendingBuffer = '';
   private pendingMask = false;
-  private pendingCmdName = '';
 
   // beginner + learning modes get extra error tips (see writeShellError).
   private readonly isBeginnerMode: boolean;
@@ -632,7 +626,6 @@ export class TerminalSession {
       // Arm pending-input. The next line is fed to shell.continueInput and its
       // CommandResult routed back through handleShellResult (re-arming is allowed).
       this.pendingMask = result.pendingInput.mask;
-      this.pendingCmdName = cmdName;
       this.pendingBuffer = '';
       this.pendingInput = {
         prompt: result.pendingInput.prompt,
