@@ -12,7 +12,6 @@ export type TerminalEffect =
   | { type: 'write'; text: string }
   | { type: 'renderInput'; prompt: string; line: string; cursor: number }
   | { type: 'showPartial'; feedback: string }
-  | { type: 'showPage'; lines: string[]; pingLike: boolean }
   | { type: 'bell' }
   | { type: 'clearScreen' }
   | { type: 'updateHints'; count: number }

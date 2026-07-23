@@ -24,9 +24,8 @@ function makeSession(overrides: Partial<TerminalContext>, gameMode: GameModeId =
     hints: context.hints, taskText: context.taskText, hosts: context.hosts,
   });
   const onSolved = vi.fn();
-  const onPartialSolution = vi.fn();
-  const session = new TerminalSession({ shell, context, gameMode, onSolved, onPartialSolution });
-  return { session, shell, onSolved, onPartialSolution };
+  const session = new TerminalSession({ shell, context, gameMode, onSolved });
+  return { session, shell, onSolved };
 }
 
 // Feed a string char-by-char, then a final Enter; return every effect emitted
