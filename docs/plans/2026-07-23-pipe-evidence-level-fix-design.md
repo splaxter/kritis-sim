@@ -68,4 +68,3 @@ wurde.
   dass kein Abschluss Bitcoin behauptet.
 - Betroffene Lesson-Tests, Node-Suite, TypeScript und `git diff --check` bilden
   die Abnahme.
-

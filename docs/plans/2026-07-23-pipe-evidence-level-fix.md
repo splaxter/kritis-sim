@@ -294,4 +294,3 @@ git diff main...HEAD -- client/src/content/events/learning-path.ts client/src/en
 ```
 
 Expected: only the approved mechanics, prose and regression tests changed.
-
