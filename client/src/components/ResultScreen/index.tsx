@@ -1,6 +1,7 @@
 // client/src/components/ResultScreen/index.tsx
 import { EventChoice, EventEffects } from '@kritis/shared';
 import { MentorNote } from '../MentorNote';
+import { formatNarrativeText } from '../../engine/formatNarrativeText';
 
 /**
  * Learning-mode next-step CTAs. When present, the result screen shows ONE
@@ -33,14 +34,6 @@ interface ResultScreenProps {
 }
 
 export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas, learningNudge }: ResultScreenProps) {
-  const replaceCharacterNames = (text: string): string => {
-    let result = text;
-    for (const [role, name] of Object.entries(characters)) {
-      result = result.replace(new RegExp(`\\{${role}\\}`, 'g'), name);
-    }
-    return result;
-  };
-
   const renderEffects = (effects: EventEffects) => {
     const items: JSX.Element[] = [];
 
@@ -159,7 +152,7 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
         </div>
 
         <div className="mb-5 text-gray-200 leading-relaxed">
-          {replaceCharacterNames(choice.resultText)}
+          {formatNarrativeText(choice.resultText, characters)}
         </div>
 
         {choice.teachingMoment && (
@@ -209,7 +202,7 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
       </div>
 
       <div className="mb-6 text-terminal-green-dim leading-relaxed">
-        {replaceCharacterNames(choice.resultText)}
+        {formatNarrativeText(choice.resultText, characters)}
       </div>
 
       {choice.teachingMoment && (

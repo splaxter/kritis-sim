@@ -86,6 +86,12 @@ function AppContent() {
   // Optional one-time display name for the team stats. Shown on the menu until
   // the player either saves a name or explicitly skips.
   const [nameInput, setNameInput] = useState('');
+  // The stored display name, surfaced in narrative text via the {player} token.
+  // Defaults to 'Timo' (the protagonist's canonical name) when nothing is stored.
+  const [displayName, setDisplayName] = useState<string>(() => {
+    try { return localStorage.getItem('kritis_player_name')?.trim() || 'Timo'; }
+    catch { return 'Timo'; }
+  });
   const [showNamePrompt, setShowNamePrompt] = useState(() => {
     try {
       return !localStorage.getItem('kritis_player_name') && !localStorage.getItem('kritis_name_skipped');
@@ -113,6 +119,7 @@ function AppContent() {
       /* ignore */
     }
     trackPlayerNamed(playerId, name);
+    setDisplayName(name);
     setShowNamePrompt(false);
   }, [nameInput, playerId, skipName]);
   // One-time nudge toward learning mode after a free-play terminal challenge.
@@ -146,6 +153,9 @@ function AppContent() {
     athos: 'Frau Weber',
     kollege: 'Bjorg',
   });
+  // Narrative token map handed to EventCard/ResultScreen: character roles plus the
+  // {player} token backed by the stored display name (never touches account/ssh/vfs).
+  const tokenMap = useMemo(() => ({ ...characters, player: displayName }), [characters, displayName]);
   const { setStoryMode } = useStoryBackground();
 
   // Sync story mode state with context
@@ -881,7 +891,7 @@ function AppContent() {
         learningNudge={learningNudge}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
-        characters={characters}
+        characters={tokenMap}
         onChoice={(choice) => {
           const opensTerminal = choice.terminalCommand && game.currentEvent?.terminalContext;
           const opensGui = choice.guiCommand && game.currentEvent?.guiContext;

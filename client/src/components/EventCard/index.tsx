@@ -4,6 +4,7 @@ import { getVisibleChoices } from '../../engine/eventEngine';
 import { useStoryBackground } from '../../contexts/StoryBackgroundContext';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { soundEngine } from '../../audio/soundEngine';
+import { formatNarrativeText } from '../../engine/formatNarrativeText';
 
 interface EventCardProps {
   event: GameEvent;
@@ -26,15 +27,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
     onChoice(choice);
   }, [onChoice]);
 
-  const replaceCharacterNames = (text: string): string => {
-    let result = text;
-    for (const [role, name] of Object.entries(characters)) {
-      result = result.replace(new RegExp(`\\{${role}\\}`, 'g'), name);
-    }
-    return result;
-  };
-
-  const description = replaceCharacterNames(event.description);
+  const description = formatNarrativeText(event.description, characters);
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -187,7 +180,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
               </span>
               {choice.terminalCommand && <span className="text-terminal-info mr-1">&gt;</span>}
               {choice.guiCommand && <span className="text-terminal-info mr-1">🗔</span>}
-              {replaceCharacterNames(choice.text)}
+              {formatNarrativeText(choice.text, characters)}
             </span>
             {isRecommended && (
               <span className="text-terminal-success text-xs mt-1 shrink-0">[EMPFOHLEN]</span>
@@ -212,7 +205,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
             <span className={isSelected ? 'text-terminal-green' : 'text-terminal-green-dim'}>[{index + 1}]</span>{' '}
             {choice.terminalCommand && <span className="text-terminal-info">&gt; </span>}
             {choice.guiCommand && <span className="text-terminal-info">🗔 </span>}
-            {replaceCharacterNames(choice.text)}
+            {formatNarrativeText(choice.text, characters)}
           </span>
           {isRecommended && (
             <span className="text-terminal-success text-sm">[EMPFOHLEN]</span>
@@ -294,7 +287,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       <h2 className="text-xl mb-4">&gt; {event.title}</h2>
 
       <div className="min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap mb-6 text-terminal-green-dim leading-relaxed">
-        {replaceCharacterNames(event.description)}
+        {formatNarrativeText(event.description, characters)}
       </div>
 
       {cardKindBanner('text-terminal-info text-xs uppercase tracking-widest mb-2')}
