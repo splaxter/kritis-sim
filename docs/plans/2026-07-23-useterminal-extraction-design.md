@@ -127,6 +127,12 @@ Charakterisierung zuerst: bestehende Terminal-Browser-Tests als Sicherheitsnetz 
 - Neue Session- und Renderer-Charakterisierungstests grün.
 - Keine sichtbare Änderung im Spielverhalten.
 
+### Ergebnis (umgesetzt, Branch `refactor/useterminal-extraction`)
+
+- **Node-Suite:** 1183 Tests grün (84 Dateien). **Client-jsdom-Suite:** 1292 grün + 2 erwartete Fails (114 Dateien). **Terminal-Browser-Suite:** 93 grün. **Session-/Renderer-node-Suite:** 51 grün. **E2E:** 42 passed / 19 skipped (Baseline unverändert, inkl. „solvable end-to-end" für CLI-Level). **`npm run build` + `tsc`:** sauber.
+- **Effekt-Vokabular-Anpassungen während der Umsetzung** (über die illustrative Liste in §3 hinaus): `clearScreen` und `write` (ohne Newline) ergänzt — `clearScreen` weil `term.clear()` eine echte externe Aktion (Ctrl-L / `result.clearScreen`) ist; `write` weil nicht-maskierte Pending-Prompts (ssh-keygen-Dateiname, `ufw y|n`) den Antwort-Char **inline** echoen, was `writeLine` (Newline pro Zeichen) nicht darstellen kann. `showPage` bleibt im Union, wird aber nie emittiert (Streaming läuft über `writeLine` + `scheduleDrip`) — im `applyEffects`-Switch nur zur Exhaustivität behandelt.
+- **Offene Aufräum-Punkte fürs Final-Review (nicht verhaltensrelevant):** `TerminalSessionDeps.onPartialSolution` wird von der Session nicht aufgerufen (sie emittiert `showPartial`; der Adapter mappt es) — der Dep ist redundant. `showPage` ist toter Code.
+
 ## Nicht im Umfang
 
 - Keine globale ESC-/Zurück-Navigation, keine sichtbaren Zurück-Buttons, kein `{player}`-Token — das ist der **zweite** Entwurf (`2026-07-23-terminal-navigation-personalization-design.md`), gebaut gegen die dann stabilisierte Session-Grenze, in zwei unabhängig test- und committierbaren Phasen (1: hierarchische ESC-/Zurück-Navigation + kontextspezifische 44-px-Buttons; 2: zentraler `{player}`-Token mit gespeichertem Anzeigenamen und Fallback „Timo", technische Identität bleibt `timo`).
