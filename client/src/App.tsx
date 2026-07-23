@@ -590,7 +590,7 @@ function AppContent() {
             <div className="mt-4 border border-terminal-green/30 p-3 text-left text-sm">
               <div className="text-terminal-green-dim mb-2">
                 Wie heißt du?{' '}
-                <span className="text-terminal-green-muted">(optional — für die Team-Statistik)</span>
+                <span className="text-terminal-green-muted">(optional — für persönliche Ansprache und Team-Statistik)</span>
               </div>
               <div className="flex gap-2">
                 <input
