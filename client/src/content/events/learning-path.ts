@@ -835,7 +835,6 @@ Zeit die Prozesse zu checken...`,
 # ✓ Schritt 1 — GEFUNDEN! UID 0 = Root-Rechte! Das ist eine Backdoor!
 # Jetzt Schritt 2: zähl die User mit  cat /etc/passwd | wc -l`,
           teachesCommand: 'step_find',
-          isSolution: true,
           skillGain: { linux: 3, security: 3 },
         },
         // Fortgeschritten: alle UID-0-Accounts außer root — findet die Backdoor ebenso.
@@ -848,7 +847,6 @@ Zeit die Prozesse zu checken...`,
 # ✓ Schritt 1 — wer hat außer root noch UID 0? Genau der Eindringling.
 # Jetzt Schritt 2: cat /etc/passwd | wc -l`,
           teachesCommand: 'step_find',
-          isSolution: true,
           skillGain: { linux: 4, security: 4 },
         },
         // Schritt 2: alle User per Pipe zählen (wc -l).
@@ -877,7 +875,6 @@ Zeit die Prozesse zu checken...`,
 # ✓ Schritt 1 — geht auch direkt. Für Kombis sind Pipes aber mächtiger.
 # Schritt 2 braucht eine Pipe:  cat /etc/passwd | wc -l`,
           teachesCommand: 'step_find',
-          isSolution: true,
           skillGain: { linux: 2, security: 2 },
         },
         // Bonus-Filter.
@@ -908,9 +905,15 @@ malware:x:0:0:System Service:/tmp:/bin/bash
           skillGain: { linux: 1 },
         },
       ],
-      // Kern-Fund schließt ab: den Backdoor-Account zu finden (jeder step_find-
-      // Beat oben, isSolution) löst den Fall. wc -l ist belohntes Extra, kein Zwang.
-      solutions: [],
+      solutions: [
+        {
+          commands: ['step_find', 'step_count'],
+          allRequired: true,
+          resultText: 'Fake-Account gefunden und Benutzerbestand mit einer zweiten Pipe geprüft.',
+          skillGain: { linux: 5, security: 5, troubleshooting: 2 },
+          effects: { stress: -5 },
+        },
+      ],
       hints: [
         '🤖 Jens: "Die Pipe | leitet Output weiter. Wie: befehl1 | befehl2"',
         '🤖 Jens: "cat datei | grep muster — erst lesen, dann filtern."',
@@ -944,7 +947,7 @@ malware:x:0:0:System Service:/tmp:/bin/bash
 
 Der Server glüht! Die Lüfter drehen durch!
 
-Irgendein Prozess frisst 99% CPU. Das riecht nach Cryptominer.
+Ein unbekannter Prozess treibt die CPU auf 99 %. Finde heraus, was dahintersteckt, bevor du ihn beendest.
 
 Zeit für eine Zombie-Jagd.
 
@@ -974,7 +977,7 @@ Zeit für eine Zombie-Jagd.
 ╚══════════════════════════════════════════════════════════════╝
 \`\`\`
 
-Cryptominer eliminiert! Der Angreifer hat Bitcoin auf deinem Server geschürft.
+Der verdächtige Miner-Prozess ist beendet. Er lief unter dem Backdoor-Account "malware" und trieb die CPU auf 99 %.
 
 Jetzt müssen wir die Dienste kontrollieren...`,
         terminalCommand: true,
@@ -998,7 +1001,8 @@ mysql      890  1.2  4.0 567890 45678 ?    Sl   08:00   0:45 /usr/sbin/mysqld
 malware   6666 99.0  8.0 999999 88888 ?    R    02:48  47:23 /tmp/.hidden/miner.sh
 root      7890  0.0  0.1  12345  2345 pts/0 R+   10:00   0:00 ps aux
 
-# PID 6666 mit 99% CPU?! Das ist der Cryptominer!`,
+# PID 6666 läuft unter "malware" aus /tmp/.hidden/miner.sh.
+# Das sieht nach einem Cryptominer aus.`,
           teachesCommand: 'ps',
           skillGain: { linux: 3 },
         },
