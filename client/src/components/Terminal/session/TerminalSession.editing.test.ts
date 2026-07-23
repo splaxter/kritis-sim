@@ -128,7 +128,12 @@ describe('TerminalSession editing', () => {
     const fx = session.handleData('?');
     expect(lastRender(fx)).toMatchObject({ line: 'a?', cursor: 2 });
 
+    // On an empty line, ? triggers the hint path instead of inserting a char.
+    // With no hints configured it reports "keine weiteren" and leaves the line empty.
     const { session: empty } = makeSession();
-    expect(empty.handleData('?')).toEqual([]);
+    const fxEmpty = empty.handleData('?');
+    expect(lastRender(fxEmpty)).toMatchObject({ line: '', cursor: 0 });
+    expect(fxEmpty.filter(e => e.type === 'writeLine').map(e => (e as { text: string }).text).join('\n'))
+      .toContain('Keine weiteren Hinweise verfügbar.');
   });
 });

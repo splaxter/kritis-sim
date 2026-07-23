@@ -8,8 +8,9 @@
 // beginner auto-hint + first prompt) and the private prompt computation. The
 // keystroke methods (handleData/handleHintRequest/tick) are STUBS returning [].
 import { TerminalContext, Skills, GameModeId, EventEffects, FeedbackRule, TerminalSolution } from '@kritis/shared';
-import { ShellEngine, checkStateGoals, selectFeedback, CommandResult } from '../../../engine/shell';
+import { ShellEngine, checkStateGoals, selectFeedback, CommandResult, Completion, formatGrid } from '../../../engine/shell';
 import { buildPrompt } from '../prompt';
+import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from '../completion';
 import { TerminalEffect } from './effects';
 
 /** Sum two skill-gain maps; overlapping keys add up (live drip + solution gain). */
@@ -76,6 +77,11 @@ export class TerminalSession {
   // --- tab completion state ---
   private tabCompletions: string[] = [];
   private tabIndex = 0;
+  // Terminal width for completion grid layout. The session has no xterm; the
+  // adapter mirrors term.cols here (also forwarded to shell.setTermCols).
+  private termCols = 80;
+  // First-token completion pool: the scenario command patterns.
+  private readonly availableCommands: string[];
 
   // --- hint / command tracking (exposed via snapshot) ---
   private hintsUsed = 0;
@@ -87,7 +93,14 @@ export class TerminalSession {
 
   constructor(private deps: TerminalSessionDeps) {
     this.isBeginnerMode = deps.gameMode === 'beginner' || deps.gameMode === 'learning';
+    this.availableCommands = deps.context.commands.map(cmd => cmd.pattern);
     this.prompt = this.computePrompt();
+  }
+
+  // Adapter mirrors xterm's column count here so the completion grid wraps like
+  // the real terminal (the hook used `term.cols || 80`).
+  setTermCols(cols: number): void {
+    this.termCols = cols;
   }
 
   private computePrompt(): string {
@@ -292,14 +305,35 @@ export class TerminalSession {
         }
         return [];
 
-      case '?': // ? — insert as a normal char only on a non-empty line.
-        // The empty-line hint branch is deferred to Task 8; return [] for now.
+      case '\t': // Tab — bash-style completion (fill common prefix, then list).
+        return this.handleTab();
+
+      case '?': // ? — on a non-empty line insert it as a char (glob etc.); on an
+        // empty line reveal the next hint (so `help`/`head`/`history` stay
+        // typeable). The [Hinweis] footer button uses handleHintRequest().
         if (this.line.length > 0) {
           this.line = this.line.slice(0, this.cursorPos) + data + this.line.slice(this.cursorPos);
           this.cursorPos++;
           return [this.render()];
         }
-        return [];
+        {
+          const hints = this.deps.context.hints;
+          if (this.hintsUsed < hints.length) {
+            const hint = hints[this.hintsUsed];
+            this.hintsUsed++;
+            return [
+              { type: 'writeLine', text: '' },
+              { type: 'writeLine', text: `\x1b[33m💡 ${hint}\x1b[0m` },
+              this.render(),
+              { type: 'updateHints', count: this.hintsUsed },
+            ];
+          }
+          return [
+            { type: 'writeLine', text: '' },
+            { type: 'writeLine', text: '\x1b[33mKeine weiteren Hinweise verfügbar.\x1b[0m' },
+            this.render(),
+          ];
+        }
 
       case '\r': // Enter
         return this.handleEnter();
@@ -311,7 +345,7 @@ export class TerminalSession {
           this.cursorPos++;
           return [this.render()];
         }
-        // Tab (`\t`) and any other unowned keystroke — later task.
+        // Any other unowned control keystroke — no-op.
         return [];
     }
   }
@@ -589,7 +623,79 @@ export class TerminalSession {
     return effects;
   }
 
-  handleHintRequest(): TerminalEffect[] { return []; }              // stub — later task
+  // Tab completion: gather completions for the token under the cursor and either
+  // fill it (single match), fill the longest common prefix, or list every option
+  // as a cyan grid (bash's second-Tab behavior). Mirrors useTerminal's `\t` case.
+  private handleTab(): TerminalEffect[] {
+    const effects: TerminalEffect[] = [];
+
+    // Print all matches as an aligned column grid, then redraw prompt + input.
+    const printCompletionList = (comps: Completion[]): TerminalEffect[] => {
+      const out: TerminalEffect[] = [];
+      const items = comps.map(c => c.display || c.value);
+      out.push({ type: 'writeLine', text: '' });
+      for (const row of formatGrid(items, this.termCols || 80)) {
+        out.push({ type: 'writeLine', text: '\x1b[36m' + row + '\x1b[0m' });
+      }
+      // Redraw prompt + current line (renderInput repositions the cursor too).
+      out.push(this.render());
+      return out;
+    };
+
+    const completions = gatherCompletions(this.deps.shell, this.availableCommands, this.line, this.cursorPos);
+
+    if (completions.length === 0) {
+      if (this.line.length === 0) {
+        effects.push({ type: 'writeLine', text: '' });
+        effects.push({ type: 'writeLine', text: '\x1b[36mVerfügbare Befehle: help, ls, cd, cat, grep, ...\x1b[0m' });
+        effects.push({ type: 'writeLine', text: '\x1b[36mSzenario-Befehle: ' + this.availableCommands.slice(0, 3).join(', ') + (this.availableCommands.length > 3 ? ', ...' : '') + '\x1b[0m' });
+        effects.push(this.render());
+      } else {
+        effects.push({ type: 'bell' }); // visual bell — nothing matches
+      }
+    } else if (completions.length === 1) {
+      const r = applyCompletionToLine(this.line, this.cursorPos, completions[0]);
+      this.line = r.line;
+      this.cursorPos = r.cursor;
+      effects.push(this.render());
+    } else {
+      // Several matches: first fill the longest common prefix (also corrects
+      // case, e.g. `get-c` → `Get-C`); when it can't extend further, list all.
+      const token = tokenUnderCursor(this.line, this.cursorPos);
+      const lcp = longestCommonPrefix(completions.map(c => c.value));
+      if (lcp !== token) {
+        const r = applyCompletionToLine(this.line, this.cursorPos, { value: lcp, display: lcp, type: 'argument' }, false);
+        this.line = r.line;
+        this.cursorPos = r.cursor;
+        effects.push(this.render());
+      } else {
+        effects.push(...printCompletionList(completions));
+      }
+    }
+
+    // Cycling is gone; keep the shared tab state clean.
+    this.tabCompletions = [];
+    this.tabIndex = -1;
+    return effects;
+  }
+
+  // Footer [Hinweis] button / idle auto-hint. Mirrors the hook's `showHint`:
+  // NO 💡 emoji, a `\r\n`-prefixed yellow line, guarded so an exhausted hint
+  // list emits nothing. Emits updateHints so the adapter can sync React state.
+  handleHintRequest(): TerminalEffect[] {
+    const hints = this.deps.context.hints;
+    if (this.hintsUsed < hints.length) {
+      const hint = hints[this.hintsUsed];
+      this.hintsUsed++;
+      return [
+        { type: 'writeLine', text: `\r\n\x1b[33m${hint}\x1b[0m` },
+        this.render(),
+        { type: 'updateHints', count: this.hintsUsed },
+      ];
+    }
+    return [];
+  }
+
   tick(_kind: 'drip'): TerminalEffect[] { return []; }              // stub — later task
 
   getSnapshot(): TerminalSnapshot {
