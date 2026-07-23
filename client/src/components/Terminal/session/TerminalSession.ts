@@ -26,7 +26,6 @@ export interface TerminalSessionDeps {
   context: TerminalContext;
   gameMode: GameModeId;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
-  onPartialSolution: (feedback: string) => void;
 }
 
 export interface TerminalSnapshot {

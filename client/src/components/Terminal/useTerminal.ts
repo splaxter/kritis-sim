@@ -105,7 +105,6 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       context,
       gameMode,
       onSolved: (skillGain, setsFlags, effects) => onSolvedRef.current(skillGain, setsFlags, effects),
-      onPartialSolution: (feedback) => onPartialSolutionRef.current(feedback),
     });
 
     xtermRef.current = term;

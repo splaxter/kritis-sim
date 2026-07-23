@@ -17,9 +17,8 @@ function makeSession(overrides: Partial<TerminalContext> = {}, gameMode: GameMod
     hints: context.hints, taskText: context.taskText, hosts: context.hosts,
   });
   const onSolved = vi.fn();
-  const onPartialSolution = vi.fn();
-  const session = new TerminalSession({ shell, context, gameMode, onSolved, onPartialSolution });
-  return { session, shell, onSolved, onPartialSolution };
+  const session = new TerminalSession({ shell, context, gameMode, onSolved });
+  return { session, shell, onSolved };
 }
 
 // Join the text of every writeLine effect (for substring assertions).

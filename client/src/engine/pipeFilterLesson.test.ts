@@ -39,7 +39,6 @@ function makeSession() {
     context: ctx,
     gameMode: 'learning',
     onSolved: vi.fn(),
-    onPartialSolution: vi.fn(),
   });
 }
 

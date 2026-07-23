@@ -29,11 +29,6 @@ export function applyEffects(term: Terminal, effects: TerminalEffect[], ctx: Eff
       case 'showPartial':
         ctx.onPartialSolution(eff.feedback);
         break;
-      case 'showPage':
-        // Dead branch — the session never emits `showPage`. Handled for
-        // exhaustiveness only.
-        for (const l of eff.lines) term.writeln(l);
-        break;
       case 'bell':
         term.write('\x07');
         break;
