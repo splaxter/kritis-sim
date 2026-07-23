@@ -746,28 +746,30 @@ export class TerminalSession {
       return effects;
     }
 
-    // Paced path: write the leading non-reply lines + the first reply line now,
-    // then hand the rest to tick('drip').
+    // Paced path: write ONLY the leading non-reply lines now (e.g. the
+    // `PING host` header), then position the queue AT the first reply line and
+    // request a drip. EVERY reply line — including the first — is delayed 450ms,
+    // matching the original setTimeout stepping (useTerminal.ts 289–309).
     this.streaming = true;
     this.streamQueue = outLines;
     this.streamIdx = 0;
     this.streamDone = done;
 
     const effects: TerminalEffect[] = [];
-    // Leading non-reply lines print instantly (e.g. the `PING host` header).
     while (this.streamIdx < this.streamQueue.length && !this.isPingReplyLine(this.streamQueue[this.streamIdx])) {
       effects.push({ type: 'writeLine', text: this.streamQueue[this.streamIdx] });
       this.streamIdx++;
     }
-    // ...then the first reply line + everything up to (not incl.) the next reply.
-    effects.push(...this.stepStream());
+    // The first reply line is written on the first tick('drip'), 450ms later.
+    effects.push({ type: 'scheduleDrip', delayMs: 450 });
     return effects;
   }
 
-  // Write one drip "chunk": the reply line at the cursor plus the following
-  // instant non-reply lines, stopping before the next reply line. If more reply
-  // lines remain, request another drip; otherwise finish (streaming off + run
-  // the captured `done` continuation). Assumes streamIdx points at a reply line.
+  // Write one drip "chunk" (the timer callback of the original setTimeout): the
+  // reply line at the cursor plus the following instant non-reply lines, stopping
+  // before the next reply line. If more reply lines remain, request another drip;
+  // otherwise finish (streaming off + run the captured `done` continuation).
+  // streamIdx points at a reply line whenever there is more to write.
   private stepStream(): TerminalEffect[] {
     const effects: TerminalEffect[] = [];
     // The reply line itself.

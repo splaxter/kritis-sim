@@ -46,34 +46,40 @@ const PING_OUTPUT =
   '--- statistics ---';
 
 describe('TerminalSession streaming (drip pacing)', () => {
-  it('ping output paces reply lines one per tick via scheduleDrip', () => {
+  it('ping output paces EVERY reply line 450ms, first reply on the first tick', () => {
     const { session } = makeSession({
       commands: [{ pattern: 'ping -c 3 10.0.0.9', teachesCommand: 'ping', output: PING_OUTPUT }],
       solutions: [],
     });
 
-    // Initial Enter: header + FIRST reply line + a scheduleDrip. The later reply
-    // lines are NOT all dumped up front.
+    // Initial Enter: ONLY the leading header + a scheduleDrip. The first reply is
+    // delayed 450ms too (matches the original setTimeout stepping), so it must
+    // NOT appear in the initial return.
     const fx0 = typeAndEnter(session, 'ping -c 3 10.0.0.9');
     expect(lines(fx0)).toContain('PING 10.0.0.9');
-    expect(lines(fx0)).toContain('64 bytes from 10.0.0.9: icmp_seq=1');
-    expect(lines(fx0)).not.toContain('64 bytes from 10.0.0.9: icmp_seq=2');
+    expect(lines(fx0)).not.toContain('64 bytes from 10.0.0.9: icmp_seq=1');
     expect(lines(fx0)).not.toContain('--- statistics ---');
     expect(drips(fx0)).toEqual([{ type: 'scheduleDrip', delayMs: 450 }]);
 
-    // tick 1: next reply line + another scheduleDrip.
+    // tick 1: the FIRST reply line + another scheduleDrip.
     const fx1 = session.tick('drip');
-    expect(lines(fx1)).toContain('64 bytes from 10.0.0.9: icmp_seq=2');
-    expect(lines(fx1)).not.toContain('64 bytes from 10.0.0.9: icmp_seq=3');
+    expect(lines(fx1)).toContain('64 bytes from 10.0.0.9: icmp_seq=1');
+    expect(lines(fx1)).not.toContain('64 bytes from 10.0.0.9: icmp_seq=2');
     expect(drips(fx1)).toEqual([{ type: 'scheduleDrip', delayMs: 450 }]);
 
-    // tick 2: LAST reply line + the trailing non-reply line, NO further drip,
-    // then a fresh prompt (renderInput) since this isn't a solution.
+    // tick 2: the SECOND reply line + another scheduleDrip.
     const fx2 = session.tick('drip');
-    expect(lines(fx2)).toContain('64 bytes from 10.0.0.9: icmp_seq=3');
-    expect(lines(fx2)).toContain('--- statistics ---');
-    expect(drips(fx2)).toEqual([]);
-    expect(renders(fx2).length).toBeGreaterThan(0);
+    expect(lines(fx2)).toContain('64 bytes from 10.0.0.9: icmp_seq=2');
+    expect(lines(fx2)).not.toContain('64 bytes from 10.0.0.9: icmp_seq=3');
+    expect(drips(fx2)).toEqual([{ type: 'scheduleDrip', delayMs: 450 }]);
+
+    // tick 3: LAST reply line + the trailing non-reply line, NO further drip,
+    // then a fresh prompt (renderInput) since this isn't a solution.
+    const fx3 = session.tick('drip');
+    expect(lines(fx3)).toContain('64 bytes from 10.0.0.9: icmp_seq=3');
+    expect(lines(fx3)).toContain('--- statistics ---');
+    expect(drips(fx3)).toEqual([]);
+    expect(renders(fx3).length).toBeGreaterThan(0);
 
     // Streaming is over: a further tick is a no-op.
     expect(session.tick('drip')).toEqual([]);
@@ -91,6 +97,8 @@ describe('TerminalSession streaming (drip pacing)', () => {
     // Drain the stream so we don't leak state.
     session.tick('drip');
     session.tick('drip');
+    session.tick('drip');
+    expect(session.tick('drip')).toEqual([]);
   });
 
   it('non-ping output is emitted instantly without streaming', () => {
