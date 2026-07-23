@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { learningPathEvents } from '../content/events/learning-path';
+import { createShellFromContext } from './shell';
+import { TerminalSession } from '../components/Terminal/session/TerminalSession';
 
 /**
  * "Der Filter" (learn_05_pipe_filter): the pipes foundations lesson.
@@ -21,6 +23,29 @@ function route(input: string) {
       ? new RegExp(c.patternRegex).test(input)
       : input.startsWith(c.pattern) || input === c.pattern
   );
+}
+
+function makeSession() {
+  const shell = createShellFromContext({
+    type: ctx.type,
+    hostname: ctx.hostname,
+    username: ctx.username,
+    currentPath: ctx.currentPath,
+    commands: ctx.commands,
+    hints: ctx.hints,
+  });
+  return new TerminalSession({
+    shell,
+    context: ctx,
+    gameMode: 'learning',
+    onSolved: vi.fn(),
+    onPartialSolution: vi.fn(),
+  });
+}
+
+function enter(session: TerminalSession, command: string) {
+  for (const char of command) session.handleData(char);
+  return session.handleData('\r');
 }
 
 describe(`learning lesson: ${ID}`, () => {
@@ -55,19 +80,38 @@ describe(`learning lesson: ${ID}`, () => {
     expect(beat.output).toContain('-l');
   });
 
-  it('the core find (the backdoor account) solves the level via every path', () => {
-    // Design: finding the malware account completes the level (isSolution),
-    // whether via pipe, UID-0 filter, or direct grep. Counting users (wc -l)
-    // is rewarded extra, not a hard gate — the player is never stuck.
-    expect(route('cat /etc/passwd | grep malware')?.isSolution).toBe(true);
-    expect(route('cat /etc/passwd | grep ":0:" | grep -v root')?.isSolution).toBe(true);
-    expect(route('grep malware /etc/passwd')?.isSolution).toBe(true);
+  it('requires both the find and count steps', () => {
+    for (const input of [
+      'cat /etc/passwd | grep malware',
+      'cat /etc/passwd | grep ":0:" | grep -v root',
+      'grep malware /etc/passwd',
+    ]) {
+      expect(route(input)?.teachesCommand).toBe('step_find');
+      expect(route(input)?.isSolution).toBeFalsy();
+    }
 
-    expect(route('cat /etc/passwd | wc -l')?.isSolution).toBeFalsy();
-    expect(ctx.solutions).toEqual([]);
+    expect(route('cat /etc/passwd | wc -l')?.teachesCommand).toBe('step_count');
+    expect(ctx.solutions).toHaveLength(1);
+    expect(ctx.solutions[0]).toMatchObject({
+      commands: ['step_find', 'step_count'],
+      allRequired: true,
+    });
   });
 
   it('the first hint never hands over a full solution command', () => {
     expect(/\|\s*grep\s+["\']?malware/i.test(ctx.hints[0])).toBe(false);
+  });
+
+  it.each([
+    ['cat /etc/passwd | grep malware', 'cat /etc/passwd | wc -l'],
+    ['cat /etc/passwd | wc -l', 'cat /etc/passwd | grep malware'],
+  ])('solves only after both steps: %s then %s', (first, second) => {
+    const session = makeSession();
+
+    enter(session, first);
+    expect(session.getSnapshot().solved).toBe(false);
+
+    enter(session, second);
+    expect(session.getSnapshot().solved).toBe(true);
   });
 });
