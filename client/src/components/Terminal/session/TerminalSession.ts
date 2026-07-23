@@ -726,6 +726,23 @@ export class TerminalSession {
     return [];
   }
 
+  // Beginner idle auto-hint — reproduces the old showIdleSuggestion output:
+  // blank line, yellow 💡 hint, then a bare fresh prompt (does NOT clear or
+  // rewrite the current input line), and reveals nothing once hints are
+  // exhausted. The input line/cursor state is intentionally left untouched.
+  // Distinct from handleHintRequest (footer button) by design.
+  handleIdleHint(): TerminalEffect[] {
+    const hints = this.deps.context.hints;
+    if (this.hintsUsed >= hints.length) return [];
+    const hint = hints[this.hintsUsed];
+    this.hintsUsed++;
+    return [
+      { type: 'writeLine', text: '' },
+      { type: 'writeLine', text: '\x1b[33m💡 ' + hint + '\x1b[0m' },
+      { type: 'write', text: this.computePrompt() }, // bare fresh prompt, matches term.write(getTermPrompt())
+    ];
+  }
+
   // A "reply/attempt" line of a ping-style command — the lines we pace out over
   // time instead of dumping instantly. Regex unchanged from useTerminal.ts.
   private isPingReplyLine(l: string): boolean {

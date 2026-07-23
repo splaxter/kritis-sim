@@ -143,14 +143,14 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
     term.focus();
 
     // Idle timer for beginner-mode suggestions. Single-shot: it only re-arms on
-    // input (matching the original), and fires the same hint reveal the footer
-    // button uses. NOTE: reproduced via session.handleHintRequest() — see report;
-    // the idle hint therefore lacks the original 💡 emoji (cosmetic difference).
+    // input (matching the original). Fires session.handleIdleHint(), which
+    // reproduces the old showIdleSuggestion output exactly (blank line, yellow
+    // 💡 hint, bare fresh prompt; nothing once hints are exhausted).
     let idleTimer: ReturnType<typeof setTimeout> | null = null;
     const IDLE_TIMEOUT = 8000; // 8 seconds
     const showIdleSuggestion = () => {
       if (gameMode !== 'beginner') return; // Only auto-hint in beginner mode
-      applyEffects(term, session.handleHintRequest(), ctx);
+      applyEffects(term, session.handleIdleHint(), ctx);
       syncState();
     };
     const resetIdleTimer = () => {
