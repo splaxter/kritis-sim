@@ -50,6 +50,7 @@ interface UseGameReturn {
   skipToNextDay: () => void;
   endStoryAct: () => void;
   clearCurrentContent: () => void;
+  returnToMenu: () => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -408,6 +409,20 @@ export function useGame(): UseGameReturn {
     setPhase('playing');
   }, []);
 
+  // Leave the current run and return to the main menu WITHOUT resetting the run:
+  // clear only the transient React content state and set phase = 'menu'. The
+  // persisted GameState (and thus the autosave) is intentionally left untouched,
+  // so "Weiter spielen" can resume the run.
+  const returnToMenu = useCallback(() => {
+    setCurrentEvent(null);
+    setCurrentScenario(null);
+    setLastChoice(null);
+    setLastScenarioChoice(null);
+    setPendingTerminalChoice(null);
+    setPendingScenarioTerminalChoice(null);
+    setPhase('menu');
+  }, []);
+
   return {
     state,
     phase,
@@ -431,5 +446,6 @@ export function useGame(): UseGameReturn {
     skipToNextDay,
     endStoryAct,
     clearCurrentContent,
+    returnToMenu,
   };
 }
