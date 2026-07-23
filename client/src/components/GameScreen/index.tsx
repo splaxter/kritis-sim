@@ -8,6 +8,8 @@ import { ResultScreen, LearningResultCtas } from '../ResultScreen';
 import { ScenarioCard } from '../ScenarioCard';
 import { ScenarioResultScreen } from '../ScenarioResultScreen';
 import { GamePhase, ContentType } from '../../hooks/useGame';
+import { BackButton } from '../BackButton';
+import type { BackAction } from '../../engine/backNavigation';
 import { extractTaskText } from './extractTaskText';
 import { getTrackPosition, countCompletedCoreLevels } from '../../content/events/learning-tracks';
 import { CHAPTER_ART, CINEMATIC_EVENTS } from '../../content/adventure/chapterArt';
@@ -39,6 +41,9 @@ interface GameScreenProps {
   learningResultCtas?: LearningResultCtas;
   /** one-time free-play → learning nudge on the (standard) result screen */
   learningNudge?: { onDismiss: () => void };
+  /** hierarchical back affordance, resolved by App so ESC and this button match */
+  backAction?: BackAction | null;
+  onBack?: () => void;
 }
 
 export function GameScreen({
@@ -59,6 +64,8 @@ export function GameScreen({
   onLoad,
   learningResultCtas,
   learningNudge,
+  backAction,
+  onBack,
 }: GameScreenProps) {
   const isStoryMode = state.isStoryMode;
 
@@ -139,14 +146,14 @@ export function GameScreen({
       if (phase === 'result' && e.key === 'Enter') {
         onContinue();
       }
-      if (phase === 'terminal' && e.key === 'Escape') {
-        onTerminalCancel();
-      }
+      // Terminal-ESC (cancel-level) is handled by App's central back-nav
+      // listener via resolveBack, so it is NOT duplicated here. The Terminal's
+      // own visible [ESC] Abbrechen button still calls onTerminalCancel.
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [phase, onContinue, onTerminalCancel]);
+  }, [phase, onContinue]);
 
   // Get terminal / GUI context from either event or scenario
   const terminalContext = currentEvent?.terminalContext || currentScenario?.terminalContext;
@@ -322,6 +329,13 @@ export function GameScreen({
           )}
         </div>
 
+        {/* Back affordance (only while a card is active — never on result) */}
+        {backAction && onBack && !cinematic && (
+          <div className="fixed bottom-3 left-3 z-30">
+            <BackButton label={backAction.label} onClick={onBack} />
+          </div>
+        )}
+
         {/* Dezenter Sound-Hinweis (nur Story-Layout) */}
         <div className="fixed bottom-1 left-0 right-0 z-20 text-terminal-green/40 text-xs text-center mt-2 pointer-events-none">
           [M] Sound {soundOn ? 'an' : 'aus'}
@@ -393,8 +407,13 @@ export function GameScreen({
       </div>
 
       {/* Footer with save/load hints */}
-      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex justify-between">
-        <span>Woche {state.currentWeek} / Tag {state.currentDay}</span>
+      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex justify-between items-center">
+        <span className="flex items-center gap-4">
+          <span>Woche {state.currentWeek} / Tag {state.currentDay}</span>
+          {backAction && onBack && (
+            <BackButton label={backAction.label} onClick={onBack} />
+          )}
+        </span>
         <span>
           {onSave && (
             <button onClick={onSave} className="hover:text-terminal-info mr-4">

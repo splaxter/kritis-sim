@@ -24,6 +24,9 @@ import { LegalPages } from './components/LegalPages';
 import { StoryBackgroundProvider, useStoryBackground } from './contexts/StoryBackgroundContext';
 import { StoryBackground } from './components/StoryBackground';
 import { LearningHub } from './components/LearningHub';
+import { BackButton } from './components/BackButton';
+import { RunLeaveDialog } from './components/RunLeaveDialog';
+import { resolveBack, BackAction } from './engine/backNavigation';
 import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/learningPath';
 import { useAutosave } from './hooks/useAutosave';
 import { readAutosave, AutosaveEnvelope } from './engine/autosave';
@@ -83,6 +86,12 @@ function AppContent() {
   // Optional one-time display name for the team stats. Shown on the menu until
   // the player either saves a name or explicitly skips.
   const [nameInput, setNameInput] = useState('');
+  // The stored display name, surfaced in narrative text via the {player} token.
+  // Defaults to 'Timo' (the protagonist's canonical name) when nothing is stored.
+  const [displayName, setDisplayName] = useState<string>(() => {
+    try { return localStorage.getItem('kritis_player_name')?.trim() || 'Timo'; }
+    catch { return 'Timo'; }
+  });
   const [showNamePrompt, setShowNamePrompt] = useState(() => {
     try {
       return !localStorage.getItem('kritis_player_name') && !localStorage.getItem('kritis_name_skipped');
@@ -110,6 +119,7 @@ function AppContent() {
       /* ignore */
     }
     trackPlayerNamed(playerId, name);
+    setDisplayName(name);
     setShowNamePrompt(false);
   }, [nameInput, playerId, skipName]);
   // One-time nudge toward learning mode after a free-play terminal challenge.
@@ -143,6 +153,9 @@ function AppContent() {
     athos: 'Frau Weber',
     kollege: 'Bjorg',
   });
+  // Narrative token map handed to EventCard/ResultScreen: character roles plus the
+  // {player} token backed by the stored display name (never touches account/ssh/vfs).
+  const tokenMap = useMemo(() => ({ ...characters, player: displayName }), [characters, displayName]);
   const { setStoryMode } = useStoryBackground();
 
   // Sync story mode state with context
@@ -418,6 +431,74 @@ function AppContent() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [legalPage]);
 
+  // Learning mode (cliOnly): drives both the hub render below AND the back-nav
+  // resolver's `isLearning` signal, so ESC/BackButton classification always
+  // agrees with what's actually on screen.
+  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
+
+  // ── Back-navigation layer ──────────────────────────────────────────────
+  // ONE global ESC listener + the shared BackButton both consume resolveBack()
+  // and route through executeBack(). The `anyModalOpen` guard makes the global
+  // listener a no-op while any overlay is up, so modal-local ESC still wins and
+  // there is never a double action.
+  const [runLeaveOpen, setRunLeaveOpen] = useState(false);
+
+  // The menu name-prompt is intentionally NOT here: it's a menu-only inline
+  // widget (no ESC of its own, zero effect while phase==='menu' since the
+  // resolver returns null there) that would otherwise stay `true` into gameplay
+  // and disable ALL back-navigation for a player who never named/skipped.
+  const anyModalOpen =
+    showIntro || saveLoadModal.show || !!newGamePicker || !!legalPage || runLeaveOpen;
+
+  // Memoized so its identity is stable across renders unless a navigation-
+  // relevant input actually changes — otherwise the ESC listener effect below
+  // would re-subscribe on every render (listener churn).
+  const backAction = useMemo(
+    () =>
+      resolveBack({
+        anyModalOpen,
+        phase: game.phase,
+        isLearning: learningCliOnly,
+        hasCurrentContent: !!game.currentEvent || !!game.currentScenario,
+      }),
+    [anyModalOpen, game.phase, learningCliOnly, game.currentEvent, game.currentScenario]
+  );
+
+  const executeBack = useCallback((action: BackAction) => {
+    switch (action.kind) {
+      case 'cancel-level':
+        game.closeTerminal(false);
+        break;
+      case 'learning-hub':
+        game.clearCurrentContent();
+        break;
+      case 'confirm-leave-run':
+        setRunLeaveOpen(true);
+        break;
+      case 'main-menu':
+        setRunLeaveOpen(false);
+        game.returnToMenu();
+        // Re-read the (preserved) autosave so "Weiter spielen" reappears on the
+        // menu. returnToMenu never touches GameState/autosave.
+        setResumeSave(readAutosave(playerId));
+        break;
+    }
+    // Depend on the specific stable useGame methods rather than the whole `game`
+    // object (a fresh literal each render) so executeBack — and the ESC effect
+    // that lists it — stay stable.
+  }, [game.closeTerminal, game.clearCurrentContent, game.returnToMenu, playerId]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (!backAction) return; // modal open or forward-only phase → do nothing
+      e.preventDefault();
+      executeBack(backAction);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [backAction, executeBack]);
+
   // ⚠️ DEV-ONLY: GUI level preview harness (?preview=<id>). Not shipped to prod.
   if (import.meta.env.DEV && DevGuiPreview) {
     const previewId = new URLSearchParams(window.location.search).get('preview');
@@ -519,7 +600,7 @@ function AppContent() {
             <div className="mt-4 border border-terminal-green/30 p-3 text-left text-sm">
               <div className="text-terminal-green-dim mb-2">
                 Wie heißt du?{' '}
-                <span className="text-terminal-green-muted">(optional — für die Team-Statistik)</span>
+                <span className="text-terminal-green-muted">(optional — für persönliche Ansprache und Team-Statistik)</span>
               </div>
               <div className="flex gap-2">
                 <input
@@ -722,6 +803,11 @@ function AppContent() {
           learningTip={learningTip}
           onRetry={() => setNewGamePicker('experience')}
         />
+        {backAction && (
+          <div className="fixed bottom-4 left-4 z-30">
+            <BackButton label={backAction.label} onClick={() => executeBack(backAction)} />
+          </div>
+        )}
         {/* Progressive new-game selection */}
         <Suspense fallback={null}>
           {newGamePicker === 'experience' && (
@@ -741,11 +827,6 @@ function AppContent() {
       </>
     );
   }
-
-  // Learning mode (cliOnly): when no level is active, render the hub instead of
-  // GameScreen's "no content" fallback. The player picks their next lesson here;
-  // we never auto-serve in learning mode.
-  const learningCliOnly = getGameModeConfig(game.state.gameMode).features.cliOnly === true;
 
   // Learning result-screen CTAs. Only in learning mode, on the result of a level.
   // Computed against the post-completion state: the just-finished level is
@@ -795,6 +876,11 @@ function AppContent() {
     return (
       <>
         <StoryBackground />
+        {backAction && (
+          <div className="fixed top-4 left-4 z-30">
+            <BackButton label={backAction.label} onClick={() => executeBack(backAction)} />
+          </div>
+        )}
         <LearningHub state={game.state} onPick={handlePickLearningLevel} />
       </>
     );
@@ -815,7 +901,7 @@ function AppContent() {
         learningNudge={learningNudge}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
-        characters={characters}
+        characters={tokenMap}
         onChoice={(choice) => {
           const opensTerminal = choice.terminalCommand && game.currentEvent?.terminalContext;
           const opensGui = choice.guiCommand && game.currentEvent?.guiContext;
@@ -839,7 +925,17 @@ function AppContent() {
         onTerminalCancel={() => game.closeTerminal(false)}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}
+        backAction={backAction}
+        onBack={() => backAction && executeBack(backAction)}
       />
+
+      {/* Confirm leaving an active run → main menu (preserves the run). */}
+      {runLeaveOpen && (
+        <RunLeaveDialog
+          onContinue={() => setRunLeaveOpen(false)}
+          onLeave={() => executeBack({ kind: 'main-menu', label: 'Zum Hauptmenü' })}
+        />
+      )}
 
       {/* Save/Load Modal */}
       <Suspense fallback={null}>

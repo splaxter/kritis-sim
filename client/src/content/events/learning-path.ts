@@ -2697,7 +2697,7 @@ Nutze ALLES was du gelernt hast:
 ╚══════════════════════════════════════════════════════════════════════════╝
 \`\`\`
 
-**Du hast es geschafft!**
+**Du hast es geschafft, {player}!**
 
 Der Produktionsserver läuft wieder. Die Kunden sind zufrieden.
 Das Management ist beeindruckt.

@@ -15,7 +15,7 @@ export const storyWeek1to2Events: GameEvent[] = [
     category: 'personal',
     title: 'Erster Arbeitstag',
     image: '/images/events/evt_erster_arbeitstag.webp',
-    description: `Dein erster Tag bei WARM. {chef} begrüßt dich kurz und gibt dir gleich zwei Aufgaben:
+    description: `Dein erster Tag bei WARM. {chef} blickt kurz von seinem Bildschirm auf. "Willkommen, {player}." Dann gibt er dir gleich zwei Aufgaben:
 
 "Der Docusnap-Server muss mal geprüft werden, der scannt seit Wochen nicht mehr richtig. Und das WLAN im grossen Besprechungsraum spinnt - die {gf} hat sich schon beschwert."
 
@@ -45,7 +45,7 @@ Jens sitzt am Schreibtisch nebenan und tippt konzentriert.`,
         id: 'ask_colleague',
         text: 'Jens fragen, was wichtiger ist',
         effects: { relationships: { kollegen: 10 }, skills: { softSkills: 3 } },
-        resultText: 'Jens lächelt. "Wenn die GF meckert, ist das Prio 1. Docusnap läuft eh seit Wochen nicht, ein Tag mehr macht auch nichts." Er zeigt dir, wo die APs hängen.',
+        resultText: 'Jens lächelt. "Guter Instinkt, {player}. Wenn die GF meckert, ist das Prio 1. Docusnap läuft eh seit Wochen nicht, ein Tag mehr macht auch nichts." Er zeigt dir, wo die APs hängen.',
         choiceTags: ['social', 'learning'],
         teachingMoment: 'Erfahrene Kollegen kennen die inoffiziellen Prioritäten. Fragen zeigt keine Schwäche, sondern Lernbereitschaft.',
       },
