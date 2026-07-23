@@ -433,8 +433,12 @@ function AppContent() {
   // there is never a double action.
   const [runLeaveOpen, setRunLeaveOpen] = useState(false);
 
+  // The menu name-prompt is intentionally NOT here: it's a menu-only inline
+  // widget (no ESC of its own, zero effect while phase==='menu' since the
+  // resolver returns null there) that would otherwise stay `true` into gameplay
+  // and disable ALL back-navigation for a player who never named/skipped.
   const anyModalOpen =
-    showIntro || showNamePrompt || saveLoadModal.show || !!newGamePicker || !!legalPage || runLeaveOpen;
+    showIntro || saveLoadModal.show || !!newGamePicker || !!legalPage || runLeaveOpen;
 
   const backAction = resolveBack({
     anyModalOpen,

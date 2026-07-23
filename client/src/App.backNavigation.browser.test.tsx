@@ -53,9 +53,9 @@ describe('App — central back-navigation wiring', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('kritis_player_id', PLAYER);
-    // The (menu-only) name prompt is part of `anyModalOpen`; a real player skips
-    // or fills it on the menu before diving in. Mirror that so back-nav is live.
-    localStorage.setItem('kritis_name_skipped', '1');
+    // NOTE: we intentionally do NOT set kritis_name_skipped/kritis_player_name.
+    // The menu name-prompt must not disable in-game back-navigation, so every
+    // test here runs as an un-named player and back-nav must still work.
   });
 
   it('1. ESC in a terminal level cancels back to the event card (leaves terminal)', async () => {
@@ -188,5 +188,30 @@ describe('App — central back-navigation wiring', () => {
     expect(screen.getByText(/LEVEL 1 ABGESCHLOSSEN/i)).toBeInTheDocument();
     expect(screen.queryByText(/Run verlassen und zum Hauptmenü/i)).toBeNull();
     expect(screen.queryByText(/NEUES SPIEL STARTEN/i)).toBeNull();
+  });
+
+  it('7. an UN-named player (never skipped/named) still has in-game back-navigation', async () => {
+    // Regression: the menu-only name prompt must NOT be part of anyModalOpen, or
+    // an un-named player's back-nav would be disabled everywhere in gameplay.
+    expect(localStorage.getItem('kritis_player_name')).toBeNull();
+    expect(localStorage.getItem('kritis_name_skipped')).toBeNull();
+
+    const user = userEvent.setup();
+    writeAutosave(PLAYER, {
+      ...createInitialState('UNNAMED_SEED', 'beginner'),
+      currentWeek: 2,
+      currentDay: 1,
+    });
+
+    await enterMenu();
+    // The name prompt is showing on the menu (un-named), but we ignore it and
+    // dive straight into the run — exactly the case that used to break back-nav.
+    expect(screen.getByLabelText(/Dein Name/i)).toBeInTheDocument();
+    await user.click(await screen.findByText(/WEITER SPIELEN/i));
+    await screen.findByRole('button', { name: /Zum Hauptmenü/i });
+
+    // ESC on the active event must STILL open the run-leave dialog.
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(await screen.findByText(/Run verlassen und zum Hauptmenü/i)).toBeInTheDocument();
   });
 });
