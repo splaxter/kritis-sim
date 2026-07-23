@@ -71,8 +71,14 @@ export class TerminalSession {
   private liveSkillGain: Partial<Skills> = {};
 
   // --- streaming queue state (drip output) ---
+  // Paced ping-style output: `streamQueue` holds the full line list, `streamIdx`
+  // the next line to write, `streamDone` the continuation to run when the queue
+  // drains (solution banner / fresh prompt / shell tail). While `streaming` is
+  // true, handleData swallows every keystroke (see the guard head).
   private streamQueue: string[] = [];
+  private streamIdx = 0;
   private streaming = false;
+  private streamDone: (() => TerminalEffect[]) | null = null;
 
   // --- tab completion state ---
   private tabCompletions: string[] = [];
@@ -143,9 +149,24 @@ export class TerminalSession {
   }
 
   handleData(data: string): TerminalEffect[] {
-    // NOTE: Tab (`\t`), the empty-line `?` hint, and the streaming / solved
-    // guard head of onData are owned by later tasks. Anything not handled below
-    // falls through to `return []`.
+    // While paced output is animating (e.g. ping), ignore keystrokes so the
+    // drip isn't interrupted or interleaved with a new command. This guard sits
+    // ABOVE everything else (matches useTerminal.ts's onData head).
+    if (this.streaming) {
+      return [];
+    }
+
+    // After solving, swallow all input except Enter, which advances. Enter
+    // fires the injected onSolved callback (skillGain, setsFlags=undefined,
+    // effects) exactly once and clears the solved latch; every other key is
+    // swallowed so the solution banner stays on screen.
+    if (this.solved) {
+      if (data === '\r') {
+        this.solved = false;
+        this.deps.onSolved(this.pendingSkillGain, undefined, this.pendingSolutionEffects);
+      }
+      return [];
+    }
 
     // A command owns the next line (ssh password prompt etc.). The buffered
     // answer bypasses history/canned matching; masked input echoes NOTHING
@@ -403,12 +424,12 @@ export class TerminalSession {
           this.commandsUsed.push(trimmed);
           const output = cmd.output;
 
-          // Ping-style commands stream their reply lines over time (Task 9).
+          // Ping-style commands stream their reply lines over time (see
+          // emitScenarioOutput): pace the icmp/reply lines instead of dumping.
           const isPingLike =
             cmd.teachesCommand === 'ping' ||
             cmd.pattern.startsWith('ping') ||
             /^PING /.test(output);
-          void isPingLike; // TODO(Task 9): pacing — used to pace ping-style output.
 
           // Track executed commands for solution checking: store both the full
           // pattern and the short teachesCommand form for flexible matching.
@@ -423,9 +444,10 @@ export class TerminalSession {
           }
 
           if (cmd.isSolution) {
-            // TODO(Task 9): pacing — emit output as plain writeLine, then the banner.
-            for (const l of output.split('\n')) effects.push({ type: 'writeLine', text: l });
-            effects.push(...this.announceSolved({ skillGain: cmd.skillGain }));
+            // Output (paced if ping-like), then the success banner as the
+            // continuation once all lines are on screen.
+            effects.push(...this.emitScenarioOutput(output, isPingLike,
+              () => this.announceSolved({ skillGain: cmd.skillGain })));
             return effects;
           }
 
@@ -440,17 +462,13 @@ export class TerminalSession {
             return effects;
           }
 
-          // Non-solution scenario command — show output, then either the
-          // success banner (if this completed a multi-step solution) or a
-          // fresh prompt.
-          // TODO(Task 9): pacing — emit output as plain writeLine.
-          for (const l of output.split('\n')) effects.push({ type: 'writeLine', text: l });
-          const solution = this.checkSolutions(this.teachedCommands);
-          if (solution) {
-            effects.push(...this.announceSolved(solution));
-            return effects;
-          }
-          effects.push(this.resetLineAndPrompt());
+          // Non-solution scenario command — show output (paced if ping-like),
+          // then either the success banner (if this completed a multi-step
+          // solution) or a fresh prompt.
+          effects.push(...this.emitScenarioOutput(output, isPingLike, () => {
+            const solution = this.checkSolutions(this.teachedCommands);
+            return solution ? this.announceSolved(solution) : [this.resetLineAndPrompt()];
+          }));
           return effects;
         }
       }
@@ -575,42 +593,25 @@ export class TerminalSession {
   private handleShellResult(result: CommandResult, cmdName: string): TerminalEffect[] {
     const effects: TerminalEffect[] = [];
 
-    const finish = (): TerminalEffect[] => {
-      if (result.pendingInput) {
-        // Arm pending-input. The next line is fed to shell.continueInput and its
-        // CommandResult routed back through THIS method (re-arming is allowed).
-        this.pendingMask = result.pendingInput.mask;
-        this.pendingCmdName = cmdName;
-        this.pendingBuffer = '';
-        this.pendingInput = {
-          prompt: result.pendingInput.prompt,
-          mask: result.pendingInput.mask,
-          resume: (answer: string) =>
-            this.handleShellResult(this.deps.shell.continueInput(answer), cmdName),
-        };
-        // Prompt is written WITHOUT a newline (real ssh: `…password: ` inline).
-        return [{ type: 'write', text: result.pendingInput.prompt }];
-      }
-      if (result.exitCode === 0) {
-        this.creditSkillDrip(cmdName);
-      }
-      const solution = this.checkSolutions(this.teachedCommands);
-      if (solution) {
-        return this.announceSolved(solution);
-      }
-      return [this.resetLineAndPrompt()];
-    };
-
     if (result.clearScreen) {
       effects.push({ type: 'clearScreen' });
-      effects.push(...finish());
+      effects.push(...this.finishShellResult(result, cmdName));
       return effects;
+    }
+
+    // Live network command (ping etc.): pace the reply lines so it feels like
+    // the host is actually being probed, then write any stderr and finish up.
+    if (!result.pendingInput && result.output && result.output.split('\n').some(l => this.isPingReplyLine(l))) {
+      return this.emitScenarioOutput(result.output, true, () => {
+        const tail: TerminalEffect[] = [];
+        if (result.error) tail.push(...this.writeShellError(result.error));
+        tail.push(...this.finishShellResult(result, cmdName));
+        return tail;
+      });
     }
 
     // Show stdout AND stderr — a pipeline can produce both
     // (`grep x missing | wc -l` prints grep's error and wc's 0).
-    // TODO(Task 9): pacing — ping-style reply lines are emitted instantly here;
-    // Task 9 restores the drip pacing (emitScenarioOutput) around this output.
     if (result.output) {
       for (const shellLine of result.output.split('\n')) {
         effects.push({ type: 'writeLine', text: shellLine });
@@ -619,8 +620,37 @@ export class TerminalSession {
     if (result.error) {
       effects.push(...this.writeShellError(result.error));
     }
-    effects.push(...finish());
+    effects.push(...this.finishShellResult(result, cmdName));
     return effects;
+  }
+
+  // Tail of a shell result once its output/errors are on screen: arm the
+  // pending-input prompt, credit skill drip + announce a solve, or write a fresh
+  // prompt. Shared by the instant path and the ping drip's `done` continuation.
+  private finishShellResult(result: CommandResult, cmdName: string): TerminalEffect[] {
+    if (result.pendingInput) {
+      // Arm pending-input. The next line is fed to shell.continueInput and its
+      // CommandResult routed back through handleShellResult (re-arming is allowed).
+      this.pendingMask = result.pendingInput.mask;
+      this.pendingCmdName = cmdName;
+      this.pendingBuffer = '';
+      this.pendingInput = {
+        prompt: result.pendingInput.prompt,
+        mask: result.pendingInput.mask,
+        resume: (answer: string) =>
+          this.handleShellResult(this.deps.shell.continueInput(answer), cmdName),
+      };
+      // Prompt is written WITHOUT a newline (real ssh: `…password: ` inline).
+      return [{ type: 'write', text: result.pendingInput.prompt }];
+    }
+    if (result.exitCode === 0) {
+      this.creditSkillDrip(cmdName);
+    }
+    const solution = this.checkSolutions(this.teachedCommands);
+    if (solution) {
+      return this.announceSolved(solution);
+    }
+    return [this.resetLineAndPrompt()];
   }
 
   // Tab completion: gather completions for the token under the cursor and either
@@ -696,7 +726,79 @@ export class TerminalSession {
     return [];
   }
 
-  tick(_kind: 'drip'): TerminalEffect[] { return []; }              // stub — later task
+  // A "reply/attempt" line of a ping-style command — the lines we pace out over
+  // time instead of dumping instantly. Regex unchanged from useTerminal.ts.
+  private isPingReplyLine(l: string): boolean {
+    return /icmp_seq|bytes from|Request timeout|no answer|timed out|Destination.*Unreachable|packet loss/i.test(l);
+  }
+
+  // Emit a scenario command's output. For ping-like commands the reply lines are
+  // paced one per drip (450ms) so it feels like the host is really being probed;
+  // everything else prints instantly. `done` runs once all output is on screen
+  // (fresh prompt / solution banner / shell tail). If there is nothing to pace
+  // (no reply lines), the fast path prints everything and runs `done` INLINE so
+  // synchronous solves still surface the `solved` effect in the same return.
+  private emitScenarioOutput(output: string, pingLike: boolean, done: () => TerminalEffect[]): TerminalEffect[] {
+    const outLines = output.split('\n');
+    if (!pingLike || !outLines.some(l => this.isPingReplyLine(l))) {
+      const effects: TerminalEffect[] = outLines.map(l => ({ type: 'writeLine', text: l }));
+      effects.push(...done());
+      return effects;
+    }
+
+    // Paced path: write the leading non-reply lines + the first reply line now,
+    // then hand the rest to tick('drip').
+    this.streaming = true;
+    this.streamQueue = outLines;
+    this.streamIdx = 0;
+    this.streamDone = done;
+
+    const effects: TerminalEffect[] = [];
+    // Leading non-reply lines print instantly (e.g. the `PING host` header).
+    while (this.streamIdx < this.streamQueue.length && !this.isPingReplyLine(this.streamQueue[this.streamIdx])) {
+      effects.push({ type: 'writeLine', text: this.streamQueue[this.streamIdx] });
+      this.streamIdx++;
+    }
+    // ...then the first reply line + everything up to (not incl.) the next reply.
+    effects.push(...this.stepStream());
+    return effects;
+  }
+
+  // Write one drip "chunk": the reply line at the cursor plus the following
+  // instant non-reply lines, stopping before the next reply line. If more reply
+  // lines remain, request another drip; otherwise finish (streaming off + run
+  // the captured `done` continuation). Assumes streamIdx points at a reply line.
+  private stepStream(): TerminalEffect[] {
+    const effects: TerminalEffect[] = [];
+    // The reply line itself.
+    if (this.streamIdx < this.streamQueue.length) {
+      effects.push({ type: 'writeLine', text: this.streamQueue[this.streamIdx] });
+      this.streamIdx++;
+    }
+    // Trailing instant non-reply lines up to the next reply line (or the end).
+    while (this.streamIdx < this.streamQueue.length && !this.isPingReplyLine(this.streamQueue[this.streamIdx])) {
+      effects.push({ type: 'writeLine', text: this.streamQueue[this.streamIdx] });
+      this.streamIdx++;
+    }
+    if (this.streamIdx < this.streamQueue.length) {
+      // Another reply line remains — pace it on the next drip.
+      effects.push({ type: 'scheduleDrip', delayMs: 450 });
+      return effects;
+    }
+    // Queue drained: leave streaming mode and run the continuation.
+    const done = this.streamDone;
+    this.streaming = false;
+    this.streamQueue = [];
+    this.streamIdx = 0;
+    this.streamDone = null;
+    if (done) effects.push(...done());
+    return effects;
+  }
+
+  tick(kind: 'drip'): TerminalEffect[] {
+    if (kind !== 'drip' || !this.streaming) return [];
+    return this.stepStream();
+  }
 
   getSnapshot(): TerminalSnapshot {
     return { hintsUsed: this.hintsUsed, commandsUsed: [...this.commandsUsed], solved: this.solved };
