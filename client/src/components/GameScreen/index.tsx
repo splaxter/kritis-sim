@@ -35,6 +35,7 @@ interface GameScreenProps {
   onContinue: () => void;
   onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onTerminalCancel: () => void;
+  onTerminalFlagsSet?: (flags: string[]) => void;
   onSave?: () => void;
   onLoad?: () => void;
   /** learning mode only: explicit next-step CTAs on the result screen */
@@ -60,6 +61,7 @@ export function GameScreen({
   onContinue,
   onTerminalSolved,
   onTerminalCancel,
+  onTerminalFlagsSet,
   onSave,
   onLoad,
   learningResultCtas,
@@ -220,6 +222,7 @@ export function GameScreen({
                 task={terminalTask}
                 onSolved={onTerminalSolved}
                 onCancel={onTerminalCancel}
+                onFlagsSet={onTerminalFlagsSet}
                 gameMode={state.gameMode}
               />
             )}

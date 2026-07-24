@@ -12,6 +12,10 @@ export interface TerminalCommand {
   isPartialSolution?: boolean;
   wrongApproachFeedback?: string;
   isSolution?: boolean;
+  /** Run flags set the moment this command matches — immediately and
+   *  independent of solving the level (survives cancel/ESC). Used for
+   *  "the player looked at X" markers, e.g. the AUDIT TRAIL mailbox honeypot. */
+  setsFlags?: string[];
 }
 
 /**

@@ -51,6 +51,7 @@ interface UseGameReturn {
   endStoryAct: () => void;
   clearCurrentContent: () => void;
   returnToMenu: () => void;
+  setRunFlags: (flags: string[]) => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -409,6 +410,21 @@ export function useGame(): UseGameReturn {
     setPhase('playing');
   }, []);
 
+  // Set run flags immediately, outside the solve path — used by terminal
+  // commands whose mere execution is a consequence (e.g. the honeypot mailbox
+  // read). Idempotent: if every flag is already set, the state object is left
+  // untouched so no re-render/autosave churn results. These flags persist
+  // through closeTerminal(false) (cancel/ESC) — "seen is seen".
+  const setRunFlags = useCallback((flagsToSet: string[]) => {
+    if (flagsToSet.length === 0) return;
+    setState((prev) => {
+      if (flagsToSet.every((f) => prev.flags[f])) return prev;
+      const flags = { ...prev.flags };
+      for (const f of flagsToSet) flags[f] = true;
+      return { ...prev, flags };
+    });
+  }, []);
+
   // Leave the current run and return to the main menu WITHOUT resetting the run:
   // clear only the transient React content state and set phase = 'menu'. The
   // persisted GameState (and thus the autosave) is intentionally left untouched,
@@ -447,5 +463,6 @@ export function useGame(): UseGameReturn {
     endStoryAct,
     clearCurrentContent,
     returnToMenu,
+    setRunFlags,
   };
 }

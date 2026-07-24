@@ -17,10 +17,11 @@ interface UseTerminalOptions {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onPartialSolution: (feedback: string) => void;
+  onFlagsSet?: (flags: string[]) => void;
   gameMode?: GameModeId;
 }
 
-export function useTerminal({ context, onSolved, onPartialSolution, gameMode = 'intermediate' }: UseTerminalOptions) {
+export function useTerminal({ context, onSolved, onPartialSolution, onFlagsSet, gameMode = 'intermediate' }: UseTerminalOptions) {
   const isBeginnerMode = gameMode === 'beginner' || gameMode === 'learning';
   const terminalRef = useRef<HTMLDivElement>(null);
   const xtermRef = useRef<Terminal | null>(null);
@@ -38,10 +39,12 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
   // reach the current props without re-running the mount effect.
   const onSolvedRef = useRef(onSolved);
   const onPartialSolutionRef = useRef(onPartialSolution);
+  const onFlagsSetRef = useRef(onFlagsSet);
   useEffect(() => {
     onSolvedRef.current = onSolved;
     onPartialSolutionRef.current = onPartialSolution;
-  }, [onSolved, onPartialSolution]);
+    onFlagsSetRef.current = onFlagsSet;
+  }, [onSolved, onPartialSolution, onFlagsSet]);
 
   // Create shell engine from context (memoized — the session receives this exact
   // instance and never constructs its own).
@@ -105,6 +108,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, gameMode = '
       context,
       gameMode,
       onSolved: (skillGain, setsFlags, effects) => onSolvedRef.current(skillGain, setsFlags, effects),
+      onFlagsSet: (flags) => onFlagsSetRef.current?.(flags),
     });
 
     xtermRef.current = term;

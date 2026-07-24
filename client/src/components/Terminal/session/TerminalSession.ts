@@ -26,6 +26,9 @@ export interface TerminalSessionDeps {
   context: TerminalContext;
   gameMode: GameModeId;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
+  /** Fired the moment a scenario command with `setsFlags` matches — immediately
+   *  and independent of solving (honeypot: "the player read this"). */
+  onFlagsSet?: (flags: string[]) => void;
 }
 
 export interface TerminalSnapshot {
@@ -415,6 +418,15 @@ export class TerminalSession {
 
         if (matches) {
           this.commandsUsed.push(trimmed);
+
+          // Honeypot / "seen is seen": fire run-flags the instant this command
+          // matches, before any solve/partial branching, so the effect survives
+          // even if the player cancels the level. Idempotency is enforced by the
+          // consumer (useGame.setRunFlags).
+          if (cmd.setsFlags && cmd.setsFlags.length > 0) {
+            this.deps.onFlagsSet?.(cmd.setsFlags);
+          }
+
           const output = cmd.output;
 
           // Ping-style commands stream their reply lines over time (see

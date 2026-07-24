@@ -923,6 +923,7 @@ function AppContent() {
         onContinue={game.continueGame}
         onTerminalSolved={(skillGain, setsFlags) => game.closeTerminal(true, skillGain, setsFlags)}
         onTerminalCancel={() => game.closeTerminal(false)}
+        onTerminalFlagsSet={game.setRunFlags}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}
         backAction={backAction}

@@ -8,17 +8,19 @@ interface TerminalProps {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onCancel: () => void;
+  onFlagsSet?: (flags: string[]) => void;
   gameMode?: GameModeId;
   /** Fallback task summary when the context has no taskText (extracted from the briefing) */
   task?: string;
 }
 
-export function Terminal({ context, onSolved, onCancel, gameMode = 'intermediate', task }: TerminalProps) {
+export function Terminal({ context, onSolved, onCancel, onFlagsSet, gameMode = 'intermediate', task }: TerminalProps) {
   const [partialFeedback, setPartialFeedback] = useState<string | null>(null);
   const { terminalRef, hintsRemaining, showHint } = useTerminal({
     context,
     onSolved,
     onPartialSolution: setPartialFeedback,
+    onFlagsSet,
     gameMode,
   });
 
