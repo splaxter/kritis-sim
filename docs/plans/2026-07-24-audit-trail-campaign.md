@@ -2,9 +2,19 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Zweite Story-Kampagne „AUDIT TRAIL" (4 Akte, Domänen-basierte Endings) auf Basis von: minimaler Kampagnen-Entkopplung, `FlagCondition`-Ausdrücken, Terminal-`setsFlags` ohne Solve, echtem `diff`, eng begrenzter Exchange-2019-Semantik.
+**Goal:** Zweite, eigenständige WARM-Story-Kampagne „AUDIT TRAIL" (4 Akte,
+bekannte Rollen, frischer Kampagnenzustand, Domänen-basierte Endings) auf Basis
+von minimaler Kampagnen-Entkopplung, `FlagCondition`-Ausdrücken,
+Terminal-`setsFlags` ohne Solve, echtem `diff` und eng begrenzter
+Exchange-2019-Semantik.
 
-**Architecture:** Phase A liefert die drei isolierten Engine-Blöcke (FlagCondition, Terminal-setsFlags), Phase B die Kampagnen-Entkopplung (Probezeit unverändert als `CampaignDefinition` verpackt, Saves migriert), Phase C die Werkzeuge (`diff`, Exchange-Cmdlets, Mail-Compose), Phase D den Content Akt für Akt. Jede Phase ist separat committbar; Probezeit-Verhalten darf sich in keiner Phase ändern.
+**Architecture:** Phase A liefert die drei isolierten Engine-Blöcke
+(FlagCondition, Terminal-setsFlags), Phase B die Kampagnen-Entkopplung
+(Probezeit unverändert als `CampaignDefinition` verpackt, Saves migriert),
+Phase C die Werkzeuge (`diff`, Exchange-Cmdlets, Mail-Compose), Phase D den
+WARM-Content Akt für Akt. Bekannte Identitäten werden wiederverwendet, aber
+Flags, Relationships und Endings nie aus „Die Probezeit" importiert. Jede Phase
+ist separat committbar; Probezeit-Verhalten darf sich in keiner Phase ändern.
 
 **Tech Stack:** React 18, TypeScript, Vitest (node `*.test.ts` + jsdom `*.browser.test.tsx`), xterm.js-Shell-Engine.
 
@@ -25,6 +35,9 @@
 - `client/src/engine/shell/commands/linux/index.ts:19`: `allLinuxCommands` — neuer Befehl = Objekt + Spread, Registrierung automatisch (`ShellEngine.registerCommands`).
 - `client/src/content/adventure/actBreaks.ts:42-57`: `ACT_BREAK_DEFAULT`/`ACT_BREAK_BODIES` (Probezeit-Copy); `client/src/content/adventure/index.ts:58`: `STORY_CHARACTERS` (global).
 - Multi-Host ist Linux-only (`engine/shell/hosts.ts`) — EXCH01-Level laufen als eigenständige PowerShell-Level, nicht per ssh.
+- AUDIT TRAIL ist eine WARM-Parallelkampagne: Bert/Jens/Henry/Bjorg/Dr. Müller
+  sind bekannte sichtbare Identitäten, erhalten aber kampagneneigene
+  Relationship-/Flag-Zustände. Keine FENRIS-/Stefan-Voraussetzung.
 
 ---
 
@@ -103,6 +116,8 @@ Matching-Breite (Honigtopf-Abdeckung, Design §6 L4 + §8): Das Match muss über
 **Files:** `client/src/engine/gameState.ts:40-42` (Kampagne an `createInitialAdventureState`), `client/src/App.tsx` (`combinedEvents` aus `getCampaign(state.storyState.campaignId)` statt fester Imports `:17,:261`; Ending-Flow `:720-734` über `campaign.deriveEnding`; Akt-Break-Copy aus `campaign.actBreaks`; Charakter-Map aus `campaign.characters`), `client/src/engine/autosave.ts`/`hooks/useSaveLoad.ts` (Migration: fehlende `campaignId` ⇒ `'probation'` — never-throw-Regel), `client/src/engine/metaProgress.ts` (Einträge pro `campaignId`; bestehende Einträge migrieren zu probation), `client/src/engine/telemetry.ts` (Ending als `string`, `campaignId` mitloggen).
 
 - Tests: Autosave-Envelope ohne `campaignId` lädt als probation (node-Test in `autosave.test.ts`); metaProgress-Migration; App-Smoke via bestehende Browser-Tests.
+- Test: Start von AUDIT TRAIL übernimmt weder Probezeit-Flags noch
+  Relationship-Werte; bekannte Namen/Token werden dennoch korrekt gerendert.
 
 ## Task 7: Menü — Kampagnenwahl im Story-Einstieg
 
@@ -146,30 +161,52 @@ Matching-Breite (Honigtopf-Abdeckung, Design §6 L4 + §8): Das Match muss über
 - `domains.ts`: D1–D5 als `FlagCondition`-Konstanten (Design §5.2) — **dieselben Objekte** werden von Akt-4-Beats (branchCondition) und `deriveEnding` benutzt (kein Duplikat).
 - `deriveEnding`: Prioritätslogik §5.3 (Rächer ⇒ Stille&lt;2 ⇒ Profi≥4 inkl. D1+D2 ⇒ Stille-Untervariante). Tabellengetriebene Tests inkl. aller Grenzfälle.
 - Endings-Texte inkl. modularer Epilog-Bausteine pro Domäne; Rächer-Text mit dem DSGVO-Wording aus §5.3 (Bewertung/Dokumentation, Behördenmeldung nur bei voraussichtlichem Risiko, Art. 33).
+- `characters.ts`: bekannte WARM-Identitäten Bert/Jens/Henry/Bjorg/Dr. Müller
+  mit kampagneneigenen Relationship-Keys/-Startwerten; neuer ISB und M. nur für
+  AUDIT TRAIL. Kein Import von Probezeit-CharacterMemory.
 
 ## Task 12: Akt 1 — Onboarding
 
-L1 „Der erste Arbeitstag", L2 „Die Inventur" (stateGoal auf Inventar-Datei; Choice → `shared_account_documented`, `onboarding_documented`), Volker-/Silke-Intro-Events, erste `[intern]`-Notiz. Hint-Eskalation beachten (hints[0] orientiert, Syntax zuletzt). `npm test` als Content-Gate.
+L1 „Der erste Arbeitstag", L2 „Die Inventur" (stateGoal auf Inventar-Datei;
+Choice → `shared_account_documented`, `onboarding_documented`). WARM-Einstieg:
+Bert übergibt den Auditauftrag, Jens und Henry verankern den bekannten
+Arbeitsalltag, Bjorg liefert die erste `[intern]`-Notiz. Figuren nur knapp
+re-etablieren, kein Probezeit-Onboarding wiederholen. Hint-Eskalation beachten
+(hints[0] orientiert, Syntax zuletzt). `npm test` als Content-Gate.
 
 ## Task 13: Akt 2 — Die Spur
 
 - L3 diff-Level (`ticket_tamper_documented`) — nutzt Task 8.
 - L4 EXCH01: `Get-ChildItem` + `Select-String -Path u_ex240722.log` (expliziter Dateiname, kein Glob). Honigtopf-PST mit `setsFlags: ['mailbox_scope_exceeded']` — **Testdatei mit einem Testfall pro Leseweg**: `Get-Content`, `cat`, `type`, `gc`, `Select-String`, `sls`, Pipeline-Form, Pfadvarianten (Design §8). Übergabeprotokoll-Beginn.
-- Freigabe-Dialog (`authorization_documented`) + Melde-Mail (`finding_reported`, nutzt Task 10).
+- Freigabe-Dialog mit Bert (`authorization_documented`) + Melde-Mail
+  (`finding_reported`, nutzt Task 10).
 - L5 Analyse-VM: `cp`/`sha256sum`/Timeline/Protokoll → `evidence_hashed`, `export_documented` (stateGoals; Seeding-Traps aus Memory beachten: kein bare `fileExists`-Irrtum, absentMatches-Semantik).
 - L6 EXCH01: `Get-Mailbox`/`Set-Mailbox -AuditEnabled $true` → `mailbox_auditing_enabled` (nutzt Task 9), Lernnotiz Online/On-prem.
 
 ## Task 14: Akt 3 — Die Blockade
 
-Volker-Dialogkarten (spitze Optionen → `volker_provoked`, `[intern]`-Notiz sichern → `volker_warning_preserved`; Vorlage `internal`-Pack; ≥2 ungegatete Optionen pro Karte — Choice-Design-Regel). L7 Explorer-GUI (`bastion_delivery_found`). Schnittstellen-Mail (`handover_mail_sent`, Task 10). L8 ★ optional (Jumphost-Muster → `bastion_live`). Optionaler Chain-Trigger `volker_provoked` → Silke-Zwischenfall (`delayWeeks`, Chain-Regeln aus Memory: Mode-Scoping über Start-Event).
+Bjorg-Dialogkarten (spitze Optionen → `bjorg_provoked`, `[intern]`-Notiz
+sichern → `bjorg_warning_preserved`; Vorlage `internal`-Pack; ≥2 ungegatete
+Optionen pro Karte — Choice-Design-Regel). L7 Explorer-GUI
+(`bastion_delivery_found`). Schnittstellen-Mail mit CC an Bert
+(`handover_mail_sent`, Task 10). L8 ★ optional (Jumphost-Muster →
+`bastion_live`). Optionaler Chain-Trigger `bjorg_provoked` →
+Bert-Zwischenfall (`delayWeeks`, Chain-Regeln aus Memory: Mode-Scoping über
+Start-Event).
 
 ## Task 15: Akt 4 — Das Audit
 
-Fünf Auditfrage-Beats, `branchCondition` = Domänen-Konstanten aus Task 11; Konfrontationsszenen für belastende Flags (F2 Personalrat, F5 Dossier); Ending-Aufruf + modularer Epilog (nur erfüllte Domänen werden behauptet; D3-Aufwertung durch `bastion_live`).
+Fünf Auditfrage-Beats, `branchCondition` = Domänen-Konstanten aus Task 11;
+Konfrontationsszenen für belastende Flags (F2 Personalrat, F5 Bjorgs Dossier);
+Ending-Aufruf + modularer Epilog (nur erfüllte Domänen werden behauptet;
+D3-Aufwertung durch `bastion_live`).
 
 ## Task 16: Konsistenz-Guard + Full pass
 
 **Files:** Create `client/src/content/campaigns/audit-trail/campaignConsistency.test.ts` (Muster: bestehende Story-Konsistenztests).
 
 - Assertions: jedes in einer `FlagCondition` referenzierte Flag wird von mindestens einem Event/Level gesetzt; jedes §5.1-Flag wird von mindestens einer Domäne gelesen; alle Beat-`eventId`s existieren; keine Sidequests registriert.
+- Assertions: keine alten `volker_*`-/Silke-Contentreferenzen, keine
+  FENRIS-/Stefan-Branchbedingung und keine Übernahme von Probezeit-Flags oder
+  Relationship-Zuständen.
 - Full pass: `npm test`, `npm run test:client`, `npm run build`, `npm run test:e2e` (Story-Smoke: Probezeit unverändert; AUDIT-TRAIL-Start bis L1 spielbar — verify-Skill `.claude/skills/verify/SKILL.md` für den manuellen Durchstich).

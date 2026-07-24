@@ -1,13 +1,17 @@
 # AUDIT TRAIL — Zweite Story-Kampagne (Design)
 
-Datum: 2026-07-24 · Status: Entwurf zur Abnahme (Rev. 2 — Audit-Domänen,
-FlagCondition, Entkopplungs-Scope, Terminal-setsFlags, Exchange-2019-Fachlichkeit)
+Datum: 2026-07-24 · Status: abgenommen (Rev. 3 — WARM-Parallelkampagne,
+Audit-Domänen, FlagCondition, Entkopplungs-Scope, Terminal-setsFlags,
+Exchange-2019-Fachlichkeit)
 
 ## 1. Konzept
 
-Ein CLI-Thriller in 4 Akten bei der fiktiven „Stadtentwässerung Kreis Falkenbach AöR"
-(KRITIS, klein, unterbesetzt, NIS-2 im Nacken). Der neue Spielkern, der die Kampagne
-von „Die Probezeit" abgrenzt:
+Ein CLI-Thriller in 4 Akten bei **WARM – Abfallwirtschaft Rhein-Main** (KRITIS,
+klein, unterbesetzt, NIS-2 im Nacken). Die bekannte Organisation und Besetzung
+geben sofort Orientierung; die Kampagne ist dennoch eine **eigenständige
+Parallelgeschichte** mit frischem Kampagnenzustand. Sie setzt kein Ende von „Die
+Probezeit" voraus und erklärt keinen ihrer Pfade zum Kanon. Der neue Spielkern,
+der die Kampagne abgrenzt:
 
 > Nicht nur den Vorfall technisch lösen, sondern später **beweisen** können, was man
 > wusste, wer etwas angeordnet hat und ob man verhältnismäßig gehandelt hat.
@@ -21,10 +25,12 @@ Dokumentation als Sicherheitskontrolle, Deeskalation als Admin-Skill.
 
 ## 2. Festgezurrte Entscheidungen
 
-1. **Eigenständige, im Menü wählbare zweite Kampagne.** Kein Ersatz für „Die
-   Probezeit", keine Fortsetzung derselben Figur (drei Probezeit-Endings bleiben
-   gleichwertig; kein Spielreihenfolge-Zwang). Weiche Bezüge zur Spielwelt erlaubt.
-2. **Protagonist: interner Systemadministrator** (`player@sekf.local`, Probezeit läuft)
+1. **Eigenständige, im Menü wählbare WARM-Parallelkampagne.** Kein Ersatz für
+   „Die Probezeit", keine direkte Fortsetzung und kein Import ihres Endings oder
+   Beziehungszustands (drei Probezeit-Endings bleiben gleichwertig; kein
+   Spielreihenfolge-Zwang). Bekannte Systeme, Rollen und Figuren sind
+   Ausgangslage, FENRIS-/Stefan-Ereignisse höchstens unverbindliche Easter Eggs.
+2. **Protagonist: interner Systemadministrator** (`player@warm.local`, Probezeit läuft)
    mit zusätzlichem Auftrag, die **Auditfähigkeit herzustellen**. Technischer Zugriff
    vorhanden, aber **kein pauschales Recht auf Postfachinhalte** — sensible Zugriffe
    brauchen dokumentierte Freigabe und Zweckbindung. Die Spannung ist „Ich kann das
@@ -58,20 +64,29 @@ Dokumentation als Sicherheitskontrolle, Deeskalation als Admin-Skill.
     Audit-Domäne; keine Szene behauptet einen Zustand (BASTION live, Konto
     abgeschafft), dessen Flag fehlt (§5.3, §6 L8).
 
-## 3. Figuren
+## 3. Figuren und Kontinuität
 
-Alle neu, keine Überschneidung mit der Probezeit-Besetzung:
+Die bekannte WARM-Besetzung übernimmt die etablierten Rollen, beginnt in AUDIT
+TRAIL aber mit **eigenem Relationship-/Flag-Zustand**. Kenntnisse oder Entscheidungen
+aus „Die Probezeit" werden nicht importiert.
 
-- **Volker** — dienstältester Admin. Kommentiert Tickets, statt sie zu lösen.
-  Charmant im Flur, giftig im Chat. Prestigeprojekt PAM-Appliance „BASTION-01"
-  steht seit 14 Monaten unkonfiguriert im Rack; Begründung wechselt.
-- **Silke** — kommissarische Teamleitung. Weiß mehr, als sie sagt. Konfliktscheu,
-  aber nicht dumm.
-- **Der neue ISB** — erscheint in Akt 4. Stellt genau die Fragen, auf die nur gute
-  Doku antworten kann.
-- **M.** — der „krankheitsbedingt abwesende" Ex-Teamleiter. Sein Postfach ist
-  aktiver, als es sein sollte. Abgrenzung zum Probezeit-Stefan: M. ist kein Opfer
-  eines Angriffs, sondern eines Systems ohne Zurechenbarkeit.
+- **Bjorg** — politischer Gegenspieler und Besitzer der `[intern]`-Notizen.
+  Kommentiert Tickets, statt sie zu lösen; charmant im Flur, giftig im Chat.
+  Sein Prestigeprojekt PAM-Appliance „BASTION-01" steht seit 14 Monaten
+  unkonfiguriert im Rack, die Begründung wechselt. Seine bekannte Ausweichhaltung
+  bekommt hier erstmals belastbare organisatorische Konsequenzen.
+- **Bert** — IT-Leitung, formale Freigabe- und Eskalationsstelle. Vorsichtig und
+  konfliktmeidend, aber nicht blind.
+- **Jens** — fachlicher Vertrauensanker und Mentor. Er hilft beim Einordnen,
+  nimmt dem Spieler aber keine Auditentscheidung ab.
+- **Henry** — technischer Realitätscheck, besonders bei BASTION und der Frage,
+  was tatsächlich betriebsbereit ist.
+- **Dr. Müller** — Geschäftsführung und oberste interne Eskalationsebene.
+- **Der neue ISB** — einzige zentrale neue Rolle; erscheint in Akt 4 und stellt
+  genau die Fragen, auf die nur gute Dokumentation antworten kann.
+- **M.** — eine neue, krankheitsbedingt abwesende Führungskraft. Das aktive
+  Postfach ist Folge fehlender Zurechenbarkeit, keine nachträgliche Umdeutung von
+  Stefan oder dem bereits erwähnten Markus.
 
 ## 4. Akt 4 zuerst: die Auditfragen (Rückwärts-Design)
 
@@ -86,9 +101,9 @@ Konfrontationsszenen.
 |---|---|---|
 | F1 | „Wer kann auf Postfächer zugreifen — und wie stellen Sie Zurechenbarkeit her?" | Shared-Konto `administrator` als strukturelles Finding dokumentiert **und** Mailbox-Auditing nachweislich aktiviert. Wichtig: Auditing dokumentiert Akteure, macht das geteilte Konto aber **nicht** individuell zurechenbar — die belastbare Antwort ist „Finding + Kompensationsmaßnahme + Abstellung vorgeschlagen", nicht „Problem gelöst" (§5.3). |
 | F2 | „Es gab einen Zugriff auf das Postfach von Herrn M. Was wissen Sie — und woher?" | Finding gemeldet, Mandat/Freigabe dokumentiert, Export protokolliert, Originale gehasht — **und kein** Scope-Verstoß (Postfachinhalte, breites Teilen). |
-| F3 | „Die PAM-Appliance steht seit 14 Monaten. Warum?" | Lieferschein gefunden (MFA war Teil des Pakets) **und** Übergabe dokumentiert (Schnittstellen-Mail mit Zeitstempel und CC an Silke — Bringschuld gedreht). |
+| F3 | „Die PAM-Appliance steht seit 14 Monaten. Warum?" | Lieferschein gefunden (MFA war Teil des Pakets) **und** Übergabe dokumentiert (Schnittstellen-Mail mit Zeitstempel und CC an Bert — Bringschuld gedreht). |
 | F4 | „Zeigen Sie mir Ihre Dokumentation der letzten Monate." | Doku-Spur seit Akt 1: Onboarding-Inventar **und** dokumentierter Ticket-Manipulations-Fund. |
-| F5 | „Herr Volker hat sich über Ihren Umgangston beschwert." | Volkers `[intern]`-Notizen gesichert statt beantwortet, **und nie** provoziert. |
+| F5 | „Ihr Kollege Bjorg hat sich über Ihren Umgangston beschwert." | Bjorgs `[intern]`-Notizen gesichert statt beantwortet, **und nie** provoziert. |
 
 ## 5. Flags, Audit-Domänen und Endings
 
@@ -100,20 +115,20 @@ Konfrontationsszenen.
 | `shared_account_documented` | Akt 1, L2/Dialog (Wiki-Passwort-Fund dokumentiert) | D1 |
 | `ticket_tamper_documented` | Akt 2, L3 (diff-Fund dokumentiert) | D4 |
 | `mailbox_auditing_enabled` | Akt 2, L6 (`Set-Mailbox … -AuditEnabled $true`, stateGoal) | D1 |
-| `authorization_documented` | Akt 2, Dialog (Freigabe bei Silke eingeholt, bevor Logs vertieft werden) | D2 |
+| `authorization_documented` | Akt 2, Dialog (Freigabe bei Bert eingeholt, bevor Logs vertieft werden) | D2 |
 | `finding_reported` | Akt 2, Mail-Interaktion (strukturelles Finding gemeldet) | D2 |
 | `evidence_hashed` | Akt 2, L5 (Originale + `sha256sum`-Hashliste, stateGoal) | D2 |
 | `export_documented` | Akt 2, L4→L5 (Übergabeprotokoll erstellt, stateGoal) | D2 |
 | `mailbox_scope_exceeded` | Akt 2, L4 (Honigtopf: M.s Postfach-Export geöffnet statt nur Zugriffs-Log; Terminal-`setsFlags`, §7.4) | D2 (negativ) |
 | `personal_data_shared_broadly` | Akt 2/3, Dialog (Funde in großer Runde geteilt) | D2 (negativ) |
 | `bastion_delivery_found` | Akt 3, L7 (Lieferschein auf dem Fileshare) | D3 |
-| `handover_mail_sent` | Akt 3, Mail-Interaktion (CC Silke, Zeitstempel) | D3 |
+| `handover_mail_sent` | Akt 3, Mail-Interaktion (CC Bert, Zeitstempel) | D3 |
 | `bastion_live` | Akt 3, L8 ★ (Bastion konfiguriert, stateGoal) | D3 (Bonus, §5.3) |
-| `volker_provoked` | Akt 3, Dialoge (jede spitze Antwort; einmal gesetzt, bleibt) | D5 (negativ) |
-| `volker_warning_preserved` | Akt 3, Dialog/Level (`[intern]`-Notiz gesichert statt beantwortet) | D5 |
+| `bjorg_provoked` | Akt 3, Dialoge (jede spitze Antwort; einmal gesetzt, bleibt) | D5 (negativ) |
+| `bjorg_warning_preserved` | Akt 3, Dialog/Level (`[intern]`-Notiz gesichert statt beantwortet) | D5 |
 
-Chain-Engine (optional, kein Haupt-Payoff): `volker_provoked` triggert mit
-`delayWeeks` einen Zwischenfall vor dem Audit (Silke spricht den Ton an) —
+Chain-Engine (optional, kein Haupt-Payoff): `bjorg_provoked` triggert mit
+`delayWeeks` einen Zwischenfall vor dem Audit (Bert spricht den Ton an) —
 Vorwarnung, keine Voraussetzung für Akt 4.
 
 ### 5.2 Fünf Audit-Domänen
@@ -127,21 +142,22 @@ Domänen-Ergebnissen — dieselben Bedingungen, die auch die Akt-4-Beats branche
 | **D2 Beweiskette** | `all: [finding_reported, authorization_documented, export_documented, evidence_hashed]`, `none: [mailbox_scope_exceeded, personal_data_shared_broadly]` |
 | **D3 BASTION** | `all: [bastion_delivery_found, handover_mail_sent]` |
 | **D4 Dokumentation** | `all: [onboarding_documented, ticket_tamper_documented]` |
-| **D5 Deeskalation** | `all: [volker_warning_preserved]`, `none: [volker_provoked]` |
+| **D5 Deeskalation** | `all: [bjorg_warning_preserved]`, `none: [bjorg_provoked]` |
 
 ### 5.3 Endings — aus Domänen abgeleitet, Prioritätsreihenfolge
 
 1. **„Der Rächer"** — wenn `mailbox_scope_exceeded` oder
    `personal_data_shared_broadly`. Der Abspann benennt den konkreten Schaden statt
-   pauschaler Unverwertbarkeit: **Vertrauensschaden** (Silke muss den Vorgang jetzt
+   pauschaler Unverwertbarkeit: **Vertrauensschaden** (Bert muss den Vorgang jetzt
    gegen den Personalrat verteidigen, nicht mit dem Spieler zusammen aufklären),
    **Datenschutzschaden** (die eigenmächtige Auswertung ist selbst zum
    Datenschutzvorfall geworden und muss bewertet und dokumentiert werden — eine
    Behördenmeldung nach Art. 33 DSGVO folgt nur, sofern der Vorfall voraussichtlich
    ein Risiko für die Rechte und Freiheiten der Betroffenen verursacht),
-   **Eskalationsschaden** (Volker führt jetzt das Verfahren, nicht die Sache). Abspann: „Du hattest recht. Es hat nicht gereicht."
+   **Eskalationsschaden** (Bjorgs Dossier bestimmt jetzt die Erzählung, nicht die
+   technische Sache). Abspann: „Du hattest recht. Es hat nicht gereicht."
 2. **„Der Stille"** — sonst, wenn **weniger als 2** der 5 Domänen erfüllt sind.
-   Volkers kuratierte Ticket-Historie erzählt die Geschichte. Wer nicht
+   Bjorgs kuratierte Ticket-Historie erzählt die Geschichte. Wer nicht
    dokumentiert, existiert nicht.
 3. **„Der Profi"** — sonst, wenn **mindestens 4** von 5 Domänen erfüllt sind,
    darunter zwingend **D1 und D2**.
@@ -177,7 +193,9 @@ Set vertragen, §7.3).
   Inventar-Doku als Datei anlegen (stateGoal prüft Inhalt). Beim Durchsuchen des
   Wikis: das `administrator`-Passwort, halb-ironisch dokumentiert. Choice:
   dokumentieren/ignorieren → `shared_account_documented`, `onboarding_documented`. *Neu.*
-- Dialog-Events: Volker- und Silke-Intro; erste `[intern]`-Notiz als Köder.
+- Dialog-Events: Bert übergibt den Auditauftrag; Jens und Henry verankern den
+  bekannten Arbeitsalltag; Bjorgs erste `[intern]`-Notiz dient als Köder. Kein
+  vollständiges Figuren-Onboarding wie in „Die Probezeit".
 
 ### Akt 2 — Die Spur (Detektiv-Phase)
 
@@ -198,7 +216,7 @@ Set vertragen, §7.3).
   sonst lässt es sich unbeabsichtigt umgehen (Testpflicht, §8).
   Sauberer Abschluss: Zugriffs-Log (nicht Inhalte!) für den Export vorbereiten +
   Übergabeprotokoll beginnen. *Neu.*
-- **Dialog/Mail: die Freigabe** — vor der vertieften Auswertung Silke fragen
+- **Dialog/Mail: die Freigabe** — vor der vertieften Auswertung Bert fragen
   (Zweckbindung) → `authorization_documented`; Finding melden → `finding_reported`.
 - **L5 [CLI Linux, Analyse-VM] „Die Beweiskette"** — die exportierten Logs liegen
   (per Seed, mit Übergabeprotokoll aus L4) auf der Analysemaschine: Original per
@@ -219,14 +237,14 @@ Set vertragen, §7.3).
 
 ### Akt 3 — Die Blockade (Politik-Phase)
 
-- Dialog-Karten mit Volker (Fallen-Optionen): jede spitze Antwort →
-  `volker_provoked`; die kühle, knappe Option fühlt sich unbefriedigend an — und
+- Dialog-Karten mit Bjorg (Fallen-Optionen): jede spitze Antwort →
+  `bjorg_provoked`; die kühle, knappe Option fühlt sich unbefriedigend an — und
   ist immer die richtige. Vorlage: `internal`-Pack (team_dynamics).
 - **L7 [GUI Explorer] „Der Lieferschein"** — auf dem Projekt-Fileshare den
   BASTION-01-Lieferschein finden: MFA war Teil des Pakets → `bastion_delivery_found`.
   App existiert (`explorer`). *Neu (Level, keine neue App).*
 - **Mail-Interaktion „Die Schnittstellen-Mail"** — Compose-Ansicht (EmailMockup-
-  Erweiterung, §7.6): Choices = Empfänger/CC/Tonfall. CC Silke mit Zeitstempel
+  Erweiterung, §7.6): Choices = Empfänger/CC/Tonfall. CC Bert mit Zeitstempel
   dreht die Bringschuld → `handover_mail_sent`.
 - **L8 [CLI Linux, optional ★] „BASTION-01 in Betrieb"** — Jumphost-Prinzip
   spielbar machen (Muster `learn_ssh_03_jumphost`): Dienstleister-Zugriff nur noch
@@ -239,7 +257,7 @@ Reine authored Event-Sequenz, kein neues Level: die fünf Auditfragen (§4) als
 Beats, deren `branchCondition` die Domänen-Bedingungen (§5.2) als zusammengesetzte
 `FlagCondition` prüft. Danach Domänen-Auswertung → Ending (§5.3) und modularer
 Epilog. Belastende Flags erzeugen Konfrontationsszenen (F2: Personalrat, F5:
-Volkers Dossier).
+Bjorgs Dossier).
 
 ## 7. Technische Bausteine
 
@@ -284,7 +302,7 @@ interface CampaignDefinition {
   storyEvents: GameEvent[];
   sidequests: SidequestDefinition[];      // audit-trail: []
   sidequestEvents: GameEvent[];           // audit-trail: []
-  characters: StoryCharacter[];           // Volker/Silke/ISB/M. statt Bjorg & Co.
+  characters: StoryCharacter[];           // kampagneneigene WARM-Zustände + ISB/M.
   actBreaks: Record<number, string>;      // eigene Akt-Break-Texte
   endings: CampaignEnding[];              // 'profi' | 'raecher' | 'stille'
   deriveEnding(state: GameState): CampaignEndingId;  // Domänen-Auswertung (§5)
@@ -298,7 +316,9 @@ interface CampaignDefinition {
 - **Akt-Break-Texte:** `actBreaks.ts`/`ACT_BREAK_BODIES` sind Probezeit-Copy →
   in die `CampaignDefinition`.
 - **Charakter-Token:** `STORY_CHARACTERS` (Bjorg/Jens/Henry/Chef/Stefan) ist
-  global → pro Kampagne; Relationship-Keys der neuen Figuren definieren.
+  global → pro Kampagne. AUDIT TRAIL darf dieselben sichtbaren WARM-Identitäten
+  wiederverwenden, definiert aber eigene Relationship-Keys/-Startwerte; der neue
+  ISB und M. sind nur in dieser Kampagne vorhanden.
 - **Ending + Meta-Progression:** Ending-IDs werden kampagnenspezifische Strings
   (probation behält `good|neutral|bad`); Telemetrie-Feld wird `string`;
   `metaProgress` (abgeschlossene Runs/Endings) wird pro `campaignId` geführt.
@@ -355,7 +375,8 @@ bleiben `EventChoice` mit `setsFlags`.
   Engine, kein OWA-Browser-Simulator (das Postfach selbst wird nie geöffnet —
   genau das ist der Punkt), keine Sidequests, keine Chapter-Art/Cinematics,
   kein `shared_account_retired`-Mechanismus (Epilog behauptet nur den Beschluss),
-  kein Wildcard-Support für `Select-String` in V1.
+  kein Wildcard-Support für `Select-String` in V1, kein Import von Probezeit-
+  Endings/Flags/Relationships und keine FENRIS-Abhängigkeit.
 
 ## 8. Tests und Guards
 
