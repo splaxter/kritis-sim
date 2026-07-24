@@ -4,6 +4,7 @@
  */
 
 import { Skills } from './skills';
+import { FlagCondition } from './flagCondition';
 
 // Relationship types (avoiding circular import from gameState)
 type RelationshipKey = 'chef' | 'gf' | 'kaemmerer' | 'fachabteilung' | 'kollegen';
@@ -36,8 +37,9 @@ export interface StoryBeat {
   eventId: string;
   /** If true, can be skipped */
   isOptional: boolean;
-  /** Flag that must be set for this beat to play */
-  branchCondition?: string;
+  /** Condition that must hold for this beat to play its primary event.
+   *  String = single flag (legacy); object = composite all/any/none. */
+  branchCondition?: FlagCondition;
   /** Alternative event if branchCondition is not met */
   alternateEventId?: string;
 }

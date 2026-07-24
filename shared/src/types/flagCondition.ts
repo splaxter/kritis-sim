@@ -29,3 +29,14 @@ export function checkFlagCondition(
     none.every(f => !flags[f])
   );
 }
+
+/**
+ * Every flag name a condition references (all + any + none, or the single
+ * string). Used by consistency audits to prove no beat/ending branches on a
+ * flag that is never set anywhere.
+ */
+export function flagsInCondition(cond: FlagCondition | undefined): string[] {
+  if (cond === undefined) return [];
+  if (typeof cond === 'string') return [cond];
+  return [...(cond.all ?? []), ...(cond.any ?? []), ...(cond.none ?? [])];
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkFlagCondition, FlagCondition } from './flagCondition';
+import { checkFlagCondition, flagsInCondition, FlagCondition } from './flagCondition';
 
 const flags = (...set: string[]): Record<string, boolean> =>
   Object.fromEntries(set.map(f => [f, true]));
@@ -79,5 +79,22 @@ describe('checkFlagCondition', () => {
 
   it('empty object constrains nothing', () => {
     expect(checkFlagCondition({}, {})).toBe(true);
+  });
+});
+
+describe('flagsInCondition', () => {
+  it('returns [] for undefined', () => {
+    expect(flagsInCondition(undefined)).toEqual([]);
+  });
+  it('wraps a single string flag', () => {
+    expect(flagsInCondition('a')).toEqual(['a']);
+  });
+  it('collects all + any + none', () => {
+    expect(flagsInCondition({ all: ['a', 'b'], any: ['c'], none: ['x'] }))
+      .toEqual(['a', 'b', 'c', 'x']);
+  });
+  it('handles partial objects', () => {
+    expect(flagsInCondition({ none: ['x'] })).toEqual(['x']);
+    expect(flagsInCondition({})).toEqual([]);
   });
 });

@@ -15,6 +15,7 @@ import {
   StoryPath,
   calculateEndingScore,
   determineEnding,
+  checkFlagCondition,
 } from '@kritis/shared';
 import { GameEvent } from '@kritis/shared';
 import { Scenario } from '@kritis/shared';
@@ -77,11 +78,8 @@ export function getCurrentStoryBeat(state: GameState): StoryBeat | undefined {
 }
 
 export function shouldPlayBeat(beat: StoryBeat, state: GameState): boolean {
-  // If beat has a branch condition, check if it's met
-  if (beat.branchCondition) {
-    return !!state.flags[beat.branchCondition];
-  }
-  return true;
+  // Composite (all/any/none) or legacy single-flag condition; undefined = always play.
+  return checkFlagCondition(beat.branchCondition, state.flags);
 }
 
 export function getNextStoryContent(
@@ -133,7 +131,7 @@ export function getNextStoryContent(
   if (currentBeat) {
     // Determine which event to use based on branch condition
     let eventId = currentBeat.eventId;
-    if (currentBeat.branchCondition && !state.flags[currentBeat.branchCondition]) {
+    if (!checkFlagCondition(currentBeat.branchCondition, state.flags)) {
       eventId = currentBeat.alternateEventId || currentBeat.eventId;
     }
 

@@ -5,7 +5,7 @@ import { adventureChapters } from '../content/adventure/chapters';
 import { getAllScenarios } from '../content/packs';
 import { createInitialState, applyEffects, advanceDay, checkGameOver } from './gameState';
 import { getVisibleChoices } from './eventEngine';
-import { GameEvent, GameState, EventChoice } from '@kritis/shared';
+import { GameEvent, GameState, EventChoice, checkFlagCondition } from '@kritis/shared';
 
 // The campaign is fully authored (ch01–ch12); this walks the whole thing.
 const FINISHED = [
@@ -43,7 +43,7 @@ function simulate(strat: Strategy): SimResult {
     for (const beat of ch.storyBeats) {
       // Resolve the beat's event (respecting branchCondition).
       let eventId = beat.eventId;
-      if (beat.branchCondition && !state.flags[beat.branchCondition]) {
+      if (!checkFlagCondition(beat.branchCondition, state.flags)) {
         eventId = beat.alternateEventId || beat.eventId;
       }
       const event = byId.get(eventId);
