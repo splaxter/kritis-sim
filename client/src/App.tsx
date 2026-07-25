@@ -28,7 +28,7 @@ import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/lear
 import { useAutosave } from './hooks/useAutosave';
 import { readAutosave, AutosaveEnvelope } from './engine/autosave';
 import { buildRunSummary } from './engine/runSummary';
-import { readMeta, recordRun, MetaProgress, TOTAL_STORY_ENDINGS } from './engine/metaProgress';
+import { readMeta, recordRun, MetaProgress } from './engine/metaProgress';
 import { RunSummaryScreen } from './components/RunSummaryScreen';
 import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNamed } from './engine/telemetry';
 
@@ -151,12 +151,18 @@ function AppContent() {
     ? getCampaign(game.state.storyState.campaignId)
     : getCampaign('probation')).characterTokens;
   const tokenMap = useMemo(() => ({ ...campaignTokens, player: displayName }), [campaignTokens, displayName]);
-  const { setStoryMode } = useStoryBackground();
+  const { setStoryMode, setCampaignArt } = useStoryBackground();
 
-  // Sync story mode state with context
+  // Sync story mode state with context, and configure the run's campaign art:
+  // a text-only campaign (no defaultBackgroundImage) passes null so no other
+  // campaign's artwork can leak in.
   useEffect(() => {
     setStoryMode(game.state.isStoryMode);
-  }, [game.state.isStoryMode, setStoryMode]);
+    const artDefault = game.state.storyState
+      ? getCampaign(game.state.storyState.campaignId).defaultBackgroundImage ?? null
+      : null;
+    setCampaignArt(artDefault);
+  }, [game.state.isStoryMode, game.state.storyState?.campaignId, setStoryMode, setCampaignArt]);
 
   // Get all available scenarios
   const allScenarios = useMemo(() => getAllScenarios(), []);
@@ -176,15 +182,19 @@ function AppContent() {
     // Ending derivation is campaign-owned (mandatory deriveEnding, no fallback);
     // the id is a campaign-specific string, tracked per campaign in meta/telemetry.
     const campaignId = s.storyState?.campaignId ?? 'probation';
+    const campaign = getCampaign(campaignId);
     const ending = storyComplete && s.storyState
-      ? getCampaign(campaignId).deriveEnding(s)
+      ? campaign.deriveEnding(s)
       : undefined;
-    const stats = storyComplete ? getEndingStats(s) : undefined;
+    const stats = storyComplete && campaign.usesScoreStats ? getEndingStats(s) : undefined;
     const score = stats?.score;
     setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, campaignId, ending, score }));
 
-    if (sentCompletedSeed.current !== s.seed) {
-      sentCompletedSeed.current = s.seed;
+    // Dedupe telemetry on (campaignId, seed) — the same seed in another campaign
+    // is a distinct run and must still be sent.
+    const completedKey = `${campaignId}::${s.seed}`;
+    if (sentCompletedSeed.current !== completedKey) {
+      sentCompletedSeed.current = completedKey;
       const summary = buildRunSummary(s, game.gameOverReason);
       trackRunCompleted(playerId, s.seed, {
         mode: s.gameMode,
@@ -596,7 +606,7 @@ function AppContent() {
 
           {meta.runsCompleted > 0 && (
             <div className="text-terminal-green-muted text-xs mt-3">
-              Durchläufe: {meta.runsCompleted} · Story-Enden: {(meta.endingsSeenByCampaign.probation?.length ?? 0)}/{TOTAL_STORY_ENDINGS}
+              Durchläufe: {meta.runsCompleted} · Story-Enden: {(meta.endingsSeenByCampaign.probation?.length ?? 0)}/{Object.keys(getCampaign('probation').endingTexts).length}
             </div>
           )}
 
@@ -723,7 +733,10 @@ function AppContent() {
       const campaign = getCampaign(game.state.storyState!.campaignId);
       const endingId = campaign.deriveEnding(game.state);
       const completedSq = game.state.storyState?.completedSidequests ?? [];
-      const storyPath = getEndingStats(game.state).storyPath;
+      // Score-based "Bilanz" only for campaigns that use it (probation); never
+      // pass probation-policy stats for AUDIT TRAIL.
+      const stats = campaign.usesScoreStats ? getEndingStats(game.state) : undefined;
+      const storyPath = stats?.storyPath;
       // Ending text comes from the campaign; the epilogue is the campaign's
       // modular one when it declares buildEpilogue (AUDIT TRAIL), else the static
       // text (probation).
@@ -750,8 +763,9 @@ function AppContent() {
       return (
         <>
           <EndingScreen
+            headline={campaign.endingHeadline}
             text={endingText}
-            stats={getEndingStats(game.state)}
+            stats={stats}
             onBackToMenu={() => setNewGamePicker('experience')}
             replay={replay}
           />

@@ -107,7 +107,10 @@ export function recordRun(
   storage: StorageLike = localStorage
 ): MetaProgress {
   const meta = readMeta(playerId, storage);
-  if (meta.countedSeeds.includes(run.seed)) {
+  // Dedupe on (campaignId, seed): the same seed replayed in a DIFFERENT campaign
+  // is a distinct run and must not be suppressed by the first campaign's record.
+  const dedupeKey = `${run.campaignId}::${run.seed}`;
+  if (meta.countedSeeds.includes(dedupeKey)) {
     return meta; // already counted this run
   }
 
@@ -125,8 +128,8 @@ export function recordRun(
     if (run.score > prev) bestScoreByMode[run.mode] = run.score;
   }
 
-  // Keep the seed list bounded; the tail is enough to dedupe recent runs.
-  const countedSeeds = [...meta.countedSeeds, run.seed].slice(-200);
+  // Keep the (campaignId::seed) list bounded; the tail dedupes recent runs.
+  const countedSeeds = [...meta.countedSeeds, dedupeKey].slice(-200);
 
   const updated: MetaProgress = {
     version: META_VERSION,
@@ -144,5 +147,3 @@ export function recordRun(
   }
   return updated;
 }
-
-export const TOTAL_STORY_ENDINGS = 3;

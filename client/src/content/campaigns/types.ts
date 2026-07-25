@@ -14,6 +14,7 @@ import type {
   SidequestDefinition,
   GameEvent,
   GameState,
+  Relationships,
 } from '@kritis/shared';
 import type { AdventureEndingText } from '../adventure/endings';
 import type { ActBreakParagraph } from '../adventure/actBreaks';
@@ -45,6 +46,18 @@ export interface CampaignDefinition {
   /** Relationship-key → display name for {token} replacement in narrative text
    *  (e.g. {chef} → "Bert"). Sourced here so App holds no hardcoded cast. */
   characterTokens: Record<string, string>;
+  /** Headline shown on the ending screen (probation: "PROBEZEIT BEENDET"). */
+  endingHeadline: string;
+  /** Whether the ending screen shows the probation-style score/path/flag
+   *  "Bilanz". AUDIT TRAIL's domain-based ending presentation is separate, so it
+   *  sets this false and App passes no probation stats. */
+  usesScoreStats: boolean;
+  /** Fallback story-mode background image; omit for a text-only campaign so no
+   *  other campaign's artwork can leak in (AUDIT TRAIL). */
+  defaultBackgroundImage?: string;
+  /** Campaign-specific starting relationships, applied OVER the mode defaults.
+   *  Omit to use the mode defaults unchanged (probation). */
+  startingRelationships?: Partial<Relationships>;
   /** Ending derivation — MANDATORY, so there is no silent probation fallback.
    *  Probation uses its score-band strategy (deriveProbationEnding); AUDIT TRAIL
    *  uses its audit-domain strategy. App calls this, never a campaign switch. */

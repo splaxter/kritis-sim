@@ -36,12 +36,15 @@ export function createInitialState(
     stress: config.startingStats.stress,
     budget: config.startingStats.budget,
     compliance: config.startingStats.compliance,
+    // Mode defaults, then the campaign's own starting relationships on top (a
+    // fresh AUDIT TRAIL run starts from its own values, never probation's).
     relationships: {
       chef: config.startingRelationships.chef,
       gf: 0,
       kaemmerer: config.startingRelationships.kaemmerer,
       fachabteilung: 0,
       kollegen: config.startingRelationships.kollegen,
+      ...(mode === 'story' ? campaign.startingRelationships : undefined),
     },
     // Initialize story state if story mode — seeded from the chosen campaign so
     // an AUDIT TRAIL run starts at its own chapter with campaignId set and an

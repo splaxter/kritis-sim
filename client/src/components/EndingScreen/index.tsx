@@ -22,10 +22,14 @@ interface ReplayTeaser {
 }
 
 interface EndingScreenProps {
+  /** Campaign headline shown above the title (probation: "PROBEZEIT BEENDET"). */
+  headline: string;
   /** The ending text to render — sourced from the run's campaign (with the
    *  epilogue already resolved: static for probation, modular for AUDIT TRAIL). */
   text: AdventureEndingText;
-  stats: EndingStats;
+  /** Probation-style score/path/flag "Bilanz". Omitted for campaigns that don't
+   *  use score stats (AUDIT TRAIL) — the section is then not rendered. */
+  stats?: EndingStats;
   onBackToMenu: () => void;
   replay?: ReplayTeaser;
 }
@@ -63,17 +67,17 @@ const PENALTY_LABELS: Record<string, string> = {
 // Only the positive, "earned" flags are shown as achievements.
 const EARNED_FLAG_ORDER = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all'];
 
-export function EndingScreen({ text, stats, onBackToMenu, replay }: EndingScreenProps) {
-  const earned = EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f));
-  const preparations = stats.preparationFlags.filter((f) => FLAG_LABELS[f]);
-  const penalties = stats.penaltyFlags.filter((f) => PENALTY_LABELS[f]);
-  const helped = stats.charactersHelped.map((c) => CHARACTER_LABELS[c] ?? c);
+export function EndingScreen({ headline, text, stats, onBackToMenu, replay }: EndingScreenProps) {
+  const earned = stats ? EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f)) : [];
+  const preparations = stats ? stats.preparationFlags.filter((f) => FLAG_LABELS[f]) : [];
+  const penalties = stats ? stats.penaltyFlags.filter((f) => PENALTY_LABELS[f]) : [];
+  const helped = stats ? stats.charactersHelped.map((c) => CHARACTER_LABELS[c] ?? c) : [];
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">
         <div className="text-center text-terminal-green text-xl font-bold mb-2 tracking-widest">
-          PROBEZEIT BEENDET — {text.title.toUpperCase()}
+          {headline} — {text.title.toUpperCase()}
         </div>
         <div className="text-center text-terminal-green-muted text-sm mb-6 tracking-wide">
           {text.title}
@@ -90,7 +94,9 @@ export function EndingScreen({ text, stats, onBackToMenu, replay }: EndingScreen
           </p>
         </div>
 
-        {/* Bilanz */}
+        {/* Bilanz — probation score/path/flag presentation; omitted for
+            campaigns that don't use score stats (AUDIT TRAIL). */}
+        {stats && (
         <div className="mt-8 border border-terminal-green/30 p-4 text-sm text-terminal-green-dim space-y-2">
           <div className="text-terminal-green tracking-widest mb-2">— BILANZ —</div>
           <div>
@@ -127,6 +133,7 @@ export function EndingScreen({ text, stats, onBackToMenu, replay }: EndingScreen
             ))}
           </div>
         </div>
+        )}
 
         {/* Was du nicht gesehen hast — replay teaser */}
         {replay && (

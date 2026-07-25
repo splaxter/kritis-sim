@@ -32,6 +32,13 @@ export const auditTrailCampaign: CampaignDefinition = {
     athos: 'Frau Weber',
     kollege: 'Bjorg',
   },
+  endingHeadline: 'AUDIT TRAIL — ABGESCHLOSSEN',
+  // Text-only + domain-based ending (no probation score/path/flag Bilanz, no art).
+  usesScoreStats: false,
+  // No defaultBackgroundImage → text-only.
+  // A fresh WARM admin under NIS-2 scrutiny: the chef relationship starts cooler
+  // and colleagues are wary until documentation earns trust.
+  startingRelationships: { chef: 0, kollegen: 10 },
   deriveEnding: (state) => deriveAuditTrailEnding(state.flags),
   buildEpilogue: (state) => buildAuditTrailEpilogue(state.flags),
 };

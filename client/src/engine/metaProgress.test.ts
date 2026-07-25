@@ -43,6 +43,16 @@ describe('metaProgress', () => {
     expect(meta.endingsSeenByCampaign['audit-trail']).toEqual(['profi']);
   });
 
+  it('dedupes on (campaignId, seed): the same seed in two campaigns is TWO runs', () => {
+    const s = fakeStorage();
+    recordRun('p1', { mode: 'story', seed: 'SHARED', campaignId: 'probation', ending: 'good' }, s);
+    const meta = recordRun('p1', { mode: 'story', seed: 'SHARED', campaignId: 'audit-trail', ending: 'profi' }, s);
+    // Both counted (not suppressed by the shared seed), each under its campaign.
+    expect(meta.runsCompleted).toBe(2);
+    expect(meta.endingsSeenByCampaign.probation).toEqual(['good']);
+    expect(meta.endingsSeenByCampaign['audit-trail']).toEqual(['profi']);
+  });
+
   it('is idempotent per seed (repeat renders count a run once)', () => {
     const s = fakeStorage();
     recordRun('p1', { mode: 'kritis', seed: 'same', campaignId: 'probation', score: 0 }, s);

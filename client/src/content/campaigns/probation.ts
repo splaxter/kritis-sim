@@ -32,5 +32,8 @@ export const probationCampaign: CampaignDefinition = {
     athos: 'Frau Weber',
     kollege: 'Bjorg',
   },
+  endingHeadline: 'PROBEZEIT BEENDET',
+  usesScoreStats: true,
+  defaultBackgroundImage: '/images/events/evt_erster_arbeitstag.webp',
   deriveEnding: deriveProbationEnding,
 };

@@ -25,6 +25,16 @@ describe('createInitialState — campaign-seeded story state', () => {
     expect(s.storyState?.endingFlags).toEqual([]);
   });
 
+  it('applies the campaign start relationships over the mode defaults', () => {
+    const prob = createInitialState('seed-r1', 'story');            // probation: mode defaults
+    const at = createInitialState('seed-r2', 'story', 'audit-trail'); // audit-trail overrides
+    // AUDIT TRAIL declares its own starting relationships → they differ from
+    // probation's mode-default values (proves the override actually applies).
+    expect(at.relationships.chef).toBe(0);
+    expect(at.relationships.kollegen).toBe(10);
+    expect(at.relationships).not.toEqual(prob.relationships);
+  });
+
   it('non-story modes are unaffected (no storyState)', () => {
     const s = createInitialState('seed-d', 'kritis');
     expect(s.storyState).toBeUndefined();
