@@ -48,8 +48,10 @@ export function buildAuditTrailEpilogue(flags: Record<string, boolean>): string 
   const lines = domains.map(d => (d === 'D3' ? d3Line(flags) : DOMAIN_EPILOGUE[d]));
 
   if (ending === 'profi') {
+    // ≥4 of 5 domains hold — strong, not perfect. Don't claim EVERY question is
+    // answered (that would be false at 4/5); claim the case carries.
     return [
-      'Der neue ISB stellt seine Fragen — und auf jede gibt es eine belastbare Antwort. Bjorgs Ausreden kollabieren vor ihm von selbst, ohne dass du laut werden musstest.',
+      'Der neue ISB stellt seine Fragen — und für die entscheidenden liegt eine belastbare Antwort auf dem Tisch. Das trägt: Bjorgs Ausreden kollabieren vor ihm von selbst, ohne dass du laut werden musstest.',
       ...lines,
     ].join('\n\n');
   }
@@ -80,8 +82,8 @@ export const AUDIT_TRAIL_ENDING_TEXTS: Record<AuditTrailEnding, AdventureEndingT
     id: 'at_ending_profi',
     title: AUDIT_TRAIL_ENDING_TITLES.profi,
     paragraphs: [
-      'Der ISB klappt seinen Ordner zu. „Das ist die sauberste Aktenlage, die ich dieses Jahr gesehen habe."',
-      'Silke — pardon, Bert — atmet hörbar aus. Bjorg schweigt, zum ersten Mal seit Wochen.',
+      'Der ISB klappt seinen Ordner zu. „Das ist eine der saubersten Aktenlagen, die ich dieses Jahr gesehen habe."',
+      'Bert atmet hörbar aus. Bjorg schweigt, zum ersten Mal seit Wochen.',
     ],
     epilogue: 'Du musstest nie laut werden.',
   },

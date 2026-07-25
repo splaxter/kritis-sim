@@ -68,9 +68,14 @@ describe('deriveAuditTrailEnding (priority §5.3)', () => {
     expect(deriveAuditTrailEnding(all(D1, D2, D3, D4, D5))).toBe('profi'); // all 5
   });
 
-  it('4 domains WITHOUT D1 or D2 is not Profi (falls to Stille lower variant)', () => {
+  it('4 domains WITHOUT D1 is not Profi (falls to Stille lower variant)', () => {
     // D2,D3,D4,D5 hold, D1 missing → 4 domains but not D1 → not Profi.
     expect(deriveAuditTrailEnding(all(D2, D3, D4, D5))).toBe('stille');
+  });
+
+  it('4 domains WITHOUT D2 is not Profi (D2 is mandatory)', () => {
+    // D1,D3,D4,D5 hold, D2 missing → 4 domains but not D2 → not Profi.
+    expect(deriveAuditTrailEnding(all(D1, D3, D4, D5))).toBe('stille');
   });
 
   it('2–3 domains is the lower Stille variant', () => {
@@ -92,6 +97,14 @@ describe('buildAuditTrailEpilogue', () => {
     const text = buildAuditTrailEpilogue(flags(...D1, ...D2, ...D3, ...D4)); // profi
     expect(text).toContain('Abstellung');
     expect(text).not.toMatch(/Konto ist (weg|entfernt|gelöscht)/i);
+  });
+
+  it('the Profi epilogue at 4/5 domains does not overclaim "every question answered"', () => {
+    // D1,D2,D3,D4 hold, D5 missing → profi, but not a perfect run.
+    const text = buildAuditTrailEpilogue(flags(...D1, ...D2, ...D3, ...D4));
+    expect(text).not.toMatch(/auf jede (Frage )?(gibt es|eine)/i);
+    // The missing D5 line must NOT be asserted as satisfied.
+    expect(text).not.toContain('nie eine Spitze produziert');
   });
 
   it('D3 base text says "freigegeben"; bastion_live upgrades to "in Betrieb"', () => {
