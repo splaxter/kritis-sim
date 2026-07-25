@@ -59,6 +59,41 @@ describe('aggregate', () => {
     expect(p.lastSeen).toBe('2026-07-03');
   });
 
+  it('counts the SAME seed in two campaigns as two runs (campaign in the dedup key)', () => {
+    const agg = aggregate(
+      [
+        ev({ type: 'run_completed', seed: 'SHARED', payload: { mode: 'story', campaignId: 'probation', ending: 'good' } }),
+        ev({ type: 'run_completed', seed: 'SHARED', payload: { mode: 'story', campaignId: 'audit-trail', ending: 'profi' } }),
+      ],
+      NOW
+    );
+    const p = agg.players[0];
+    expect(p.runsCompleted).toBe(2);
+    expect(p.endingsSeen.sort()).toEqual(['good', 'profi']);
+  });
+
+  it('still dedupes a repeated completion within the same campaign', () => {
+    const agg = aggregate(
+      [
+        ev({ type: 'run_completed', seed: 'S', payload: { mode: 'story', campaignId: 'probation', ending: 'good' } }),
+        ev({ type: 'run_completed', seed: 'S', payload: { mode: 'story', campaignId: 'probation', ending: 'good' } }),
+      ],
+      NOW
+    );
+    expect(agg.players[0].runsCompleted).toBe(1);
+  });
+
+  it('old story telemetry without campaignId falls back to probation (dedupes with a probation run)', () => {
+    const agg = aggregate(
+      [
+        ev({ type: 'run_completed', seed: 'S', payload: { mode: 'story', ending: 'good' } }), // legacy, no campaignId
+        ev({ type: 'run_completed', seed: 'S', payload: { mode: 'story', campaignId: 'probation', ending: 'good' } }),
+      ],
+      NOW
+    );
+    expect(agg.players[0].runsCompleted).toBe(1); // same (probation) run
+  });
+
   it('ignores events from tombstoned players entirely', () => {
     const agg = aggregate(
       [

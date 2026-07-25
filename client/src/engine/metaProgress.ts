@@ -70,6 +70,14 @@ export function readMeta(
       storage.removeItem(storageKey(playerId));
       return emptyMeta();
     }
+    // countedSeeds is now keyed 'campaignId::seed'. A v1 blob stored bare seeds,
+    // which all belonged to probation — migrate them to 'probation::seed' so an
+    // already-counted run is NOT re-counted after the upgrade.
+    const rawSeeds = Array.isArray(parsed.countedSeeds) ? parsed.countedSeeds : [];
+    const countedSeeds = parsed.version === 1
+      ? rawSeeds.map((seed) => (seed.includes('::') ? seed : `probation::${seed}`))
+      : rawSeeds;
+
     // Fill any gaps defensively — an older/partial blob shouldn't crash callers.
     return {
       version: META_VERSION,
@@ -77,7 +85,7 @@ export function readMeta(
       endingsSeenByCampaign,
       bestScoreByMode: parsed.bestScoreByMode ?? {},
       lastRunAt: typeof parsed.lastRunAt === 'string' ? parsed.lastRunAt : new Date(0).toISOString(),
-      countedSeeds: Array.isArray(parsed.countedSeeds) ? parsed.countedSeeds : [],
+      countedSeeds,
     };
   } catch {
     return emptyMeta();

@@ -86,5 +86,23 @@ describe('metaProgress', () => {
     expect(meta.runsCompleted).toBe(4); // preserved, not reset
     expect(meta.endingsSeenByCampaign.probation).toEqual(['good', 'bad']);
     expect(meta.bestScoreByMode.story).toBe(88);
+    // Bare v1 seeds are re-keyed under probation.
+    expect(meta.countedSeeds).toContain('probation::a');
+  });
+
+  it('does NOT re-count an already-counted v1 probation run after the upgrade', () => {
+    const s = fakeStorage();
+    s.setItem('kritis_meta_p1', JSON.stringify({
+      version: 1,
+      runsCompleted: 1,
+      endingsSeen: ['good'],
+      bestScoreByMode: { story: 70 },
+      lastRunAt: '2026-01-01T00:00:00Z',
+      countedSeeds: ['same'],
+    }));
+    // Re-recording the same probation run (same seed) after the upgrade must be a
+    // no-op — the bare seed was migrated to 'probation::same'.
+    const meta = recordRun('p1', { mode: 'story', seed: 'same', campaignId: 'probation', ending: 'good' }, s);
+    expect(meta.runsCompleted).toBe(1);
   });
 });
