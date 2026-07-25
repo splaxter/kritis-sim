@@ -12,8 +12,6 @@ import { GameModeId, getGameModeConfig, GameEvent, Scenario, EndingType } from '
 import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
-import { ADVENTURE_ENDINGS } from './content/adventure/endings';
-import { adventureSidequests } from './content/adventure/sidequests';
 import { getCampaign } from './content/campaigns';
 import { IntroScreen } from './components/IntroScreen';
 // Statically imported (not lazy): IntroScreen already pulls LegalPages into the
@@ -145,16 +143,14 @@ function AppContent() {
   const [menuIndex, setMenuIndex] = useState(0);
   const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
-  const [characters] = useState({
-    chef: 'Bert',
-    gf: 'Dr. Müller',
-    kaemmerer: 'Herr Schmidt',
-    athos: 'Frau Weber',
-    kollege: 'Bjorg',
-  });
-  // Narrative token map handed to EventCard/ResultScreen: character roles plus the
-  // {player} token backed by the stored display name (never touches account/ssh/vfs).
-  const tokenMap = useMemo(() => ({ ...characters, player: displayName }), [characters, displayName]);
+  // Narrative token map handed to EventCard/ResultScreen: relationship-key →
+  // display name from the run's campaign (probation's names outside story mode),
+  // plus the {player} token backed by the stored display name (never touches
+  // account/ssh/vfs).
+  const campaignTokens = (game.state.storyState
+    ? getCampaign(game.state.storyState.campaignId)
+    : getCampaign('probation')).characterTokens;
+  const tokenMap = useMemo(() => ({ ...campaignTokens, player: displayName }), [campaignTokens, displayName]);
   const { setStoryMode } = useStoryBackground();
 
   // Sync story mode state with context
@@ -723,16 +719,24 @@ function AppContent() {
 
     // Campaign fully completed → real stats-driven ending screen.
     if (isAdventureModeComplete(game.state)) {
-      const ending = getCampaign(game.state.storyState!.campaignId).deriveEnding(game.state) as EndingType;
+      const campaign = getCampaign(game.state.storyState!.campaignId);
+      const endingId = campaign.deriveEnding(game.state);
       const completedSq = game.state.storyState?.completedSidequests ?? [];
       const storyPath = getEndingStats(game.state).storyPath;
+      // Ending text comes from the campaign; the epilogue is the campaign's
+      // modular one when it declares buildEpilogue (AUDIT TRAIL), else the static
+      // text (probation).
+      const baseText = campaign.endingTexts[endingId];
+      const endingText = campaign.buildEpilogue
+        ? { ...baseText, epilogue: campaign.buildEpilogue(game.state) }
+        : baseText;
       const replay = {
         endingsSeen: meta.endingsSeen.length,
-        totalEndings: TOTAL_STORY_ENDINGS,
-        otherEndingTitles: (Object.keys(ADVENTURE_ENDINGS) as (keyof typeof ADVENTURE_ENDINGS)[])
-          .filter((k) => k !== ending)
-          .map((k) => ADVENTURE_ENDINGS[k].title),
-        missedSidequests: adventureSidequests
+        totalEndings: Object.keys(campaign.endingTexts).length,
+        otherEndingTitles: Object.entries(campaign.endingTexts)
+          .filter(([k]) => k !== endingId)
+          .map(([, v]) => v.title),
+        missedSidequests: campaign.sidequests
           .filter((sq) => !completedSq.includes(sq.id))
           .map((sq) => sq.title),
         untakenForkHint:
@@ -745,7 +749,7 @@ function AppContent() {
       return (
         <>
           <EndingScreen
-            ending={ending}
+            text={endingText}
             stats={getEndingStats(game.state)}
             onBackToMenu={() => setNewGamePicker('experience')}
             replay={replay}
@@ -757,7 +761,8 @@ function AppContent() {
 
     // Otherwise: an unauthored future chapter → act-break "Fortsetzung folgt".
     const completedAct = getLastCompletedAct(game.state);
-    const body = getActBreakBody(completedAct);
+    const campaign = getCampaign(game.state.storyState!.campaignId);
+    const body = campaign.actBreaks[completedAct] ?? getActBreakBody(completedAct);
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">

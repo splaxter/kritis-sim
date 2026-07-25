@@ -1,5 +1,4 @@
-import { EndingType } from '@kritis/shared';
-import { ADVENTURE_ENDINGS } from '../../content/adventure/endings';
+import { AdventureEndingText } from '../../content/adventure/endings';
 
 interface EndingStats {
   score: number;
@@ -23,7 +22,9 @@ interface ReplayTeaser {
 }
 
 interface EndingScreenProps {
-  ending: EndingType;
+  /** The ending text to render — sourced from the run's campaign (with the
+   *  epilogue already resolved: static for probation, modular for AUDIT TRAIL). */
+  text: AdventureEndingText;
   stats: EndingStats;
   onBackToMenu: () => void;
   replay?: ReplayTeaser;
@@ -62,8 +63,7 @@ const PENALTY_LABELS: Record<string, string> = {
 // Only the positive, "earned" flags are shown as achievements.
 const EARNED_FLAG_ORDER = ['saved_early', 'found_evidence', 'team_prepared', 'trusted_by_all'];
 
-export function EndingScreen({ ending, stats, onBackToMenu, replay }: EndingScreenProps) {
-  const text = ADVENTURE_ENDINGS[ending];
+export function EndingScreen({ text, stats, onBackToMenu, replay }: EndingScreenProps) {
   const earned = EARNED_FLAG_ORDER.filter((f) => stats.endingFlags.includes(f));
   const preparations = stats.preparationFlags.filter((f) => FLAG_LABELS[f]);
   const penalties = stats.penaltyFlags.filter((f) => PENALTY_LABELS[f]);

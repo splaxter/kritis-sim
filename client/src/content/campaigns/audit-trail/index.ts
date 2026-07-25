@@ -9,7 +9,7 @@ import { auditTrailChapters } from './chapters';
 import { auditTrailStoryEvents } from './events';
 import { AUDIT_TRAIL_CHARACTERS } from './characters';
 import { AUDIT_TRAIL_ACT_BREAKS } from './actBreaks';
-import { AUDIT_TRAIL_ENDING_TEXTS } from './endings';
+import { AUDIT_TRAIL_ENDING_TEXTS, buildAuditTrailEpilogue } from './endings';
 import { deriveAuditTrailEnding } from './domains';
 
 export const auditTrailCampaign: CampaignDefinition = {
@@ -23,7 +23,17 @@ export const auditTrailCampaign: CampaignDefinition = {
   endingTexts: AUDIT_TRAIL_ENDING_TEXTS,
   actBreaks: AUDIT_TRAIL_ACT_BREAKS,
   characters: AUDIT_TRAIL_CHARACTERS,
+  // Same WARM display names as probation (reused cast), campaign-owned so App
+  // holds no hardcoded map.
+  characterTokens: {
+    chef: 'Bert',
+    gf: 'Dr. Müller',
+    kaemmerer: 'Herr Schmidt',
+    athos: 'Frau Weber',
+    kollege: 'Bjorg',
+  },
   deriveEnding: (state) => deriveAuditTrailEnding(state.flags),
+  buildEpilogue: (state) => buildAuditTrailEpilogue(state.flags),
 };
 
 export { deriveAuditTrailEnding, satisfiedDomains, AUDIT_DOMAINS } from './domains';

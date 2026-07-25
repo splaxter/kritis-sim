@@ -42,8 +42,15 @@ export interface CampaignDefinition {
   /** Act number → the "Fortsetzung folgt" break copy shown after that act. */
   actBreaks: Record<number, ActBreakParagraph[]>;
   characters: StoryCharacter[];
+  /** Relationship-key → display name for {token} replacement in narrative text
+   *  (e.g. {chef} → "Bert"). Sourced here so App holds no hardcoded cast. */
+  characterTokens: Record<string, string>;
   /** Ending derivation — MANDATORY, so there is no silent probation fallback.
    *  Probation uses its score-band strategy (deriveProbationEnding); AUDIT TRAIL
    *  uses its audit-domain strategy. App calls this, never a campaign switch. */
   deriveEnding: (state: GameState) => CampaignEndingId;
+  /** Optional dynamic epilogue composed from run flags (AUDIT TRAIL's modular
+   *  per-domain epilogue). When omitted, the static endingTexts[id].epilogue is
+   *  used (probation). */
+  buildEpilogue?: (state: GameState) => string;
 }

@@ -18,4 +18,18 @@ describe('campaign registry', () => {
     expect(c.startChapterId).toBe('at_ch01_onboarding');
     expect(c.deriveEnding).toBeTypeOf('function');
   });
+
+  it('both campaigns carry the wiring App relies on (tokens, deriveEnding)', () => {
+    for (const id of ['probation', 'audit-trail'] as const) {
+      const c = getCampaign(id);
+      expect(c.deriveEnding).toBeTypeOf('function');
+      expect(c.characterTokens.chef).toBeTruthy();
+      expect(Object.keys(c.endingTexts).length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('audit-trail declares a modular epilogue; probation does not (static text)', () => {
+    expect(getCampaign('audit-trail').buildEpilogue).toBeTypeOf('function');
+    expect(getCampaign('probation').buildEpilogue).toBeUndefined();
+  });
 });

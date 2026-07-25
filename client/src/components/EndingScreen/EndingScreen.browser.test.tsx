@@ -18,13 +18,13 @@ const stats = {
 
 describe('EndingScreen', () => {
   it('renders the ending title and epilogue for the given type', () => {
-    render(<EndingScreen ending="good" stats={stats} onBackToMenu={() => {}} />);
+    render(<EndingScreen text={ADVENTURE_ENDINGS.good} stats={stats} onBackToMenu={() => {}} />);
     expect(screen.getByText(ADVENTURE_ENDINGS.good.title)).toBeInTheDocument();
     expect(screen.getByText(/82/)).toBeInTheDocument(); // score shown
   });
 
   it('renders the preparation and penalty factors behind the ending', () => {
-    render(<EndingScreen ending="good" stats={{
+    render(<EndingScreen text={ADVENTURE_ENDINGS.good} stats={{
       ...stats,
       preparationFlags: ['saved_early', 'found_evidence'],
       penaltyFlags: ['ignored_warnings'],
@@ -42,7 +42,7 @@ describe('EndingScreen', () => {
       missedSidequests: ['Der Druckergeist'],
       untakenForkHint: 'Du bist den offiziellen Weg gegangen — es gab auch den Alleingang.',
     };
-    render(<EndingScreen ending="good" stats={stats} onBackToMenu={() => {}} replay={replay} />);
+    render(<EndingScreen text={ADVENTURE_ENDINGS.good} stats={stats} onBackToMenu={() => {}} replay={replay} />);
     expect(screen.getByText(/WAS DU NICHT GESEHEN HAST/)).toBeInTheDocument();
     expect(screen.getByText(/1\/3/)).toBeInTheDocument();
     expect(screen.getByText(/Der Druckergeist/)).toBeInTheDocument();
@@ -50,7 +50,7 @@ describe('EndingScreen', () => {
   });
 
   it('omits the replay teaser when no replay data is given', () => {
-    render(<EndingScreen ending="good" stats={stats} onBackToMenu={() => {}} />);
+    render(<EndingScreen text={ADVENTURE_ENDINGS.good} stats={stats} onBackToMenu={() => {}} />);
     expect(screen.queryByText(/WAS DU NICHT GESEHEN HAST/)).not.toBeInTheDocument();
   });
   it('has an ending text for every ending type', () => {

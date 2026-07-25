@@ -25,5 +25,12 @@ export const probationCampaign: CampaignDefinition = {
   endingTexts: ADVENTURE_ENDINGS,
   actBreaks: ACT_BREAK_BODIES,
   characters: STORY_CHARACTERS as StoryCharacter[],
+  characterTokens: {
+    chef: 'Bert',
+    gf: 'Dr. Müller',
+    kaemmerer: 'Herr Schmidt',
+    athos: 'Frau Weber',
+    kollege: 'Bjorg',
+  },
   deriveEnding: deriveProbationEnding,
 };
