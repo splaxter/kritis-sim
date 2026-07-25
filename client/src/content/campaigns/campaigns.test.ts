@@ -12,9 +12,10 @@ describe('campaign registry', () => {
     expect(c.sidequests).toBe(adventureSidequests);
   });
 
-  it('falls back to probation for a campaign not yet registered', () => {
-    // 'audit-trail' content ships in Phase D; until then the lookup must never
-    // return undefined (a stale save carrying that id must not crash).
-    expect(getCampaign('audit-trail').id).toBe('probation');
+  it('resolves the registered audit-trail campaign', () => {
+    const c = getCampaign('audit-trail');
+    expect(c.id).toBe('audit-trail');
+    expect(c.startChapterId).toBe('at_ch01_onboarding');
+    expect(c.deriveEnding).toBeTypeOf('function');
   });
 });

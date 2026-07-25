@@ -8,10 +8,12 @@
  */
 import type {
   CampaignId,
+  CampaignEndingId,
   AdventureChapter,
   AdventureChapterId,
   SidequestDefinition,
   GameEvent,
+  GameState,
 } from '@kritis/shared';
 import type { AdventureEndingText } from '../adventure/endings';
 import type { ActBreakParagraph } from '../adventure/actBreaks';
@@ -40,4 +42,8 @@ export interface CampaignDefinition {
   /** Act number → the "Fortsetzung folgt" break copy shown after that act. */
   actBreaks: Record<number, ActBreakParagraph[]>;
   characters: StoryCharacter[];
+  /** Campaign-specific ending derivation. When set, it wins over the engine's
+   *  probation score-band logic (AUDIT TRAIL derives from audit domains). When
+   *  omitted, the engine's calculateAdventureEnding path is used (probation). */
+  deriveEnding?: (state: GameState) => CampaignEndingId;
 }

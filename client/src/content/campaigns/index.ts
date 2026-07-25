@@ -6,11 +6,11 @@
 import { CampaignId } from '@kritis/shared';
 import { CampaignDefinition } from './types';
 import { probationCampaign } from './probation';
+import { auditTrailCampaign } from './audit-trail';
 
-// 'audit-trail' is registered in Phase D once its content exists. Until then
-// getCampaign falls back to probation so an unknown/stale id can never crash.
-const CAMPAIGNS: Partial<Record<CampaignId, CampaignDefinition>> = {
+const CAMPAIGNS: Record<CampaignId, CampaignDefinition> = {
   probation: probationCampaign,
+  'audit-trail': auditTrailCampaign,
 };
 
 export function getCampaign(id: CampaignId): CampaignDefinition {
