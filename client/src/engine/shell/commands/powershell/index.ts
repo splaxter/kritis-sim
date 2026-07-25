@@ -837,14 +837,34 @@ export const setMailboxCommand: ShellCommand = {
     if (!mb) {
       return { output: '', exitCode: 1, error: `Set-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
     }
-    // $true/$false expand to True/False (see ShellEngine.expandVariables).
+
+    // -AuditEnabled: $true/$false expand to True/False (see expandVariables). A
+    // missing value lands as a switch flag (no options entry). ANY value that is
+    // not a clean boolean must FAIL without mutating — a typo like `$ture` (which
+    // expands to '') or `banana` must never silently disable a live mailbox.
     const raw = args.options['AuditEnabled'];
-    if (raw !== undefined) {
-      mb.auditEnabled = /^true$/i.test(raw);
+    const givenAsSwitch = args.flags['AuditEnabled'] === true; // present but valueless
+    if (raw === undefined && !givenAsSwitch) {
+      // -AuditEnabled not supplied at all → nothing to change (valid no-op).
+      return { output: '', exitCode: 0 };
     }
+    const bool = parseStrictBool(raw);
+    if (bool === null) {
+      return { output: '', exitCode: 1, error: `Set-Mailbox : Cannot process argument transformation on parameter 'AuditEnabled'. Cannot convert value "${raw ?? ''}" to type "System.Boolean".` };
+    }
+    mb.auditEnabled = bool;
     return { output: '', exitCode: 0 };
   },
 };
+
+/** Strict boolean coercion for cmdlet parameters: only true/false/1/0 (and the
+ *  literal $true/$false, in case expansion is bypassed). Anything else → null. */
+function parseStrictBool(value: string | undefined): boolean | null {
+  if (value === undefined) return null;
+  if (/^(true|\$true|1)$/i.test(value)) return true;
+  if (/^(false|\$false|0)$/i.test(value)) return false;
+  return null;
+}
 
 // ============================================================================
 // Pipeline Commands (line-oriented emulation of the object pipeline)

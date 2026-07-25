@@ -58,6 +58,26 @@ describe('Exchange 2019 mailbox cmdlets', () => {
     expect(r.error).toContain("couldn't be found");
   });
 
+  it('rejects a non-boolean value (banana) without mutating state', () => {
+    const r = shell.execute('Set-Mailbox m.mueller -AuditEnabled banana');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('System.Boolean');
+    expect(shell.getBaseHost().mailboxes.find(m => m.name === 'm.mueller')?.auditEnabled).toBe(false);
+  });
+
+  it('rejects a typo like $ture (expands to empty) without mutating an ENABLED mailbox', () => {
+    // a.admin starts enabled; a typo must NOT silently disable it.
+    const r = shell.execute('Set-Mailbox a.admin -AuditEnabled $ture');
+    expect(r.exitCode).toBe(1);
+    expect(shell.getBaseHost().mailboxes.find(m => m.name === 'a.admin')?.auditEnabled).toBe(true);
+  });
+
+  it('rejects a missing value (bare -AuditEnabled) with exit 1, no mutation', () => {
+    const r = shell.execute('Set-Mailbox a.admin -AuditEnabled');
+    expect(r.exitCode).toBe(1);
+    expect(shell.getBaseHost().mailboxes.find(m => m.name === 'a.admin')?.auditEnabled).toBe(true);
+  });
+
   it('does not restart any service (no service semantics involved)', () => {
     // Sanity: enabling audit is a mailbox attribute change, not a daemon action.
     shell.execute('Set-Mailbox m.mueller -AuditEnabled $true');
