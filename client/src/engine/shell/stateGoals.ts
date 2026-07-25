@@ -31,8 +31,11 @@ function hasAssertion(goal: StateGoal): boolean {
   const serviceAssertion = goal.service !== undefined && (
     goal.serviceState !== undefined || goal.serviceEnabled !== undefined
   );
+  // auditEnabled: false is a legal assertion — check "given", not truthiness.
+  const mailboxAssertion = goal.mailbox !== undefined && goal.auditEnabled !== undefined;
   return fileAssertion
     || serviceAssertion
+    || mailboxAssertion
     || goal.firewallRule !== undefined
     || goal.firewallDefaultIncoming !== undefined
     || goal.firewallEnabled !== undefined
@@ -96,6 +99,14 @@ function checkServiceGoals(host: HostState, goal: StateGoal): boolean {
     const isEnabled = unit.enabled === 'enabled';
     if (isEnabled !== goal.serviceEnabled) return false;
   }
+  return true;
+}
+
+function checkMailboxGoals(host: HostState, goal: StateGoal): boolean {
+  if (!goal.mailbox) return true;
+  const mb = host.mailboxes.find(m => m.name.toLowerCase() === goal.mailbox!.toLowerCase());
+  if (!mb) return false;
+  if (goal.auditEnabled !== undefined && mb.auditEnabled !== goal.auditEnabled) return false;
   return true;
 }
 
@@ -200,6 +211,7 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
     if (!host) return false;
     return checkFileGoals(host, goal)
       && checkServiceGoals(host, goal)
+      && checkMailboxGoals(host, goal)
       && checkFirewallGoals(host, goal)
       && checkNetworkGoals(host, goal)
       // sshdEffective and loggedIn may name their OWN target host, falling

@@ -962,6 +962,18 @@ export class ShellEngine implements ShellEngineInterface {
           i++;
           continue;
         }
+        // PowerShell automatic booleans: $true/$false expand to True/False
+        // (case-insensitive). Without this they'd fall through to the generic
+        // $name lookup and vanish to '', so e.g. `-AuditEnabled $true` could not
+        // be distinguished from `$false`.
+        if (this.state.type === 'powershell') {
+          const boolVar = input.slice(i + 1).match(/^(true|false)\b/i);
+          if (boolVar) {
+            result += boolVar[1].toLowerCase() === 'true' ? 'True' : 'False';
+            i += boolVar[0].length;
+            continue;
+          }
+        }
         const braced = input.slice(i + 1).match(/^\{(\w+)\}/);
         const plain = input.slice(i + 1).match(/^(\w+)/);
         const name = braced?.[1] ?? plain?.[1];

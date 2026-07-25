@@ -117,6 +117,8 @@ export interface TerminalContext {
   listeners?: NetListener[];
   /** Established connections seeded onto the PRIMARY host (single-host net levels). */
   connections?: NetConnection[];
+  /** Exchange mailboxes seeded onto the PRIMARY host (EXCH01 audit levels). */
+  mailboxes?: TerminalMailboxSpec[];
   /** Live skill drip: first successful use (exit 0) of a command name grants this. */
   commandSkillGain?: Record<string, Partial<Skills>>;
 }
@@ -144,6 +146,14 @@ export interface TerminalUnitPrecondition {
   absent?: boolean;
   /** Journal line appended when the precondition fails on start/restart. */
   failMessage: string;
+}
+
+/** Seeds one Exchange mailbox onto a host. auditEnabled defaults to false. */
+export interface TerminalMailboxSpec {
+  name: string;
+  displayName?: string;
+  auditEnabled?: boolean;
+  auditLogAgeLimit?: string;
 }
 
 export interface TerminalServiceSpec {
@@ -214,6 +224,8 @@ export interface TerminalHostSpec {
   listeners?: NetListener[];
   /** Established connections on this host; when omitted a default table is used. */
   connections?: NetConnection[];
+  /** Exchange mailboxes on this host. */
+  mailboxes?: TerminalMailboxSpec[];
 }
 
 /** Declarative win condition, checked against live engine state after every command. */
@@ -272,4 +284,12 @@ export interface StateGoal {
    * match one single recorded run; omitted fields match anything.
    */
   ansibleRan?: { playbook?: string; mode?: 'syntax-check' | 'check' | 'apply'; ok?: boolean };
+  /**
+   * Exchange mailbox audit state on the host (defaults to the base host). Names
+   * the mailbox identity; `auditEnabled` pins whether audit logging is on. On
+   * on-prem Exchange this is toggled per mailbox via `Set-Mailbox -AuditEnabled`,
+   * so a level requires `{ mailbox: 'm.mueller', auditEnabled: true }`.
+   */
+  mailbox?: string;
+  auditEnabled?: boolean;
 }

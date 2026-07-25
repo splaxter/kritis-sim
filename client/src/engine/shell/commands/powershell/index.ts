@@ -767,6 +767,86 @@ export const getServiceCommand: ShellCommand = {
 };
 
 // ============================================================================
+// Exchange (on-prem Exchange Server 2019) — deliberately tiny surface: read a
+// mailbox's audit state and toggle it. On-prem audit is per-mailbox via
+// Set-Mailbox -AuditEnabled (Exchange Online is org-wide via AuditDisabled and
+// on by default). No mailbox content is ever exposed.
+// ============================================================================
+
+/** Property-list block (Key : Value), the form Format-List passes through. */
+function mailboxDetail(mb: { name: string; displayName?: string; auditEnabled: boolean; auditLogAgeLimit?: string }): string {
+  const rows: [string, string][] = [
+    ['Name', mb.name],
+    ['DisplayName', mb.displayName ?? mb.name],
+    ['AuditEnabled', mb.auditEnabled ? 'True' : 'False'],
+    ['AuditLogAgeLimit', mb.auditLogAgeLimit ?? '90.00:00:00'],
+  ];
+  const width = Math.max(...rows.map(([k]) => k.length));
+  return '\n' + rows.map(([k, v]) => `${k.padEnd(width)} : ${v}`).join('\n');
+}
+
+export const getMailboxCommand: ShellCommand = {
+  name: 'Get-Mailbox',
+  description: 'Views mailbox objects and attributes (Exchange Server)',
+  usage: 'Get-Mailbox [[-Identity] <id>]',
+  options: [
+    { long: 'Identity', description: 'Mailbox to view', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const mailboxes = ctx.host?.mailboxes ?? [];
+    const identity = args.options['Identity'] || args.positional[0];
+
+    if (identity) {
+      const mb = mailboxes.find(m => m.name.toLowerCase() === identity.toLowerCase());
+      if (!mb) {
+        return { output: '', exitCode: 1, error: `Get-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
+      }
+      // Single mailbox → property block (readable, and Format-List-passthrough safe).
+      return { output: mailboxDetail(mb), exitCode: 0 };
+    }
+
+    // No identity → summary table of all mailboxes.
+    const lines = [
+      '',
+      'Name                      DisplayName               AuditEnabled',
+      '----                      -----------               ------------',
+    ];
+    for (const mb of mailboxes) {
+      lines.push(`${mb.name.padEnd(25)} ${(mb.displayName ?? mb.name).padEnd(25)} ${mb.auditEnabled ? 'True' : 'False'}`);
+    }
+    return { output: lines.join('\n'), exitCode: 0 };
+  },
+};
+
+export const setMailboxCommand: ShellCommand = {
+  name: 'Set-Mailbox',
+  description: 'Modifies mailbox settings (Exchange Server)',
+  usage: 'Set-Mailbox [-Identity] <id> -AuditEnabled <$true|$false>',
+  options: [
+    { long: 'Identity', description: 'Mailbox to modify', takesValue: true },
+    { long: 'AuditEnabled', description: 'Enable or disable mailbox audit logging', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const identity = args.options['Identity'] || args.positional[0];
+    if (!identity) {
+      return { output: '', exitCode: 1, error: 'Set-Mailbox : Cannot process command because of one or more missing mandatory parameters: Identity.' };
+    }
+    const mb = ctx.host?.mailboxes.find(m => m.name.toLowerCase() === identity.toLowerCase());
+    if (!mb) {
+      return { output: '', exitCode: 1, error: `Set-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
+    }
+    // $true/$false expand to True/False (see ShellEngine.expandVariables).
+    const raw = args.options['AuditEnabled'];
+    if (raw !== undefined) {
+      mb.auditEnabled = /^true$/i.test(raw);
+    }
+    return { output: '', exitCode: 0 };
+  },
+};
+
+// ============================================================================
 // Pipeline Commands (line-oriented emulation of the object pipeline)
 // ============================================================================
 
@@ -1260,6 +1340,9 @@ export const allPowerShellCommands: ShellCommand[] = [
   getProcessCommand,
   stopProcessCommand,
   getServiceCommand,
+  // Exchange
+  getMailboxCommand,
+  setMailboxCommand,
   // Pipeline
   sortObjectCommand,
   selectObjectCommand,
