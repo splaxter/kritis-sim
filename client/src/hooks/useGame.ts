@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, EventEffects, Skills } from '@kritis/shared';
+import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, CampaignId, EventEffects, Skills } from '@kritis/shared';
 import {
   createInitialState,
   applyEffects,
@@ -36,7 +36,7 @@ interface UseGameReturn {
   // Game state
   gameOverReason: string | null;
   // Actions
-  startNewGame: (seed?: string, mode?: GameModeId) => void;
+  startNewGame: (seed?: string, mode?: GameModeId, campaignId?: CampaignId) => void;
   loadState: (state: GameState) => void;
   setEvent: (event: GameEvent) => void;
   setScenario: (scenario: Scenario) => void;
@@ -71,8 +71,8 @@ export function useGame(): UseGameReturn {
 
   const [gameOverReason, setGameOverReason] = useState<string | null>(null);
 
-  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'beginner') => {
-    setState(createInitialState(seed, mode));
+  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'beginner', campaignId: CampaignId = 'probation') => {
+    setState(createInitialState(seed, mode, campaignId));
     setPhase('playing');
     setContentType('event');
     setCurrentEvent(null);

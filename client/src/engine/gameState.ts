@@ -5,12 +5,19 @@ import {
   Relationships,
   EventEffects,
   GameModeId,
+  CampaignId,
   getGameModeConfig,
   createInitialAdventureState,
 } from '@kritis/shared';
+import { getCampaign } from '../content/campaigns';
 
-export function createInitialState(seed?: string, mode: GameModeId = 'beginner'): GameState {
+export function createInitialState(
+  seed?: string,
+  mode: GameModeId = 'beginner',
+  campaignId: CampaignId = 'probation',
+): GameState {
   const config = getGameModeConfig(mode);
+  const campaign = getCampaign(campaignId);
 
   return {
     ...DEFAULT_GAME_STATE,
@@ -36,10 +43,12 @@ export function createInitialState(seed?: string, mode: GameModeId = 'beginner')
       fachabteilung: 0,
       kollegen: config.startingRelationships.kollegen,
     },
-    // Initialize story state if story mode
+    // Initialize story state if story mode — seeded from the chosen campaign so
+    // an AUDIT TRAIL run starts at its own chapter with campaignId set and an
+    // empty characterMemory (no probation relationship state carried over).
     ...(mode === 'story' ? {
       isStoryMode: true,
-      storyState: createInitialAdventureState(),
+      storyState: createInitialAdventureState({ id: campaign.id, startChapterId: campaign.startChapterId }),
     } : {}),
     // Initialize KRITIS mode flag for special events
     ...(mode === 'kritis' ? {
