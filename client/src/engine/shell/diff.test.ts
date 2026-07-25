@@ -15,6 +15,10 @@ function bash(): ShellEngine {
       { path: '/home/azubi/added.txt', content: 'line1\nline2\nlineNEW\nline3\n' },
       { path: '/home/azubi/deleted.txt', content: 'line1\nline3\n' },
       { path: '/home/azubi/noeol.txt', content: 'line1\nline2\nline3' },
+      // Combined content+EOL case: line 1 differs AND file2's last line lacks a
+      // terminating newline while file1's does.
+      { path: '/home/azubi/combo_a.txt', content: 'a\nsame\n' },
+      { path: '/home/azubi/combo_b.txt', content: 'b\nsame' },
     ],
   });
   shell.getVfs().setCurrentPath('/home/azubi');
@@ -90,5 +94,19 @@ describe('diff (normal format, GNU-compatible)', () => {
     const r = shell.execute('diff a.txt adir');
     expect(r.exitCode).toBe(2);
     expect(r.error).toContain('adir: Is a directory');
+  });
+
+  it('combined earlier-content-change AND a missing final newline (both lines reported)', () => {
+    // GNU treats the unterminated "same" as different from "same\n", so the
+    // whole thing is one 1,2c1,2 hunk with the marker on the last line.
+    const r = shell.execute('diff combo_a.txt combo_b.txt');
+    expect(r.output).toBe('1,2c1,2\n< a\n< same\n---\n> b\n> same\n\\ No newline at end of file');
+    expect(r.exitCode).toBe(1);
+  });
+
+  it('combined case, reversed: marker moves to file1 side', () => {
+    const r = shell.execute('diff combo_b.txt combo_a.txt');
+    expect(r.output).toBe('1,2c1,2\n< b\n< same\n\\ No newline at end of file\n---\n> a\n> same');
+    expect(r.exitCode).toBe(1);
   });
 });

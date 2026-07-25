@@ -9,36 +9,42 @@
  */
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, CompletionContext, Completion } from '../../types';
 
-type Op = { type: 'eq' | 'del' | 'add'; line: string };
+/** A single line. `eol` records whether it was newline-terminated — an
+ *  unterminated final line ("same") is a DIFFERENT line from its terminated
+ *  form ("same\n"), exactly as GNU diff treats it, so terminating status is part
+ *  of line identity in the comparison (not a post-hoc fix-up). */
+type Line = { text: string; eol: boolean };
+type Op = { type: 'eq' | 'del' | 'add'; line: Line };
 
 const NO_EOL = '\\ No newline at end of file';
 
-/** Split into lines plus a flag for a missing final newline. A single trailing
- *  newline is a terminator ("a\nb\n" → two lines); its ABSENCE ("a\nb") is a
- *  real difference from the terminated form, reported with `\ No newline at end
- *  of file` like GNU diff. Empty file → no lines. */
-function splitFile(content: string): { lines: string[]; noEol: boolean } {
-  if (content.length === 0) return { lines: [], noEol: false };
+/** Split into lines; only the final line of a file lacking a trailing newline
+ *  carries eol=false. Empty file → no lines. */
+function splitFile(content: string): Line[] {
+  if (content.length === 0) return [];
   const noEol = !content.endsWith('\n');
   const body = noEol ? content : content.slice(0, -1);
-  return { lines: body.split('\n'), noEol };
+  const parts = body.split('\n');
+  return parts.map((text, i) => ({ text, eol: !(noEol && i === parts.length - 1) }));
 }
 
+const sameLine = (x: Line, y: Line): boolean => x.text === y.text && x.eol === y.eol;
+
 /** Longest-common-subsequence edit script between two line arrays. */
-function lcsDiff(a: string[], b: string[]): Op[] {
+function lcsDiff(a: Line[], b: Line[]): Op[] {
   const n = a.length;
   const m = b.length;
   const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      dp[i][j] = sameLine(a[i], b[j]) ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
     }
   }
   const ops: Op[] = [];
   let i = 0;
   let j = 0;
   while (i < n && j < m) {
-    if (a[i] === b[j]) { ops.push({ type: 'eq', line: a[i] }); i++; j++; }
+    if (sameLine(a[i], b[j])) { ops.push({ type: 'eq', line: a[i] }); i++; j++; }
     else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ type: 'del', line: a[i] }); i++; }
     else { ops.push({ type: 'add', line: b[j] }); j++; }
   }
@@ -52,31 +58,23 @@ function range(start: number, end: number): string {
   return start === end ? `${start}` : `${start},${end}`;
 }
 
-/** Render the edit script as GNU normal-format hunks. `noEolA`/`noEolB` append
- *  the "\ No newline at end of file" marker after a printed final line whose
- *  file lacks a terminating newline. */
-function formatNormalDiff(
-  a: string[], b: string[], noEolA: boolean, noEolB: boolean,
-): string {
+/** Render the edit script as GNU normal-format hunks. The no-newline marker is
+ *  intrinsic to a line whose eol=false, so it prints wherever that line appears
+ *  in a hunk — no separate special case. */
+function formatNormalDiff(a: Line[], b: Line[]): string {
   const ops = lcsDiff(a, b);
   const out: string[] = [];
-  // Emit a `<` (file1) or `>` (file2) line, tagging the file's unterminated
-  // final line with the no-newline marker.
-  const pushDel = (lineNo: number, text: string) => {
-    out.push(`< ${text}`);
-    if (noEolA && lineNo === a.length) out.push(NO_EOL);
-  };
-  const pushAdd = (lineNo: number, text: string) => {
-    out.push(`> ${text}`);
-    if (noEolB && lineNo === b.length) out.push(NO_EOL);
+  const pushLine = (prefix: '<' | '>', line: Line) => {
+    out.push(`${prefix} ${line.text}`);
+    if (!line.eol) out.push(NO_EOL);
   };
   let aConsumed = 0;
   let bConsumed = 0;
   let k = 0;
   while (k < ops.length) {
     if (ops[k].type === 'eq') { aConsumed++; bConsumed++; k++; continue; }
-    const dels: string[] = [];
-    const adds: string[] = [];
+    const dels: Line[] = [];
+    const adds: Line[] = [];
     const aStart = aConsumed;
     const bStart = bConsumed;
     while (k < ops.length && ops[k].type !== 'eq') {
@@ -88,26 +86,16 @@ function formatNormalDiff(
     const bRange = range(bStart + 1, bStart + adds.length);
     if (dels.length > 0 && adds.length > 0) {
       out.push(`${aRange}c${bRange}`);
-      dels.forEach((l, i) => pushDel(aStart + 1 + i, l));
+      for (const l of dels) pushLine('<', l);
       out.push('---');
-      adds.forEach((l, i) => pushAdd(bStart + 1 + i, l));
+      for (const l of adds) pushLine('>', l);
     } else if (dels.length > 0) {
       out.push(`${aRange}d${bStart}`);
-      dels.forEach((l, i) => pushDel(aStart + 1 + i, l));
+      for (const l of dels) pushLine('<', l);
     } else {
       out.push(`${aStart}a${bRange}`);
-      adds.forEach((l, i) => pushAdd(bStart + 1 + i, l));
+      for (const l of adds) pushLine('>', l);
     }
-  }
-
-  // Content is identical but exactly one file lacks a final newline → GNU still
-  // reports the last line as changed, with the marker on the unterminated side.
-  if (out.length === 0 && noEolA !== noEolB && a.length > 0 && a.length === b.length) {
-    const n = a.length;
-    out.push(`${n}c${n}`);
-    pushDel(n, a[n - 1]);
-    out.push('---');
-    pushAdd(n, b[n - 1]);
   }
   return out.join('\n');
 }
@@ -143,9 +131,7 @@ export const diffCommand: ShellCommand = {
     const r2 = read(p2);
     if ('error' in r2) return { output: '', exitCode: 2, error: r2.error };
 
-    const f1 = splitFile(r1.value);
-    const f2 = splitFile(r2.value);
-    const body = formatNormalDiff(f1.lines, f2.lines, f1.noEol, f2.noEol);
+    const body = formatNormalDiff(splitFile(r1.value), splitFile(r2.value));
     return { output: body, exitCode: body.length > 0 ? 1 : 0 };
   },
 
