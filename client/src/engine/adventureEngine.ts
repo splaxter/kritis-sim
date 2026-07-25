@@ -11,16 +11,14 @@ import {
   SidequestDefinition,
   CharacterMemory,
   createInitialAdventureState,
-  EndingType,
-  StoryPath,
   calculateEndingScore,
-  determineEnding,
   checkFlagCondition,
   CampaignId,
 } from '@kritis/shared';
 import { GameEvent } from '@kritis/shared';
 import { Scenario } from '@kritis/shared';
 import { getCampaign, CampaignDefinition } from '../content/campaigns';
+import { deriveEndingFlags, deriveStoryPath } from '../content/adventure/probationEnding';
 
 // Story content is resolved per-campaign from the registry instead of hard
 // module globals. Functions that carry a GameState resolve via campaignOf();
@@ -453,46 +451,9 @@ export function updateCharacterMemory(
  * content (state.flags + characterMemory) at read time, merged with anything
  * already stored (forward-compat + old saves).
  */
-const ENDING_FLAG_SOURCES: Record<string, string[]> = {
-  saved_early: ['saved_early', 'isolated_systems', 'used_legacy_script', 'contained_damage', 'cut_interconnect', 'attack_repelled'],
-  found_evidence: ['found_evidence', 'has_stefan_dossier', 'knows_full_timeline', 'evidence_secured', 'secured_evidence', 'insider_evidence', 'evidence_complete'],
-  team_prepared: ['team_prepared', 'restore_tested', 'ir_ready', 'crown_jewels_isolated', 'shift_plan', 'coordinated_defense'],
-  trusted_by_all: ['trusted_by_all'],
-  burned_bridges: ['burned_bridges'],
-  ignored_warnings: ['ignored_warnings'],
-  blamed_others: ['blamed_others'],
-};
-
-export function deriveEndingFlags(state: GameState): string[] {
-  const flags = new Set<string>(state.storyState?.endingFlags ?? []);
-  for (const [canonical, sources] of Object.entries(ENDING_FLAG_SOURCES)) {
-    if (sources.some((f) => state.flags[f])) flags.add(canonical);
-  }
-  const trusted = Object.values(state.storyState?.characterMemory ?? {})
-    .filter((m) => m.trustLevel >= 50).length;
-  if (trusted >= 2) flags.add('trusted_by_all');
-  return [...flags];
-}
-
-export function deriveStoryPath(state: GameState): StoryPath {
-  if (state.flags['chose_official_route']) return 'official';
-  if (state.flags['going_solo'] || state.flags['wants_solo']) return 'underground';
-  return state.storyState?.storyPath ?? 'neutral';
-}
-
-export function calculateAdventureEnding(state: GameState): EndingType {
-  if (!state.storyState) {
-    return 'neutral';
-  }
-
-  const score = calculateEndingScore(
-    { chef: state.relationships.chef, kollegen: state.relationships.kollegen },
-    state.storyState.completedSidequests,
-    deriveEndingFlags(state)
-  );
-
-  return determineEnding(score, state.storyState.completedSidequests.length, deriveStoryPath(state));
-}
+// Probation's ending policy (deriveEndingFlags/deriveStoryPath) lives in the
+// neutral content module so both this engine and the probation campaign can use
+// it cycle-free. getEndingStats (below) still needs the two helpers.
 
 export function getEndingStats(state: GameState): {
   score: number;

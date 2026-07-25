@@ -42,8 +42,8 @@ export interface CampaignDefinition {
   /** Act number → the "Fortsetzung folgt" break copy shown after that act. */
   actBreaks: Record<number, ActBreakParagraph[]>;
   characters: StoryCharacter[];
-  /** Campaign-specific ending derivation. When set, it wins over the engine's
-   *  probation score-band logic (AUDIT TRAIL derives from audit domains). When
-   *  omitted, the engine's calculateAdventureEnding path is used (probation). */
-  deriveEnding?: (state: GameState) => CampaignEndingId;
+  /** Ending derivation — MANDATORY, so there is no silent probation fallback.
+   *  Probation uses its score-band strategy (deriveProbationEnding); AUDIT TRAIL
+   *  uses its audit-domain strategy. App calls this, never a campaign switch. */
+  deriveEnding: (state: GameState) => CampaignEndingId;
 }

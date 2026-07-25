@@ -8,8 +8,8 @@ import { getAllScenarios } from './content/packs';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
-import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, calculateAdventureEnding, getEndingStats } from './engine/adventureEngine';
+import { GameModeId, getGameModeConfig, GameEvent, Scenario, EndingType } from '@kritis/shared';
+import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
 import { ADVENTURE_ENDINGS } from './content/adventure/endings';
@@ -177,7 +177,12 @@ function AppContent() {
     if (game.phase !== 'gameover' && game.phase !== 'storyEnding') return;
     const s = game.state;
     const storyComplete = s.isStoryMode && isAdventureModeComplete(s);
-    const ending = storyComplete ? calculateAdventureEnding(s) : undefined;
+    // W1: ending derivation is campaign-owned (mandatory deriveEnding, no
+    // fallback). Cast to EndingType at the boundary until W4 widens meta/telemetry
+    // to a generic ending string.
+    const ending = storyComplete && s.storyState
+      ? (getCampaign(s.storyState.campaignId).deriveEnding(s) as EndingType)
+      : undefined;
     const stats = storyComplete ? getEndingStats(s) : undefined;
     const score = stats?.score;
     setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, ending, score }));
@@ -718,7 +723,7 @@ function AppContent() {
 
     // Campaign fully completed → real stats-driven ending screen.
     if (isAdventureModeComplete(game.state)) {
-      const ending = calculateAdventureEnding(game.state);
+      const ending = getCampaign(game.state.storyState!.campaignId).deriveEnding(game.state) as EndingType;
       const completedSq = game.state.storyState?.completedSidequests ?? [];
       const storyPath = getEndingStats(game.state).storyPath;
       const replay = {

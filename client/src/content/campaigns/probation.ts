@@ -12,6 +12,7 @@ import { adventureSidequestEvents } from '../adventure/sidequest-events';
 import { ADVENTURE_ENDINGS } from '../adventure/endings';
 import { ACT_BREAK_BODIES } from '../adventure/actBreaks';
 import { STORY_CHARACTERS } from '../adventure';
+import { deriveProbationEnding } from '../adventure/probationEnding';
 
 export const probationCampaign: CampaignDefinition = {
   id: 'probation',
@@ -24,4 +25,5 @@ export const probationCampaign: CampaignDefinition = {
   endingTexts: ADVENTURE_ENDINGS,
   actBreaks: ACT_BREAK_BODIES,
   characters: STORY_CHARACTERS as StoryCharacter[],
+  deriveEnding: deriveProbationEnding,
 };

@@ -2,13 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { GameState, createInitialAdventureState, determineEnding } from '@kritis/shared';
 import { createInitialState } from './gameState';
 import {
-  calculateAdventureEnding,
-  deriveEndingFlags,
-  deriveStoryPath,
   getNextStoryContent,
   advanceStoryBeat,
   isAdventureModeComplete,
 } from './adventureEngine';
+// Probation ending policy moved to the neutral content module (no engine↔campaign
+// cycle). deriveProbationEnding is the exact old calculateAdventureEnding, so
+// these assertions double as the W1 byte-identical regression proof.
+import {
+  deriveProbationEnding as calculateAdventureEnding,
+  deriveEndingFlags,
+  deriveStoryPath,
+} from '../content/adventure/probationEnding';
 import { getVisibleChoices } from './eventEngine';
 import { allEvents } from '../content/events';
 import { adventureStoryEvents } from '../content/adventure/story-events';
