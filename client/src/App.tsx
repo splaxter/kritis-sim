@@ -8,7 +8,7 @@ import { getAllScenarios } from './content/packs';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { GameModeId, getGameModeConfig, GameEvent, Scenario, EndingType } from '@kritis/shared';
+import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
 import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
@@ -173,21 +173,22 @@ function AppContent() {
     if (game.phase !== 'gameover' && game.phase !== 'storyEnding') return;
     const s = game.state;
     const storyComplete = s.isStoryMode && isAdventureModeComplete(s);
-    // W1: ending derivation is campaign-owned (mandatory deriveEnding, no
-    // fallback). Cast to EndingType at the boundary until W4 widens meta/telemetry
-    // to a generic ending string.
+    // Ending derivation is campaign-owned (mandatory deriveEnding, no fallback);
+    // the id is a campaign-specific string, tracked per campaign in meta/telemetry.
+    const campaignId = s.storyState?.campaignId ?? 'probation';
     const ending = storyComplete && s.storyState
-      ? (getCampaign(s.storyState.campaignId).deriveEnding(s) as EndingType)
+      ? getCampaign(campaignId).deriveEnding(s)
       : undefined;
     const stats = storyComplete ? getEndingStats(s) : undefined;
     const score = stats?.score;
-    setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, ending, score }));
+    setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, campaignId, ending, score }));
 
     if (sentCompletedSeed.current !== s.seed) {
       sentCompletedSeed.current = s.seed;
       const summary = buildRunSummary(s, game.gameOverReason);
       trackRunCompleted(playerId, s.seed, {
         mode: s.gameMode,
+        campaignId: s.isStoryMode ? campaignId : undefined,
         outcome: summary.outcome,
         weekReached: summary.weekReached,
         totalWeeks: summary.totalWeeks,
@@ -595,7 +596,7 @@ function AppContent() {
 
           {meta.runsCompleted > 0 && (
             <div className="text-terminal-green-muted text-xs mt-3">
-              Durchläufe: {meta.runsCompleted} · Story-Enden: {meta.endingsSeen.length}/{TOTAL_STORY_ENDINGS}
+              Durchläufe: {meta.runsCompleted} · Story-Enden: {(meta.endingsSeenByCampaign.probation?.length ?? 0)}/{TOTAL_STORY_ENDINGS}
             </div>
           )}
 
@@ -731,7 +732,7 @@ function AppContent() {
         ? { ...baseText, epilogue: campaign.buildEpilogue(game.state) }
         : baseText;
       const replay = {
-        endingsSeen: meta.endingsSeen.length,
+        endingsSeen: meta.endingsSeenByCampaign[campaign.id]?.length ?? 0,
         totalEndings: Object.keys(campaign.endingTexts).length,
         otherEndingTitles: Object.entries(campaign.endingTexts)
           .filter(([k]) => k !== endingId)

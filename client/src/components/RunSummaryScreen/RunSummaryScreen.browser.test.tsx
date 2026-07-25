@@ -6,9 +6,9 @@ import { RunSummary } from '../../engine/runSummary';
 import { MetaProgress } from '../../engine/metaProgress';
 
 const meta: MetaProgress = {
-  version: 1,
+  version: 2,
   runsCompleted: 3,
-  endingsSeen: [],
+  endingsSeenByCampaign: {},
   bestScoreByMode: {},
   lastRunAt: new Date(0).toISOString(),
   countedSeeds: [],

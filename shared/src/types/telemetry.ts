@@ -5,7 +5,7 @@
  * server parses defensively (it can't trust the wire) but reads these fields.
  */
 import { GameModeId } from './gameMode';
-import { EndingType } from './adventure';
+import { CampaignId } from './campaign';
 import { DecisionRecord } from './gameState';
 
 export const TELEMETRY_VERSION = 1;
@@ -25,12 +25,15 @@ export interface RunStartedPayload {
 
 export interface RunCompletedPayload {
   mode: GameModeId;
+  /** Campaign of a story run (omitted for non-story modes). */
+  campaignId?: CampaignId;
   outcome: TrackRunOutcome;
   weekReached: number;
   totalWeeks: number;
   survived: boolean;
   score?: number;
-  ending?: EndingType;
+  /** Campaign-specific ending id (generic string, not the probation-only union). */
+  ending?: string;
   sidequestsCompleted?: number;
   /** Full per-choice history for this run — the "what they played" detail. */
   decisions: DecisionRecord[];
