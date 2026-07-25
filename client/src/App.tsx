@@ -14,8 +14,7 @@ import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
 import { ADVENTURE_ENDINGS } from './content/adventure/endings';
 import { adventureSidequests } from './content/adventure/sidequests';
-import { adventureStoryEvents } from './content/adventure/story-events';
-import { adventureSidequestEvents } from './content/adventure/sidequest-events';
+import { getCampaign } from './content/campaigns';
 import { IntroScreen } from './components/IntroScreen';
 // Statically imported (not lazy): IntroScreen already pulls LegalPages into the
 // eager bundle, so a dynamic import here only produces a Vite "both statically
@@ -258,7 +257,10 @@ function AppContent() {
     if (game.phase === 'playing' && !game.currentEvent && !game.currentScenario) {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
-        const combinedEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
+        // Story events come from the run's campaign, not a hard import, so a
+        // second campaign's beats resolve through getNextStoryContent.
+        const campaign = getCampaign(game.state.storyState.campaignId);
+        const combinedEvents = [...allEvents, ...campaign.storyEvents, ...campaign.sidequestEvents];
 
         // Campaign fully played → real ending screen. Must run BEFORE the
         // act-break check: after ch12 the engine would otherwise re-serve beat 0

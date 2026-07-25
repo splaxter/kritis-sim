@@ -3,6 +3,7 @@ import {
   writeAutosave,
   readAutosave,
   clearAutosave,
+  migrateLoadedGameState,
   AUTOSAVE_VERSION,
 } from './autosave';
 import { createInitialState, applyEffects, advanceDay } from './gameState';
@@ -110,5 +111,42 @@ describe('autosave storage module', () => {
       },
     };
     expect(() => writeAutosave(PLAYER, midRunState(), storage)).not.toThrow();
+  });
+});
+
+describe('migrateLoadedGameState — campaignId soft-fill', () => {
+  it('fills a missing campaignId on a story state with probation', () => {
+    const story = createInitialState('MIG_SEED', 'story');
+    // Simulate a pre-campaign save: strip the field the old writer never set.
+    delete (story.storyState as { campaignId?: string }).campaignId;
+
+    const migrated = migrateLoadedGameState(story);
+    expect(migrated.storyState?.campaignId).toBe('probation');
+  });
+
+  it('leaves an existing campaignId untouched', () => {
+    const story = createInitialState('MIG_SEED2', 'story');
+    (story.storyState as { campaignId?: string }).campaignId = 'audit-trail';
+    expect(migrateLoadedGameState(story).storyState?.campaignId).toBe('audit-trail');
+  });
+
+  it('is a no-op for non-story states (no storyState)', () => {
+    const s = createInitialState('MIG_SEED3', 'intermediate');
+    expect(migrateLoadedGameState(s)).toBe(s);
+  });
+
+  it('readAutosave migrates a pre-campaign envelope on load', () => {
+    const storage = memoryStorage();
+    const story = createInitialState('MIG_SEED4', 'story');
+    delete (story.storyState as { campaignId?: string }).campaignId;
+    // Hand-write a valid version-1 envelope with the legacy (campaignId-less) state.
+    storage.setItem(
+      `kritis_autosave_${PLAYER}`,
+      JSON.stringify({ version: AUTOSAVE_VERSION, updatedAt: '2026-01-01T00:00:00Z', gameState: story }),
+    );
+
+    const envelope = readAutosave(PLAYER, storage);
+    expect(envelope).not.toBeNull();
+    expect(envelope!.gameState.storyState?.campaignId).toBe('probation');
   });
 });

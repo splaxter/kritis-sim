@@ -10,6 +10,20 @@ import { GameState } from '@kritis/shared';
 export const AUTOSAVE_VERSION = 1;
 const AUTOSAVE_KEY = 'kritis_autosave';
 
+/**
+ * Soft-fill fields added after a save was written, WITHOUT bumping the version
+ * (which would discard the save). Pre-campaign saves carry a storyState that
+ * predates `campaignId`; default it to 'probation' so the run keeps playing the
+ * original campaign. Shared by the autosave and manual-slot load paths. Pure.
+ */
+export function migrateLoadedGameState(gs: GameState): GameState {
+  const story = gs.storyState;
+  if (story && !(story as { campaignId?: string }).campaignId) {
+    return { ...gs, storyState: { ...story, campaignId: 'probation' } };
+  }
+  return gs;
+}
+
 export interface AutosaveEnvelope {
   version: number;
   updatedAt: string; // ISO timestamp
@@ -66,7 +80,8 @@ export function readAutosave(
       storage.removeItem(storageKey(playerId));
       return null;
     }
-    return parsed as AutosaveEnvelope;
+    const envelope = parsed as AutosaveEnvelope;
+    return { ...envelope, gameState: migrateLoadedGameState(envelope.gameState) };
   } catch (e) {
     console.error('Autosave read failed, discarding:', e);
     try {
