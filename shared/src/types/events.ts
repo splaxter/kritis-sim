@@ -69,6 +69,17 @@ export interface GameEvent {
   title: string;
   description: string;
   image?: string; // Path to event illustration (e.g., "/images/events/evt_example.webp")
+  /** When set, the card renders as a mail being composed: a mail header
+   *  (from/to/cc/subject) shows above the choices, which are the send variants
+   *  (recipient/CC/tone). Purely presentational — effects still come from each
+   *  choice's setsFlags. */
+  mailCompose?: {
+    from: string;
+    to: string;
+    cc?: string;
+    subject: string;
+    body?: string;
+  };
   involvedCharacters: string[];
   choices: EventChoice[];
   terminalContext?: TerminalContext;
