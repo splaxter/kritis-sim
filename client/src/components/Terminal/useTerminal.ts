@@ -17,7 +17,7 @@ interface UseTerminalOptions {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onPartialSolution: (feedback: string) => void;
-  onFlagsSet?: (flags: string[]) => void;
+  onFlagsSet: (flags: string[]) => void;
   gameMode?: GameModeId;
 }
 
@@ -108,7 +108,7 @@ export function useTerminal({ context, onSolved, onPartialSolution, onFlagsSet, 
       context,
       gameMode,
       onSolved: (skillGain, setsFlags, effects) => onSolvedRef.current(skillGain, setsFlags, effects),
-      onFlagsSet: (flags) => onFlagsSetRef.current?.(flags),
+      onFlagsSet: (flags) => onFlagsSetRef.current(flags),
     });
 
     xtermRef.current = term;

@@ -27,8 +27,10 @@ export interface TerminalSessionDeps {
   gameMode: GameModeId;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
   /** Fired the moment a scenario command with `setsFlags` matches — immediately
-   *  and independent of solving (honeypot: "the player read this"). */
-  onFlagsSet?: (flags: string[]) => void;
+   *  and independent of solving (honeypot: "the player read this"). Mandatory so
+   *  the flag effect can never be silently dropped along the wiring chain; tests
+   *  may pass a no-op. */
+  onFlagsSet: (flags: string[]) => void;
 }
 
 export interface TerminalSnapshot {
@@ -424,7 +426,7 @@ export class TerminalSession {
           // even if the player cancels the level. Idempotency is enforced by the
           // consumer (useGame.setRunFlags).
           if (cmd.setsFlags && cmd.setsFlags.length > 0) {
-            this.deps.onFlagsSet?.(cmd.setsFlags);
+            this.deps.onFlagsSet(cmd.setsFlags);
           }
 
           const output = cmd.output;

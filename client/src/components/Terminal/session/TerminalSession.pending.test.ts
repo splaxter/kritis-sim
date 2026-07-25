@@ -20,7 +20,7 @@ function makeSession(overrides: Partial<TerminalContext> = {}, gameMode: GameMod
     hints: context.hints, taskText: context.taskText, hosts: context.hosts,
   });
   const onSolved = vi.fn();
-  const session = new TerminalSession({ shell, context, gameMode, onSolved });
+  const session = new TerminalSession({ shell, context, gameMode, onSolved, onFlagsSet: () => {} });
   return { session, shell, onSolved };
 }
 

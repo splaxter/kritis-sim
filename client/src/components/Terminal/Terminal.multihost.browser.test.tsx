@@ -29,7 +29,7 @@ const context: TerminalContext = {
 };
 
 function setup(onSolved = vi.fn()) {
-  render(<Terminal context={context} onSolved={onSolved} onCancel={() => {}} />);
+  render(<Terminal context={context} onSolved={onSolved} onCancel={() => {}} onFlagsSet={() => {}} />);
   const term = latestTerm();
   expect(term).toBeDefined();
   return { term, onSolved };

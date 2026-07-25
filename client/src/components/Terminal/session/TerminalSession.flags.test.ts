@@ -58,9 +58,10 @@ describe('TerminalSession — setsFlags (honeypot mechanic)', () => {
     expect(session.getSnapshot().solved).toBe(true);
   });
 
-  it('fires on every matching read path (alias/pipeline reach the same command entry)', () => {
-    // The honeypot must not be bypassable: any TerminalCommand whose pattern the
-    // read matches emits the flag. Authoring lists each supported read form.
+  it('fires once per matching command entry (each authored read form emits)', () => {
+    // Each TerminalCommand whose pattern the read matches emits the flag. The
+    // full per-read-path coverage matrix (cat/type/gc/Select-String/pipelines/
+    // path variants) lives with the actual level content in Task 13.
     const { session, onFlagsSet } = makeSession({
       commands: [
         { pattern: 'cat pst', output: '...', setsFlags: ['mailbox_scope_exceeded'] },

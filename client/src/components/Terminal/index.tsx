@@ -8,7 +8,7 @@ interface TerminalProps {
   context: TerminalContext;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onCancel: () => void;
-  onFlagsSet?: (flags: string[]) => void;
+  onFlagsSet: (flags: string[]) => void;
   gameMode?: GameModeId;
   /** Fallback task summary when the context has no taskText (extracted from the briefing) */
   task?: string;
