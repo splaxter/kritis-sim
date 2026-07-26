@@ -38,8 +38,10 @@ function matchOutcome(a: CommandAttempt, outcome: CommandMatcher['outcome']): bo
   }
 }
 
-/** True iff this attempt satisfies the matcher (pattern AND outcome AND authMethod). */
-function attemptMatches(a: CommandAttempt, m: CommandMatcher): boolean {
+/** True iff this attempt satisfies the matcher (pattern AND outcome AND authMethod).
+ *  Exported for the `commandRan` stateGoal, which evaluates the same matcher
+ *  shape against the execution log. */
+export function attemptMatches(a: CommandAttempt, m: CommandMatcher): boolean {
   const re = safeRegex(m.pattern);
   if (!re) return false;
   if (!re.test(a.command)) return false;

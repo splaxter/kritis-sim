@@ -6,6 +6,7 @@
 import { StateGoal } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { HostState, UfwRule, canonicalUnitName } from './hosts';
+import { attemptMatches } from './feedback';
 
 /** Compile an authored regex; invalid patterns yield null instead of throwing. */
 function safeRegex(pattern: string): RegExp | null {
@@ -47,7 +48,8 @@ function hasAssertion(goal: StateGoal): boolean {
     // not rejected as shapeless.
     || goal.loggedIn !== undefined
     || goal.sshdEffective !== undefined
-    || goal.ansibleRan !== undefined;
+    || goal.ansibleRan !== undefined
+    || goal.commandRan !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -199,6 +201,19 @@ function checkAnsibleRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
   return engine.hasAnsibleRun(goal.ansibleRan);
 }
 
+/**
+ * Session-aware command goal: at least one attempt in the REAL execution log
+ * matches (pattern AND outcome AND authMethod — same matcher semantics as
+ * FeedbackRule). Because the log records actual shell results, `outcome:
+ * 'succeeded'` inherits true cwd/path semantics: a read via a relative path
+ * only counts after a matching `cd`. Canned scenario commands never appear here.
+ */
+function checkCommandRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
+  if (!goal.commandRan) return true;
+  const matcher = goal.commandRan;
+  return engine.getExecutionLog().some((a) => attemptMatches(a, matcher));
+}
+
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
@@ -218,7 +233,8 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       // back to goal.host / the base host like the checks above.
       && checkSshdEffectiveGoal(engine, host, goal)
       && checkLoggedInGoal(engine, goal)
-      && checkAnsibleRanGoal(engine, goal);
+      && checkAnsibleRanGoal(engine, goal)
+      && checkCommandRanGoal(engine, goal);
   } catch {
     return false;
   }

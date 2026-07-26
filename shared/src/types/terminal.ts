@@ -292,4 +292,14 @@ export interface StateGoal {
    */
   mailbox?: string;
   auditEnabled?: boolean;
+  /**
+   * Session-aware: at least one recorded attempt in the REAL shell's execution
+   * log must match. Unlike a canned-command matcher this respects actual shell
+   * semantics — with `outcome: 'succeeded'` a `cat notizen.txt` from the wrong
+   * directory exits non-zero and does NOT satisfy the goal, while the same
+   * command after a proper `cd` (or with a valid absolute path) does. This is
+   * the mechanism for "the player really read/inspected X" win conditions.
+   * Canned scenario commands bypass the shell and are never in this log.
+   */
+  commandRan?: CommandMatcher;
 }

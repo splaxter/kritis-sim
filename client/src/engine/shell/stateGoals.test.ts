@@ -274,6 +274,52 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('commandRan (session-aware)', () => {
+    it('outcome "succeeded" inherits REAL path semantics: a relative read only counts after a matching cd', () => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      const goal: StateGoal = {
+        commandRan: { pattern: '^cat\\b.*notizen\\.txt', outcome: 'succeeded' },
+      };
+
+      // Wrong cwd → the real shell fails the read → goal stays unmet.
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+
+      // After the matching cd the SAME relative command succeeds.
+      engine.execute('cd /srv/exports');
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+    });
+
+    it('a valid absolute path counts without any cd', () => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      engine.execute('cat /srv/exports/notizen.txt');
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'notizen\\.txt', outcome: 'succeeded' } })
+      ).toBe(true);
+    });
+
+    it('pattern and outcome must BOTH hold (a failed attempt satisfies only "failed"/"attempted")', () => {
+      engine.execute('cat /no/such/file.txt');
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt', outcome: 'succeeded' } })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt', outcome: 'failed' } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt' } })
+      ).toBe(true); // default 'attempted'
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'other\\.txt' } })
+      ).toBe(false);
+    });
+
+    it('is non-vacuous: a bare commandRan with an empty log is unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { commandRan: { pattern: '.' } })).toBe(false);
+    });
+  });
+
   describe('host resolution', () => {
     it('unknown host returns false and never throws', () => {
       expect(() => checkStateGoal(engine, { host: 'ghost', fileExists: true, file: '/etc/passwd' })).not.toThrow();
