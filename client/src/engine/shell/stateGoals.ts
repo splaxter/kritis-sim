@@ -107,16 +107,22 @@ function checkFileGoals(host: HostState, goal: StateGoal): boolean {
     if ((a.value.content ?? '') !== (b.value.content ?? '')) return false;
   }
 
-  // Hash-list integrity: `file` must contain the ACTUAL SHA-256 hex digest of
-  // this path's CURRENT content — computed live, so an invented 64-hex string
-  // can never match.
+  // Hash-list integrity: `file` must contain a LINE carrying both the ACTUAL
+  // SHA-256 hex digest of the target's CURRENT content AND the target's name
+  // (basename or full path — sha256sum writes the path as typed). Computed
+  // live, so an invented 64-hex string never matches, and a bare digest
+  // without the filename is not a protocol entry.
   if (goal.sha256Of !== undefined) {
     const list = vfs.stat(goal.file);
     const target = vfs.stat(goal.sha256Of);
     if (!list.ok || list.value.type === 'directory') return false;
     if (!target.ok || target.value.type === 'directory') return false;
     const digest = sha256Hex(toBytes(target.value.content ?? ''));
-    if (!(list.value.content ?? '').includes(digest)) return false;
+    const base = goal.sha256Of.split(/[/\\]/).filter(Boolean).pop() ?? '';
+    const hasEntry = (list.value.content ?? '')
+      .split('\n')
+      .some((line) => line.includes(digest) && base !== '' && line.includes(base));
+    if (!hasEntry) return false;
   }
 
   return true;
@@ -304,7 +310,9 @@ function checkToolRecordGoals(engine: ShellEngine, goal: StateGoal): boolean {
     if (!engine.hasFileCopy(goal.fileCopied.from, goal.fileCopied.to, hostId)) return false;
   }
   if (goal.hashComputed !== undefined) {
-    if (!engine.hasHashComputed(goal.hashComputed, hostId)) return false;
+    if (!engine.hasHashComputed(goal.hashComputed.path, goal.hashComputed.algorithm, hostId)) {
+      return false;
+    }
   }
   if (goal.mailboxInspected !== undefined) {
     if (!engine.hasMailboxInspected(goal.mailboxInspected, hostId)) return false;

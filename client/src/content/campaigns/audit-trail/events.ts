@@ -672,7 +672,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
               },
             },
             { file: '/home/timo/beweis/hashes.txt', sha256Of: '/home/timo/beweis/u_ex260722.log' },
-            { hashComputed: '/home/timo/beweis/u_ex260722.log' },
+            { hashComputed: { path: '/home/timo/beweis/u_ex260722.log', algorithm: 'sha256' } },
             { file: '/home/timo/beweis/timeline.md', matches: '2026-07-22.*12:4' },
             // 'Erledigt:' is deliberately absent from the seeded Protokoll, so
             // only the player's closing line satisfies this.

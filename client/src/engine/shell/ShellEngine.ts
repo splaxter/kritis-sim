@@ -19,6 +19,15 @@ import {
 } from './types';
 import { HostState, wrapVfsAsHost } from './hosts';
 
+/**
+ * Canonical algo names for hash records: command names ('sha256sum') and
+ * Get-FileHash algorithms ('SHA256') both normalize to 'sha256' etc., so
+ * goals compare one vocabulary regardless of which tool produced the record.
+ */
+function normalizeHashAlgo(algo: string): string {
+  return algo.toLowerCase().replace(/sum$/, '');
+}
+
 export class ShellEngine implements ShellEngineInterface {
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
@@ -74,6 +83,7 @@ export class ShellEngine implements ShellEngineInterface {
    * different identity can never satisfy a bound goal.
    */
   private fileCopies: { from: string; to: string; host: string }[] = [];
+  /** Hash records store the NORMALIZED algo ('sha256' | 'sha1' | 'md5'). */
   private hashesComputed: { path: string; algo: string; host: string }[] = [];
   private mailboxesInspected: { name: string; host: string }[] = [];
 
@@ -200,6 +210,11 @@ export class ShellEngine implements ShellEngineInterface {
     this.fileReads.push({ path, host: hostId });
   }
 
+  /** Snapshot of all operand-bound hash records (canonical path + algo). */
+  getHashesComputed(): { path: string; algo: string; host: string }[] {
+    return [...this.hashesComputed];
+  }
+
   /** All recorded copies (canonical from/to + host). */
   getFileCopies(): { from: string; to: string; host: string }[] {
     return [...this.fileCopies];
@@ -215,10 +230,17 @@ export class ShellEngine implements ShellEngineInterface {
     );
   }
 
-  /** True iff a hash was ACTUALLY computed for this canonical path. */
-  hasHashComputed(path: string, hostId?: string): boolean {
+  /**
+   * True iff a hash was ACTUALLY computed for this canonical path — with the
+   * given algorithm when provided ('sha256' | 'sha1' | 'md5', normalized).
+   */
+  hasHashComputed(path: string, algorithm?: string, hostId?: string): boolean {
+    const wantedAlgo = algorithm ? normalizeHashAlgo(algorithm) : undefined;
     return this.hashesComputed.some(
-      (h) => h.path === path && (!hostId || h.host === hostId)
+      (h) =>
+        h.path === path &&
+        (!wantedAlgo || h.algo === wantedAlgo) &&
+        (!hostId || h.host === hostId)
     );
   }
 
@@ -520,7 +542,11 @@ export class ShellEngine implements ShellEngineInterface {
       recordFileCopy: (from: string, to: string) =>
         void this.fileCopies.push({ from, to, host: this.getCurrentHost().id }),
       recordHashComputed: (path: string, algo: string) =>
-        void this.hashesComputed.push({ path, algo, host: this.getCurrentHost().id }),
+        void this.hashesComputed.push({
+          path,
+          algo: normalizeHashAlgo(algo),
+          host: this.getCurrentHost().id,
+        }),
       recordMailboxInspected: (name: string) =>
         void this.mailboxesInspected.push({ name, host: this.getCurrentHost().id }),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {

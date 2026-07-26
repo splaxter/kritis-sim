@@ -244,10 +244,12 @@ export interface StateGoal {
    */
   sameContentAs?: string;
   /**
-   * Asserts that `file` (the hash list) contains the ACTUAL SHA-256 hex
-   * digest of this path's CURRENT content. The digest is computed live by the
-   * evaluator, so a hand-invented 64-hex string never matches — only a hash
-   * genuinely produced for that copy does.
+   * Asserts that `file` (the hash list) contains a LINE carrying both the
+   * ACTUAL SHA-256 hex digest of this path's CURRENT content AND the file's
+   * name (basename or full path — sha256sum writes the path as typed). The
+   * digest is computed live by the evaluator, so a hand-invented 64-hex
+   * string never matches, and a bare digest without the filename is not a
+   * protocol entry.
    */
   sha256Of?: string;
   /**
@@ -345,11 +347,13 @@ export interface StateGoal {
   fileCopied?: { from?: string; to?: string };
   /**
    * Operand-bound hash proof: met iff a hash tool (sha256sum family,
-   * Get-FileHash) ACTUALLY digested this canonical path. Hashing a different
-   * file — even one with identical content — does not satisfy it; pair with
+   * Get-FileHash) ACTUALLY digested this canonical path — with the named
+   * algorithm when `algorithm` is set (normalized: 'sha256' | 'sha1' | 'md5';
+   * omitted = any). Hashing a different file — even one with identical
+   * content — or with a different algorithm does not satisfy it; pair with
    * `sha256Of` to also pin the digest's presence and correctness in the list.
    */
-  hashComputed?: string;
+  hashComputed?: { path: string; algorithm?: string };
   /**
    * Operand-bound inspection proof: met iff Get-Mailbox actually RESOLVED
    * this identity (case-insensitive). Extra positional arguments the cmdlet

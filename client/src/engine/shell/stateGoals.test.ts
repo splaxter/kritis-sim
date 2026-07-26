@@ -470,20 +470,42 @@ describe('stateGoals', () => {
 
     it('hashing the ORIGINAL does not count as hashing the COPY — even with identical content', () => {
       engine.execute('sha256sum /srv/original.log > /root/hashes.txt');
-      // sha256Of passes (digest identical), but the operand-bound record
-      // knows WHICH file was digested.
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log' } })).toBe(false);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/srv/original.log' } })).toBe(true);
+    });
+
+    it('binds the ALGORITHM: an md5 of the copy does not satisfy a sha256 goal (reviewer repro)', () => {
+      engine.execute('md5sum /root/kopie.log > /root/md5.txt');
+      expect(
+        checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log', algorithm: 'sha256' } })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log', algorithm: 'md5' } })
+      ).toBe(true);
+      // Omitted algorithm matches any recorded one.
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log' } })).toBe(true);
+    });
+
+    it('sha256Of requires digest AND filename in the SAME line (protocol semantics)', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
       expect(
         checkStateGoal(engine, { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' })
       ).toBe(true);
-      expect(checkStateGoal(engine, { hashComputed: '/root/kopie.log' })).toBe(false);
-      expect(checkStateGoal(engine, { hashComputed: '/srv/original.log' })).toBe(true);
+
+      // A bare digest without the filename is not a protocol entry …
+      engine.execute("awk '{print $1}' /root/hashes.txt > /root/nur_digest.txt");
+      expect(
+        checkStateGoal(engine, { file: '/root/nur_digest.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(false);
     });
 
-    it('Get-FileHash records too (PowerShell side)', () => {
+    it('Get-FileHash records too (PowerShell side, normalized algo)', () => {
       const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
       ps.getBaseHost().vfs.addFile('C:\\Logs\\a.log', 'x');
       ps.execute('Get-FileHash C:\\Logs\\a.log');
-      expect(checkStateGoal(ps, { hashComputed: 'C:\\Logs\\a.log' })).toBe(true);
+      expect(
+        checkStateGoal(ps, { hashComputed: { path: 'C:\\Logs\\a.log', algorithm: 'sha256' } })
+      ).toBe(true);
     });
   });
 
