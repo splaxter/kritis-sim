@@ -91,6 +91,20 @@ export interface CommandSideEffect {
  * open across password prompts and is finalised once no more input is owed.
  * Passwords are never stored — only the original command line.
  */
+/**
+ * One actually-EXECUTED chain segment of an outer command. Short-circuited
+ * segments (`a && b` with a failing, `a || b` with a succeeding) are never
+ * recorded, and each stage carries the exit code and host of ITS OWN pipeline
+ * — the granularity `commandRan` stateGoals match against, so a chained decoy
+ * (`ok-cmd || echo target-name`) cannot satisfy a matcher via the outer string.
+ */
+export interface CommandStageAttempt {
+  command: string;
+  exitCode: number;
+  /** Host id the stage started on. */
+  host: string;
+}
+
 export interface CommandAttempt {
   command: string;
   sequence: number;
@@ -98,6 +112,12 @@ export interface CommandAttempt {
   hostAfter: string;
   exitCode: number;
   authMethod?: 'publickey' | 'password';
+  /**
+   * Executed chain segments (see CommandStageAttempt). Optional so
+   * hand-constructed attempts in tests stay valid; the engine always fills it.
+   * FeedbackRules keep matching the OUTER entry; `commandRan` matches stages.
+   */
+  stages?: CommandStageAttempt[];
 }
 
 // ============================================================================

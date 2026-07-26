@@ -202,16 +202,35 @@ function checkAnsibleRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
 }
 
 /**
- * Session-aware command goal: at least one attempt in the REAL execution log
- * matches (pattern AND outcome AND authMethod — same matcher semantics as
- * FeedbackRule). Because the log records actual shell results, `outcome:
- * 'succeeded'` inherits true cwd/path semantics: a read via a relative path
- * only counts after a matching `cd`. Canned scenario commands never appear here.
+ * Session-aware command goal: at least one actually-EXECUTED chain stage in the
+ * REAL execution log matches (pattern AND outcome AND authMethod — same matcher
+ * semantics as FeedbackRule). Matching is per STAGE, each with its own exit
+ * code and host: a chained decoy (`ok-cmd || echo target-name`) never executes
+ * its second segment, so it cannot satisfy the matcher via the outer command
+ * string. `outcome: 'succeeded'` inherits true cwd/path semantics — a relative
+ * read only counts after a matching `cd`. Canned scenario commands never appear
+ * in this log.
+ *
+ * Host: like the other session-aware goals (loggedIn), an UNSET goal.host means
+ * "any host"; a set host restricts matching to stages executed ON that host.
  */
 function checkCommandRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
   if (!goal.commandRan) return true;
   const matcher = goal.commandRan;
-  return engine.getExecutionLog().some((a) => attemptMatches(a, matcher));
+  const targetHost = goal.host ? engine.resolveHost(goal.host)?.id : undefined;
+  if (goal.host && !targetHost) return false;
+  return engine.getExecutionLog().some((a) => {
+    // Attempts hand-built without stages (tests, legacy) fall back to the
+    // outer entry; engine-recorded attempts always carry their stages.
+    const stages = a.stages?.length
+      ? a.stages
+      : [{ command: a.command, exitCode: a.exitCode, host: a.hostBefore }];
+    return stages.some(
+      (s) =>
+        (!targetHost || s.host === targetHost) &&
+        attemptMatches({ ...a, command: s.command, exitCode: s.exitCode }, matcher)
+    );
+  });
 }
 
 /** True iff every set field of the goal holds on the addressed host. */

@@ -47,6 +47,13 @@ export class ShellEngine implements ShellEngineInterface {
    */
   private openAttempt: CommandAttempt | null = null;
 
+  /**
+   * Chain segment that returned pendingInput (password prompt): its exit code
+   * is unknown until the continuation settles, so it is parked here and turned
+   * into a recorded stage by closeOpenAttempt with the final exit code.
+   */
+  private pendingStage: { command: string; host: string } | null = null;
+
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
@@ -137,6 +144,7 @@ export class ShellEngine implements ShellEngineInterface {
         hostBefore: hostId,
         hostAfter: hostId,
         exitCode: 0,
+        stages: [],
       };
     }
     this.executionDepth++;
@@ -168,6 +176,13 @@ export class ShellEngine implements ShellEngineInterface {
   /** Close the open attempt with an explicit exit code (host captured now). */
   private closeOpenAttempt(exitCode: number): void {
     if (!this.openAttempt) return;
+    // A segment that was still awaiting input (password prompt) settles with
+    // the attempt's final exit code — it only becomes a recorded stage NOW,
+    // when its true outcome is known.
+    if (this.pendingStage) {
+      this.openAttempt.stages?.push({ ...this.pendingStage, exitCode });
+      this.pendingStage = null;
+    }
     this.openAttempt.exitCode = exitCode;
     this.openAttempt.hostAfter = this.getCurrentHost().id;
     this.executionLog.push(this.openAttempt);
@@ -200,6 +215,9 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
+      // Stage host is where the segment STARTS (a segment like `exit` pops
+      // the session, but it ran on the host it was typed on).
+      const stageHost = this.getCurrentHost().id;
       lastResult = this.executePipeline(cmd, pendingInitialStdin);
       pendingInitialStdin = undefined;
       executedAny = true;
@@ -212,8 +230,14 @@ export class ShellEngine implements ShellEngineInterface {
       // A command awaiting input aborts the remaining chain segments —
       // deviation from bash, but keeps hasPendingInput() ⟺ result.pendingInput.
       if (lastResult.pendingInput) {
+        // Not finished — remember it; closeOpenAttempt records it with the
+        // final exit code once the continuation settles the attempt.
+        if (this.openAttempt) this.pendingStage = { command: cmd, host: stageHost };
         break;
       }
+      // Only actually-executed segments become stages, each with its OWN exit
+      // code — the per-stage truth `commandRan` stateGoals match against.
+      this.openAttempt?.stages?.push({ command: cmd, exitCode: lastResult.exitCode, host: stageHost });
     }
 
     // Single command (no chaining): preserve the raw result, including its

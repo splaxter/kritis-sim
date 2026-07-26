@@ -318,6 +318,72 @@ describe('stateGoals', () => {
     it('is non-vacuous: a bare commandRan with an empty log is unmet, not rejected', () => {
       expect(checkStateGoal(engine, { commandRan: { pattern: '.' } })).toBe(false);
     });
+
+    describe('per-stage matching (chained-input spoofs)', () => {
+      const READ_GOAL: StateGoal = {
+        commandRan: { pattern: '^(cat|head|tail)\\b.*notizen\\.txt', outcome: 'succeeded' },
+      };
+      beforeEach(() => {
+        engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+        engine.getBaseHost().vfs.addFile('/home/timo/andere.txt', 'ok\n');
+      });
+
+      it('the || decoy does NOT satisfy the goal (echo segment never executes)', () => {
+        // Reviewer repro: outer string contains the target name, but the only
+        // EXECUTED stage is the successful cat of a different file.
+        engine.execute('cat /home/timo/andere.txt || echo notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('a skipped short-circuit segment does not count even if it IS the target command', () => {
+        engine.execute('ls || cat /srv/exports/notizen.txt'); // ls succeeds → cat skipped
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('an actually-executed chained segment DOES count', () => {
+        engine.execute('cd /srv/exports && cat notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('each stage keeps its OWN exit code (a later failing segment does not poison it)', () => {
+        // Outer attempt exits non-zero (ls /nope), but the cat stage succeeded.
+        engine.execute('cat /srv/exports/notizen.txt ; ls /nope');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('an echo that merely PRINTS the target name never matches the read pattern', () => {
+        engine.execute('echo cat notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+    });
+
+    describe('host filter', () => {
+      it('a set goal.host only counts stages executed ON that host (reviewer repro)', () => {
+        const web = createHostState({
+          id: 'web01', hostname: 'web01', ip: '10.0.20.10',
+          accounts: [{ name: 'admin', password: 'pw1' }],
+        });
+        engine.registerHost(web);
+
+        // `ls` on the BASE host must not satisfy a web01-scoped goal …
+        engine.execute('ls');
+        const goal: StateGoal = { host: 'web01', commandRan: { pattern: '^ls\\b', outcome: 'succeeded' } };
+        expect(checkStateGoal(engine, goal)).toBe(false);
+        // … while an unscoped goal matches on any host.
+        expect(checkStateGoal(engine, { commandRan: { pattern: '^ls\\b', outcome: 'succeeded' } })).toBe(true);
+
+        // After an ssh session onto web01 the same command counts there.
+        engine.execute('ssh admin@web01');
+        engine.continueInput('pw1');
+        engine.execute('ls');
+        expect(checkStateGoal(engine, goal)).toBe(true);
+      });
+
+      it('an unresolvable goal.host is false, never a throw', () => {
+        engine.execute('ls');
+        expect(checkStateGoal(engine, { host: 'ghost', commandRan: { pattern: '^ls\\b' } })).toBe(false);
+      });
+    });
   });
 
   describe('host resolution', () => {

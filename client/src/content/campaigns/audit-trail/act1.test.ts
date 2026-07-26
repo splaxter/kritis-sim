@@ -109,6 +109,14 @@ describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () 
     expect(session.getSnapshot().solved).toBe(false);
   });
 
+  it('the chained || decoy does NOT solve (only executed stages count)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    // Reviewer spoof: the successful cat short-circuits the ||, so the echo
+    // carrying the target filename never executes — and must not match.
+    run(session, 'cat /home/timo/notiz-von-jens.txt || echo notizen_m.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
   it('sets no domain flags — L1 is orientation only', () => {
     expect(l1.choices.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
     expect(l1.terminalContext!.commands.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
@@ -181,6 +189,17 @@ describe('L2 „Die Inventur" — inspection + written inventory', () => {
     inspectSources(session);
     run(session, 'echo "BASTION-01 steht im Rack" > /home/timo/inventar.md');
     run(session, 'ls');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('chained decoys naming the sources do NOT count as inspections', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    // Neither decoy stage executes (|| short-circuits after the successful ls),
+    // so the inspection goals stay unmet even though the outer strings contain
+    // both target files.
+    run(session, 'ls || stat /srv/assets/assets_2026-07.csv');
+    run(session, 'ls || cat /srv/wiki-export/konten.md');
+    writeInventory(session);
     expect(session.getSnapshot().solved).toBe(false);
   });
 
