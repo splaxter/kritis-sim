@@ -349,11 +349,14 @@ export interface StateGoal {
    * Operand-bound hash proof: met iff a hash tool (sha256sum family,
    * Get-FileHash) ACTUALLY digested this canonical path — with the named
    * algorithm when `algorithm` is set (normalized: 'sha256' | 'sha1' | 'md5';
-   * omitted = any). Hashing a different file — even one with identical
-   * content — or with a different algorithm does not satisfy it; pair with
-   * `sha256Of` to also pin the digest's presence and correctness in the list.
+   * omitted = any), and with its stdout redirected into exactly the canonical
+   * `writtenTo` file when that is set (`>` or `>>` — the link between "digest
+   * was computed" and "the digest landed in THIS hash list"). Hashing a
+   * different file — even one with identical content — a different algorithm,
+   * or into a throwaway file does not satisfy it; pair with `sha256Of` to
+   * also pin the digest's presence and labelling in the list.
    */
-  hashComputed?: { path: string; algorithm?: string };
+  hashComputed?: { path: string; algorithm?: string; writtenTo?: string };
   /**
    * Operand-bound inspection proof: met iff Get-Mailbox actually RESOLVED
    * this identity (case-insensitive). Extra positional arguments the cmdlet

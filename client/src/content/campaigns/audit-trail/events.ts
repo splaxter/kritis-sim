@@ -672,7 +672,16 @@ export const auditTrailStoryEvents: GameEvent[] = [
               },
             },
             { file: '/home/timo/beweis/hashes.txt', sha256Of: '/home/timo/beweis/u_ex260722.log' },
-            { hashComputed: { path: '/home/timo/beweis/u_ex260722.log', algorithm: 'sha256' } },
+            // The SHA-256 must have been computed for the COPY and its output
+            // redirected into THE hash list — a digest computed into a
+            // throwaway file (or for the original) does not close the chain.
+            {
+              hashComputed: {
+                path: '/home/timo/beweis/u_ex260722.log',
+                algorithm: 'sha256',
+                writtenTo: '/home/timo/beweis/hashes.txt',
+              },
+            },
             { file: '/home/timo/beweis/timeline.md', matches: '2026-07-22.*12:4' },
             // 'Erledigt:' is deliberately absent from the seeded Protokoll, so
             // only the player's closing line satisfies this.

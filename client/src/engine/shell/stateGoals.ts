@@ -107,21 +107,30 @@ function checkFileGoals(host: HostState, goal: StateGoal): boolean {
     if ((a.value.content ?? '') !== (b.value.content ?? '')) return false;
   }
 
-  // Hash-list integrity: `file` must contain a LINE carrying both the ACTUAL
-  // SHA-256 hex digest of the target's CURRENT content AND the target's name
-  // (basename or full path — sha256sum writes the path as typed). Computed
-  // live, so an invented 64-hex string never matches, and a bare digest
-  // without the filename is not a protocol entry.
+  // Hash-list integrity: `file` must contain a structured protocol line
+  // `<digest> <path-token>` where <digest> is the ACTUAL SHA-256 of the
+  // target's CURRENT content (computed live) and <path-token> DENOTES the
+  // target: it must be the canonical path itself or a path SUFFIX of it
+  // ('u_ex.log', 'beweis/u_ex.log' → ok for /home/timo/beweis/u_ex.log;
+  // 'eingang/u_ex.log' or the original's absolute path → rejected even
+  // though the basename matches). An invented digest, a bare digest without
+  // a filename, or a line labelled with a DIFFERENT file never qualifies.
   if (goal.sha256Of !== undefined) {
     const list = vfs.stat(goal.file);
     const target = vfs.stat(goal.sha256Of);
     if (!list.ok || list.value.type === 'directory') return false;
     if (!target.ok || target.value.type === 'directory') return false;
     const digest = sha256Hex(toBytes(target.value.content ?? ''));
-    const base = goal.sha256Of.split(/[/\\]/).filter(Boolean).pop() ?? '';
-    const hasEntry = (list.value.content ?? '')
-      .split('\n')
-      .some((line) => line.includes(digest) && base !== '' && line.includes(base));
+    const canonical = goal.sha256Of;
+    const denotesTarget = (token: string): boolean => {
+      if (token === canonical) return true;
+      const t = token.replace(/^\.\//, '');
+      return canonical.endsWith('/' + t) || canonical.endsWith('\\' + t);
+    };
+    const hasEntry = (list.value.content ?? '').split('\n').some((line) => {
+      const m = line.trim().match(/^([0-9a-f]{64})\s+\*?(.+)$/);
+      return m !== null && m[1] === digest && denotesTarget(m[2].trim());
+    });
     if (!hasEntry) return false;
   }
 
@@ -310,7 +319,8 @@ function checkToolRecordGoals(engine: ShellEngine, goal: StateGoal): boolean {
     if (!engine.hasFileCopy(goal.fileCopied.from, goal.fileCopied.to, hostId)) return false;
   }
   if (goal.hashComputed !== undefined) {
-    if (!engine.hasHashComputed(goal.hashComputed.path, goal.hashComputed.algorithm, hostId)) {
+    const hc = goal.hashComputed;
+    if (!engine.hasHashComputed(hc.path, hc.algorithm, hc.writtenTo, hostId)) {
       return false;
     }
   }

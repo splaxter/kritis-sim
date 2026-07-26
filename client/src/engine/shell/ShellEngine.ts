@@ -83,9 +83,18 @@ export class ShellEngine implements ShellEngineInterface {
    * different identity can never satisfy a bound goal.
    */
   private fileCopies: { from: string; to: string; host: string }[] = [];
-  /** Hash records store the NORMALIZED algo ('sha256' | 'sha1' | 'md5'). */
-  private hashesComputed: { path: string; algo: string; host: string }[] = [];
+  /** Hash records store the NORMALIZED algo ('sha256' | 'sha1' | 'md5') and,
+   *  when the producing stage redirected stdout, the canonical target file —
+   *  the link between "digest was computed" and "digest landed in THIS list". */
+  private hashesComputed: { path: string; algo: string; host: string; writtenTo?: string }[] = [];
   private mailboxesInspected: { name: string; host: string }[] = [];
+
+  /**
+   * Canonical stdout-redirect target of the CURRENTLY executing stage (null =
+   * no redirect). Save/restored per stage so records made inside a command can
+   * note where their output goes.
+   */
+  private stageOutTarget: string | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -232,14 +241,17 @@ export class ShellEngine implements ShellEngineInterface {
 
   /**
    * True iff a hash was ACTUALLY computed for this canonical path — with the
-   * given algorithm when provided ('sha256' | 'sha1' | 'md5', normalized).
+   * given algorithm when provided ('sha256' | 'sha1' | 'md5', normalized) and,
+   * when `writtenTo` is provided, with its stdout redirected into exactly that
+   * canonical file (`>` or `>>`).
    */
-  hasHashComputed(path: string, algorithm?: string, hostId?: string): boolean {
+  hasHashComputed(path: string, algorithm?: string, writtenTo?: string, hostId?: string): boolean {
     const wantedAlgo = algorithm ? normalizeHashAlgo(algorithm) : undefined;
     return this.hashesComputed.some(
       (h) =>
         h.path === path &&
         (!wantedAlgo || h.algo === wantedAlgo) &&
+        (!writtenTo || h.writtenTo === writtenTo) &&
         (!hostId || h.host === hostId)
     );
   }
@@ -459,9 +471,20 @@ export class ShellEngine implements ShellEngineInterface {
     }
 
     const parsed = this.parseCommand(cmdString);
-    const hasStdoutRedirect = redirects.some(r => r.type === '>' || r.type === '>>');
+    const outRedirect = redirects.find(r => r.type === '>' || r.type === '>>');
+    const hasStdoutRedirect = outRedirect !== undefined;
     const isTty = isLastStage && !hasStdoutRedirect;
-    const result = this.executeCommand(parsed.command, parsed, stdin, isTty);
+    // Expose THIS stage's canonical redirect target to records made inside the
+    // command (hashComputed.writtenTo). Save/restore so nested executes
+    // (sudo/source) see their own stage's value, not the outer one.
+    const prevOutTarget = this.stageOutTarget;
+    this.stageOutTarget = outRedirect ? vfs.resolvePath(outRedirect.file) : null;
+    let result: CommandResult;
+    try {
+      result = this.executeCommand(parsed.command, parsed, stdin, isTty);
+    } finally {
+      this.stageOutTarget = prevOutTarget;
+    }
 
     // Output redirection: `>` truncates, `>>` appends. Only stdout is
     // redirected; stderr (result.error) still flows to the terminal.
@@ -546,6 +569,8 @@ export class ShellEngine implements ShellEngineInterface {
           path,
           algo: normalizeHashAlgo(algo),
           host: this.getCurrentHost().id,
+          // Couples the record to the list it fed: the stage's redirect target.
+          ...(this.stageOutTarget ? { writtenTo: this.stageOutTarget } : {}),
         }),
       recordMailboxInspected: (name: string) =>
         void this.mailboxesInspected.push({ name, host: this.getCurrentHost().id }),

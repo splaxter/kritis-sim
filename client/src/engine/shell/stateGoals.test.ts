@@ -499,6 +499,55 @@ describe('stateGoals', () => {
       ).toBe(false);
     });
 
+    it('sha256Of token semantics: the line must DENOTE the copy, not just share its basename', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/srv/eingang/kopie.log', 'daten\n'); // same name, same bytes
+      const GOAL: StateGoal = { file: '/root/hashes.txt', sha256Of: '/root/beweis/kopie.log' };
+
+      // A line labelled with the ORIGINAL's absolute path is rejected …
+      engine.execute('sha256sum /srv/eingang/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      // … and so is a relative token that denotes the original.
+      engine.execute('cd /srv');
+      engine.execute('sha256sum eingang/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+
+      // Honest labels pass: absolute, relative-suffix, and bare basename.
+      engine.execute('sha256sum /root/beweis/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+      engine.execute('cd /root');
+      engine.execute('sha256sum beweis/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+      engine.execute('cd /root/beweis');
+      engine.execute('sha256sum kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('hashComputed.writtenTo couples the record to the list it fed (reviewer repro)', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      const GOAL: StateGoal = {
+        hashComputed: {
+          path: '/root/beweis/kopie.log',
+          algorithm: 'sha256',
+          writtenTo: '/root/hashes.txt',
+        },
+      };
+
+      // Digest of the copy into a THROWAWAY file does not feed the list …
+      engine.execute('sha256sum /root/beweis/kopie.log > /root/wegwerf_hash.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      // … and without any redirect there is no destination at all.
+      engine.execute('sha256sum /root/beweis/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+
+      // Redirecting into the list (>' or '>>') satisfies it, canonically.
+      engine.execute('cd /root');
+      engine.execute('sha256sum beweis/kopie.log >> hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
     it('Get-FileHash records too (PowerShell side, normalized algo)', () => {
       const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
       ps.getBaseHost().vfs.addFile('C:\\Logs\\a.log', 'x');
