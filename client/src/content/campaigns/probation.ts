@@ -17,6 +17,14 @@ import { deriveProbationEnding } from '../adventure/probationEnding';
 export const probationCampaign: CampaignDefinition = {
   id: 'probation',
   title: 'Die Probezeit',
+  menu: {
+    eyebrow: 'KAMPAGNE 1',
+    description:
+      'Ein zusammenhängender IT-Krimi in 12 Kapiteln mit Beziehungen und mehreren Enden — vorwiegend Text & Entscheidungen, wenig Hands-on.',
+    meta: '12 Kapitel · 3 Enden · Casual',
+    badge: 'EMPFOHLEN',
+    badgeClass: 'border-terminal-info text-terminal-info',
+  },
   startChapterId: 'ch01_first_day',
   chapters: adventureChapters,
   sidequests: adventureSidequests,

@@ -29,9 +29,24 @@ export interface StoryCharacter {
   arcPotential: string;
 }
 
+/** Copy for the campaign-select screen. Campaign-owned (like characterTokens
+ *  and endingTexts) so the menu holds no per-campaign text; mandatory, so a new
+ *  campaign cannot silently appear unlabelled. */
+export interface CampaignMenuEntry {
+  eyebrow: string;
+  description: string;
+  /** Short facts line, e.g. "12 Kapitel · 3 Enden · Casual". */
+  meta: string;
+  badge?: string;
+  /** Tailwind classes for the badge; omit when there is no badge. */
+  badgeClass?: string;
+}
+
 export interface CampaignDefinition {
   id: CampaignId;
   title: string;
+  /** How this campaign presents itself in the campaign picker. */
+  menu: CampaignMenuEntry;
   /** Chapter the run starts in. */
   startChapterId: AdventureChapterId;
   chapters: AdventureChapter[];

@@ -15,6 +15,14 @@ import { deriveAuditTrailEnding } from './domains';
 export const auditTrailCampaign: CampaignDefinition = {
   id: 'audit-trail',
   title: 'Audit Trail',
+  menu: {
+    eyebrow: 'KAMPAGNE 2',
+    description:
+      'Eine NIS-2-Prüfung bei WARM: Du sollst die Auditfähigkeit herstellen — und findest eine Spur, die jemand lieber loswerden würde. Beweise sauber sichern, Grenzen einhalten, im Audit bestehen.',
+    meta: '6 Kapitel · 3 Enden · Hands-on (Terminal & GUI)',
+    badge: 'NEU',
+    badgeClass: 'border-terminal-green text-terminal-green',
+  },
   startChapterId: 'at_ch01_onboarding',
   chapters: auditTrailChapters,
   sidequests: [],

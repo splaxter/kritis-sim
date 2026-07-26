@@ -1,59 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import { CampaignId } from '@kritis/shared';
 import { AsciiFrame } from '../TerminalUI';
 import { listCampaigns } from '../../content/campaigns';
 
-// The story option leads to the campaign picker, so it names no single
-// campaign — and the count follows the registry instead of going stale.
-const CAMPAIGN_COUNT = listCampaigns().length;
-
-interface NewGameSelectModalProps {
-  onSelectSimulation: () => void;
-  onSelectStory: () => void;
+interface CampaignSelectModalProps {
+  onSelect: (campaignId: CampaignId) => void;
   onClose: () => void;
 }
 
-interface ExperienceCard {
-  id: string;
-  index: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  meta: string;
-  badge?: string;
-  badgeClass?: string;
-}
-
-const EXPERIENCES: ExperienceCard[] = [
-  {
-    id: 'simulation',
-    index: '01',
-    eyebrow: 'DYNAMISCHER BETRIEB',
-    title: 'Freie Simulation',
-    description:
-      'Dynamische IT-Wochen mit Hands-on-Aufgaben an Terminal & GUI, Szenarien und Ereignisketten — frei wählbare Herausforderung.',
-    meta: 'Einsteiger · Standard · KRITIS',
-    badge: 'EMPFOHLEN',
-    badgeClass: 'border-terminal-info text-terminal-info',
-  },
-  {
-    id: 'story',
-    index: '02',
-    eyebrow: 'STORY-KAMPAGNE',
-    title: 'Story-Kampagne',
-    description:
-      'Zusammenhängende IT-Krimis mit Kapiteln, Beziehungen und mehreren Enden. Welche Kampagne du spielst, wählst du im nächsten Schritt.',
-    meta: `${CAMPAIGN_COUNT} Kampagnen · mehrere Enden`,
-    // No badge: the campaigns differ in difficulty (Probezeit casual, AUDIT
-    // TRAIL hands-on), so one label here would misdescribe the other. Each
-    // campaign carries its own badge in the campaign picker.
-  },
-];
-
-export function NewGameSelectModal({
-  onSelectSimulation,
-  onSelectStory,
-  onClose,
-}: NewGameSelectModalProps) {
+/**
+ * Step 2 of the story entry: pick the campaign. Content comes from the campaign
+ * registry (title + campaign-owned menu copy), so adding a campaign needs no
+ * change here. Keyboard-first like every other modal: arrows cycle, Enter
+ * confirms, Escape goes back, Tab is trapped.
+ */
+export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalProps) {
+  const campaigns = listCampaigns();
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedIndexRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -74,10 +36,13 @@ export function NewGameSelectModal({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
-      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
         event.preventDefault();
-        const next = selectedIndexRef.current === 0 ? 1 : 0;
-        selectOption(next, true);
+        const count = campaigns.length;
+        selectOption((selectedIndexRef.current - 1 + count) % count, true);
+      } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+        event.preventDefault();
+        selectOption((selectedIndexRef.current + 1) % campaigns.length, true);
       } else if (event.key === 'Tab') {
         const buttons = Array.from(dialogRef.current?.querySelectorAll('button') ?? []);
         const first = buttons[0];
@@ -97,34 +62,34 @@ export function NewGameSelectModal({
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, [onClose, campaigns.length]);
 
   return (
     <div
       ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label="Einsatzart wählen"
+      aria-label="Kampagne wählen"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain"
     >
       <div className="w-full max-w-2xl">
-        <AsciiFrame title="NEUES SPIEL · EINSATZART" variant="info">
+        <AsciiFrame title="NEUES SPIEL · KAMPAGNE" variant="info">
           <div className="space-y-3 p-4">
             <div className="flex items-center justify-between border-b border-terminal-border pb-3 text-xs tracking-[0.18em] text-terminal-green-dim">
-              <span>EINSATZPROFIL AUSWÄHLEN</span>
-              <span>SIM-BOOT / 01</span>
+              <span>KAMPAGNE AUSWÄHLEN</span>
+              <span>SIM-BOOT / 02</span>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
-              {EXPERIENCES.map((experience, index) => {
+              {campaigns.map((campaign, index) => {
                 const selected = selectedIndex === index;
                 return (
                   <button
-                    key={experience.id}
+                    key={campaign.id}
                     ref={(element) => { optionRefs.current[index] = element; }}
                     type="button"
                     aria-pressed={selected}
-                    onClick={index === 0 ? onSelectSimulation : onSelectStory}
+                    onClick={() => onSelect(campaign.id)}
                     onMouseEnter={() => selectOption(index)}
                     onFocus={() => selectOption(index)}
                     className={`group relative min-h-52 overflow-hidden border p-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-terminal-green focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
@@ -134,27 +99,27 @@ export function NewGameSelectModal({
                     }`}
                   >
                     <div className="absolute right-3 top-1 font-mono text-5xl font-bold text-terminal-green/10">
-                      {experience.index}
+                      {String(index + 1).padStart(2, '0')}
                     </div>
                     <div className="relative flex h-full flex-col">
                       <div className="mb-5 text-[0.65rem] tracking-[0.2em] text-terminal-info">
-                        {experience.eyebrow}
+                        {campaign.menu.eyebrow}
                       </div>
                       <div className="mb-2 flex items-start justify-between gap-3">
                         <h2 className="text-lg font-bold text-terminal-green">
-                          {selected ? '> ' : ''}{experience.title}
+                          {selected ? '> ' : ''}{campaign.title}
                         </h2>
-                        {experience.badge && (
-                          <span className={`shrink-0 border px-1.5 py-0.5 text-[0.6rem] tracking-wider ${experience.badgeClass ?? ''}`}>
-                            {experience.badge}
+                        {campaign.menu.badge && (
+                          <span className={`shrink-0 border px-1.5 py-0.5 text-[0.6rem] tracking-wider ${campaign.menu.badgeClass ?? ''}`}>
+                            {campaign.menu.badge}
                           </span>
                         )}
                       </div>
                       <p className="text-sm leading-relaxed text-terminal-green-dim">
-                        {experience.description}
+                        {campaign.menu.description}
                       </p>
                       <div className="mt-auto border-t border-terminal-border/70 pt-3 text-xs text-terminal-green-muted">
-                        {experience.meta}
+                        {campaign.menu.meta}
                       </div>
                     </div>
                   </button>

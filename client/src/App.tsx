@@ -8,11 +8,11 @@ import { getAllScenarios } from './content/packs';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
+import { GameModeId, CampaignId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
 import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
-import { getCampaign } from './content/campaigns';
+import { getCampaign, getRunLabel } from './content/campaigns';
 import { IntroScreen } from './components/IntroScreen';
 // Statically imported (not lazy): IntroScreen already pulls LegalPages into the
 // eager bundle, so a dynamic import here only produces a Vite "both statically
@@ -36,6 +36,7 @@ import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNa
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
 const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
 const NewGameSelectModal = lazy(() => import('./components/NewGameSelectModal').then(m => ({ default: m.NewGameSelectModal })));
+const CampaignSelectModal = lazy(() => import('./components/CampaignSelectModal').then(m => ({ default: m.CampaignSelectModal })));
 // ⚠️ DEV-ONLY preview harness — NOT for production. Lets us eyeball GUI levels at
 // ?preview=<id> without fighting RNG/game-state. The import() lives inside the
 // import.meta.env.DEV ternary so the chunk is fully eliminated from prod builds.
@@ -139,7 +140,9 @@ function AppContent() {
     show: false,
     mode: 'save',
   });
-  const [newGamePicker, setNewGamePicker] = useState<'experience' | 'simulation' | null>(null);
+  // Story entry is two steps: experience → campaign. 'simulation' is the
+  // mode picker for the non-story experience.
+  const [newGamePicker, setNewGamePicker] = useState<'experience' | 'simulation' | 'campaign' | null>(null);
   const [menuIndex, setMenuIndex] = useState(0);
   const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
@@ -395,6 +398,13 @@ function AppContent() {
     game.startNewGame(undefined, mode);
   }, [game]);
 
+  // Story runs are started by campaign: same 'story' mode, campaign-specific
+  // content/chapters/relationships (createInitialState seeds from the campaign).
+  const handleCampaignSelect = useCallback((campaignId: CampaignId) => {
+    setNewGamePicker(null);
+    game.startNewGame(undefined, 'story', campaignId);
+  }, [game]);
+
   // Main menu keyboard navigation ('continue' only when an autosave exists)
   const menuItems: readonly ('continue' | 'new' | 'learning' | 'saves')[] = resumeSave
     ? ['continue', 'new', 'learning', 'saves']
@@ -556,7 +566,10 @@ function AppContent() {
               {menuIndex === menuItems.indexOf('continue') ? '> ' : '  '}[ WEITER SPIELEN ]
               <div className="text-xs text-terminal-green-dim mt-1">
                 Woche {resumeSave.gameState.currentWeek}, Tag {resumeSave.gameState.currentDay}
-                {' — '}{getGameModeConfig(resumeSave.gameState.gameMode).name}
+                {' — '}{getRunLabel(
+                  resumeSave.gameState.gameMode,
+                  resumeSave.gameState.storyState?.campaignId
+                ).name}
               </div>
             </button>
           )}
@@ -681,13 +694,19 @@ function AppContent() {
           {newGamePicker === 'experience' && (
             <NewGameSelectModal
               onSelectSimulation={() => setNewGamePicker('simulation')}
-              onSelectStory={() => handleModeSelect('story')}
+              onSelectStory={() => setNewGamePicker('campaign')}
               onClose={() => setNewGamePicker(null)}
             />
           )}
           {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
+              onClose={() => setNewGamePicker('experience')}
+            />
+          )}
+          {newGamePicker === 'campaign' && (
+            <CampaignSelectModal
+              onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />
           )}
@@ -715,13 +734,19 @@ function AppContent() {
         {newGamePicker === 'experience' && (
           <NewGameSelectModal
             onSelectSimulation={() => setNewGamePicker('simulation')}
-            onSelectStory={() => handleModeSelect('story')}
+            onSelectStory={() => setNewGamePicker('campaign')}
             onClose={() => setNewGamePicker(null)}
           />
         )}
         {newGamePicker === 'simulation' && (
           <GameModeSelectModal
             onSelect={handleModeSelect}
+            onClose={() => setNewGamePicker('experience')}
+          />
+        )}
+        {newGamePicker === 'campaign' && (
+          <CampaignSelectModal
+            onSelect={handleCampaignSelect}
             onClose={() => setNewGamePicker('experience')}
           />
         )}
@@ -815,7 +840,8 @@ function AppContent() {
   }
 
   if (game.phase === 'gameover') {
-    const modeConfig = getGameModeConfig(game.state.gameMode);
+    // Story runs are titled by their campaign, not by the shared 'story' mode.
+    const runLabel = getRunLabel(game.state.gameMode, game.state.storyState?.campaignId);
     const summary = buildRunSummary(game.state, game.gameOverReason);
     // On a defeat, nudge toward the low-pressure learning mode.
     const learningTip = !summary.survived && game.state.gameMode !== 'learning';
@@ -824,8 +850,8 @@ function AppContent() {
       <>
         <RunSummaryScreen
           summary={summary}
-          modeName={modeConfig.name}
-          modeIcon={modeConfig.icon}
+          modeName={runLabel.name}
+          modeIcon={runLabel.icon}
           meta={meta}
           learningTip={learningTip}
           onRetry={() => setNewGamePicker('experience')}
@@ -840,13 +866,19 @@ function AppContent() {
           {newGamePicker === 'experience' && (
             <NewGameSelectModal
               onSelectSimulation={() => setNewGamePicker('simulation')}
-              onSelectStory={() => handleModeSelect('story')}
+              onSelectStory={() => setNewGamePicker('campaign')}
               onClose={() => setNewGamePicker(null)}
             />
           )}
           {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
+              onClose={() => setNewGamePicker('experience')}
+            />
+          )}
+          {newGamePicker === 'campaign' && (
+            <CampaignSelectModal
+              onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />
           )}

@@ -28,3 +28,20 @@ describe('StatsBar learning header', () => {
     expect(bar).toHaveClass('min-w-0', 'flex-1', 'sm:w-32', 'sm:flex-none');
   });
 });
+
+describe('StatsBar run badge', () => {
+  it('names a story run by its campaign, so a second campaign is not "Die Probezeit"', () => {
+    const state = createInitialState('HUD-AT', 'story', 'audit-trail');
+    render(<StatsBar state={state} />);
+
+    expect(screen.getByText(/Story: Audit Trail/)).toBeInTheDocument();
+    expect(screen.queryByText(/Die Probezeit/)).not.toBeInTheDocument();
+  });
+
+  it('leaves the probation badge unchanged', () => {
+    const state = createInitialState('HUD-PROB', 'story', 'probation');
+    render(<StatsBar state={state} />);
+
+    expect(screen.getByText(/📖 Story: Die Probezeit/)).toBeInTheDocument();
+  });
+});

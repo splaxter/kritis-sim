@@ -1,4 +1,5 @@
 import { GameState, getGameModeConfig } from '@kritis/shared';
+import { getRunLabel } from '../../content/campaigns';
 import { SkillBar } from './SkillBar';
 import { RelationshipBar } from './RelationshipBar';
 import {
@@ -73,6 +74,9 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
   }
 
   const modeConfig = getGameModeConfig(state.gameMode);
+  // The badge names the run: story runs by campaign (so a second campaign never
+  // reads as "Die Probezeit"), everything else by mode.
+  const runLabel = getRunLabel(state.gameMode, state.storyState?.campaignId);
   const totalWeeks = modeConfig.gameLength.totalWeeks;
   const { stressGameOver, complianceGameOver, chefRelationshipGameOver } = modeConfig.thresholds;
 
@@ -98,7 +102,7 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
         <div className="flex items-center gap-3">
           <span className="text-lg">KRITIS ADMIN SIMULATOR</span>
           <span className="text-terminal-green-dim text-sm border border-terminal-border px-2 py-0.5">
-            {modeConfig.icon} {modeConfig.name}
+            {runLabel.icon} {runLabel.name}
           </span>
         </div>
         <div className="flex items-center gap-4">
