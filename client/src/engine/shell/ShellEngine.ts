@@ -968,7 +968,10 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
-      if (char === '\\') {
+      // Bash escapes with backslash; PowerShell escapes with backtick — there
+      // a backslash is an ordinary character (the PATH separator: C:\inetpub).
+      // Without this distinction, typed Windows paths lose every backslash.
+      if (char === '\\' && this.state.type !== 'powershell') {
         escape = true;
         continue;
       }
