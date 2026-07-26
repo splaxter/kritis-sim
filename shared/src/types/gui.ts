@@ -134,12 +134,36 @@ export interface AclEntry {
   riskFeedback?: string;
 }
 
+/** One row in the Explorer FILE-BROWSER mode (mode: 'files'). */
+export interface ExplorerFileItem {
+  /** Stable key used in interaction tokens ('openfolder:<id>', 'open:<id>'). */
+  id: string;
+  /** Display name, e.g. 'Lieferschein_2025-05-02.pdf'. */
+  name: string;
+  kind: 'folder' | 'file';
+  /** Parent folder id; undefined = share root. */
+  parent?: string;
+  /** "Geändert am" column, e.g. '02.05.2025 14:12'. */
+  modified?: string;
+  /** Document text shown in the preview pane when a FILE is opened. */
+  preview?: string;
+}
+
 export interface ExplorerState {
   /** Share display name, e.g. 'Finanzen'. */
   shareName: string;
   /** UNC path shown in the title, e.g. '\\\\srv\\finanzen'. */
   sharePath: string;
-  entries: AclEntry[];
+  /**
+   * 'acl' (default) renders the share-permissions editor over `entries`;
+   * 'files' renders a file browser over `items` (navigate folders, open files
+   * into a preview — tokens: 'select:<id>', 'openfolder:<id>', 'open:<id>').
+   */
+  mode?: 'acl' | 'files';
+  /** ACL mode rows (mode 'acl' / omitted). */
+  entries?: AclEntry[];
+  /** File-browser rows (mode 'files'). */
+  items?: ExplorerFileItem[];
 }
 
 /** A single rule row in the Core-Firewall console. */
