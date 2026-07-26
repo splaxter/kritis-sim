@@ -78,6 +78,14 @@ const SPEC_FLAGS: string[] = [
 // leaves this list, wire it up or delete it consciously.
 const KNOWN_WRITE_ONLY_FLAGS: string[] = ['audit_mandate_accepted'];
 
+// All §5.1 positives (no negatives, no bastion_live) — satisfies every domain,
+// i.e. the Profi baseline. Shared by the epilogue-read and full-surface scans.
+const PROFI_FLAGS: Record<string, boolean> = Object.fromEntries(
+  SPEC_FLAGS.filter(
+    (f) => !RAECHER_FLAGS.includes(f as (typeof RAECHER_FLAGS)[number]) && f !== 'bastion_live'
+  ).map((f) => [f, true])
+);
+
 describe('AUDIT TRAIL campaign consistency', () => {
   it('every flag referenced in a FlagCondition is set by at least one event/level', () => {
     const dead: string[] = [];
@@ -97,12 +105,8 @@ describe('AUDIT TRAIL campaign consistency', () => {
   it('bastion_live is really read: it upgrades the D3 epilogue line', () => {
     // The only §5.1 flag outside the domain conditions — prove the read
     // functionally instead of trusting a comment.
-    const profiFlags = Object.fromEntries(
-      SPEC_FLAGS.filter((f) => !RAECHER_FLAGS.includes(f as (typeof RAECHER_FLAGS)[number]) && f !== 'bastion_live')
-        .map((f) => [f, true])
-    );
-    const withoutBastion = buildAuditTrailEpilogue(profiFlags);
-    const withBastion = buildAuditTrailEpilogue({ ...profiFlags, bastion_live: true });
+    const withoutBastion = buildAuditTrailEpilogue(PROFI_FLAGS);
+    const withBastion = buildAuditTrailEpilogue({ ...PROFI_FLAGS, bastion_live: true });
     expect(withBastion).not.toBe(withoutBastion);
   });
 
@@ -133,7 +137,7 @@ describe('AUDIT TRAIL campaign consistency', () => {
   });
 
   it('no chain triggers: story mode never serves pendingChainEvents', () => {
-    // getActivatedChainEvents is consumed only by eventEngine.getNextEvent;
+    // getActivatedChainEvents is consumed only by eventEngine.selectNextEvent;
     // the App's story path resolves exclusively through getNextStoryContent.
     // A chainTrigger on an AUDIT TRAIL event would schedule an event that can
     // never fire. (The §5.1 "bjorg_provoked → Bert-Vorwarnung" chain idea is
@@ -185,13 +189,30 @@ describe('AUDIT TRAIL is a fresh state — no Probezeit carry-over', () => {
     }
   }
 
-  it('no volker_*/Silke content references', () => {
-    const offenders: string[] = [];
-    for (const e of atEvents) {
-      const blob = JSON.stringify(e);
-      if (/volker/i.test(blob) || /silke/i.test(blob)) offenders.push(e.id);
-    }
-    expect(offenders, `Probezeit cast leaked into:\n${offenders.join('\n')}`).toEqual([]);
+  it('no volker_*/Silke references on ANY authored campaign surface', () => {
+    // JSON.stringify(auditTrailCampaign) covers chapters, story events,
+    // characters, act breaks, ending texts, character tokens, title — but
+    // drops the functions (deriveEnding/buildEpilogue), so the generated
+    // epilogues are scanned explicitly for every ending shape.
+    const surfaces: Record<string, string> = {
+      campaign: JSON.stringify(auditTrailCampaign),
+      characters: JSON.stringify(AUDIT_TRAIL_CHARACTERS),
+      epilogues: [
+        buildAuditTrailEpilogue({}), // Stille (<2 Domänen)
+        buildAuditTrailEpilogue({ mailbox_scope_exceeded: true }), // Rächer
+        buildAuditTrailEpilogue({
+          // Stille, 2–3-Domänen-Variante (kein Profi)
+          bastion_delivery_found: true, handover_mail_sent: true,
+          onboarding_documented: true, ticket_tamper_documented: true,
+        }),
+        buildAuditTrailEpilogue(PROFI_FLAGS), // Profi
+        buildAuditTrailEpilogue({ ...PROFI_FLAGS, bastion_live: true }), // Profi + D3-Bonus
+      ].join('\n'),
+    };
+    const offenders = Object.entries(surfaces)
+      .filter(([, blob]) => /volker|silke/i.test(blob))
+      .map(([name]) => name);
+    expect(offenders, `Probezeit cast leaked into surfaces: ${offenders.join(', ')}`).toEqual([]);
   });
 
   it('no FENRIS/Stefan branch condition (Easter egg in text would be fine — gating is not)', () => {
@@ -226,6 +247,15 @@ describe('§5.1 flag→domain wiring matches the design table', () => {
     bjorg_provoked: 'D5',
     bjorg_warning_preserved: 'D5',
   };
+
+  it('the table is exhaustive: TABLE = SPEC_FLAGS − bastion_live = exactly what the domains read', () => {
+    // Without this pin the per-entry loop below is a false negative twice
+    // over: an EXTRA flag in a domain condition has no TABLE row to check,
+    // and a DELETED TABLE row simply stops being iterated.
+    const expected = SPEC_FLAGS.filter((f) => f !== 'bastion_live').sort();
+    expect(Object.keys(TABLE).sort()).toEqual(expected);
+    expect([...domainFlags].sort()).toEqual(expected);
+  });
 
   it('each flag appears in exactly its table domain', () => {
     const wrong: string[] = [];
