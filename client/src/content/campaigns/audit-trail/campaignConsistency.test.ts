@@ -3,7 +3,7 @@ import { GameEvent, flagsInCondition } from '@kritis/shared';
 import { auditTrailCampaign } from './index';
 import { auditTrailChapters } from './chapters';
 import { auditTrailStoryEvents } from './events';
-import { AUDIT_DOMAINS, RAECHER_FLAGS, AuditDomain } from './domains';
+import { AUDIT_DOMAINS, RAECHER_FLAGS, AuditDomain, satisfiedDomains } from './domains';
 import { buildAuditTrailEpilogue } from './endings';
 import { AUDIT_TRAIL_CHARACTERS } from './characters';
 import { adventureStoryEvents } from '../../adventure/story-events';
@@ -78,12 +78,14 @@ const SPEC_FLAGS: string[] = [
 // leaves this list, wire it up or delete it consciously.
 const KNOWN_WRITE_ONLY_FLAGS: string[] = ['audit_mandate_accepted'];
 
-// All §5.1 positives (no negatives, no bastion_live) — satisfies every domain,
-// i.e. the Profi baseline. Shared by the epilogue-read and full-surface scans.
+// Satisfies every domain (the Profi baseline): exactly the union of the
+// domains' `all` clauses — structurally, so NO negative can slip in (filtering
+// SPEC_FLAGS by RAECHER_FLAGS once left bjorg_provoked=true inside and D5
+// silently failed). Verified below via satisfiedDomains === D1–D5.
 const PROFI_FLAGS: Record<string, boolean> = Object.fromEntries(
-  SPEC_FLAGS.filter(
-    (f) => !RAECHER_FLAGS.includes(f as (typeof RAECHER_FLAGS)[number]) && f !== 'bastion_live'
-  ).map((f) => [f, true])
+  Object.values(AUDIT_DOMAINS)
+    .flatMap((d) => (typeof d.condition === 'string' ? [d.condition] : d.condition.all ?? []))
+    .map((f) => [f, true])
 );
 
 describe('AUDIT TRAIL campaign consistency', () => {
@@ -100,6 +102,10 @@ describe('AUDIT TRAIL campaign consistency', () => {
     expect(unset, `§5.1 flags never set:\n${unset.join('\n')}`).toEqual([]);
     const unread = SPEC_FLAGS.filter((f) => f !== 'bastion_live' && !domainFlags.has(f));
     expect(unread, `§5.1 flags read by no domain:\n${unread.join('\n')}`).toEqual([]);
+  });
+
+  it('PROFI_FLAGS really is the Profi baseline: all five domains hold', () => {
+    expect(satisfiedDomains(PROFI_FLAGS)).toEqual(['D1', 'D2', 'D3', 'D4', 'D5']);
   });
 
   it('bastion_live is really read: it upgrades the D3 epilogue line', () => {
@@ -197,6 +203,10 @@ describe('AUDIT TRAIL is a fresh state — no Probezeit carry-over', () => {
     const surfaces: Record<string, string> = {
       campaign: JSON.stringify(auditTrailCampaign),
       characters: JSON.stringify(AUDIT_TRAIL_CHARACTERS),
+      // Not part of the serialized campaign object — the domain labels are
+      // authored copy too and must not depend on which epilogue sample
+      // happens to render them.
+      domains: JSON.stringify(AUDIT_DOMAINS),
       epilogues: [
         buildAuditTrailEpilogue({}), // Stille (<2 Domänen)
         buildAuditTrailEpilogue({ mailbox_scope_exceeded: true }), // Rächer
