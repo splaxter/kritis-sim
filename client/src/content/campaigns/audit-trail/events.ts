@@ -11,9 +11,10 @@
  */
 import { GameEvent } from '@kritis/shared';
 
-// L1: M.s Übergabenotiz — the core find. Seeded into the VFS AND mirrored by the
-// canned read command below, so free exploration and the guided path show the
-// same bytes.
+// L1: M.s Übergabenotiz — the core find. Lives ONLY in the VFS; every read goes
+// through the real shell, so path semantics are genuine (a relative `cat` works
+// exactly when the cwd makes it valid). The win is a `commandRan` stateGoal on
+// a successful read.
 const L1_NOTIZEN_M = `Falls das jemand liest: Die Exporte sind Stand Juni, Rest siehe Wiki.
 Wichtig: Tickets werden hier gern nachträglich "aufgeräumt".
 Ich habe angefangen, mir Stände wegzukopieren. Vergleicht die Versionen,
@@ -123,26 +124,27 @@ export const auditTrailStoryEvents: GameEvent[] = [
           },
         ],
       },
-      commands: [
-        {
-          // Core find: reading M.s Notizen completes the level — on ANY common
-          // read path (cat/tac/less/more/head/tail/nl, flags, relative or
-          // absolute). Anchored so it cannot shadow other commands.
-          pattern: 'cat notizen_m.txt',
-          patternRegex:
-            '^(cat|tac|less|more|head|tail|nl)\\s+(-\\S+\\s+)*(\\d+\\s+)?(\\./)?((/srv/)?ticket-exports/)?notizen_m\\.txt\\s*$',
-          output: `${L1_NOTIZEN_M}\n\n# "Vergleicht die Versionen" — was genau hat M. da beobachtet?`,
-          skillGain: { linux: 2 },
-        },
-      ],
+      commands: [],
       commandSkillGain: {
         find: { linux: 2 },
         cat: { linux: 1 },
       },
       solutions: [
         {
-          commands: ['cat notizen_m.txt'],
+          // Core find via the REAL shell: any successful read of M.s Notizen
+          // wins — cat/tac/less/head/tail/nl/grep, absolute path or relative
+          // after a matching cd. A read from the wrong directory exits non-zero
+          // and does not count (genuine path semantics, no canned shortcut).
+          commands: [],
           allRequired: false,
+          stateGoals: [
+            {
+              commandRan: {
+                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b.*notizen_m\\.txt',
+                outcome: 'succeeded',
+              },
+            },
+          ],
           resultText:
             'Du hast M.s Notizen gefunden — und damit die erste Spur: Tickets werden hier nachträglich verändert, und M. hat Beweisstände gesichert, bevor er ausfiel.\n\nMerke: Der erste Schritt in fremder Infrastruktur ist nicht konfigurieren, sondern LESEN.',
           skillGain: { linux: 3 },
@@ -168,11 +170,10 @@ export const auditTrailStoryEvents: GameEvent[] = [
     title: 'Die Inventur',
     description: `Bert kommt mit einem Notizblock vorbei: „Der neue ISB wird als Erstes fragen, was wir überhaupt betreiben. Ich hätte gern eine erste Inventur — nichts Großes, aber schriftlich." Er tippt auf den Block. „Und zwar als Datei, nicht in Ihrem Kopf. Was wir nicht aufschreiben, existiert für ein Audit nicht."
 
-**Deine Aufgabe:**
-- Finde den Asset-Export unter \`/srv\` (\`find\`)
-- Prüfe die Datei: Wie groß, wem gehört sie, wann zuletzt geändert? (\`stat\`)
-- Sichte den Wiki-Export unter \`/srv/wiki-export\` — was ist überhaupt dokumentiert?
-- Lege deine Inventur als \`/home/timo/inventar.md\` an — mindestens \`EXCH01\` und \`BASTION-01\` müssen drinstehen`,
+**Deine Aufgabe (alle Schritte zählen):**
+- Finde den Asset-Export unter \`/srv\` (\`find\`) und sieh ihn dir wirklich an (\`stat\` oder \`cat\`)
+- Sichte den Wiki-Export: Lies \`konten.md\` unter \`/srv/wiki-export\` — was ist überhaupt dokumentiert?
+- Lege erst danach deine Inventur als \`/home/timo/inventar.md\` an — mindestens \`EXCH01\` und \`BASTION-01\` müssen drinstehen`,
     image: undefined,
     involvedCharacters: ['bert'],
     mentorNote:
@@ -194,7 +195,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Asset-Export unter /srv finden und mit stat prüfen; Wiki-Export sichten; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).',
+        'Asset-Export unter /srv finden und prüfen (stat/cat); konten.md im Wiki-Export lesen; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).',
       vfsOverlay: {
         directories: ['/srv/assets', '/srv/wiki-export'],
         files: [
@@ -223,11 +224,28 @@ export const auditTrailStoryEvents: GameEvent[] = [
       },
       solutions: [
         {
+          // The written file alone is NOT enough — the inventory must be based
+          // on actually inspecting the sources. Both inspections run through
+          // the real shell (commandRan, outcome succeeded), so only valid
+          // paths count and the follow-up dialog ("beim Sichten des Wikis
+          // aufgefallen …") is narratively true.
           commands: [],
           allRequired: false,
           stateGoals: [
             { file: '/home/timo/inventar.md', matches: 'EXCH01' },
             { file: '/home/timo/inventar.md', matches: 'BASTION-01' },
+            {
+              commandRan: {
+                pattern: '^(stat|cat|tac|less|head|tail|nl|wc|grep)\\b.*assets_2026-07\\.csv',
+                outcome: 'succeeded',
+              },
+            },
+            {
+              commandRan: {
+                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b.*konten\\.md',
+                outcome: 'succeeded',
+              },
+            },
           ],
           resultText:
             'Deine Inventur steht als Datei — mit EXCH01 und BASTION-01 drin. Das ist der Unterschied zwischen „weiß ich doch" und „kann ich belegen": Ab heute gibt es einen dokumentierten Stand, gegen den jede Veränderung sichtbar wird.',
@@ -237,7 +255,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       ],
       hints: [
         '🤖 Jens: Erst gucken, dann schreiben — der Asset-Export liegt unter /srv. Mit find findest du CSV-Dateien.',
-        '🤖 Jens: `stat /srv/assets/assets_2026-07.csv` zeigt dir Größe, Besitzer und Zeitstempel. Und wirf einen Blick in /srv/wiki-export — `cat` reicht.',
+        '🤖 Jens: `stat /srv/assets/assets_2026-07.csv` zeigt dir Größe, Besitzer und Zeitstempel. Und lies /srv/wiki-export/konten.md — `cat` reicht.',
         '🤖 Jens: Deine Doku ist eine ganz normale Datei: `echo "Zeile" >> /home/timo/inventar.md` hängt jeweils eine Zeile an.',
         '🤖 Jens: Zum Beispiel: `echo "EXCH01 - Mailserver" >> /home/timo/inventar.md` und danach so eine Zeile für BASTION-01. Beide Namen müssen in der Datei stehen.',
       ],

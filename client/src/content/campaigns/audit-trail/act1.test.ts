@@ -59,44 +59,15 @@ describe('AUDIT TRAIL Act 1 — chapter beats', () => {
   });
 });
 
-describe('L1 „Der erste Arbeitstag" — core find on any read path', () => {
-  const readCmd = l1.terminalContext!.commands.find((c) =>
-    c.pattern.includes('notizen_m')
-  )!;
-  const re = new RegExp(readCmd.patternRegex!);
-
-  it.each([
-    'cat notizen_m.txt',
-    'cat /srv/ticket-exports/notizen_m.txt',
-    'cat ticket-exports/notizen_m.txt',
-    'cat ./notizen_m.txt',
-    'less /srv/ticket-exports/notizen_m.txt',
-    'more notizen_m.txt',
-    'head -n 20 notizen_m.txt',
-    'tail /srv/ticket-exports/notizen_m.txt',
-    'nl notizen_m.txt',
-    'tac notizen_m.txt',
-  ])('completes on: %s', (cmd) => {
-    expect(re.test(cmd)).toBe(true);
+describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () => {
+  it('wins by a commandRan stateGoal (no canned commands, no regex shortcut)', () => {
+    expect(l1.terminalContext!.commands).toEqual([]);
+    const sol = l1.terminalContext!.solutions[0];
+    expect(sol.commands).toEqual([]);
+    expect(sol.stateGoals?.[0].commandRan?.outcome).toBe('succeeded');
   });
 
-  it.each([
-    'cat notiz-von-jens.txt', // a DIFFERENT file must not count as the core find
-    'cat tickets_2026-06.csv',
-    'cat notizen_m.txt extra.txt', // trailing junk → anchored regex rejects
-    'rm notizen_m.txt',
-  ])('does NOT complete on: %s', (cmd) => {
-    expect(re.test(cmd)).toBe(false);
-  });
-
-  it('the canned output mirrors the seeded VFS file (no divergent bytes)', () => {
-    const vfsFile = l1.terminalContext!.vfsOverlay!.files!.find((f) =>
-      f.path.endsWith('notizen_m.txt')
-    )!;
-    expect(readCmd.output.startsWith(vfsFile.content)).toBe(true);
-  });
-
-  it('plays through: find locates the notes, reading them solves the level', () => {
+  it('plays through: find locates the notes, an absolute-path read solves the level', () => {
     const { session, onSolved } = makeSession(l1.terminalContext!);
 
     const findEffects = run(session, 'find /srv -name "*.txt"');
@@ -113,32 +84,101 @@ describe('L1 „Der erste Arbeitstag" — core find on any read path', () => {
     expect(onSolved).toHaveBeenCalled();
   });
 
+  it('REAL path semantics: a relative read from the wrong directory does NOT solve', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    // From /home/timo the file does not exist relatively — the shell errors,
+    // the goal (outcome: succeeded) stays unmet.
+    run(session, 'cat notizen_m.txt');
+    run(session, 'cat ./notizen_m.txt');
+    run(session, 'cat ticket-exports/notizen_m.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('a relative read after a matching cd DOES solve (cwd honoured)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    run(session, 'cd /srv/ticket-exports');
+    run(session, 'cat notizen_m.txt');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
+  it('reading a DIFFERENT file (or deleting the notes) does not count as the core find', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    run(session, 'cat notiz-von-jens.txt'); // valid read, wrong file
+    run(session, 'cat /srv/ticket-exports/2026/tickets_2026-06.csv');
+    run(session, 'rm /srv/ticket-exports/notizen_m.txt'); // touches the file, no read
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
   it('sets no domain flags — L1 is orientation only', () => {
     expect(l1.choices.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
     expect(l1.terminalContext!.commands.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
   });
 });
 
-describe('L2 „Die Inventur" — stateGoal on the written inventory', () => {
-  it('wins by state (file with EXCH01 AND BASTION-01), not by canned commands', () => {
+describe('L2 „Die Inventur" — inspection + written inventory', () => {
+  // The honest full path: check the asset export, read the wiki accounts page,
+  // then write the inventory.
+  function inspectSources(session: TerminalSession) {
+    run(session, 'stat /srv/assets/assets_2026-07.csv');
+    run(session, 'cat /srv/wiki-export/konten.md');
+  }
+  function writeInventory(session: TerminalSession) {
+    run(session, 'echo "EXCH01 - Mailserver (Exchange 2019)" >> /home/timo/inventar.md');
+    run(session, 'echo "BASTION-01 - PAM, seit 14 Monaten unkonfiguriert" >> /home/timo/inventar.md');
+  }
+
+  it('requires file content AND both real inspections (asset export + konten.md)', () => {
     const sol = l2.terminalContext!.solutions[0];
     expect(sol.commands).toEqual([]);
-    expect(sol.stateGoals).toEqual([
-      { file: '/home/timo/inventar.md', matches: 'EXCH01' },
-      { file: '/home/timo/inventar.md', matches: 'BASTION-01' },
-    ]);
+    const goals = sol.stateGoals!;
+    expect(goals.filter((g) => g.file === '/home/timo/inventar.md')).toHaveLength(2);
+    const ran = goals.filter((g) => g.commandRan);
+    expect(ran).toHaveLength(2);
+    expect(ran.every((g) => g.commandRan!.outcome === 'succeeded')).toBe(true);
   });
 
-  it('plays through: two echo lines solve the level', () => {
+  it('plays through the honest path: inspect, read the wiki, write the inventory', () => {
     const { session } = makeSession(l2.terminalContext!);
+    inspectSources(session);
     run(session, 'echo "EXCH01 - Mailserver (Exchange 2019)" >> /home/timo/inventar.md');
     expect(session.getSnapshot().solved).toBe(false); // BASTION-01 still missing
     run(session, 'echo "BASTION-01 - PAM, seit 14 Monaten unkonfiguriert" >> /home/timo/inventar.md');
     expect(session.getSnapshot().solved).toBe(true);
   });
 
+  it('the echo-only shortcut does NOT win (reviewer scenario: no find/stat/wiki)', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('without reading konten.md the level stays unsolved (story claim stays true)', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    run(session, 'stat /srv/assets/assets_2026-07.csv');
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('without inspecting the asset export the level stays unsolved', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    run(session, 'cat /srv/wiki-export/konten.md');
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('relative inspections after cd count too (real cwd semantics, no exact-string match)', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    run(session, 'cd /srv/wiki-export');
+    run(session, 'cat konten.md');
+    run(session, 'cd /srv/assets');
+    run(session, 'cat assets_2026-07.csv'); // reading the export counts as inspecting it
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
   it('an inventory mentioning only ONE core system does not win', () => {
     const { session } = makeSession(l2.terminalContext!);
+    inspectSources(session);
     run(session, 'echo "BASTION-01 steht im Rack" > /home/timo/inventar.md');
     run(session, 'ls');
     expect(session.getSnapshot().solved).toBe(false);
