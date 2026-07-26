@@ -294,9 +294,12 @@ export interface StateGoal {
    * short hostname or IP); when omitted, any recorded login satisfies the goal.
    * `method` pins the auth method — a `publickey`-required goal is NOT met by a
    * password login, which is what makes "log in without a password" a real win
-   * condition. Logins persist after `exit` (you still logged in).
+   * condition. `fromHost` pins the SOURCE the login was made from (id/hostname/
+   * IP) — the win condition for "reach the target THROUGH the bastion": an ssh
+   * to waage01 launched from bastion01 counts, a direct one does not. Logins
+   * persist after `exit` (you still logged in).
    */
-  loggedIn?: { host?: string; method?: 'publickey' | 'password' };
+  loggedIn?: { host?: string; method?: 'publickey' | 'password'; fromHost?: string };
   /**
    * The RUNNING sshd's effective config on the host (defaults to the base
    * host). Editing /etc/ssh/sshd_config hardens the file, but the daemon only

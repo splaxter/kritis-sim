@@ -240,13 +240,21 @@ function checkSshdEffectiveGoal(engine: ShellEngine, host: HostState, goal: Stat
  */
 function checkLoggedInGoal(engine: ShellEngine, goal: StateGoal): boolean {
   if (!goal.loggedIn) return true;
-  const { host, method } = goal.loggedIn;
+  const { host, method, fromHost } = goal.loggedIn;
+  // Resolve the target and source to ids; a named-but-unresolvable host fails.
+  let targetId: string | undefined;
   if (host !== undefined) {
     const resolved = engine.resolveHost(host);
     if (!resolved) return false;
-    return engine.hasLoggedIn(resolved.id, method);
+    targetId = resolved.id;
   }
-  return engine.hasLoggedIn(undefined, method);
+  let fromId: string | undefined;
+  if (fromHost !== undefined) {
+    const resolved = engine.resolveHost(fromHost);
+    if (!resolved) return false;
+    fromId = resolved.id;
+  }
+  return engine.hasLoggedIn(targetId, method, fromId);
 }
 
 /**

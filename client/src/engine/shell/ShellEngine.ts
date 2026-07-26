@@ -1512,9 +1512,11 @@ export class ShellEngine implements ShellEngineInterface {
     if (!host) {
       throw new Error(`pushSession: unknown host '${hostId}'`);
     }
-    // An SSH login opens a session AND is recorded (with its auth method) so a
-    // loggedIn stateGoal can assert the player actually logged in.
-    if (method) this.recordLogin(hostId, method);
+    // An SSH login opens a session AND is recorded (with its auth method and
+    // the SOURCE host it was launched from) so a loggedIn stateGoal can assert
+    // the player actually logged in — and, via fromHost, that they came in
+    // through the right door (e.g. the bastion).
+    if (method) this.recordLogin(hostId, method, this.getCurrentHost().id);
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
     // Annotate the open attempt with the auth method that opened this session,
@@ -1522,22 +1524,31 @@ export class ShellEngine implements ShellEngineInterface {
     if (method && this.openAttempt) this.openAttempt.authMethod = method;
   }
 
-  /** Record a successful SSH login; persists across session pop (`exit`). */
-  recordLogin(hostId: string, method: 'publickey' | 'password'): void {
-    this.loginRecords.add(`${hostId}::${method}`);
+  /**
+   * Record a successful SSH login (target, auth method, source host it was
+   * launched from). Persists across session pop (`exit`). `fromHostId`
+   * defaults to '' for hand-built calls that don't track a source.
+   */
+  recordLogin(hostId: string, method: 'publickey' | 'password', fromHostId = ''): void {
+    this.loginRecords.add(JSON.stringify({ host: hostId, method, from: fromHostId }));
   }
 
   /**
    * Has the player logged into `hostId` (any host when omitted) via `method`
-   * (any method when omitted)? Used by the loggedIn stateGoal evaluator.
+   * (any when omitted) from `fromHostId` (any when omitted)? Used by the
+   * loggedIn stateGoal evaluator.
    */
-  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password'): boolean {
+  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password', fromHostId?: string): boolean {
     for (const rec of this.loginRecords) {
-      const sep = rec.lastIndexOf('::');
-      const h = rec.slice(0, sep);
-      const m = rec.slice(sep + 2);
-      if (hostId !== undefined && h !== hostId) continue;
-      if (method !== undefined && m !== method) continue;
+      let parsed: { host: string; method: string; from: string };
+      try {
+        parsed = JSON.parse(rec);
+      } catch {
+        continue;
+      }
+      if (hostId !== undefined && parsed.host !== hostId) continue;
+      if (method !== undefined && parsed.method !== method) continue;
+      if (fromHostId !== undefined && parsed.from !== fromHostId) continue;
       return true;
     }
     return false;
