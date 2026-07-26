@@ -10,8 +10,8 @@
  * Beat plan per chapter (levels are added by Tasks 12–15 as they are authored):
  *   Akt 1  ch01_onboarding : at_welcome, at_team_intro, L1 at_l1_first_day,
  *                            L2 at_l2_inventory, at_wiki_password (Task 12 ✓)
- *   Akt 2  ch02_trail      : L3 at_l3_ticket_diff, L4 at_l4_iis_log, at_authorization
- *          ch03_evidence   : at_finding_mail, L5 at_l5_evidence_chain, L6 at_l6_enable_auditing
+ *   Akt 2  ch02_trail      : L3 at_l3_ticket_diff, L4 at_l4_iis_log, at_authorization (Task 13 ✓)
+ *          ch03_evidence   : at_finding_mail, L5 at_l5_evidence_chain, L6 at_l6_enable_auditing (Task 13 ✓)
  *   Akt 3  ch04_blockade   : at_bjorg_dialogue, L7 at_l7_delivery_note, at_handover_mail, L8 at_l8_bastion_live
  *   Akt 4  ch05_audit_1    : F1 (D1), F2 (D2), F3 (D3)
  *          ch06_audit_2    : F4 (D4), F5 (D5)
@@ -42,7 +42,7 @@ export const auditTrailChapters: AdventureChapter[] = [
     completionUnlocks: ['at_ch02_trail'],
   },
 
-  // ── ACT 2 — Die Spur (authored in Tasks 12–13) ────────────────────────────
+  // ── ACT 2 — Die Spur (fully authored: L3/L4 + Mandat, Meldung + L5/L6) ────
   {
     id: 'at_ch02_trail',
     title: 'Die Spur (I)',

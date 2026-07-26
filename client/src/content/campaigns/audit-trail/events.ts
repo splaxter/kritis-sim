@@ -13,14 +13,62 @@ import { GameEvent } from '@kritis/shared';
 
 // L1: M.s Übergabenotiz — the core find. Lives ONLY in the VFS; every read goes
 // through the real shell, so path semantics are genuine (a relative `cat` works
-// exactly when the cwd makes it valid). The win is a `commandRan` stateGoal on
-// a successful read.
+// exactly when the cwd makes it valid). The win is a semantic fileRead goal.
 const L1_NOTIZEN_M = `Falls das jemand liest: Die Exporte sind Stand Juni, Rest siehe Wiki.
 Wichtig: Tickets werden hier gern nachträglich "aufgeräumt".
 Ich habe angefangen, mir Stände wegzukopieren. Vergleicht die Versionen,
 bevor ihr irgendwem irgendwas glaubt.
 
 Wenn ich zurück bin, erkläre ich das. — M.`;
+
+// ── Act-2 shared fixtures ────────────────────────────────────────────────────
+// The CURRENT (tampered) nightly ticket export — seeded identically in L1 and
+// L3 so the file the player first skimmed is byte-for-byte the one they later
+// diff. Differences to M.s archived copy: 4713's comment was rewritten and
+// ticket 4715 (Bjorgs [intern] question) is gone entirely.
+const TICKETS_CSV_CURRENT =
+  'id;titel;status;bearbeiter;kommentar\n' +
+  '4711;Drucker Etage 2 druckt nicht;geschlossen;administrator;\n' +
+  '4712;VPN-Zugang Dienstleister;geschlossen;administrator;\n' +
+  '4713;BASTION-01 Inbetriebnahme;offen;administrator;wartet auf Freigabe Einkauf\n' +
+  '4714;Zertifikat warm-portal erneuern;geschlossen;administrator;\n';
+
+// M.s secured copy of the SAME export ("Vergleicht die Versionen") — the
+// untampered original state.
+const TICKETS_CSV_ARCHIV_M =
+  'id;titel;status;bearbeiter;kommentar\n' +
+  '4711;Drucker Etage 2 druckt nicht;geschlossen;administrator;\n' +
+  '4712;VPN-Zugang Dienstleister;geschlossen;administrator;\n' +
+  '4713;BASTION-01 Inbetriebnahme;offen;administrator;wartet auf Zuarbeit Bjorg (seit 2025-06)\n' +
+  '4714;Zertifikat warm-portal erneuern;geschlossen;administrator;\n' +
+  '4715;[intern] Zugangsdaten Dienstleister im Wiki?;offen;bjorg;von Bjorg an M. geschoben\n';
+
+// The IIS W3C log carrying the OWA trace (L4 on EXCH01). L5 seeds the SAME
+// bytes on the Analyse-VM — the export the Übergabeprotokoll documents.
+// String.raw keeps the WARM\username backslashes literal.
+const IIS_LOG_260722 = String.raw`#Software: Microsoft Internet Information Services 10.0
+#Version: 1.0
+#Date: 2026-07-22 00:00:00
+#Fields: date time cs-method cs-uri-stem cs-username c-ip sc-status
+2026-07-22 05:58:11 GET /ews/exchange.asmx WARM\svc-monitoring 10.0.10.9 200
+2026-07-22 07:31:02 GET /owa/ WARM\jens 10.0.10.31 200
+2026-07-22 08:14:47 POST /autodiscover/autodiscover.xml WARM\henry 10.0.10.32 200
+2026-07-22 09:02:19 GET /owa/ WARM\bjorg 10.0.10.35 200
+2026-07-22 12:39:51 POST /owa/auth.owa WARM\administrator 10.0.10.62 302
+2026-07-22 12:40:12 GET /owa/k.mertens@warm.local/ WARM\administrator 10.0.10.62 200
+2026-07-22 12:41:07 GET /owa/k.mertens@warm.local/ WARM\administrator 10.0.10.62 200
+2026-07-22 12:44:38 GET /owa/k.mertens@warm.local/attachment.ashx WARM\administrator 10.0.10.62 200
+2026-07-22 14:05:33 GET /ews/exchange.asmx WARM\svc-monitoring 10.0.10.9 200
+`;
+
+// Uneventful sibling logs so the 22.07. file is a FIND, not the only file.
+const IIS_LOG_NOISE = (date: string) => String.raw`#Software: Microsoft Internet Information Services 10.0
+#Fields: date time cs-method cs-uri-stem cs-username c-ip sc-status
+${date} 06:00:03 GET /ews/exchange.asmx WARM\svc-monitoring 10.0.10.9 200
+${date} 08:12:44 GET /owa/ WARM\jens 10.0.10.31 200
+${date} 13:37:20 GET /owa/ WARM\henry 10.0.10.32 200
+${date} 18:00:03 GET /ews/exchange.asmx WARM\svc-monitoring 10.0.10.9 200
+`;
 
 export const auditTrailStoryEvents: GameEvent[] = [
   {
@@ -115,8 +163,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
           },
           {
             path: '/srv/ticket-exports/2026/tickets_2026-06.csv',
-            content:
-              'id;titel;status;bearbeiter\n4711;Drucker Etage 2 druckt nicht;geschlossen;administrator\n4712;VPN-Zugang Dienstleister;geschlossen;administrator\n4713;BASTION-01 Inbetriebnahme;offen;administrator\n4714;Zertifikat warm-portal erneuern;geschlossen;administrator\n',
+            content: TICKETS_CSV_CURRENT,
           },
           {
             path: '/srv/ticket-exports/notizen_m.txt',
@@ -285,5 +332,418 @@ export const auditTrailStoryEvents: GameEvent[] = [
       },
     ],
     tags: ['audit-trail', 'act1', 'onboarding'],
+  },
+
+  // ═══════════════════════════════ ACT 2 — Die Spur ═══════════════════════════
+
+  // ── L3 [CLI Linux] „Der editierte Ticket-Export" ──────────────────────────
+  {
+    id: 'at_l3_ticket_diff',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Der editierte Ticket-Export',
+    description: `Jens deutet auf M.s Notiz an deinem Monitor. „‚Vergleicht die Versionen' — das hat er ernst gemeint. Sein Archiv liegt unter \`/srv/ticket-exports/archiv\`. Der aktuelle Export kommt jede Nacht frisch aus dem Ticketsystem." Er zögert kurz. „Wenn die beiden auseinanderlaufen, will ich es schriftlich. Mit Ticketnummern."
+
+**Deine Aufgabe:**
+- Vergleiche M.s gesicherten Stand mit dem aktuellen Export (\`diff\`)
+- Dokumentiere jede Abweichung mit Ticketnummer in \`/home/timo/befund_tickets.md\``,
+    image: undefined,
+    involvedCharacters: ['jens', 'bjorg', 'm'],
+    mentorNote:
+      'diff ALT NEU vergleicht zwei Dateien zeilenweise: < ist der linke (alte) Stand, > der rechte (neue). Exit-Code 1 heißt: Es GIBT Unterschiede — im Audit ist das ein Befund, kein Fehler.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Versionen vergleichen...',
+        effects: {},
+        resultText:
+          'Zwei Abweichungen, beide dokumentiert: Bei 4713 wurde aus „wartet auf Zuarbeit Bjorg (seit 2025-06)" nachträglich „wartet auf Freigabe Einkauf". Und Ticket 4715 — Bjorgs interne Frage nach den Zugangsdaten im Wiki — ist im aktuellen Export schlicht verschwunden. M. hatte recht: Wer den Export kuratiert, kuratiert die Geschichte.',
+        terminalCommand: true,
+        setsFlags: ['ticket_tamper_documented'],
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'M.s Archivstand mit dem aktuellen Ticket-Export vergleichen (diff); jede Abweichung mit Ticketnummer nach /home/timo/befund_tickets.md dokumentieren.',
+      vfsOverlay: {
+        directories: ['/srv/ticket-exports/archiv', '/srv/ticket-exports/2026'],
+        files: [
+          { path: '/srv/ticket-exports/2026/tickets_2026-06.csv', content: TICKETS_CSV_CURRENT },
+          { path: '/srv/ticket-exports/archiv/tickets_2026-06_stand_m.csv', content: TICKETS_CSV_ARCHIV_M },
+          { path: '/srv/ticket-exports/notizen_m.txt', content: L1_NOTIZEN_M },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        diff: { linux: 2, troubleshooting: 2 },
+      },
+      solutions: [
+        {
+          // Both versions must actually have been READ (diff does exactly that
+          // in one step), and the Befund must name both ticket ids.
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/ticket-exports/archiv/tickets_2026-06_stand_m.csv' },
+            { fileRead: '/srv/ticket-exports/2026/tickets_2026-06.csv' },
+            { file: '/home/timo/befund_tickets.md', matches: '4713' },
+            { file: '/home/timo/befund_tickets.md', matches: '4715' },
+          ],
+          resultText:
+            'Befund steht: 4713 umgeschrieben, 4715 gelöscht — belegt gegen M.s gesicherten Stand. Merke: Ein Export ist kein Beweis. Zwei unabhängige Stände plus Differenz — DAS ist einer.',
+          skillGain: { linux: 3, security: 2, troubleshooting: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Zwei Stände, eine Wahrheit — sieh nach, was unter /srv/ticket-exports liegt. Auch im Archiv.',
+        '🤖 Jens: diff vergleicht zwei Dateien Zeile für Zeile. Reihenfolge: erst der alte Stand, dann der neue.',
+        '🤖 Jens: `diff /srv/ticket-exports/archiv/tickets_2026-06_stand_m.csv /srv/ticket-exports/2026/tickets_2026-06.csv` — und beide Ticketnummern in den Befund.',
+        '🤖 Jens: Befund anhängen: `echo "4713: Kommentar nachträglich geändert" >> /home/timo/befund_tickets.md` — und dieselbe Form für 4715.',
+      ],
+    },
+    tags: ['audit-trail', 'act2', 'terminal'],
+  },
+
+  // ── L4 [CLI PowerShell, EXCH01] „Die Spur im IIS-Log" ─────────────────────
+  {
+    id: 'at_l4_iis_log',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Die Spur im IIS-Log',
+    description: `Der Ticket-Befund zeigt auf ein größeres Loch: Wer war eigentlich in M.s Postfach? Exchange 2019, on-prem — OWA-Zugriffe stehen in den IIS-Logs auf EXCH01. Henry gibt dir den Zugang: „W3C-Logs, ein File pro Tag. Sieh in die Logs. Und fass nichts an, was nach Inhalt aussieht — Logs ja, Postfach nein."
+
+**Deine Aufgabe:**
+- Wechsle ins IIS-Logverzeichnis \`C:\\inetpub\\logs\\LogFiles\\W3SVC1\` und sieh dich um (\`Get-ChildItem\`)
+- Durchsuche das Log vom 22.07. nach OWA-Zugriffen: \`Select-String\` mit **explizitem Dateinamen** (Wildcards expandiert \`-Path\` nicht)
+- Beginne das Export-Protokoll: \`C:\\Users\\timo\\protokoll_export.txt\` — Quelle und Log-Dateiname müssen drinstehen`,
+    image: undefined,
+    involvedCharacters: ['henry', 'm'],
+    mentorNote:
+      'IIS schreibt W3C-Logs pro Tag (u_exJJMMTT.log). Select-String ist das grep der PowerShell — aber -Path will echte Dateinamen. Und: Zugriffs-LOGS auswerten ist etwas grundsätzlich anderes, als Postfach-INHALTE zu lesen. Für Ersteres hast du einen Auftrag. Für Letzteres nicht.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Am EXCH01 anmelden...',
+        effects: {},
+        resultText:
+          'Da ist die Spur: 22.07., 12:40 bis 12:44 Uhr — OWA-Zugriff auf das Postfach von Herrn Mertens, angemeldet als „administrator". Das Konto, dessen Passwort im Wiki steht. Also jeder. Also niemand. Der Log-Name steht im Export-Protokoll — vertieft ausgewertet wird mit Mandat, nicht aus Neugier.',
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'windows',
+      hostname: 'EXCH01',
+      username: 'timo',
+      currentPath: 'C:\\Users\\timo',
+      taskText:
+        'IIS-Logverzeichnis sichten (Get-ChildItem); u_ex260722.log mit Select-String nach OWA-Zugriffen durchsuchen; Export-Protokoll C:\\Users\\timo\\protokoll_export.txt mit dem Log-Dateinamen beginnen. Postfach-Inhalte sind tabu.',
+      vfsOverlay: {
+        directories: ['C:\\inetpub\\logs\\LogFiles\\W3SVC1'],
+        files: [
+          { path: 'C:\\inetpub\\logs\\LogFiles\\W3SVC1\\u_ex260720.log', content: IIS_LOG_NOISE('2026-07-20') },
+          { path: 'C:\\inetpub\\logs\\LogFiles\\W3SVC1\\u_ex260721.log', content: IIS_LOG_NOISE('2026-07-21') },
+          { path: 'C:\\inetpub\\logs\\LogFiles\\W3SVC1\\u_ex260722.log', content: IIS_LOG_260722 },
+          {
+            path: 'C:\\inetpub\\logs\\LogFiles\\W3SVC1\\k_mertens_export.pst',
+            content: '!BDN\nPST Unicode Container (Outlook-Datendatei)\n[im Terminal nicht lesbar]\n',
+          },
+        ],
+      },
+      commands: [
+        {
+          // HONEYPOT (Design §7.4): opening M.s PST export sets the negative
+          // flag IMMEDIATELY on match — on EVERY PowerShell read path
+          // (Get-Content/gc/cat/type, Select-String/sls, incl. pipeline stages
+          // and relative/absolute path variants), without solving or ending
+          // the level. Idempotent via useGame.setRunFlags; survives ESC.
+          // NOTE: the pattern string doubles as the auto-seed source — keep it
+          // ABSOLUTE so no phantom PST is seeded into the player's home dir.
+          pattern: 'Get-Content C:\\inetpub\\logs\\LogFiles\\W3SVC1\\k_mertens_export.pst',
+          patternRegex:
+            '(^|\\|)\\s*(Get-Content|gc|cat|type|Select-String|sls)\\b[^|]*k_mertens_export\\.pst',
+          output:
+            '!BDN ... \u2588\u2588\u2588 [Bin\u00e4rdaten] ...\n' +
+            'Betreff: Re: Krankmeldung \u2014 vertraulich\n' +
+            'Betreff: Personalgespr\u00e4ch 08.07. \u2014 Protokoll\n' +
+            'Betreff: Re: BASTION-01 \u2014 deine Einsch\u00e4tzung\n\n' +
+            '# Das sind POSTFACH-INHALTE von Herrn Mertens. Daf\u00fcr gibt es kein Mandat,\n' +
+            '# keine Freigabe und keinen dokumentierten Zweck. Jede weitere Zeile macht\n' +
+            '# aus deiner Auswertung selbst einen Datenschutzvorfall.',
+          setsFlags: ['mailbox_scope_exceeded'],
+        },
+      ],
+      commandSkillGain: {
+        'Get-ChildItem': { windows: 1 },
+        'Select-String': { windows: 2, security: 1 },
+        'Set-Content': { windows: 1 },
+      },
+      solutions: [
+        {
+          // The trace log must really have been read (Select-String or any
+          // read path — semantic fileRead), and the Export-Protokoll must name
+          // the log file. The honeypot never contributes to the win.
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: 'C:\\inetpub\\logs\\LogFiles\\W3SVC1\\u_ex260722.log' },
+            { file: 'C:\\Users\\timo\\protokoll_export.txt', matches: 'u_ex260722' },
+          ],
+          resultText:
+            'Gefunden und protokolliert: OWA-Zugriff auf das Postfach k.mertens, 12:40–12:44, Konto „administrator". Die Erkenntnis des Tages: Das Log beantwortet WAS und WANN — aber nicht WER. Genau das ist das strukturelle Finding.',
+          skillGain: { windows: 4, security: 3 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: IIS legt seine Logs unter C:\\inetpub\\logs ab. Erst hinwechseln, dann umsehen.',
+        '🤖 Henry: Get-ChildItem zeigt dir, was im Logverzeichnis liegt — das Datum steckt im Dateinamen (u_exJJMMTT.log). Und die .pst dort? Finger weg, das ist Inhalt.',
+        '🤖 Henry: `Select-String -Path u_ex260722.log -Pattern owa` — mit GENAU diesem Dateinamen. Wildcards versteht -Path nicht.',
+        '🤖 Henry: Protokoll beginnen: `Set-Content C:\\Users\\timo\\protokoll_export.txt "Quelle: EXCH01 u_ex260722.log"` — der Log-Dateiname muss drinstehen.',
+      ],
+    },
+    tags: ['audit-trail', 'act2', 'terminal'],
+  },
+
+  // ── Dialog: die Freigabe (Zweckbindung) ───────────────────────────────────
+  {
+    id: 'at_authorization',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Das Mandat',
+    description:
+      'Vor dir liegt die Spur — und eine Grenze. Ab hier heißt Auswerten: Zugriffe auf ein personenbezogenes Postfach systematisch nachvollziehen. Bert ist die Freigabestelle. Die Frage ist nicht, OB du weitermachst. Die Frage ist, mit welchem Mandat.',
+    image: undefined,
+    involvedCharacters: ['bert'],
+    choices: [
+      {
+        id: 'at_authorization_written',
+        text: 'Bert um schriftliche Freigabe bitten: Zweck, Umfang (nur Zugriffs-Logs), Frist.',
+        effects: { skills: { security: 2, softSkills: 1 } },
+        resultText:
+          'Bert liest deinen Entwurf, nickt und formuliert mit: „Auswertung der OWA-Zugriffs-Logs zum Vorfall Postfach M. Keine Inhalte. Frist: 14 Tage." Die Mail mit seiner Freigabe liegt zwei Minuten später in deinem Postfach. „Danke, dass Sie gefragt haben. Schriftlich kann ich Sie decken."',
+        setsFlags: ['authorization_documented'],
+      },
+      {
+        id: 'at_authorization_verbal',
+        text: 'Mündlich reicht — Bert hat doch längst genickt.',
+        effects: { stress: -2 },
+        resultText:
+          '„Machen Sie", sagt Bert zwischen zwei Terminen. Was genau er freigegeben hat — Umfang, Zweck, Frist? Steht nirgends. Wenn es politisch wird, ist das sein vages Nicken gegen Bjorgs sehr konkrete Erzählung.',
+      },
+      {
+        id: 'at_authorization_none',
+        text: 'Gar nicht fragen — je weniger Leute Bescheid wissen, desto besser.',
+        effects: { stress: 3 },
+        resultText:
+          'Du gräbst allein weiter. Jede Minute Auswertung ohne Mandat verschiebt die Frage, die später jemand stellen wird: nicht „Was hast du gefunden?", sondern „Wer hat dir das erlaubt?"',
+      },
+    ],
+    tags: ['audit-trail', 'act2'],
+  },
+
+  // ── Mail: das Finding melden ──────────────────────────────────────────────
+  {
+    id: 'at_finding_mail',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Die Meldung',
+    description:
+      'Die Mandatsfrage ist entschieden — jetzt die Meldung. Du setzt eine Mail auf: sachlich, belegbar, ohne einen einzigen Postfach-Inhalt. Die eigentliche Entscheidung steht im Empfängerfeld.',
+    image: undefined,
+    involvedCharacters: ['bert'],
+    mailCompose: {
+      from: 'timo@warm.local',
+      to: 'bert@warm.local',
+      subject: 'Finding: OWA-Zugriff auf Postfach M. via Sammelkonto administrator',
+      body:
+        'Beim Review der IIS-Logs (EXCH01, u_ex260722.log) dokumentiert: 22.07., 12:40–12:44 Uhr, OWA-Zugriff auf das Postfach von Herrn M., angemeldet als „administrator". Zugriffs-Log gesichert, Export protokolliert. Keine Postfachinhalte eingesehen.\n\nVorschlag: (1) Sammelkonto als strukturelles Finding behandeln, (2) Mailbox-Auditing aktivieren.',
+    },
+    choices: [
+      {
+        id: 'at_finding_mail_bert',
+        text: 'Senden — an Bert.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Meldung raus — dokumentiert, mit Zeitstempel. Bert antwortet nach vier Minuten: „Sauber. Auditing aktivieren, Beweiskette schließen. Und danke für: keine Inhalte."',
+        setsFlags: ['finding_reported'],
+      },
+      {
+        id: 'at_finding_mail_broad',
+        text: 'Verteiler auf: GF, alle Bereichsleitungen, Personalrat in CC — volle Transparenz.',
+        effects: { relationships: { kollegen: -2 } },
+        resultText:
+          'Zwölf Empfänger wissen jetzt, dass jemand im Postfach von Herrn M. war — und das Haus redet ab sofort über M., nicht über das Sammelkonto. Du hast einen Personenbezug in die Breite geteilt, den niemand dort brauchte. Das wird dir wieder begegnen.',
+        setsFlags: ['finding_reported', 'personal_data_shared_broadly'],
+      },
+      {
+        id: 'at_finding_mail_wait',
+        text: 'Noch nicht senden — erst die Beweiskette fertigstellen.',
+        effects: { stress: 2 },
+        resultText:
+          'Verständlich — und riskant. Eine Meldung, die wartet, sieht im Nachhinein aus wie eine Meldung, die vermieden wurde.',
+      },
+    ],
+    tags: ['audit-trail', 'act2'],
+  },
+
+  // ── L5 [CLI Linux, Analyse-VM] „Die Beweiskette" ──────────────────────────
+  {
+    id: 'at_l5_evidence_chain',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Die Beweiskette',
+    description: `Der Log-Export liegt auf der Analyse-VM, daneben das angefangene Export-Protokoll. Bevor hier irgendjemand irgendetwas analysiert, gilt die alte Regel: erst konservieren, dann interpretieren.
+
+**Deine Aufgabe:**
+- Lege \`/home/timo/beweis\` an und sichere den Log dorthin (\`cp\`)
+- Halte den Fingerabdruck fest: \`sha256sum\` → \`/home/timo/beweis/hashes.txt\`
+- Notiere die Zeitachse in \`/home/timo/beweis/timeline.md\` (Datum und Zeitfenster des Zugriffs)
+- Schließe das Export-Protokoll in \`/home/timo/eingang\` ab — mit einer Zeile, die mit \`Erledigt:\` beginnt`,
+    image: undefined,
+    involvedCharacters: ['jens'],
+    mentorNote:
+      'Beweissicherung heißt: Das Original bleibt unangetastet, die Kopie wird gehasht, der Weg wird protokolliert. Der SHA-256-Hash macht jede spätere Veränderung sichtbar — und die Zeitachse macht aus Logzeilen einen nachvollziehbaren Vorgang.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Beweise sichern...',
+        effects: {},
+        resultText:
+          'Kette geschlossen: Original im Eingang, Kopie im Beweisordner, Hash in der Liste, Zeitachse notiert, Protokoll abgeschlossen. Wenn später jemand fragt, woher du weißt, was du weißt — du zeigst es einfach.',
+        terminalCommand: true,
+        setsFlags: ['evidence_hashed', 'export_documented'],
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'analyse-vm',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Log nach /home/timo/beweis sichern (cp), SHA-256 in hashes.txt festhalten, Zeitachse in timeline.md notieren, Export-Protokoll mit "Erledigt:"-Zeile abschließen.',
+      vfsOverlay: {
+        directories: ['/home/timo/eingang'],
+        files: [
+          { path: '/home/timo/eingang/u_ex260722.log', content: IIS_LOG_260722 },
+          {
+            path: '/home/timo/eingang/protokoll_export.txt',
+            content:
+              'Export-Protokoll Zugriffs-Log EXCH01\nQuelle: C:\\inetpub\\logs\\LogFiles\\W3SVC1\\u_ex260722.log\nKopiert am: 2026-07-23, Konto: timo\nZweck: Auswertung OWA-Zugriff Postfach k.mertens\nOffen: Kopie sichern, SHA-256 festhalten, Zeitachse\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        cp: { linux: 1 },
+        sha256sum: { linux: 2, security: 2 },
+        mkdir: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { file: '/home/timo/beweis/u_ex260722.log', fileExists: true },
+            // sha256sum output format: '<64 hex>  <path>' — the hash must
+            // belong to the log, not to some arbitrary file.
+            { file: '/home/timo/beweis/hashes.txt', matches: '[0-9a-f]{64}\\s+\\S*u_ex260722' },
+            { file: '/home/timo/beweis/timeline.md', matches: '2026-07-22.*12:4' },
+            // 'Erledigt:' is deliberately absent from the seeded Protokoll, so
+            // only the player's closing line satisfies this.
+            { file: '/home/timo/eingang/protokoll_export.txt', matches: '^Erledigt:' },
+          ],
+          resultText:
+            'Original gesichert, Hash dokumentiert, Zeitachse steht, Protokoll geschlossen. Ab jetzt ist jede Behauptung zu diesem Vorfall überprüfbar — deine eigenen eingeschlossen. Genau so sieht belastbar aus.',
+          skillGain: { linux: 3, security: 3 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Erst sichern, dann anfassen. Sieh nach, was in /home/timo/eingang angekommen ist.',
+        '🤖 Jens: mkdir legt den Beweisordner an, cp kopiert den Log dorthin — das Original im Eingang bleibt unangetastet.',
+        '🤖 Jens: `sha256sum /home/timo/beweis/u_ex260722.log > /home/timo/beweis/hashes.txt` hält den Fingerabdruck fest.',
+        '🤖 Jens: Zeitachse: `echo "2026-07-22 12:40-12:44 OWA-Zugriff Postfach k.mertens als administrator" >> /home/timo/beweis/timeline.md` — und ans Protokoll eine Zeile anhängen, die mit "Erledigt:" beginnt.',
+      ],
+    },
+    tags: ['audit-trail', 'act2', 'terminal'],
+  },
+
+  // ── L6 [CLI PowerShell, EXCH01] „Ab jetzt wird geloggt" ───────────────────
+  {
+    id: 'at_l6_enable_auditing',
+    weekRange: [1, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Ab jetzt wird geloggt',
+    description: `Die Lücke, die den ganzen Vorfall trug: Auf M.s Postfach war kein Mailbox-Auditing aktiv. Exchange Server 2019, on-prem — hier wird Auditing **pro Postfach** eingeschaltet. Kein Dienstneustart, kein Wartungsfenster. Ein Attribut.
+
+**Deine Aufgabe:**
+- Prüfe den Ist-Zustand von M.s Postfach (\`Get-Mailbox\`)
+- Aktiviere das Mailbox-Auditing für \`k.mertens\` (\`Set-Mailbox\`)
+- Kein Dienstneustart — der gehört nicht zum Verfahren`,
+    image: undefined,
+    involvedCharacters: ['henry', 'm'],
+    mentorNote:
+      'On-prem (Exchange Server 2019) wird Mailbox-Auditing pro Postfach über Set-Mailbox -AuditEnabled gesteuert. In Exchange Online ist es standardmäßig aktiv und wird organisationsweit über AuditDisabled geschaltet. Ein Dienstneustart gehört in KEINEM der beiden Fälle zum Verfahren.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Auditing aktivieren...',
+        effects: {},
+        resultText:
+          'AuditEnabled: True. Ab jetzt schreibt Exchange mit, welche Aktion in diesem Postfach ausgeführt wird — auch über das Sammelkonto. Wichtig fürs Protokoll: Das Auditing macht Zugriffe dokumentierbar. Individuell zurechenbar macht es das Sammelkonto NICHT — das bleibt das strukturelle Finding.',
+        terminalCommand: true,
+        setsFlags: ['mailbox_auditing_enabled'],
+      },
+    ],
+    terminalContext: {
+      type: 'windows',
+      hostname: 'EXCH01',
+      username: 'timo',
+      currentPath: 'C:\\Users\\timo',
+      taskText:
+        'Ist-Zustand von k.mertens prüfen (Get-Mailbox), dann Mailbox-Auditing aktivieren (Set-Mailbox). Kein Dienstneustart.',
+      mailboxes: [
+        { name: 'k.mertens', displayName: 'Mertens, K.', auditEnabled: false },
+        { name: 'poststelle', displayName: 'Poststelle WARM', auditEnabled: false },
+        { name: 'einkauf', displayName: 'Einkauf WARM', auditEnabled: true },
+      ],
+      commands: [],
+      commandSkillGain: {
+        'Get-Mailbox': { windows: 1, security: 1 },
+        'Set-Mailbox': { windows: 2, security: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          // Live mailbox attribute on EXCH01 — only a REAL, correctly typed
+          // Set-Mailbox flips it (typos like $ture fail with exit 1, no
+          // mutation — guarded by the cmdlet's strict bool validation).
+          stateGoals: [{ mailbox: 'k.mertens', auditEnabled: true }],
+          resultText:
+            'Mailbox-Auditing für k.mertens ist aktiv — ohne Neustart, ohne Wartungsfenster, wirksam ab sofort.\n\nLernnotiz: On-prem gilt Set-Mailbox -AuditEnabled $true pro Postfach; in Exchange Online ist Auditing standardmäßig an (organisationsweit via AuditDisabled). Referenzen: learn.microsoft.com/en-us/purview/audit-mailboxes und learn.microsoft.com/en-us/exchange/policy-and-compliance/mailbox-audit-logging/enable-or-disable?view=exchserver-2019',
+          skillGain: { windows: 4, security: 4 },
+          effects: { stress: -2, compliance: 5 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Erst prüfen, dann ändern — sieh dir M.s Postfach an, bevor du etwas umstellst.',
+        '🤖 Henry: Get-Mailbox k.mertens zeigt dir den Eigenschaftsblock — da steht auch der Audit-Status.',
+        '🤖 Henry: Set-Mailbox ändert Postfach-Attribute. Der Schalter heißt -AuditEnabled und erwartet einen PowerShell-Boolean.',
+        '🤖 Henry: `Set-Mailbox k.mertens -AuditEnabled $true` — und danach mit Get-Mailbox gegenprüfen.',
+      ],
+    },
+    tags: ['audit-trail', 'act2', 'terminal'],
   },
 ];

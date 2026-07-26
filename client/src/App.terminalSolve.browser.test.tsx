@@ -22,15 +22,26 @@ vi.mock('./components/Terminal', () => ({
   Terminal: ({
     context,
     onSolved,
+    onCancel,
+    onFlagsSet,
   }: {
     context: TerminalContext;
     onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
+    onCancel: () => void;
+    onFlagsSet: (flags: string[]) => void;
   }) => {
     const sol = context.solutions[0];
+    const honeypot = context.commands.find((c) => c.setsFlags);
     return (
-      <button onClick={() => onSolved(sol.skillGain, undefined, sol.effects)}>
-        MOCK-SOLVE
-      </button>
+      <div>
+        <button onClick={() => onSolved(sol.skillGain, undefined, sol.effects)}>
+          MOCK-SOLVE
+        </button>
+        {honeypot && (
+          <button onClick={() => onFlagsSet(honeypot.setsFlags!)}>MOCK-HONEYPOT</button>
+        )}
+        <button onClick={() => onCancel()}>MOCK-CANCEL</button>
+      </div>
     );
   },
 }));
@@ -43,18 +54,22 @@ function pressEnter() {
   fireEvent.keyDown(window, { key: 'Enter' });
 }
 
-beforeEach(() => {
+function prepareRun(chapter: string, beatIndex: number) {
   localStorage.clear();
   localStorage.setItem('kritis_player_id', PLAYER_ID);
   localStorage.setItem('kritis_seen_intro', '1');
   localStorage.setItem('kritis_name_skipped', '1');
 
-  // An AUDIT TRAIL story run parked directly at the L1 beat (ch01, beat 2).
   const state = createInitialState('int-seed', 'story', 'audit-trail');
   state.stress = START_STRESS;
-  state.storyState = { ...state.storyState!, currentBeatIndex: 2 };
+  state.storyState = { ...state.storyState!, currentChapter: chapter, currentBeatIndex: beatIndex };
   startLinux = state.skills.linux;
   writeAutosave(PLAYER_ID, state);
+}
+
+beforeEach(() => {
+  // Default: parked directly at the L1 beat (ch01, beat 2).
+  prepareRun('at_ch01_onboarding', 2);
 });
 
 describe('App — solved terminal level applies solution effects end-to-end', () => {
@@ -88,6 +103,35 @@ describe('App — solved terminal level applies solution effects end-to-end', ()
       // And the beat advanced exactly once past L1.
       expect(s.completedEvents).toContain('at_l1_first_day');
       expect(s.storyState?.currentBeatIndex).toBe(3);
+    });
+  });
+
+  it('the L4 honeypot flag reaches the autosave and SURVIVES cancelling the level', async () => {
+    // Park the run directly at the L4 beat (ch02, beat 1).
+    prepareRun('at_ch02_trail', 1);
+    render(<App />);
+
+    await screen.findByText(/Weiter spielen/i);
+    act(() => pressEnter());
+
+    await screen.findByText('Die Spur im IIS-Log');
+    fireEvent.click(await screen.findByText(/Aufgabe starten/));
+
+    // In the terminal: read the PST (honeypot fires), then bail out with ESC.
+    fireEvent.click(await screen.findByText('MOCK-HONEYPOT'));
+    fireEvent.click(screen.getByText('MOCK-CANCEL'));
+
+    await waitFor(() => {
+      const save = readAutosave(PLAYER_ID);
+      expect(save).not.toBeNull();
+      const s = save!.gameState;
+      // Seen is seen: the scope violation is persisted although the level
+      // was cancelled and never solved …
+      expect(s.flags.mailbox_scope_exceeded).toBe(true);
+      // … and the beat did NOT advance (the level stays retryable).
+      expect(s.completedEvents).not.toContain('at_l4_iis_log');
+      expect(s.storyState?.currentBeatIndex).toBe(1);
+      expect(s.storyState?.currentChapter).toBe('at_ch02_trail');
     });
   });
 });

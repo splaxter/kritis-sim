@@ -78,16 +78,25 @@ describe('Act-4 beats branch on the domain objects', () => {
   });
 });
 
-describe('Act-1 → Act-2 seam', () => {
-  it('Act 1 is fully authored (playable, not an act-break)', () => {
-    expect(isAtAuthoredStoryEnd(stateAt('at_ch01_onboarding'), auditTrailStoryEvents, [])).toBe(false);
+describe('authored/unauthored seam (moves as acts are authored)', () => {
+  it('Acts 1 and 2 are fully authored (playable, not an act-break)', () => {
+    for (const ch of ['at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence']) {
+      expect(
+        isAtAuthoredStoryEnd(stateAt(ch), auditTrailStoryEvents, []),
+        `${ch} must be fully authored`
+      ).toBe(false);
+    }
   });
 
-  it('entering Act 2 (unauthored) raises the act-break', () => {
-    expect(isAtAuthoredStoryEnd(stateAt('at_ch02_trail'), auditTrailStoryEvents, [])).toBe(true);
+  it('entering Act 3 (unauthored) raises the act-break', () => {
+    expect(isAtAuthoredStoryEnd(stateAt('at_ch04_blockade'), auditTrailStoryEvents, [])).toBe(true);
   });
 
-  it('the completed act at the seam is Act 1 (correct act-break copy)', () => {
-    expect(getLastCompletedAct(stateAt('at_ch02_trail', ['at_ch01_onboarding']))).toBe(1);
+  it('the completed act at the seam is Act 2 (correct act-break copy)', () => {
+    expect(
+      getLastCompletedAct(
+        stateAt('at_ch04_blockade', ['at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence'])
+      )
+    ).toBe(2);
   });
 });
