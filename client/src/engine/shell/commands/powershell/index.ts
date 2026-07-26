@@ -376,6 +376,14 @@ export const copyItemCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: result.error };
     }
 
+    // Operand-bound record (see linux cp): canonical source → final dest.
+    const destStat = ctx.vfs.stat(dest);
+    const finalDest =
+      destStat.ok && destStat.value.type === 'directory'
+        ? ctx.vfs.join(ctx.vfs.resolvePath(dest), ctx.vfs.basename(src))
+        : ctx.vfs.resolvePath(dest);
+    ctx.recordFileCopy?.(ctx.vfs.resolvePath(src), finalDest);
+
     return { output: '', exitCode: 0 };
   },
 };
@@ -767,6 +775,110 @@ export const getServiceCommand: ShellCommand = {
 };
 
 // ============================================================================
+// Exchange (on-prem Exchange Server 2019) — deliberately tiny surface: read a
+// mailbox's audit state and toggle it. On-prem audit is per-mailbox via
+// Set-Mailbox -AuditEnabled (Exchange Online is org-wide via AuditDisabled and
+// on by default). No mailbox content is ever exposed.
+// ============================================================================
+
+/** Property-list block (Key : Value), the form Format-List passes through. */
+function mailboxDetail(mb: { name: string; displayName?: string; auditEnabled: boolean; auditLogAgeLimit?: string }): string {
+  const rows: [string, string][] = [
+    ['Name', mb.name],
+    ['DisplayName', mb.displayName ?? mb.name],
+    ['AuditEnabled', mb.auditEnabled ? 'True' : 'False'],
+    ['AuditLogAgeLimit', mb.auditLogAgeLimit ?? '90.00:00:00'],
+  ];
+  const width = Math.max(...rows.map(([k]) => k.length));
+  return '\n' + rows.map(([k, v]) => `${k.padEnd(width)} : ${v}`).join('\n');
+}
+
+export const getMailboxCommand: ShellCommand = {
+  name: 'Get-Mailbox',
+  description: 'Views mailbox objects and attributes (Exchange Server)',
+  usage: 'Get-Mailbox [[-Identity] <id>]',
+  options: [
+    { long: 'Identity', description: 'Mailbox to view', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const mailboxes = ctx.host?.mailboxes ?? [];
+    const identity = args.options['Identity'] || args.positional[0];
+
+    if (identity) {
+      const mb = mailboxes.find(m => m.name.toLowerCase() === identity.toLowerCase());
+      if (!mb) {
+        return { output: '', exitCode: 1, error: `Get-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
+      }
+      // Operand-bound record: THIS identity was actually resolved and shown —
+      // extra positional args are ignored by the cmdlet, so they are never
+      // recorded ('Get-Mailbox poststelle k.mertens' inspects only poststelle).
+      ctx.recordMailboxInspected?.(mb.name);
+      // Single mailbox → property block (readable, and Format-List-passthrough safe).
+      return { output: mailboxDetail(mb), exitCode: 0 };
+    }
+
+    // No identity → summary table of all mailboxes.
+    const lines = [
+      '',
+      'Name                      DisplayName               AuditEnabled',
+      '----                      -----------               ------------',
+    ];
+    for (const mb of mailboxes) {
+      lines.push(`${mb.name.padEnd(25)} ${(mb.displayName ?? mb.name).padEnd(25)} ${mb.auditEnabled ? 'True' : 'False'}`);
+    }
+    return { output: lines.join('\n'), exitCode: 0 };
+  },
+};
+
+export const setMailboxCommand: ShellCommand = {
+  name: 'Set-Mailbox',
+  description: 'Modifies mailbox settings (Exchange Server)',
+  usage: 'Set-Mailbox [-Identity] <id> -AuditEnabled <$true|$false>',
+  options: [
+    { long: 'Identity', description: 'Mailbox to modify', takesValue: true },
+    { long: 'AuditEnabled', description: 'Enable or disable mailbox audit logging', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const identity = args.options['Identity'] || args.positional[0];
+    if (!identity) {
+      return { output: '', exitCode: 1, error: 'Set-Mailbox : Cannot process command because of one or more missing mandatory parameters: Identity.' };
+    }
+    const mb = ctx.host?.mailboxes.find(m => m.name.toLowerCase() === identity.toLowerCase());
+    if (!mb) {
+      return { output: '', exitCode: 1, error: `Set-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
+    }
+
+    // -AuditEnabled: $true/$false expand to True/False (see expandVariables). A
+    // missing value lands as a switch flag (no options entry). ANY value that is
+    // not a clean boolean must FAIL without mutating — a typo like `$ture` (which
+    // expands to '') or `banana` must never silently disable a live mailbox.
+    const raw = args.options['AuditEnabled'];
+    const givenAsSwitch = args.flags['AuditEnabled'] === true; // present but valueless
+    if (raw === undefined && !givenAsSwitch) {
+      // -AuditEnabled not supplied at all → nothing to change (valid no-op).
+      return { output: '', exitCode: 0 };
+    }
+    const bool = parseStrictBool(raw);
+    if (bool === null) {
+      return { output: '', exitCode: 1, error: `Set-Mailbox : Cannot process argument transformation on parameter 'AuditEnabled'. Cannot convert value "${raw ?? ''}" to type "System.Boolean".` };
+    }
+    mb.auditEnabled = bool;
+    return { output: '', exitCode: 0 };
+  },
+};
+
+/** Strict boolean coercion for cmdlet parameters: only true/false/1/0 (and the
+ *  literal $true/$false, in case expansion is bypassed). Anything else → null. */
+function parseStrictBool(value: string | undefined): boolean | null {
+  if (value === undefined) return null;
+  if (/^(true|\$true|1)$/i.test(value)) return true;
+  if (/^(false|\$false|0)$/i.test(value)) return false;
+  return null;
+}
+
+// ============================================================================
 // Pipeline Commands (line-oriented emulation of the object pipeline)
 // ============================================================================
 
@@ -1052,6 +1164,8 @@ export const getFileHashCommand: ShellCommand = {
     // PowerShell renders hashes in uppercase, as an Algorithm/Hash/Path table.
     const hash = hasher(toBytes(file.value)).toUpperCase();
     const resolved = ctx.vfs.resolvePath(path);
+    // Operand-bound record: the digest was computed for THIS file.
+    ctx.recordHashComputed?.(resolved, algorithm);
     const lines = [
       '',
       'Algorithm       Hash                                                                   Path',
@@ -1260,6 +1374,9 @@ export const allPowerShellCommands: ShellCommand[] = [
   getProcessCommand,
   stopProcessCommand,
   getServiceCommand,
+  // Exchange
+  getMailboxCommand,
+  setMailboxCommand,
   // Pipeline
   sortObjectCommand,
   selectObjectCommand,

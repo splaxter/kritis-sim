@@ -31,7 +31,7 @@ const context: TerminalContext = {
 
 describe('Terminal partial solution feedback', () => {
   it('renders feedback when a partial solution command is entered', async () => {
-    render(<Terminal context={context} onSolved={() => {}} onCancel={() => {}} />);
+    render(<Terminal context={context} onSolved={() => {}} onCancel={() => {}} onFlagsSet={() => {}} />);
 
     const terminal = terminalMock.instances.at(-1);
     expect(terminal).toBeDefined();

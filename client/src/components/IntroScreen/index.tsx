@@ -89,8 +89,9 @@ export function IntroScreen({ onEnter }: IntroScreenProps) {
           <h1 className="text-4xl md:text-5xl font-bold text-white tracking-wider mb-2">
             KRITIS ADMIN SIMULATOR
           </h1>
+          {/* Campaign-neutral: the title screen fronts every mode and campaign. */}
           <p className="text-terminal-green text-lg tracking-widest">
-            Probezeit Edition
+            Kommunale Edition
           </p>
         </div>
 

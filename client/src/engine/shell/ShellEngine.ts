@@ -19,6 +19,31 @@ import {
 } from './types';
 import { HostState, wrapVfsAsHost } from './hosts';
 
+/**
+ * Canonical algo names for hash records: command names ('sha256sum') and
+ * Get-FileHash algorithms ('SHA256') both normalize to 'sha256' etc., so
+ * goals compare one vocabulary regardless of which tool produced the record.
+ */
+function normalizeHashAlgo(algo: string): string {
+  return algo.toLowerCase().replace(/sum$/, '');
+}
+
+/**
+ * Was an SSH login to `target` from a source with `sourceIp` admitted
+ * specifically by a source-SCOPED allow — i.e. the target was already locked
+ * to bastion-only (firewall up, default deny, NO global from-less allow-22,
+ * and a from-scoped allow-22 matching the source)? Evaluated at login time so
+ * a loggedIn goal can require the hop to have happened AFTER the lockdown.
+ */
+function admittedViaScopedRule(target: HostState, sourceIp?: string): boolean {
+  const fw = target.firewall;
+  if (!fw.enabled) return false;
+  if (fw.defaultIncoming !== 'deny') return false;
+  const rules22 = fw.rules.filter(r => r.port === 22 && (!r.proto || r.proto === 'tcp'));
+  if (rules22.some(r => r.action === 'allow' && !r.from)) return false; // a global door is open
+  return sourceIp !== undefined && rules22.some(r => r.action === 'allow' && r.from === sourceIp);
+}
+
 export class ShellEngine implements ShellEngineInterface {
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
@@ -46,6 +71,58 @@ export class ShellEngine implements ShellEngineInterface {
    * to executionDepth.
    */
   private openAttempt: CommandAttempt | null = null;
+
+  /**
+   * Pipeline command that returned pendingInput (password prompt): its exit
+   * code is unknown until the continuation settles, so it is parked here and
+   * turned into a recorded stage by closeOpenAttempt with the final exit code.
+   */
+  private pendingStage: { command: string; host: string } | null = null;
+
+  /**
+   * Structured file-read record: every SUCCESSFUL content read a COMMAND
+   * performed (via the instrumented ctx.vfs handed to implementations, plus
+   * `< file` input redirection), with the canonical absolute path and host.
+   * This is what `fileRead` stateGoals evaluate — role-independent semantics
+   * that a regex over raw command lines cannot provide (`grep -v ziel.txt
+   * andere.txt` uses the target name as a PATTERN and never reads the file).
+   * Engine internals (append rewrites, ssh key checks, unit preconditions,
+   * sshd refresh) use the raw host vfs and are never recorded.
+   */
+  private fileReads: { path: string; host: string }[] = [];
+
+  /**
+   * Operand-bound tool records: what cp/Copy-Item actually copied (final
+   * resolved destination), what the hash tools actually digested, and which
+   * mailbox Get-Mailbox actually resolved. These bind stateGoals to the REAL
+   * operands — a cp of some unrelated file or a Get-Mailbox that resolved a
+   * different identity can never satisfy a bound goal.
+   */
+  private fileCopies: { from: string; to: string; host: string }[] = [];
+  /** Hash records store the NORMALIZED algo ('sha256' | 'sha1' | 'md5') and,
+   *  when the producing stage redirected stdout, the canonical target file —
+   *  the link between "digest was computed" and "digest landed in THIS list". */
+  private hashesComputed: { path: string; algo: string; host: string; writtenTo?: string }[] = [];
+  private mailboxesInspected: { name: string; host: string }[] = [];
+
+  /**
+   * Canonical stdout-redirect target of the CURRENTLY executing stage (null =
+   * no redirect). This is the LAST `>`/`>>` of the stage — bash applies all of
+   * them but only the last receives the content. Save/restored per stage so
+   * records made inside a command note where their output actually goes.
+   */
+  private stageOutTarget: string | null = null;
+
+  /**
+   * Hash records made during a redirected stage are PENDING until the redirect
+   * write succeeds: a `sha256sum kopie > hashes.txt` whose write FAILS must not
+   * leave a writtenTo record behind (it would vouch for a hash list that was
+   * never fed). null = current stage has no stdout redirect → records commit
+   * directly. Save/restored per stage like stageOutTarget.
+   */
+  private pendingHashRecords:
+    | { path: string; algo: string; host: string; writtenTo?: string }[]
+    | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -137,6 +214,7 @@ export class ShellEngine implements ShellEngineInterface {
         hostBefore: hostId,
         hostAfter: hostId,
         exitCode: 0,
+        stages: [],
       };
     }
     this.executionDepth++;
@@ -165,9 +243,104 @@ export class ShellEngine implements ShellEngineInterface {
     return [...this.executionLog];
   }
 
+  private recordFileRead(path: string, hostId: string): void {
+    this.fileReads.push({ path, host: hostId });
+  }
+
+  /** Snapshot of all operand-bound hash records (canonical path + algo). */
+  getHashesComputed(): { path: string; algo: string; host: string }[] {
+    return [...this.hashesComputed];
+  }
+
+  /** All recorded copies (canonical from/to + host). */
+  getFileCopies(): { from: string; to: string; host: string }[] {
+    return [...this.fileCopies];
+  }
+
+  /** True iff a copy matching the provided fields was recorded (omitted = any). */
+  hasFileCopy(from?: string, to?: string, hostId?: string): boolean {
+    return this.fileCopies.some(
+      (c) =>
+        (!from || c.from === from) &&
+        (!to || c.to === to) &&
+        (!hostId || c.host === hostId)
+    );
+  }
+
+  /**
+   * True iff a hash was ACTUALLY computed for this canonical path — with the
+   * given algorithm when provided ('sha256' | 'sha1' | 'md5', normalized) and,
+   * when `writtenTo` is provided, with its stdout redirected into exactly that
+   * canonical file (`>` or `>>`).
+   */
+  hasHashComputed(path: string, algorithm?: string, writtenTo?: string, hostId?: string): boolean {
+    const wantedAlgo = algorithm ? normalizeHashAlgo(algorithm) : undefined;
+    return this.hashesComputed.some(
+      (h) =>
+        h.path === path &&
+        (!wantedAlgo || h.algo === wantedAlgo) &&
+        (!writtenTo || h.writtenTo === writtenTo) &&
+        (!hostId || h.host === hostId)
+    );
+  }
+
+  /** True iff Get-Mailbox actually RESOLVED this identity (case-insensitive). */
+  hasMailboxInspected(name: string, hostId?: string): boolean {
+    const wanted = name.toLowerCase();
+    return this.mailboxesInspected.some(
+      (m) => m.name.toLowerCase() === wanted && (!hostId || m.host === hostId)
+    );
+  }
+
+  /** Snapshot of all successful command file reads (canonical path + host). */
+  getFileReads(): { path: string; host: string }[] {
+    return [...this.fileReads];
+  }
+
+  /**
+   * True iff a command successfully read this file's content during the
+   * session. `path` is the canonical absolute path; `hostId` restricts the
+   * match to reads ON that host (omitted = any host).
+   */
+  hasFileRead(path: string, hostId?: string): boolean {
+    return this.fileReads.some((r) => r.path === path && (!hostId || r.host === hostId));
+  }
+
+  /**
+   * VFS view handed to command implementations: forwards everything to the
+   * current host's vfs and records each SUCCESSFUL readFile with its canonical
+   * path — the source of truth for `fileRead` stateGoals. Only commands see
+   * this view; engine internals keep using the raw host vfs.
+   */
+  private instrumentedVfs(): VirtualFilesystemInterface {
+    const host = this.getCurrentHost();
+    const vfs = host.vfs;
+    const record = (path: string) => this.recordFileRead(path, host.id);
+    return new Proxy(vfs, {
+      get(target, prop) {
+        if (prop === 'readFile') {
+          return (path: string) => {
+            const res = target.readFile(path);
+            if (res.ok) record(target.resolvePath(path));
+            return res;
+          };
+        }
+        const v = Reflect.get(target, prop, target);
+        return typeof v === 'function' ? v.bind(target) : v;
+      },
+    });
+  }
+
   /** Close the open attempt with an explicit exit code (host captured now). */
   private closeOpenAttempt(exitCode: number): void {
     if (!this.openAttempt) return;
+    // A segment that was still awaiting input (password prompt) settles with
+    // the attempt's final exit code — it only becomes a recorded stage NOW,
+    // when its true outcome is known.
+    if (this.pendingStage) {
+      this.openAttempt.stages?.push({ ...this.pendingStage, exitCode });
+      this.pendingStage = null;
+    }
     this.openAttempt.exitCode = exitCode;
     this.openAttempt.hostAfter = this.getCurrentHost().id;
     this.executionLog.push(this.openAttempt);
@@ -200,6 +373,8 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
+      // Stage recording happens per PIPELINE COMMAND inside executePipeline —
+      // a short-circuited segment never reaches it and is never recorded.
       lastResult = this.executePipeline(cmd, pendingInitialStdin);
       pendingInitialStdin = undefined;
       executedAny = true;
@@ -244,18 +419,35 @@ export class ShellEngine implements ShellEngineInterface {
 
     for (let i = 0; i < stages.length; i++) {
       const isLast = i === stages.length - 1;
+      // Host where THIS pipe command starts (a stage like `exit` pops the
+      // session, but it ran on the host it was typed on).
+      const stageHost = this.getCurrentHost().id;
       result = this.executeStage(stages[i], stdin, isLast);
       if (result.error) {
         errors.push(result.error);
       }
       // A stage awaiting input aborts the pipeline: later stages never run.
       if (result.pendingInput) {
+        // Its exit code is unknown until the continuation settles — parked and
+        // recorded by closeOpenAttempt with the final code.
+        if (this.openAttempt) {
+          this.pendingStage = { command: stages[i].trim(), host: stageHost };
+        }
         this.state.exitCode = result.exitCode;
         return {
           ...result,
           error: errors.length > 0 ? errors.join('\n') : undefined,
         };
       }
+      // Record each actually-executed PIPELINE COMMAND with its OWN exit code
+      // and host — the granularity `commandRan` stateGoals match against. The
+      // pipeline's overall exit code is the last stage's, so without this a
+      // `cat missing | echo ok` would look like a successful cat.
+      this.openAttempt?.stages?.push({
+        command: stages[i].trim(),
+        exitCode: result.exitCode,
+        host: stageHost,
+      });
       stdin = result.output;
     }
 
@@ -301,17 +493,45 @@ export class ShellEngine implements ShellEngineInterface {
       if (!read.ok) {
         return { output: '', exitCode: 1, error: `bash: ${inRedirect.file}: ${read.error}` };
       }
+      // `< file` is a genuine user-initiated content read (`grep x < f`).
+      this.recordFileRead(path, this.getCurrentHost().id);
       stdin = read.value;
     }
 
     const parsed = this.parseCommand(cmdString);
-    const hasStdoutRedirect = redirects.some(r => r.type === '>' || r.type === '>>');
+    const outRedirects = redirects.filter(r => r.type === '>' || r.type === '>>');
+    const hasStdoutRedirect = outRedirects.length > 0;
+    // bash applies every redirect but only the LAST receives the content —
+    // that is the stage's effective output target.
+    const effectiveOut = hasStdoutRedirect ? outRedirects[outRedirects.length - 1] : undefined;
     const isTty = isLastStage && !hasStdoutRedirect;
-    const result = this.executeCommand(parsed.command, parsed, stdin, isTty);
+    // Expose THIS stage's canonical redirect target to records made inside the
+    // command (hashComputed.writtenTo), and park such records as PENDING until
+    // the redirect write actually succeeds. Only a stage WITH its own redirect
+    // opens a new context — a nested execute without one (sudo sha256sum … ,
+    // source script.sh) INHERITS the outer stage's target and pending buffer,
+    // so `sudo sha256sum kopie > hashes.txt` records writtenTo correctly and
+    // stays coupled to the OUTER redirect's success.
+    const prevOutTarget = this.stageOutTarget;
+    const prevPending = this.pendingHashRecords;
+    if (hasStdoutRedirect) {
+      this.stageOutTarget = vfs.resolvePath(effectiveOut!.file);
+      this.pendingHashRecords = [];
+    }
+    let result: CommandResult;
+    let stagePendingHashes: { path: string; algo: string; host: string; writtenTo?: string }[];
+    try {
+      result = this.executeCommand(parsed.command, parsed, stdin, isTty);
+    } finally {
+      // Only the redirect-owning stage collects and restores; an inheriting
+      // stage leaves the outer context untouched.
+      stagePendingHashes = hasStdoutRedirect ? (this.pendingHashRecords ?? []) : [];
+      this.stageOutTarget = prevOutTarget;
+      this.pendingHashRecords = prevPending;
+    }
 
     // Output redirection: `>` truncates, `>>` appends. Only stdout is
     // redirected; stderr (result.error) still flows to the terminal.
-    const outRedirects = redirects.filter(r => r.type === '>' || r.type === '>>');
     if (outRedirects.length > 0) {
       // bash applies multiple redirects but only the last one ends up with the
       // content; earlier targets are created/truncated empty.
@@ -324,9 +544,13 @@ export class ShellEngine implements ShellEngineInterface {
           ? vfs.appendFile(path, content)
           : vfs.writeFile(path, content);
         if (!write.ok) {
+          // The redirect FAILED — pending hash records are discarded: no list
+          // was fed, so nothing may vouch for one.
           return { output: '', exitCode: 1, error: `bash: ${rd.file}: ${write.error}` };
         }
       }
+      // Every redirect landed — commit the stage's hash records now.
+      this.hashesComputed.push(...stagePendingHashes);
       // stdout was redirected; nothing prints, but stderr/exit code remain.
       return { output: '', exitCode: result.exitCode, error: result.error };
     }
@@ -356,7 +580,10 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: this.formatHelp(command), exitCode: 0 };
     }
 
-    const vfs = this.getVfs();
+    // Commands get the INSTRUMENTED vfs so their successful content reads
+    // land in the file-read record (fileRead stateGoals); engine internals
+    // keep using the raw host vfs and are never recorded.
+    const vfs = this.instrumentedVfs();
     const ctx: ExecutionContext = {
       vfs,
       env: { ...this.state.env },
@@ -382,6 +609,22 @@ export class ShellEngine implements ShellEngineInterface {
           ? this.hosts.get(this.sessionStack[this.sessionStack.length - 2].hostId)
           : undefined,
       recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
+      recordFileCopy: (from: string, to: string) =>
+        void this.fileCopies.push({ from, to, host: this.getCurrentHost().id }),
+      recordHashComputed: (path: string, algo: string) => {
+        const record = {
+          path,
+          algo: normalizeHashAlgo(algo),
+          host: this.getCurrentHost().id,
+          // Couples the record to the list it fed: the stage's EFFECTIVE
+          // (last) redirect target.
+          ...(this.stageOutTarget ? { writtenTo: this.stageOutTarget } : {}),
+        };
+        // Redirected stages park the record until the write succeeds.
+        (this.pendingHashRecords ?? this.hashesComputed).push(record);
+      },
+      recordMailboxInspected: (name: string) =>
+        void this.mailboxesInspected.push({ name, host: this.getCurrentHost().id }),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
         this.pendingContinuation = next;
         this.pendingPrompt = { prompt, mask };
@@ -874,7 +1117,10 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
-      if (char === '\\') {
+      // Bash escapes with backslash; PowerShell escapes with backtick — there
+      // a backslash is an ordinary character (the PATH separator: C:\inetpub).
+      // Without this distinction, typed Windows paths lose every backslash.
+      if (char === '\\' && this.state.type !== 'powershell') {
         escape = true;
         continue;
       }
@@ -961,6 +1207,18 @@ export class ShellEngine implements ShellEngineInterface {
             : this.state.exitCode.toString();
           i++;
           continue;
+        }
+        // PowerShell automatic booleans: $true/$false expand to True/False
+        // (case-insensitive). Without this they'd fall through to the generic
+        // $name lookup and vanish to '', so e.g. `-AuditEnabled $true` could not
+        // be distinguished from `$false`.
+        if (this.state.type === 'powershell') {
+          const boolVar = input.slice(i + 1).match(/^(true|false)\b/i);
+          if (boolVar) {
+            result += boolVar[1].toLowerCase() === 'true' ? 'True' : 'False';
+            i += boolVar[0].length;
+            continue;
+          }
         }
         const braced = input.slice(i + 1).match(/^\{(\w+)\}/);
         const plain = input.slice(i + 1).match(/^(\w+)/);
@@ -1270,9 +1528,17 @@ export class ShellEngine implements ShellEngineInterface {
     if (!host) {
       throw new Error(`pushSession: unknown host '${hostId}'`);
     }
-    // An SSH login opens a session AND is recorded (with its auth method) so a
-    // loggedIn stateGoal can assert the player actually logged in.
-    if (method) this.recordLogin(hostId, method);
+    // An SSH login opens a session AND is recorded (with its auth method, the
+    // SOURCE host it was launched from, and whether it was admitted via a
+    // source-scoped firewall rule) so a loggedIn stateGoal can assert the
+    // player actually logged in — via fromHost that they came through the
+    // right door, and via viaScopedRule that the target was ALREADY locked
+    // down at that moment (order-aware proof).
+    if (method) {
+      const source = this.getCurrentHost();
+      const viaScoped = admittedViaScopedRule(host, source.ip);
+      this.recordLogin(hostId, method, source.id, viaScoped);
+    }
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
     // Annotate the open attempt with the auth method that opened this session,
@@ -1280,22 +1546,43 @@ export class ShellEngine implements ShellEngineInterface {
     if (method && this.openAttempt) this.openAttempt.authMethod = method;
   }
 
-  /** Record a successful SSH login; persists across session pop (`exit`). */
-  recordLogin(hostId: string, method: 'publickey' | 'password'): void {
-    this.loginRecords.add(`${hostId}::${method}`);
+  /**
+   * Record a successful SSH login (target, auth method, source host it was
+   * launched from, and whether a source-scoped firewall rule admitted it).
+   * Persists across session pop (`exit`). `fromHostId` defaults to '' for
+   * hand-built calls that don't track a source.
+   */
+  recordLogin(
+    hostId: string,
+    method: 'publickey' | 'password',
+    fromHostId = '',
+    viaScopedRule = false
+  ): void {
+    this.loginRecords.add(JSON.stringify({ host: hostId, method, from: fromHostId, scoped: viaScopedRule }));
   }
 
   /**
-   * Has the player logged into `hostId` (any host when omitted) via `method`
-   * (any method when omitted)? Used by the loggedIn stateGoal evaluator.
+   * Has the player logged into `hostId` (any when omitted) via `method` (any),
+   * from `fromHostId` (any), admitted via a source-scoped rule when
+   * `viaScopedRule` is set? Used by the loggedIn stateGoal evaluator.
    */
-  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password'): boolean {
+  hasLoggedIn(
+    hostId?: string,
+    method?: 'publickey' | 'password',
+    fromHostId?: string,
+    viaScopedRule?: boolean
+  ): boolean {
     for (const rec of this.loginRecords) {
-      const sep = rec.lastIndexOf('::');
-      const h = rec.slice(0, sep);
-      const m = rec.slice(sep + 2);
-      if (hostId !== undefined && h !== hostId) continue;
-      if (method !== undefined && m !== method) continue;
+      let parsed: { host: string; method: string; from: string; scoped?: boolean };
+      try {
+        parsed = JSON.parse(rec);
+      } catch {
+        continue;
+      }
+      if (hostId !== undefined && parsed.host !== hostId) continue;
+      if (method !== undefined && parsed.method !== method) continue;
+      if (fromHostId !== undefined && parsed.from !== fromHostId) continue;
+      if (viaScopedRule !== undefined && !!parsed.scoped !== viaScopedRule) continue;
       return true;
     }
     return false;

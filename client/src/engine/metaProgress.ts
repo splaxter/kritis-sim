@@ -9,16 +9,17 @@
  * (docs/BACKEND_REMOVAL.md); this is a deliberately small localStorage-only
  * replacement, not a revival of that schema.
  */
-import { EndingType, GameModeId } from '@kritis/shared';
+import { GameModeId, CampaignId } from '@kritis/shared';
 
-export const META_VERSION = 1;
+export const META_VERSION = 2;
 const META_KEY = 'kritis_meta';
 
 export interface MetaProgress {
   version: number;
   runsCompleted: number;
-  /** Distinct story endings the player has reached. */
-  endingsSeen: EndingType[];
+  /** Distinct story endings reached, PER campaign (a probation ending never
+   *  counts toward AUDIT TRAIL's set and vice versa). */
+  endingsSeenByCampaign: Partial<Record<CampaignId, string[]>>;
   /** Best ending/run score per mode (story score, or 0 for modes without one). */
   bestScoreByMode: Partial<Record<GameModeId, number>>;
   lastRunAt: string; // ISO timestamp
@@ -36,7 +37,7 @@ function emptyMeta(): MetaProgress {
   return {
     version: META_VERSION,
     runsCompleted: 0,
-    endingsSeen: [],
+    endingsSeenByCampaign: {},
     bestScoreByMode: {},
     lastRunAt: new Date(0).toISOString(),
     countedSeeds: [],
@@ -50,24 +51,41 @@ export function readMeta(
   try {
     const raw = storage.getItem(storageKey(playerId));
     if (!raw) return emptyMeta();
-    const parsed = JSON.parse(raw) as Partial<MetaProgress> | null;
-    if (
-      !parsed ||
-      typeof parsed !== 'object' ||
-      parsed.version !== META_VERSION ||
-      typeof parsed.runsCompleted !== 'number'
-    ) {
+    const parsed = JSON.parse(raw) as (Partial<MetaProgress> & { endingsSeen?: string[] }) | null;
+    if (!parsed || typeof parsed !== 'object' || typeof parsed.runsCompleted !== 'number') {
       storage.removeItem(storageKey(playerId));
       return emptyMeta();
     }
+    // Migrate the v1 flat `endingsSeen` under 'probation' (fill, not discard) —
+    // pre-campaign progress belonged to the only campaign that then existed.
+    let endingsSeenByCampaign: Partial<Record<CampaignId, string[]>>;
+    if (parsed.version === 1 && Array.isArray(parsed.endingsSeen)) {
+      endingsSeenByCampaign = { probation: parsed.endingsSeen };
+    } else if (parsed.version === META_VERSION && parsed.endingsSeenByCampaign && typeof parsed.endingsSeenByCampaign === 'object') {
+      endingsSeenByCampaign = parsed.endingsSeenByCampaign;
+    } else if (parsed.version === 1) {
+      endingsSeenByCampaign = {}; // v1 with no endings list
+    } else {
+      // Unknown/newer/corrupt schema — discard rather than guess.
+      storage.removeItem(storageKey(playerId));
+      return emptyMeta();
+    }
+    // countedSeeds is now keyed 'campaignId::seed'. A v1 blob stored bare seeds,
+    // which all belonged to probation — migrate them to 'probation::seed' so an
+    // already-counted run is NOT re-counted after the upgrade.
+    const rawSeeds = Array.isArray(parsed.countedSeeds) ? parsed.countedSeeds : [];
+    const countedSeeds = parsed.version === 1
+      ? rawSeeds.map((seed) => (seed.includes('::') ? seed : `probation::${seed}`))
+      : rawSeeds;
+
     // Fill any gaps defensively — an older/partial blob shouldn't crash callers.
     return {
       version: META_VERSION,
       runsCompleted: parsed.runsCompleted,
-      endingsSeen: Array.isArray(parsed.endingsSeen) ? parsed.endingsSeen : [],
+      endingsSeenByCampaign,
       bestScoreByMode: parsed.bestScoreByMode ?? {},
       lastRunAt: typeof parsed.lastRunAt === 'string' ? parsed.lastRunAt : new Date(0).toISOString(),
-      countedSeeds: Array.isArray(parsed.countedSeeds) ? parsed.countedSeeds : [],
+      countedSeeds,
     };
   } catch {
     return emptyMeta();
@@ -78,8 +96,10 @@ export interface RunRecord {
   mode: GameModeId;
   /** Unique per run — used to dedupe repeat calls on the same finished run. */
   seed: string;
-  /** Story endings only. */
-  ending?: EndingType;
+  /** Campaign this run belonged to (story runs); endings are tracked per campaign. */
+  campaignId: CampaignId;
+  /** Story ending id (campaign-specific string), only for completed story runs. */
+  ending?: string;
   /** Numeric score if the mode produced one (story ending score). */
   score?: number;
 }
@@ -95,13 +115,19 @@ export function recordRun(
   storage: StorageLike = localStorage
 ): MetaProgress {
   const meta = readMeta(playerId, storage);
-  if (meta.countedSeeds.includes(run.seed)) {
+  // Dedupe on (campaignId, seed): the same seed replayed in a DIFFERENT campaign
+  // is a distinct run and must not be suppressed by the first campaign's record.
+  const dedupeKey = `${run.campaignId}::${run.seed}`;
+  if (meta.countedSeeds.includes(dedupeKey)) {
     return meta; // already counted this run
   }
 
-  const endingsSeen = [...meta.endingsSeen];
-  if (run.ending && !endingsSeen.includes(run.ending)) {
-    endingsSeen.push(run.ending);
+  const endingsSeenByCampaign = { ...meta.endingsSeenByCampaign };
+  if (run.ending) {
+    const seen = endingsSeenByCampaign[run.campaignId] ?? [];
+    if (!seen.includes(run.ending)) {
+      endingsSeenByCampaign[run.campaignId] = [...seen, run.ending];
+    }
   }
 
   const bestScoreByMode = { ...meta.bestScoreByMode };
@@ -110,13 +136,13 @@ export function recordRun(
     if (run.score > prev) bestScoreByMode[run.mode] = run.score;
   }
 
-  // Keep the seed list bounded; the tail is enough to dedupe recent runs.
-  const countedSeeds = [...meta.countedSeeds, run.seed].slice(-200);
+  // Keep the (campaignId::seed) list bounded; the tail dedupes recent runs.
+  const countedSeeds = [...meta.countedSeeds, dedupeKey].slice(-200);
 
   const updated: MetaProgress = {
     version: META_VERSION,
     runsCompleted: meta.runsCompleted + 1,
-    endingsSeen,
+    endingsSeenByCampaign,
     bestScoreByMode,
     lastRunAt: new Date().toISOString(),
     countedSeeds,
@@ -129,5 +155,3 @@ export function recordRun(
   }
   return updated;
 }
-
-export const TOTAL_STORY_ENDINGS = 3;

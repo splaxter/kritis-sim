@@ -4,7 +4,7 @@
  */
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
-  TerminalServiceSpec, TerminalFirewallSpec, NetListener, NetConnection,
+  TerminalServiceSpec, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
@@ -34,6 +34,15 @@ export interface FirewallState {
   rules: UfwRule[];
 }
 
+/** An Exchange mailbox as far as the game models it: an identity plus its audit
+ *  flag. Mutated by Set-Mailbox, read by Get-Mailbox and the `mailbox` stateGoal. */
+export interface MailboxState {
+  name: string;
+  displayName?: string;
+  auditEnabled: boolean;
+  auditLogAgeLimit?: string;
+}
+
 export interface HostState {
   id: string;
   hostname: string;
@@ -43,6 +52,8 @@ export interface HostState {
   journal: TerminalJournalEntry[];
   firewall: FirewallState;
   accounts: { name: string; password?: string }[];
+  /** Exchange mailboxes on this host (empty unless a level seeds them). */
+  mailboxes: MailboxState[];
   /** Listening sockets shown by `ss`/`netstat`; `kill <pid>` removes matches. */
   listeners: NetListener[];
   /** Established connections shown by `ss -tp`/`netstat`. */
@@ -73,6 +84,15 @@ export const DEFAULT_CONNECTIONS: NetConnection[] = [
 // says otherwise, so ownership defaults to 'root' when a socket is materialised.
 const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ user: 'root', ...l }));
 const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ user: 'root', ...c }));
+
+/** Materialise a seeded mailbox; auditEnabled defaults to false (the realistic
+ *  on-prem Exchange 2019 default a level is usually asked to fix). */
+const seedMailbox = (m: TerminalMailboxSpec): MailboxState => ({
+  name: m.name,
+  displayName: m.displayName,
+  auditEnabled: m.auditEnabled ?? false,
+  auditLogAgeLimit: m.auditLogAgeLimit ?? '90.00:00:00',
+});
 
 /** Same defaults the static systemctl table has — kept consistent with `ps`. */
 export const DEFAULT_UNITS: SystemdUnitState[] = [
@@ -185,9 +205,11 @@ export function seedPrimaryHost(
     firewall?: TerminalFirewallSpec;
     listeners?: NetListener[];
     connections?: NetConnection[];
+    mailboxes?: TerminalMailboxSpec[];
   },
 ): void {
   if (spec.services) applyServiceSpecs(host.vfs, host.services, spec.services);
+  if (spec.mailboxes) host.mailboxes = spec.mailboxes.map(seedMailbox);
   for (const entry of spec.journal ?? []) host.journal.push({ ...entry });
   if (spec.firewall) {
     host.firewall = {
@@ -238,6 +260,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
     listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
     connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
+    mailboxes: (spec.mailboxes ?? []).map(seedMailbox),
   });
 }
 
@@ -259,10 +282,14 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
   });
 }
 
-function buildHostState(base: Omit<HostState, 'sshdEffective' | 'refreshSshdEffective' | 'appendJournal'>): HostState {
+function buildHostState(
+  base: Omit<HostState, 'sshdEffective' | 'refreshSshdEffective' | 'appendJournal' | 'mailboxes'>
+    & { mailboxes?: MailboxState[] },
+): HostState {
   const { vfs } = base;
   const host: HostState = {
     ...base,
+    mailboxes: base.mailboxes ?? [],
     sshdEffective: { permitRootLogin: true, passwordAuthentication: true },
     refreshSshdEffective() {
       const read = vfs.readFile('/etc/ssh/sshd_config');

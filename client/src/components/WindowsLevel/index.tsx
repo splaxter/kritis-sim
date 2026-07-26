@@ -136,6 +136,8 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             shareName={context.state.explorer?.shareName ?? 'Freigabe'}
             sharePath={context.state.explorer?.sharePath ?? ''}
             entries={context.state.explorer?.entries ?? []}
+            items={context.state.explorer?.items}
+            mode={context.state.explorer?.mode}
             emit={emit}
             locked={solved}
           />

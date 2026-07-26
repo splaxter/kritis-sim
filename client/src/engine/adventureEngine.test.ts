@@ -15,8 +15,9 @@ import {
   getStoryProgress,
   getNextStoryContent,
   pickSidequestToStart,
+  shouldPlayBeat,
 } from './adventureEngine';
-import { GameEvent, GameState, SidequestDefinition, createInitialAdventureState, determineEnding } from '@kritis/shared';
+import { GameEvent, GameState, SidequestDefinition, StoryBeat, createInitialAdventureState, determineEnding } from '@kritis/shared';
 
 function createTestState(overrides: Partial<GameState> = {}): GameState {
   return {
@@ -258,6 +259,31 @@ describe('Story Progression', () => {
     expect(progress.chaptersCompleted).toBe(2);
     expect(progress.totalChapters).toBe(12);
     expect(progress.percentComplete).toBe(17); // 2/12 * 100 rounded
+  });
+});
+
+describe('shouldPlayBeat — FlagCondition branching', () => {
+  const beat = (branchCondition: StoryBeat['branchCondition']): StoryBeat => ({
+    id: 'b',
+    eventId: 'e',
+    isOptional: false,
+    branchCondition,
+  });
+
+  it('plays unconditionally when no branchCondition', () => {
+    expect(shouldPlayBeat(beat(undefined), createTestState({ flags: {} }))).toBe(true);
+  });
+
+  it('string form stays backward compatible (single flag)', () => {
+    expect(shouldPlayBeat(beat('chose_official_route'), createTestState({ flags: { chose_official_route: true } }))).toBe(true);
+    expect(shouldPlayBeat(beat('chose_official_route'), createTestState({ flags: {} }))).toBe(false);
+  });
+
+  it('composite all/none form gates on multiple flags', () => {
+    const cond = { all: ['finding_reported', 'evidence_hashed'], none: ['mailbox_scope_exceeded'] };
+    expect(shouldPlayBeat(beat(cond), createTestState({ flags: { finding_reported: true, evidence_hashed: true } }))).toBe(true);
+    expect(shouldPlayBeat(beat(cond), createTestState({ flags: { finding_reported: true, evidence_hashed: true, mailbox_scope_exceeded: true } }))).toBe(false);
+    expect(shouldPlayBeat(beat(cond), createTestState({ flags: { finding_reported: true } }))).toBe(false);
   });
 });
 

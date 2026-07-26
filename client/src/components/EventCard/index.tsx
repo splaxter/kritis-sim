@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GameEvent, EventChoice, GameState } from '@kritis/shared';
 import { getVisibleChoices } from '../../engine/eventEngine';
+import { EmailMockup } from '../TerminalUI';
 import { useStoryBackground } from '../../contexts/StoryBackgroundContext';
 import { useTypewriter } from '../../hooks/useTypewriter';
 import { soundEngine } from '../../audio/soundEngine';
@@ -215,6 +216,22 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
     });
   };
 
+  // Mail-compose header: shows the draft (from/to/cc/subject/body) above the
+  // send-variant choices. Presentational only — the chosen variant's effects
+  // still come from its setsFlags.
+  const mailCompose = event.mailCompose;
+  const mailComposeBlock = mailCompose ? (
+    <div className="mb-3" data-testid="mail-compose">
+      <EmailMockup
+        from={mailCompose.from}
+        to={mailCompose.to}
+        cc={mailCompose.cc}
+        subject={mailCompose.subject}
+        body={mailCompose.body ?? ''}
+      />
+    </div>
+  ) : null;
+
   const cardKindBanner = (className: string) => {
     if (isChainResult) {
       return <div className={className}>⟳ Folge deiner Entscheidung</div>;
@@ -262,6 +279,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
                 typewriter.done ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
+              {mailComposeBlock}
               {cardKindBanner('text-terminal-info/80 text-xs uppercase tracking-widest mb-1')}
               {renderActions('story')}
             </div>
@@ -289,6 +307,8 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       <div className="min-w-0 max-w-full overflow-x-auto whitespace-pre-wrap mb-6 text-terminal-green-dim leading-relaxed">
         {formatNarrativeText(event.description, characters)}
       </div>
+
+      {mailComposeBlock}
 
       {cardKindBanner('text-terminal-info text-xs uppercase tracking-widest mb-2')}
 

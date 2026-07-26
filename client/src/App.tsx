@@ -8,14 +8,11 @@ import { getAllScenarios } from './content/packs';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { GameModeId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
-import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, calculateAdventureEnding, getEndingStats } from './engine/adventureEngine';
+import { GameModeId, CampaignId, getGameModeConfig, GameEvent, Scenario } from '@kritis/shared';
+import { getNextStoryContent, isAtAuthoredStoryEnd, getLastCompletedAct, isAdventureModeComplete, getEndingStats } from './engine/adventureEngine';
 import { getActBreakBody } from './content/adventure/actBreaks';
 import { EndingScreen } from './components/EndingScreen';
-import { ADVENTURE_ENDINGS } from './content/adventure/endings';
-import { adventureSidequests } from './content/adventure/sidequests';
-import { adventureStoryEvents } from './content/adventure/story-events';
-import { adventureSidequestEvents } from './content/adventure/sidequest-events';
+import { getCampaign, getRunLabel } from './content/campaigns';
 import { IntroScreen } from './components/IntroScreen';
 // Statically imported (not lazy): IntroScreen already pulls LegalPages into the
 // eager bundle, so a dynamic import here only produces a Vite "both statically
@@ -31,7 +28,7 @@ import { getTrackOfLevel, getNextInTrack, isFinaleUnlocked } from './engine/lear
 import { useAutosave } from './hooks/useAutosave';
 import { readAutosave, AutosaveEnvelope } from './engine/autosave';
 import { buildRunSummary } from './engine/runSummary';
-import { readMeta, recordRun, MetaProgress, TOTAL_STORY_ENDINGS } from './engine/metaProgress';
+import { readMeta, recordRun, MetaProgress } from './engine/metaProgress';
 import { RunSummaryScreen } from './components/RunSummaryScreen';
 import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNamed } from './engine/telemetry';
 
@@ -39,6 +36,7 @@ import { trackRunStarted, trackRunCompleted, trackLessonCompleted, trackPlayerNa
 const SaveLoadModal = lazy(() => import('./components/SaveLoadModal').then(m => ({ default: m.SaveLoadModal })));
 const GameModeSelectModal = lazy(() => import('./components/GameModeSelectModal').then(m => ({ default: m.GameModeSelectModal })));
 const NewGameSelectModal = lazy(() => import('./components/NewGameSelectModal').then(m => ({ default: m.NewGameSelectModal })));
+const CampaignSelectModal = lazy(() => import('./components/CampaignSelectModal').then(m => ({ default: m.CampaignSelectModal })));
 // ⚠️ DEV-ONLY preview harness — NOT for production. Lets us eyeball GUI levels at
 // ?preview=<id> without fighting RNG/game-state. The import() lives inside the
 // import.meta.env.DEV ternary so the chunk is fully eliminated from prod builds.
@@ -142,26 +140,32 @@ function AppContent() {
     show: false,
     mode: 'save',
   });
-  const [newGamePicker, setNewGamePicker] = useState<'experience' | 'simulation' | null>(null);
+  // Story entry is two steps: experience → campaign. 'simulation' is the
+  // mode picker for the non-story experience.
+  const [newGamePicker, setNewGamePicker] = useState<'experience' | 'simulation' | 'campaign' | null>(null);
   const [menuIndex, setMenuIndex] = useState(0);
   const [legalPage, setLegalPage] = useState<'impressum' | 'datenschutz' | null>(null);
   const { loadGame } = useSaveLoad();
-  const [characters] = useState({
-    chef: 'Bert',
-    gf: 'Dr. Müller',
-    kaemmerer: 'Herr Schmidt',
-    athos: 'Frau Weber',
-    kollege: 'Bjorg',
-  });
-  // Narrative token map handed to EventCard/ResultScreen: character roles plus the
-  // {player} token backed by the stored display name (never touches account/ssh/vfs).
-  const tokenMap = useMemo(() => ({ ...characters, player: displayName }), [characters, displayName]);
-  const { setStoryMode } = useStoryBackground();
+  // Narrative token map handed to EventCard/ResultScreen: relationship-key →
+  // display name from the run's campaign (probation's names outside story mode),
+  // plus the {player} token backed by the stored display name (never touches
+  // account/ssh/vfs).
+  const campaignTokens = (game.state.storyState
+    ? getCampaign(game.state.storyState.campaignId)
+    : getCampaign('probation')).characterTokens;
+  const tokenMap = useMemo(() => ({ ...campaignTokens, player: displayName }), [campaignTokens, displayName]);
+  const { setStoryMode, setCampaignArt } = useStoryBackground();
 
-  // Sync story mode state with context
+  // Sync story mode state with context, and configure the run's campaign art:
+  // a text-only campaign (no defaultBackgroundImage) passes null so no other
+  // campaign's artwork can leak in.
   useEffect(() => {
     setStoryMode(game.state.isStoryMode);
-  }, [game.state.isStoryMode, setStoryMode]);
+    const artDefault = game.state.storyState
+      ? getCampaign(game.state.storyState.campaignId).defaultBackgroundImage ?? null
+      : null;
+    setCampaignArt(artDefault);
+  }, [game.state.isStoryMode, game.state.storyState?.campaignId, setStoryMode, setCampaignArt]);
 
   // Get all available scenarios
   const allScenarios = useMemo(() => getAllScenarios(), []);
@@ -178,16 +182,26 @@ function AppContent() {
     if (game.phase !== 'gameover' && game.phase !== 'storyEnding') return;
     const s = game.state;
     const storyComplete = s.isStoryMode && isAdventureModeComplete(s);
-    const ending = storyComplete ? calculateAdventureEnding(s) : undefined;
-    const stats = storyComplete ? getEndingStats(s) : undefined;
+    // Ending derivation is campaign-owned (mandatory deriveEnding, no fallback);
+    // the id is a campaign-specific string, tracked per campaign in meta/telemetry.
+    const campaignId = s.storyState?.campaignId ?? 'probation';
+    const campaign = getCampaign(campaignId);
+    const ending = storyComplete && s.storyState
+      ? campaign.deriveEnding(s)
+      : undefined;
+    const stats = storyComplete && campaign.usesScoreStats ? getEndingStats(s) : undefined;
     const score = stats?.score;
-    setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, ending, score }));
+    setMeta(recordRun(playerId, { mode: s.gameMode, seed: s.seed, campaignId, ending, score }));
 
-    if (sentCompletedSeed.current !== s.seed) {
-      sentCompletedSeed.current = s.seed;
+    // Dedupe telemetry on (campaignId, seed) — the same seed in another campaign
+    // is a distinct run and must still be sent.
+    const completedKey = `${campaignId}::${s.seed}`;
+    if (sentCompletedSeed.current !== completedKey) {
+      sentCompletedSeed.current = completedKey;
       const summary = buildRunSummary(s, game.gameOverReason);
       trackRunCompleted(playerId, s.seed, {
         mode: s.gameMode,
+        campaignId: s.isStoryMode ? campaignId : undefined,
         outcome: summary.outcome,
         weekReached: summary.weekReached,
         totalWeeks: summary.totalWeeks,
@@ -258,7 +272,10 @@ function AppContent() {
     if (game.phase === 'playing' && !game.currentEvent && !game.currentScenario) {
       // Adventure mode: use story-driven content selection
       if (game.state.isStoryMode && game.state.storyState) {
-        const combinedEvents = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
+        // Story events come from the run's campaign, not a hard import, so a
+        // second campaign's beats resolve through getNextStoryContent.
+        const campaign = getCampaign(game.state.storyState.campaignId);
+        const combinedEvents = [...allEvents, ...campaign.storyEvents, ...campaign.sidequestEvents];
 
         // Campaign fully played → real ending screen. Must run BEFORE the
         // act-break check: after ch12 the engine would otherwise re-serve beat 0
@@ -379,6 +396,13 @@ function AppContent() {
   const handleModeSelect = useCallback((mode: GameModeId) => {
     setNewGamePicker(null);
     game.startNewGame(undefined, mode);
+  }, [game]);
+
+  // Story runs are started by campaign: same 'story' mode, campaign-specific
+  // content/chapters/relationships (createInitialState seeds from the campaign).
+  const handleCampaignSelect = useCallback((campaignId: CampaignId) => {
+    setNewGamePicker(null);
+    game.startNewGame(undefined, 'story', campaignId);
   }, [game]);
 
   // Main menu keyboard navigation ('continue' only when an autosave exists)
@@ -518,14 +542,17 @@ function AppContent() {
 
   if (game.phase === 'menu') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="border border-terminal-border p-8 text-center max-w-lg">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        {/* w-full + max-w-lg: the fixed 32rem card overflowed phones sideways. */}
+        <div className="border border-terminal-border p-6 sm:p-8 text-center w-full max-w-lg">
           <h1 className="text-3xl mb-2">KRITIS ADMIN SIMULATOR</h1>
-          <div className="text-terminal-green-dim mb-6">v1.0 - Probezeit Edition</div>
+          {/* Shell copy is campaign-neutral: this entry leads to the free
+              simulation, the learning area AND several story campaigns. */}
+          <div className="text-terminal-green-dim mb-6">v1.0 - Kommunale Edition</div>
 
           <div className="text-left mb-6 text-terminal-green-dim text-sm">
             <p className="mb-2">Du bist der neue Sysadmin bei einer kommunalen Abfallwirtschaft.</p>
-            <p className="mb-2">12 Wochen Probezeit. Drucker reparieren. Server retten. Überleben.</p>
+            <p className="mb-2">Drucker reparieren. Server retten. Prüfungen bestehen. Überleben.</p>
             <p>Deine IT-Skills entscheiden, ob du bleibst oder fliegst.</p>
           </div>
 
@@ -542,7 +569,10 @@ function AppContent() {
               {menuIndex === menuItems.indexOf('continue') ? '> ' : '  '}[ WEITER SPIELEN ]
               <div className="text-xs text-terminal-green-dim mt-1">
                 Woche {resumeSave.gameState.currentWeek}, Tag {resumeSave.gameState.currentDay}
-                {' — '}{getGameModeConfig(resumeSave.gameState.gameMode).name}
+                {' — '}{getRunLabel(
+                  resumeSave.gameState.gameMode,
+                  resumeSave.gameState.storyState?.campaignId
+                ).name}
               </div>
             </button>
           )}
@@ -592,7 +622,7 @@ function AppContent() {
 
           {meta.runsCompleted > 0 && (
             <div className="text-terminal-green-muted text-xs mt-3">
-              Durchläufe: {meta.runsCompleted} · Story-Enden: {meta.endingsSeen.length}/{TOTAL_STORY_ENDINGS}
+              Durchläufe: {meta.runsCompleted} · Story-Enden: {(meta.endingsSeenByCampaign.probation?.length ?? 0)}/{Object.keys(getCampaign('probation').endingTexts).length}
             </div>
           )}
 
@@ -602,7 +632,8 @@ function AppContent() {
                 Wie heißt du?{' '}
                 <span className="text-terminal-green-muted">(optional — für persönliche Ansprache und Team-Statistik)</span>
               </div>
-              <div className="flex gap-2">
+              {/* flex-wrap: input + two buttons don't fit one phone line. */}
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="text"
                   value={nameInput}
@@ -616,7 +647,7 @@ function AppContent() {
                   maxLength={40}
                   placeholder="Dein Name"
                   aria-label="Dein Name"
-                  className="flex-1 bg-terminal-bg-dark border border-terminal-border px-2 py-1 text-terminal-green outline-none focus:border-terminal-green"
+                  className="min-w-0 flex-1 bg-terminal-bg-dark border border-terminal-border px-2 py-1 text-terminal-green outline-none focus:border-terminal-green"
                 />
                 <button
                   onClick={saveName}
@@ -667,13 +698,19 @@ function AppContent() {
           {newGamePicker === 'experience' && (
             <NewGameSelectModal
               onSelectSimulation={() => setNewGamePicker('simulation')}
-              onSelectStory={() => handleModeSelect('story')}
+              onSelectStory={() => setNewGamePicker('campaign')}
               onClose={() => setNewGamePicker(null)}
             />
           )}
           {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
+              onClose={() => setNewGamePicker('experience')}
+            />
+          )}
+          {newGamePicker === 'campaign' && (
+            <CampaignSelectModal
+              onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />
           )}
@@ -701,7 +738,7 @@ function AppContent() {
         {newGamePicker === 'experience' && (
           <NewGameSelectModal
             onSelectSimulation={() => setNewGamePicker('simulation')}
-            onSelectStory={() => handleModeSelect('story')}
+            onSelectStory={() => setNewGamePicker('campaign')}
             onClose={() => setNewGamePicker(null)}
           />
         )}
@@ -711,21 +748,38 @@ function AppContent() {
             onClose={() => setNewGamePicker('experience')}
           />
         )}
+        {newGamePicker === 'campaign' && (
+          <CampaignSelectModal
+            onSelect={handleCampaignSelect}
+            onClose={() => setNewGamePicker('experience')}
+          />
+        )}
       </Suspense>
     );
 
     // Campaign fully completed → real stats-driven ending screen.
     if (isAdventureModeComplete(game.state)) {
-      const ending = calculateAdventureEnding(game.state);
+      const campaign = getCampaign(game.state.storyState!.campaignId);
+      const endingId = campaign.deriveEnding(game.state);
       const completedSq = game.state.storyState?.completedSidequests ?? [];
-      const storyPath = getEndingStats(game.state).storyPath;
+      // Score-based "Bilanz" only for campaigns that use it (probation); never
+      // pass probation-policy stats for AUDIT TRAIL.
+      const stats = campaign.usesScoreStats ? getEndingStats(game.state) : undefined;
+      const storyPath = stats?.storyPath;
+      // Ending text comes from the campaign; the epilogue is the campaign's
+      // modular one when it declares buildEpilogue (AUDIT TRAIL), else the static
+      // text (probation).
+      const baseText = campaign.endingTexts[endingId];
+      const endingText = campaign.buildEpilogue
+        ? { ...baseText, epilogue: campaign.buildEpilogue(game.state) }
+        : baseText;
       const replay = {
-        endingsSeen: meta.endingsSeen.length,
-        totalEndings: TOTAL_STORY_ENDINGS,
-        otherEndingTitles: (Object.keys(ADVENTURE_ENDINGS) as (keyof typeof ADVENTURE_ENDINGS)[])
-          .filter((k) => k !== ending)
-          .map((k) => ADVENTURE_ENDINGS[k].title),
-        missedSidequests: adventureSidequests
+        endingsSeen: meta.endingsSeenByCampaign[campaign.id]?.length ?? 0,
+        totalEndings: Object.keys(campaign.endingTexts).length,
+        otherEndingTitles: Object.entries(campaign.endingTexts)
+          .filter(([k]) => k !== endingId)
+          .map(([, v]) => v.title),
+        missedSidequests: campaign.sidequests
           .filter((sq) => !completedSq.includes(sq.id))
           .map((sq) => sq.title),
         untakenForkHint:
@@ -738,8 +792,9 @@ function AppContent() {
       return (
         <>
           <EndingScreen
-            ending={ending}
-            stats={getEndingStats(game.state)}
+            headline={campaign.endingHeadline}
+            text={endingText}
+            stats={stats}
             onBackToMenu={() => setNewGamePicker('experience')}
             replay={replay}
           />
@@ -750,7 +805,8 @@ function AppContent() {
 
     // Otherwise: an unauthored future chapter → act-break "Fortsetzung folgt".
     const completedAct = getLastCompletedAct(game.state);
-    const body = getActBreakBody(completedAct);
+    const campaign = getCampaign(game.state.storyState!.campaignId);
+    const body = campaign.actBreaks[completedAct] ?? getActBreakBody(completedAct);
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="border border-terminal-green/50 p-8 max-w-2xl w-full">
@@ -788,7 +844,8 @@ function AppContent() {
   }
 
   if (game.phase === 'gameover') {
-    const modeConfig = getGameModeConfig(game.state.gameMode);
+    // Story runs are titled by their campaign, not by the shared 'story' mode.
+    const runLabel = getRunLabel(game.state.gameMode, game.state.storyState?.campaignId);
     const summary = buildRunSummary(game.state, game.gameOverReason);
     // On a defeat, nudge toward the low-pressure learning mode.
     const learningTip = !summary.survived && game.state.gameMode !== 'learning';
@@ -797,8 +854,8 @@ function AppContent() {
       <>
         <RunSummaryScreen
           summary={summary}
-          modeName={modeConfig.name}
-          modeIcon={modeConfig.icon}
+          modeName={runLabel.name}
+          modeIcon={runLabel.icon}
           meta={meta}
           learningTip={learningTip}
           onRetry={() => setNewGamePicker('experience')}
@@ -813,13 +870,19 @@ function AppContent() {
           {newGamePicker === 'experience' && (
             <NewGameSelectModal
               onSelectSimulation={() => setNewGamePicker('simulation')}
-              onSelectStory={() => handleModeSelect('story')}
+              onSelectStory={() => setNewGamePicker('campaign')}
               onClose={() => setNewGamePicker(null)}
             />
           )}
           {newGamePicker === 'simulation' && (
             <GameModeSelectModal
               onSelect={handleModeSelect}
+              onClose={() => setNewGamePicker('experience')}
+            />
+          )}
+          {newGamePicker === 'campaign' && (
+            <CampaignSelectModal
+              onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />
           )}
@@ -921,8 +984,11 @@ function AppContent() {
           }
         }}
         onContinue={game.continueGame}
-        onTerminalSolved={(skillGain, setsFlags) => game.closeTerminal(true, skillGain, setsFlags)}
+        onTerminalSolved={(skillGain, setsFlags, solutionEffects) =>
+          game.closeTerminal(true, skillGain, setsFlags, solutionEffects)
+        }
         onTerminalCancel={() => game.closeTerminal(false)}
+        onTerminalFlagsSet={game.setRunFlags}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
         onLoad={() => setSaveLoadModal({ show: true, mode: 'load' })}
         backAction={backAction}

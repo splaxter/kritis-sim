@@ -170,7 +170,13 @@ export function aggregate(events: StoredEvent[], now: string): StatsAggregate {
       }
       case 'run_completed': {
         const mode = typeof pl.mode === 'string' ? pl.mode : 'unknown';
-        const key = `${id}|${e.seed ?? ''}|${mode}`;
+        // Include the campaign so the SAME seed completed in two campaigns counts
+        // as two runs (and both endings are kept). Old story telemetry without a
+        // campaignId falls back to 'probation'.
+        const campaign = typeof pl.campaignId === 'string' && pl.campaignId
+          ? pl.campaignId
+          : (mode === 'story' ? 'probation' : '');
+        const key = `${id}|${e.seed ?? ''}|${mode}|${campaign}`;
         if (e.seed && seenComplete.has(key)) break;
         if (e.seed) seenComplete.add(key);
         p.runsCompleted++;

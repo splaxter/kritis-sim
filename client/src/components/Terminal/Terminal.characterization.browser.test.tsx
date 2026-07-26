@@ -27,7 +27,7 @@ function bareContext(overrides: Partial<TerminalContext> = {}): TerminalContext 
 
 function setup(context: TerminalContext, gameMode?: GameModeId) {
   const onSolved = vi.fn();
-  render(<Terminal context={context} onSolved={onSolved} onCancel={() => {}} gameMode={gameMode} />);
+  render(<Terminal context={context} onSolved={onSolved} onCancel={() => {}} onFlagsSet={() => {}} gameMode={gameMode} />);
   const term = latestTerm();
   expect(term).toBeDefined();
   return { term, onSolved };

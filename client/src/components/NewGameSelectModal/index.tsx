@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AsciiFrame } from '../TerminalUI';
+import { listCampaigns } from '../../content/campaigns';
+
+// The story option leads to the campaign picker, so it names no single
+// campaign — and the count follows the registry instead of going stale.
+const CAMPAIGN_COUNT = listCampaigns().length;
 
 interface NewGameSelectModalProps {
   onSelectSimulation: () => void;
@@ -7,7 +12,18 @@ interface NewGameSelectModalProps {
   onClose: () => void;
 }
 
-const EXPERIENCES = [
+interface ExperienceCard {
+  id: string;
+  index: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  meta: string;
+  badge?: string;
+  badgeClass?: string;
+}
+
+const EXPERIENCES: ExperienceCard[] = [
   {
     id: 'simulation',
     index: '01',
@@ -23,14 +39,15 @@ const EXPERIENCES = [
     id: 'story',
     index: '02',
     eyebrow: 'STORY-KAMPAGNE',
-    title: 'Story: Die Probezeit',
+    title: 'Story-Kampagne',
     description:
-      'Ein zusammenhängender IT-Krimi in 12 Kapiteln mit Beziehungen und mehreren Enden — vorwiegend Text & Entscheidungen, wenig Hands-on.',
-    meta: '12 Kapitel · 3 Enden · Casual',
-    badge: 'CASUAL',
-    badgeClass: 'border-terminal-green-muted text-terminal-green-muted',
+      'Zusammenhängende IT-Krimis mit Kapiteln, Beziehungen und mehreren Enden. Welche Kampagne du spielst, wählst du im nächsten Schritt.',
+    meta: `${CAMPAIGN_COUNT} Kampagnen · mehrere Enden`,
+    // No badge: the campaigns differ in difficulty (Probezeit casual, AUDIT
+    // TRAIL hands-on), so one label here would misdescribe the other. Each
+    // campaign carries its own badge in the campaign picker.
   },
-] as const;
+];
 
 export function NewGameSelectModal({
   onSelectSimulation,
@@ -48,6 +65,11 @@ export function NewGameSelectModal({
     if (moveFocus) optionRefs.current[index]?.focus();
   };
 
+  // onClose is created inline by the parent; re-running this effect on a parent
+  // re-render would reset focus and selection to the first card mid-interaction.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -56,7 +78,7 @@ export function NewGameSelectModal({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
         const next = selectedIndexRef.current === 0 ? 1 : 0;
@@ -80,7 +102,7 @@ export function NewGameSelectModal({
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
@@ -88,9 +110,11 @@ export function NewGameSelectModal({
       role="dialog"
       aria-modal="true"
       aria-label="Einsatzart wählen"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain"
+      className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain bg-black/85 p-4"
     >
-      <div className="w-full max-w-2xl">
+      {/* m-auto (not items-center): auto margins collapse to 0 once the card is
+          taller than the viewport, so the top stays scroll-reachable on phones. */}
+      <div className="m-auto w-full min-w-0 max-w-2xl">
         <AsciiFrame title="NEUES SPIEL · EINSATZART" variant="info">
           <div className="space-y-3 p-4">
             <div className="flex items-center justify-between border-b border-terminal-border pb-3 text-xs tracking-[0.18em] text-terminal-green-dim">
@@ -128,7 +152,7 @@ export function NewGameSelectModal({
                           {selected ? '> ' : ''}{experience.title}
                         </h2>
                         {experience.badge && (
-                          <span className={`shrink-0 border px-1.5 py-0.5 text-[0.6rem] tracking-wider ${experience.badgeClass}`}>
+                          <span className={`shrink-0 border px-1.5 py-0.5 text-[0.6rem] tracking-wider ${experience.badgeClass ?? ''}`}>
                             {experience.badge}
                           </span>
                         )}
@@ -145,12 +169,15 @@ export function NewGameSelectModal({
               })}
             </div>
 
-            <div className="flex justify-between border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
+            {/* flex-wrap + gap: on a phone the hint text and the [ESC] control
+                don't fit on one line — without wrapping the button is pushed
+                past the right edge and scrolls the page sideways. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
               <span>[↑↓] Auswahl · [Enter] Bestätigen</span>
               <button
                 type="button"
                 onClick={onClose}
-                className="border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
+                className="shrink-0 border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
               >
                 [ESC] Zurück
               </button>

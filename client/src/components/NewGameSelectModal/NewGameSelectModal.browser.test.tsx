@@ -14,7 +14,7 @@ describe('NewGameSelectModal', () => {
     );
 
     const simulation = screen.getByRole('button', { name: /Freie Simulation/ });
-    const story = screen.getByRole('button', { name: /Story: Die Probezeit/ });
+    const story = screen.getByRole('button', { name: /Story-Kampagne/ });
     expect(screen.getByRole('dialog', { name: 'Einsatzart wählen' })).toHaveAttribute('aria-modal', 'true');
     expect(simulation).toHaveTextContent('EMPFOHLEN');
     expect(simulation).toHaveAttribute('aria-pressed', 'true');
@@ -52,7 +52,7 @@ describe('NewGameSelectModal', () => {
     );
 
     await user.tab();
-    expect(screen.getByRole('button', { name: /Story: Die Probezeit/ })).toHaveFocus();
+    expect(screen.getByRole('button', { name: /Story-Kampagne/ })).toHaveFocus();
     await user.keyboard('{Enter}');
 
     expect(onSelectStory).toHaveBeenCalledOnce();

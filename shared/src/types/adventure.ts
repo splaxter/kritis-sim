@@ -4,6 +4,8 @@
  */
 
 import { Skills } from './skills';
+import { FlagCondition } from './flagCondition';
+import { CampaignId } from './campaign';
 
 // Relationship types (avoiding circular import from gameState)
 type RelationshipKey = 'chef' | 'gf' | 'kaemmerer' | 'fachabteilung' | 'kollegen';
@@ -18,7 +20,7 @@ export type AdventureChapterId = string;
 export interface AdventureChapter {
   id: AdventureChapterId;
   title: string;
-  act: 1 | 2 | 3;
+  act: 1 | 2 | 3 | 4;
   description: string;
   /** Story events that must be completed in order */
   storyBeats: StoryBeat[];
@@ -36,8 +38,9 @@ export interface StoryBeat {
   eventId: string;
   /** If true, can be skipped */
   isOptional: boolean;
-  /** Flag that must be set for this beat to play */
-  branchCondition?: string;
+  /** Condition that must hold for this beat to play its primary event.
+   *  String = single flag (legacy); object = composite all/any/none. */
+  branchCondition?: FlagCondition;
   /** Alternative event if branchCondition is not met */
   alternateEventId?: string;
 }
@@ -146,6 +149,9 @@ export type StoryPath = 'official' | 'underground' | 'neutral';
 export type EndingType = 'good' | 'neutral' | 'bad';
 
 export interface AdventureState {
+  /** Which campaign this run belongs to. Absent in pre-campaign saves →
+   *  migrated to 'probation' on load (never-throw autosave). */
+  campaignId: CampaignId;
   /** Current chapter */
   currentChapter: AdventureChapterId;
   /** Index of current story beat within chapter */
@@ -202,9 +208,20 @@ export interface EndingRequirements {
 // HELPER FUNCTIONS
 // ============================================
 
-export function createInitialAdventureState(): AdventureState {
+/** Default campaign start — probation begins at ch01_first_day. New campaigns
+ *  pass their own { id, startChapterId }; omitting the arg preserves the
+ *  historical (probation) behaviour so every existing caller stays valid. */
+const PROBATION_START: { id: CampaignId; startChapterId: AdventureChapterId } = {
+  id: 'probation',
+  startChapterId: 'ch01_first_day',
+};
+
+export function createInitialAdventureState(
+  campaign: { id: CampaignId; startChapterId: AdventureChapterId } = PROBATION_START,
+): AdventureState {
   return {
-    currentChapter: 'ch01_first_day',
+    campaignId: campaign.id,
+    currentChapter: campaign.startChapterId,
     currentBeatIndex: 0,
     completedChapters: [],
     activeSidequests: [],

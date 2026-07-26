@@ -6,6 +6,7 @@
 interface EmailMockupProps {
   from: string;
   to?: string;
+  cc?: string;
   subject: string;
   date?: string;
   body: string;
@@ -23,6 +24,7 @@ const PRIORITY_STYLES = {
 export function EmailMockup({
   from,
   to,
+  cc,
   subject,
   date,
   body,
@@ -46,6 +48,12 @@ export function EmailMockup({
           <div className="flex">
             <span className="text-terminal-green-muted w-20">An:</span>
             <span>{to}</span>
+          </div>
+        )}
+        {cc && (
+          <div className="flex">
+            <span className="text-terminal-green-muted w-20">Kopie (CC):</span>
+            <span>{cc}</span>
           </div>
         )}
         <div className="flex">

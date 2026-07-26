@@ -5,7 +5,7 @@ import { adventureSidequestEvents } from '../content/adventure/sidequest-events'
 import { adventureChapters } from '../content/adventure/chapters';
 import { adventureSidequests } from '../content/adventure/sidequests';
 import { getAllScenarios } from '../content/packs';
-import { GameEvent } from '@kritis/shared';
+import { GameEvent, flagsInCondition } from '@kritis/shared';
 
 // ── id universes ──────────────────────────────────────────────────────────
 const storyEvents: GameEvent[] = [...allEvents, ...adventureStoryEvents, ...adventureSidequestEvents];
@@ -152,8 +152,10 @@ describe('campaign (story mode) consistency', () => {
     const dead: string[] = [];
     for (const ch of adventureChapters) {
       for (const beat of ch.storyBeats) {
-        if (beat.branchCondition && !setFlags.has(beat.branchCondition)) {
-          dead.push(`${ch.id}/${beat.id} branchCondition "${beat.branchCondition}"`);
+        for (const flag of flagsInCondition(beat.branchCondition)) {
+          if (!setFlags.has(flag)) {
+            dead.push(`${ch.id}/${beat.id} branchCondition "${flag}"`);
+          }
         }
       }
     }

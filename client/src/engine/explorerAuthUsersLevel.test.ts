@@ -29,7 +29,7 @@ describe(`GUI level: ${ID}`, () => {
   });
 
   it('the only over-broad, removable entry is "Authentifizierte Benutzer"', () => {
-    const entries = level.guiContext!.state.explorer!.entries;
+    const entries = level.guiContext!.state.explorer!.entries!;
     const broad = entries.filter((e) => e.overlyBroad);
     expect(broad.map((e) => e.id)).toEqual(['authenticated_users']);
     expect(broad[0].principal).toBe('Authentifizierte Benutzer');

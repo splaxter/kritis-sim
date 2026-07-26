@@ -58,8 +58,12 @@ export function AsciiFrame({
 
   return (
     <div className={`font-mono ${className}`}>
-      {/* Top border */}
-      <div className={`${styles.title} flex items-center`}>
+      {/* Top border. The ═ runs are decorative fillers meant to be CLIPPED at
+          the frame width — box-drawing chars offer no line-break opportunity,
+          so without min-w-0 (flex items floor at their content width) plus
+          overflow-hidden on the row they push the whole frame wider than its
+          container and scroll the page sideways on phones. */}
+      <div className={`${styles.title} flex items-center overflow-hidden`}>
         <span>╔</span>
         {title && (
           <>
@@ -69,7 +73,7 @@ export function AsciiFrame({
             </span>
           </>
         )}
-        <span className="flex-1 overflow-hidden">
+        <span className="min-w-0 flex-1 overflow-hidden">
           {'═'.repeat(50)}
         </span>
         <span>╗</span>
@@ -80,10 +84,10 @@ export function AsciiFrame({
         {children}
       </div>
 
-      {/* Bottom border */}
-      <div className={styles.title}>
+      {/* Bottom border — same clipping rules as the top one. */}
+      <div className={`${styles.title} flex items-center overflow-hidden`}>
         <span>╚</span>
-        <span className="flex-1 overflow-hidden">
+        <span className="min-w-0 flex-1 overflow-hidden">
           {'═'.repeat(60)}
         </span>
         <span>╝</span>

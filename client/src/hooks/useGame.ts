@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, EventEffects, Skills } from '@kritis/shared';
+import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, CampaignId, EventEffects, Skills } from '@kritis/shared';
 import {
   createInitialState,
   applyEffects,
@@ -23,6 +23,88 @@ import {
 export type GamePhase = 'menu' | 'playing' | 'terminal' | 'result' | 'gameover' | 'storyEnding';
 export type ContentType = 'event' | 'scenario';
 
+/**
+ * Story-mode progression for a resolved event: advance the sidequest it belongs
+ * to, or the current story beat, and reflect relationship changes in character
+ * memory. Shared by BOTH resolution paths — makeChoice (dialog choice) and
+ * closeTerminal (solved hands-on level) — so a mandatory terminal/GUI beat
+ * advances the story exactly like a dialog beat instead of being re-served.
+ */
+function applyStoryProgression(
+  prev: GameState,
+  state: GameState,
+  event: GameEvent,
+  choice: EventChoice
+): GameState {
+  if (!prev.isStoryMode || !prev.storyState) return state;
+  let newState = state;
+
+  // Check if this is a sidequest event
+  const sidequest = findSidequestByEvent(event.id, prev.storyState.campaignId);
+
+  if (sidequest) {
+    // Advance sidequest progress
+    const updatedAdvState = advanceSidequest(prev, sidequest.id);
+    newState = { ...newState, storyState: updatedAdvState };
+
+    // Check if sidequest just completed
+    if (updatedAdvState.completedSidequests.includes(sidequest.id) &&
+        !prev.storyState.completedSidequests.includes(sidequest.id)) {
+      // Apply sidequest rewards
+      const rewards = getSidequestRewards(sidequest.id, prev.storyState.campaignId);
+      if (rewards) {
+        // Apply skill rewards
+        if (Object.keys(rewards.skills).length > 0) {
+          const skillEffects: EventEffects = { skills: rewards.skills };
+          newState = applyEffects(newState, skillEffects);
+        }
+
+        // Apply relationship rewards
+        if (Object.keys(rewards.relationships).length > 0) {
+          const relEffects: EventEffects = { relationships: rewards.relationships };
+          newState = applyEffects(newState, relEffects);
+        }
+
+        // Apply stress reduction
+        if (rewards.stressReduction > 0) {
+          newState.stress = Math.max(0, newState.stress - rewards.stressReduction);
+        }
+
+        // Apply budget bonus
+        if (rewards.budgetBonus > 0) {
+          newState.budget += rewards.budgetBonus;
+        }
+
+        // Set reward flags
+        for (const flag of rewards.flags) {
+          newState.flags[flag] = true;
+        }
+      }
+    }
+  } else {
+    // Regular story beat - advance story
+    newState = { ...newState, storyState: advanceStoryBeat(prev) };
+  }
+
+  // Update character memory based on relationship changes
+  if (choice.effects.relationships && newState.storyState) {
+    let advState = newState.storyState;
+    for (const [npcId, change] of Object.entries(choice.effects.relationships)) {
+      if (change !== undefined && change !== 0) {
+        advState = updateCharacterMemory(
+          { ...newState, storyState: advState },
+          npcId,
+          event.id,
+          change
+        );
+      }
+    }
+    newState = { ...newState, storyState: advState };
+  }
+
+  return newState;
+}
+
 interface UseGameReturn {
   state: GameState;
   phase: GamePhase;
@@ -36,7 +118,7 @@ interface UseGameReturn {
   // Game state
   gameOverReason: string | null;
   // Actions
-  startNewGame: (seed?: string, mode?: GameModeId) => void;
+  startNewGame: (seed?: string, mode?: GameModeId, campaignId?: CampaignId) => void;
   loadState: (state: GameState) => void;
   setEvent: (event: GameEvent) => void;
   setScenario: (scenario: Scenario) => void;
@@ -51,6 +133,7 @@ interface UseGameReturn {
   endStoryAct: () => void;
   clearCurrentContent: () => void;
   returnToMenu: () => void;
+  setRunFlags: (flags: string[]) => void;
 }
 
 export function useGame(): UseGameReturn {
@@ -70,8 +153,8 @@ export function useGame(): UseGameReturn {
 
   const [gameOverReason, setGameOverReason] = useState<string | null>(null);
 
-  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'beginner') => {
-    setState(createInitialState(seed, mode));
+  const startNewGame = useCallback((seed?: string, mode: GameModeId = 'beginner', campaignId: CampaignId = 'probation') => {
+    setState(createInitialState(seed, mode, campaignId));
     setPhase('playing');
     setContentType('event');
     setCurrentEvent(null);
@@ -161,69 +244,8 @@ export function useGame(): UseGameReturn {
       }
 
       // Adventure mode: handle story progression and sidequests
-      if (prev.isStoryMode && prev.storyState && currentEvent) {
-        // Check if this is a sidequest event
-        const sidequest = findSidequestByEvent(currentEvent.id);
-
-        if (sidequest) {
-          // Advance sidequest progress
-          const updatedAdvState = advanceSidequest(prev, sidequest.id);
-          newState.storyState = updatedAdvState;
-
-          // Check if sidequest just completed
-          if (updatedAdvState.completedSidequests.includes(sidequest.id) &&
-              !prev.storyState.completedSidequests.includes(sidequest.id)) {
-            // Apply sidequest rewards
-            const rewards = getSidequestRewards(sidequest.id);
-            if (rewards) {
-              // Apply skill rewards
-              if (Object.keys(rewards.skills).length > 0) {
-                const skillEffects: EventEffects = { skills: rewards.skills };
-                newState = applyEffects(newState, skillEffects);
-              }
-
-              // Apply relationship rewards
-              if (Object.keys(rewards.relationships).length > 0) {
-                const relEffects: EventEffects = { relationships: rewards.relationships };
-                newState = applyEffects(newState, relEffects);
-              }
-
-              // Apply stress reduction
-              if (rewards.stressReduction > 0) {
-                newState.stress = Math.max(0, newState.stress - rewards.stressReduction);
-              }
-
-              // Apply budget bonus
-              if (rewards.budgetBonus > 0) {
-                newState.budget += rewards.budgetBonus;
-              }
-
-              // Set reward flags
-              for (const flag of rewards.flags) {
-                newState.flags[flag] = true;
-              }
-            }
-          }
-        } else {
-          // Regular story beat - advance story
-          newState.storyState = advanceStoryBeat(prev);
-        }
-
-        // Update character memory based on relationship changes
-        if (choice.effects.relationships && newState.storyState) {
-          let advState = newState.storyState;
-          for (const [npcId, change] of Object.entries(choice.effects.relationships)) {
-            if (change !== undefined && change !== 0) {
-              advState = updateCharacterMemory(
-                { ...newState, storyState: advState },
-                npcId,
-                currentEvent.id,
-                change
-              );
-            }
-          }
-          newState.storyState = advState;
-        }
+      if (currentEvent) {
+        newState = applyStoryProgression(prev, newState, currentEvent, choice);
       }
 
       return newState;
@@ -306,6 +328,12 @@ export function useGame(): UseGameReturn {
 
         if (currentEvent) {
           newState.completedEvents = [...prev.completedEvents, currentEvent.id];
+          // Story mode: a SOLVED hands-on level resolves its beat exactly like a
+          // dialog choice — advance the story (or its sidequest). Without this,
+          // a mandatory terminal/GUI beat would be re-served forever, since only
+          // makeChoice used to move the beat pointer. Cancel (solved=false)
+          // deliberately does NOT advance — the player retries the level.
+          newState = applyStoryProgression(prev, newState, currentEvent, pendingTerminalChoice);
         }
 
         return newState;
@@ -409,6 +437,21 @@ export function useGame(): UseGameReturn {
     setPhase('playing');
   }, []);
 
+  // Set run flags immediately, outside the solve path — used by terminal
+  // commands whose mere execution is a consequence (e.g. the honeypot mailbox
+  // read). Idempotent: if every flag is already set, the state object is left
+  // untouched so no re-render/autosave churn results. These flags persist
+  // through closeTerminal(false) (cancel/ESC) — "seen is seen".
+  const setRunFlags = useCallback((flagsToSet: string[]) => {
+    if (flagsToSet.length === 0) return;
+    setState((prev) => {
+      if (flagsToSet.every((f) => prev.flags[f])) return prev;
+      const flags = { ...prev.flags };
+      for (const f of flagsToSet) flags[f] = true;
+      return { ...prev, flags };
+    });
+  }, []);
+
   // Leave the current run and return to the main menu WITHOUT resetting the run:
   // clear only the transient React content state and set phase = 'menu'. The
   // persisted GameState (and thus the autosave) is intentionally left untouched,
@@ -447,5 +490,6 @@ export function useGame(): UseGameReturn {
     endStoryAct,
     clearCurrentContent,
     returnToMenu,
+    setRunFlags,
   };
 }

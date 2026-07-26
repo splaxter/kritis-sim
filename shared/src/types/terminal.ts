@@ -12,6 +12,10 @@ export interface TerminalCommand {
   isPartialSolution?: boolean;
   wrongApproachFeedback?: string;
   isSolution?: boolean;
+  /** Run flags set the moment this command matches — immediately and
+   *  independent of solving the level (survives cancel/ESC). Used for
+   *  "the player looked at X" markers, e.g. the AUDIT TRAIL mailbox honeypot. */
+  setsFlags?: string[];
 }
 
 /**
@@ -25,6 +29,12 @@ export interface CommandMatcher {
   outcome?: 'attempted' | 'succeeded' | 'failed';
   /** When set, the matched attempt must have opened an SSH session with this auth method. */
   authMethod?: 'publickey' | 'password';
+  /**
+   * Compile the pattern case-insensitively. Use for PowerShell command
+   * assertions — real PowerShell resolves `get-mailbox` and `Get-Mailbox`
+   * alike, and the execution log records commands AS TYPED.
+   */
+  ignoreCase?: boolean;
 }
 
 /**
@@ -113,6 +123,8 @@ export interface TerminalContext {
   listeners?: NetListener[];
   /** Established connections seeded onto the PRIMARY host (single-host net levels). */
   connections?: NetConnection[];
+  /** Exchange mailboxes seeded onto the PRIMARY host (EXCH01 audit levels). */
+  mailboxes?: TerminalMailboxSpec[];
   /** Live skill drip: first successful use (exit 0) of a command name grants this. */
   commandSkillGain?: Record<string, Partial<Skills>>;
 }
@@ -140,6 +152,14 @@ export interface TerminalUnitPrecondition {
   absent?: boolean;
   /** Journal line appended when the precondition fails on start/restart. */
   failMessage: string;
+}
+
+/** Seeds one Exchange mailbox onto a host. auditEnabled defaults to false. */
+export interface TerminalMailboxSpec {
+  name: string;
+  displayName?: string;
+  auditEnabled?: boolean;
+  auditLogAgeLimit?: string;
 }
 
 export interface TerminalServiceSpec {
@@ -210,10 +230,28 @@ export interface TerminalHostSpec {
   listeners?: NetListener[];
   /** Established connections on this host; when omitted a default table is used. */
   connections?: NetConnection[];
+  /** Exchange mailboxes on this host. */
+  mailboxes?: TerminalMailboxSpec[];
 }
 
 /** Declarative win condition, checked against live engine state after every command. */
 export interface StateGoal {
+  /**
+   * Asserts BYTE EQUALITY between `file` and this second path (both must
+   * exist and be regular files on the goal's host). The chain-of-custody
+   * check: a secured copy only counts when it really equals the original —
+   * `echo fake > kopie` can never satisfy it.
+   */
+  sameContentAs?: string;
+  /**
+   * Asserts that `file` (the hash list) contains a LINE carrying both the
+   * ACTUAL SHA-256 hex digest of this path's CURRENT content AND the file's
+   * name (basename or full path — sha256sum writes the path as typed). The
+   * digest is computed live by the evaluator, so a hand-invented 64-hex
+   * string never matches, and a bare digest without the filename is not a
+   * protocol entry.
+   */
+  sha256Of?: string;
   /**
    * Host addressed by id, full hostname, short hostname (before the first
    * '.'), or IP. Defaults to the primary (base) host.
@@ -229,7 +267,21 @@ export interface StateGoal {
   service?: string;
   serviceState?: 'active' | 'inactive' | 'failed';
   serviceEnabled?: boolean;
-  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean };
+  /**
+   * `from` scopes the assertion: undefined keeps the legacy semantics
+   * (present:true needs a GLOBAL rule; present:false fails on ANY matching
+   * rule, scoped included). A string requires a rule scoped to exactly that
+   * source ("the bastion door exists"). `null` matches only UNSCOPED rules —
+   * `{ action:'allow', port:22, from:null, present:false }` asserts "no
+   * globally open SSH" while a bastion-scoped allow may remain.
+   *
+   * `exclusive: true` (only with `present:true`) additionally requires the
+   * scoped set to be the ONLY allow rules for this port: no global door AND no
+   * second scoped source. `{ action:'allow', port:22, from:'10.0.30.10',
+   * present:true, exclusive:true }` asserts "port 22 is reachable from exactly
+   * this one source" — a second `allow from <other>` leaves it unsatisfied.
+   */
+  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean; from?: string | null; exclusive?: boolean };
   firewallDefaultIncoming?: 'allow' | 'deny';
   /**
    * Asserts the firewall's enabled state (`ufw enable` / `ufw disable`). Rules
@@ -248,9 +300,22 @@ export interface StateGoal {
    * short hostname or IP); when omitted, any recorded login satisfies the goal.
    * `method` pins the auth method — a `publickey`-required goal is NOT met by a
    * password login, which is what makes "log in without a password" a real win
-   * condition. Logins persist after `exit` (you still logged in).
+   * condition. `fromHost` pins the SOURCE the login was made from (id/hostname/
+   * IP) — the win condition for "reach the target THROUGH the bastion": an ssh
+   * to waage01 launched from bastion01 counts, a direct one does not.
+   * `viaScopedRule` requires the login to have been admitted specifically by a
+   * source-SCOPED firewall allow (target enabled, default deny, NO global
+   * allow) — i.e. the target was ALREADY locked to bastion-only when the login
+   * happened. This makes the proof order-aware: a hop made BEFORE the lockdown
+   * (while the port was globally open) does not count. Logins persist after
+   * `exit` (you still logged in).
    */
-  loggedIn?: { host?: string; method?: 'publickey' | 'password' };
+  loggedIn?: {
+    host?: string;
+    method?: 'publickey' | 'password';
+    fromHost?: string;
+    viaScopedRule?: boolean;
+  };
   /**
    * The RUNNING sshd's effective config on the host (defaults to the base
    * host). Editing /etc/ssh/sshd_config hardens the file, but the daemon only
@@ -268,4 +333,76 @@ export interface StateGoal {
    * match one single recorded run; omitted fields match anything.
    */
   ansibleRan?: { playbook?: string; mode?: 'syntax-check' | 'check' | 'apply'; ok?: boolean };
+  /**
+   * Exchange mailbox audit state on the host (defaults to the base host). Names
+   * the mailbox identity; `auditEnabled` pins whether audit logging is on. On
+   * on-prem Exchange this is toggled per mailbox via `Set-Mailbox -AuditEnabled`,
+   * so a level requires `{ mailbox: 'm.mueller', auditEnabled: true }`.
+   */
+  mailbox?: string;
+  auditEnabled?: boolean;
+  /**
+   * Session-aware: at least one actually-EXECUTED pipeline command in the REAL
+   * shell's execution log must match. Matching is per stage — one individual
+   * pipe command with its OWN exit code and host — so neither a short-circuited
+   * decoy (`ok-cmd || echo target-name`) nor a pipeline decoy
+   * (`cat missing-target | echo ok`) can satisfy the matcher via a combined
+   * command string. With `outcome: 'succeeded'` a `cat notizen.txt` from the
+   * wrong directory exits non-zero and does NOT satisfy the goal — the same
+   * command after a proper `cd` (or with a valid absolute path) does. This is
+   * the mechanism for "the player really read/inspected X" win conditions.
+   * Canned scenario commands bypass the shell and are never in this log.
+   *
+   * Authoring note: a raw command-line regex cannot know the ROLE of a
+   * filename token (`grep -v ziel.txt andere.txt` uses the target as a search
+   * PATTERN and never reads it) — for "the player really read file X" goals
+   * use `fileRead` instead; `commandRan` is for command-shaped assertions
+   * (specific tool invoked, a restart ran, an option was used).
+   *
+   * `host` semantics follow the session-aware convention (like `loggedIn`):
+   * UNSET means "on any host"; a set `host` counts only stages executed there.
+   */
+  commandRan?: CommandMatcher;
+  /**
+   * Operand-bound copy proof: met iff cp/Copy-Item ACTUALLY copied matching
+   * canonical paths (a directory destination is recorded as its final
+   * dest/basename form). Omitted fields match any — but a bound goal like
+   * `{ fileCopied: { from: original, to: kopie } }` is only satisfied by THE
+   * copy, never by copying some unrelated file. Host follows the
+   * session-aware convention (unset = any host).
+   */
+  fileCopied?: { from?: string; to?: string };
+  /**
+   * Operand-bound hash proof: met iff a hash tool (sha256sum family,
+   * Get-FileHash) ACTUALLY digested this canonical path — with the named
+   * algorithm when `algorithm` is set (normalized: 'sha256' | 'sha1' | 'md5';
+   * omitted = any), and with its stdout redirected into exactly the canonical
+   * `writtenTo` file when that is set (`>` or `>>` — the link between "digest
+   * was computed" and "the digest landed in THIS hash list"). Hashing a
+   * different file — even one with identical content — a different algorithm,
+   * or into a throwaway file does not satisfy it; pair with `sha256Of` to
+   * also pin the digest's presence and labelling in the list.
+   */
+  hashComputed?: { path: string; algorithm?: string; writtenTo?: string };
+  /**
+   * Operand-bound inspection proof: met iff Get-Mailbox actually RESOLVED
+   * this identity (case-insensitive). Extra positional arguments the cmdlet
+   * ignores are never recorded, so 'Get-Mailbox other target' does not count
+   * as inspecting 'target'.
+   */
+  mailboxInspected?: string;
+  /**
+   * Session-aware, SEMANTIC read proof: met iff a command successfully read
+   * THIS file's content during the terminal session. `fileRead` is the
+   * canonical absolute path. The engine records reads at the vfs boundary
+   * commands actually read through (cat/tac/head/tail/nl/less/grep/awk/sed/
+   * Get-Content/Select-String/…, plus `< file` input redirection), so the
+   * proof is independent of how the command line was phrased: `grep -v
+   * ziel.txt andere.txt` does NOT satisfy a goal on ziel.txt (the name is
+   * only a search pattern), while any real read — relative after `cd`,
+   * absolute, piped onward, via awk — does. Failed reads (wrong cwd, missing
+   * file, permission denied) are never recorded. `host` follows the
+   * session-aware convention: UNSET = any host, set = reads ON that host.
+   */
+  fileRead?: string;
 }

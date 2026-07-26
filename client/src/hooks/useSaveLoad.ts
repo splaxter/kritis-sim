@@ -5,6 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { GameState } from '@kritis/shared';
+import { migrateLoadedGameState } from '../engine/autosave';
 
 const STORAGE_KEY = 'kritis_saves';
 const MAX_SLOTS = 5;
@@ -123,7 +124,8 @@ export function useSaveLoad(): UseSaveLoadReturn {
           setError('Spielstand nicht gefunden');
           return null;
         }
-        return save.gameState;
+        // Soft-fill fields added since the slot was written (e.g. campaignId).
+        return migrateLoadedGameState(save.gameState);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Laden fehlgeschlagen');
         return null;

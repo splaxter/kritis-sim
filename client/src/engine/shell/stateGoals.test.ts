@@ -191,6 +191,58 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('firewallRule.from (scoped assertions)', () => {
+    it('from:<ip> asserts the SCOPED door exists; legacy check still needs a global rule', () => {
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: '10.0.99.1', present: true } })
+      ).toBe(false);
+      // Legacy (from undefined): a scoped rule is NOT "port 22 open".
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, present: true } })
+      ).toBe(false);
+    });
+
+    it('from:null + present:false asserts "no GLOBAL door" while a scoped allow remains', () => {
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: null, present: false } })
+      ).toBe(true);
+      // Legacy present:false still fails on ANY matching rule, scoped included.
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, present: false } })
+      ).toBe(false);
+
+      // Opening the port globally breaks the scoped-only claim.
+      engine.execute('sudo ufw allow 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: null, present: false } })
+      ).toBe(false);
+    });
+
+    it('exclusive:true requires the scoped set to be the ONLY allow rules for the port', () => {
+      const goal: StateGoal = {
+        firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true, exclusive: true },
+      };
+      // The one scoped door alone: exact match.
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+
+      // A SECOND scoped source widens access → no longer "only from .10".
+      engine.execute('sudo ufw allow from 10.0.30.99 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+
+      // Remove the extra door, but leave a GLOBAL allow: still not exclusive.
+      engine.execute('sudo ufw delete allow from 10.0.30.99 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+      engine.execute('sudo ufw allow 22');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+    });
+  });
+
   describe('firewallDefaultIncoming', () => {
     it('compares the configured default policy, regardless of enabled', () => {
       expect(checkStateGoal(engine, { firewallDefaultIncoming: 'allow' })).toBe(true);
@@ -271,6 +323,501 @@ describe('stateGoals', () => {
       expect(engine.execute('ansible-playbook /root/broken.yml --syntax-check').exitCode).not.toBe(0);
       expect(checkStateGoal(engine, { ansibleRan: { playbook: 'broken.yml', mode: 'syntax-check', ok: true } })).toBe(false);
       expect(checkStateGoal(engine, { ansibleRan: { playbook: 'broken.yml', mode: 'syntax-check', ok: false } })).toBe(true);
+    });
+  });
+
+  describe('commandRan (session-aware)', () => {
+    it('outcome "succeeded" inherits REAL path semantics: a relative read only counts after a matching cd', () => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      const goal: StateGoal = {
+        commandRan: { pattern: '^cat\\b.*notizen\\.txt', outcome: 'succeeded' },
+      };
+
+      // Wrong cwd → the real shell fails the read → goal stays unmet.
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+
+      // After the matching cd the SAME relative command succeeds.
+      engine.execute('cd /srv/exports');
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+    });
+
+    it('a valid absolute path counts without any cd', () => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      engine.execute('cat /srv/exports/notizen.txt');
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'notizen\\.txt', outcome: 'succeeded' } })
+      ).toBe(true);
+    });
+
+    it('pattern and outcome must BOTH hold (a failed attempt satisfies only "failed"/"attempted")', () => {
+      engine.execute('cat /no/such/file.txt');
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt', outcome: 'succeeded' } })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt', outcome: 'failed' } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'file\\.txt' } })
+      ).toBe(true); // default 'attempted'
+      expect(
+        checkStateGoal(engine, { commandRan: { pattern: 'other\\.txt' } })
+      ).toBe(false);
+    });
+
+    it('is non-vacuous: a bare commandRan with an empty log is unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { commandRan: { pattern: '.' } })).toBe(false);
+    });
+
+    describe('per-stage matching (chained-input spoofs)', () => {
+      const READ_GOAL: StateGoal = {
+        commandRan: { pattern: '^(cat|head|tail)\\b.*notizen\\.txt', outcome: 'succeeded' },
+      };
+      beforeEach(() => {
+        engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+        engine.getBaseHost().vfs.addFile('/home/timo/andere.txt', 'ok\n');
+      });
+
+      it('the || decoy does NOT satisfy the goal (echo segment never executes)', () => {
+        // Reviewer repro: outer string contains the target name, but the only
+        // EXECUTED stage is the successful cat of a different file.
+        engine.execute('cat /home/timo/andere.txt || echo notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('a skipped short-circuit segment does not count even if it IS the target command', () => {
+        engine.execute('ls || cat /srv/exports/notizen.txt'); // ls succeeds → cat skipped
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('an actually-executed chained segment DOES count', () => {
+        engine.execute('cd /srv/exports && cat notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('each stage keeps its OWN exit code (a later failing segment does not poison it)', () => {
+        // Outer attempt exits non-zero (ls /nope), but the cat stage succeeded.
+        engine.execute('cat /srv/exports/notizen.txt ; ls /nope');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('an echo that merely PRINTS the target name never matches the read pattern', () => {
+        engine.execute('echo cat notizen.txt');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('the PIPELINE decoy does NOT satisfy the goal (reviewer repro: failing cat | succeeding echo)', () => {
+        // The pipeline's overall exit code comes from the last command (echo,
+        // 0) — but stages record each pipe command separately: the cat stage
+        // carries ITS exit 1 and the echo stage does not match the pattern.
+        const r = engine.execute('cat /no/notizen.txt | echo ok');
+        expect(r.exitCode).toBe(0); // bash semantics: last stage wins
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('a successful read inside a pipeline DOES count, even when a later stage fails', () => {
+        // Inverse case: cat succeeds (exit 0 stage), grep finds nothing
+        // (pipeline exit 1) — the read still really happened.
+        const r = engine.execute('cat /srv/exports/notizen.txt | grep kein-treffer');
+        expect(r.exitCode).toBe(1);
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('piping INTO the target-named command without reading it does not count', () => {
+        // `echo notizen.txt | cat` — cat reads stdin, not the file; the cat
+        // stage string carries no filename, the echo stage fails the ^cat.
+        engine.execute('echo notizen.txt | cat');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+    });
+
+    describe('sameContentAs (chain of custody)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'zeile1\nzeile2\n');
+    });
+    const GOAL: StateGoal = { file: '/root/kopie.log', sameContentAs: '/srv/original.log' };
+
+    it('a REAL copy passes; a forged file fails', () => {
+      engine.execute('cp /srv/original.log /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+
+      engine.execute('echo fake > /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('missing copy or missing original fails, never throws', () => {
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      expect(
+        checkStateGoal(engine, { file: '/srv/original.log', sameContentAs: '/no/such.log' })
+      ).toBe(false);
+    });
+  });
+
+  describe('sha256Of (hash-list integrity)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'beweis\n');
+    });
+    const GOAL: StateGoal = { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' };
+
+    it('the digest actually computed by sha256sum passes', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('an invented 64-hex string fails (reviewer forgery repro)', () => {
+      engine.execute(`echo ${'a'.repeat(64)} /root/kopie.log > /root/hashes.txt`);
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('modifying the copy AFTER hashing invalidates the goal (digest is live)', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
+      engine.execute('echo nachtrag >> /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+  });
+
+  describe('fileCopied (operand-bound copy record)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/srv/andere.txt', 'x\n');
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+    });
+    const BOUND: StateGoal = {
+      fileCopied: { from: '/srv/original.log', to: '/root/beweis/original.log' },
+    };
+
+    it('records the FINAL destination for a directory target', () => {
+      engine.execute('cp /srv/original.log /root/beweis/');
+      expect(checkStateGoal(engine, BOUND)).toBe(true);
+    });
+
+    it('an unrelated cp does NOT satisfy the bound goal (reviewer repro)', () => {
+      engine.execute('cp /srv/andere.txt /root/andere_kopie.txt');
+      expect(checkStateGoal(engine, BOUND)).toBe(false);
+      // …and a cat-made "copy" records nothing either.
+      engine.execute('cat /srv/original.log > /root/beweis/original.log');
+      expect(checkStateGoal(engine, BOUND)).toBe(false);
+    });
+
+    it('relative invocations record canonical paths', () => {
+      engine.execute('cd /srv');
+      engine.execute('cp original.log /root/beweis/original.log');
+      expect(checkStateGoal(engine, BOUND)).toBe(true);
+    });
+
+    it('a bare {} matches any copy; nothing recorded → unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { fileCopied: {} })).toBe(false);
+      engine.execute('cp /srv/andere.txt /root/x.txt');
+      expect(checkStateGoal(engine, { fileCopied: {} })).toBe(true);
+    });
+  });
+
+  describe('hashComputed (operand-bound digest record)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n'); // same bytes!
+    });
+
+    it('hashing the ORIGINAL does not count as hashing the COPY — even with identical content', () => {
+      engine.execute('sha256sum /srv/original.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log' } })).toBe(false);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/srv/original.log' } })).toBe(true);
+    });
+
+    it('binds the ALGORITHM: an md5 of the copy does not satisfy a sha256 goal (reviewer repro)', () => {
+      engine.execute('md5sum /root/kopie.log > /root/md5.txt');
+      expect(
+        checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log', algorithm: 'sha256' } })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log', algorithm: 'md5' } })
+      ).toBe(true);
+      // Omitted algorithm matches any recorded one.
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie.log' } })).toBe(true);
+    });
+
+    it('sha256Of requires digest AND filename in the SAME line (protocol semantics)', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
+      expect(
+        checkStateGoal(engine, { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(true);
+
+      // A bare digest without the filename is not a protocol entry …
+      engine.execute("awk '{print $1}' /root/hashes.txt > /root/nur_digest.txt");
+      expect(
+        checkStateGoal(engine, { file: '/root/nur_digest.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(false);
+    });
+
+    it('sha256Of token semantics: the line must DENOTE the copy, not just share its basename', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/srv/eingang/kopie.log', 'daten\n'); // same name, same bytes
+      const GOAL: StateGoal = { file: '/root/hashes.txt', sha256Of: '/root/beweis/kopie.log' };
+
+      // A line labelled with the ORIGINAL's absolute path is rejected …
+      engine.execute('sha256sum /srv/eingang/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      // … and so is a relative token that denotes the original.
+      engine.execute('cd /srv');
+      engine.execute('sha256sum eingang/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+
+      // Honest labels pass: absolute, relative-suffix, and bare basename.
+      engine.execute('sha256sum /root/beweis/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+      engine.execute('cd /root');
+      engine.execute('sha256sum beweis/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+      engine.execute('cd /root/beweis');
+      engine.execute('sha256sum kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('hashComputed.writtenTo couples the record to the list it fed (reviewer repro)', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      const GOAL: StateGoal = {
+        hashComputed: {
+          path: '/root/beweis/kopie.log',
+          algorithm: 'sha256',
+          writtenTo: '/root/hashes.txt',
+        },
+      };
+
+      // Digest of the copy into a THROWAWAY file does not feed the list …
+      engine.execute('sha256sum /root/beweis/kopie.log > /root/wegwerf_hash.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      // … and without any redirect there is no destination at all.
+      engine.execute('sha256sum /root/beweis/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+
+      // Redirecting into the list (>' or '>>') satisfies it, canonically.
+      engine.execute('cd /root');
+      engine.execute('sha256sum beweis/kopie.log >> hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('a FAILED redirect discards the pending record (reviewer repro)', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      // Redirect target is a DIRECTORY → the write fails; the hash record
+      // must vanish with it (no list was fed, nothing may vouch for one).
+      const r = engine.execute('sha256sum /root/beweis/kopie.log > /root/beweis');
+      expect(r.exitCode).toBe(1);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/beweis/kopie.log' } })).toBe(false);
+      expect(engine.getHashesComputed()).toHaveLength(0);
+    });
+
+    it('a nested execute WITHOUT its own redirect inherits the outer target (sudo, reviewer repro)', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n');
+      const r = engine.execute('sudo sha256sum /root/kopie.log > /root/hashes.txt');
+      expect(r.exitCode).toBe(0);
+      // The inner sha256sum ran via ctx.execute at depth ≥1 — its record must
+      // carry the OUTER redirect target and commit with the outer write.
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie.log', algorithm: 'sha256', writtenTo: '/root/hashes.txt' },
+        })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(true);
+    });
+
+    it('source script > list inherits too; a FAILED outer redirect still discards', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/root/mach_hash.sh', 'sha256sum /root/kopie.log\n');
+      engine.execute('source /root/mach_hash.sh > /root/hashes.txt');
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie.log', writtenTo: '/root/hashes.txt' },
+        })
+      ).toBe(true);
+
+      // Same nested shape, but the OUTER redirect fails (directory target) —
+      // the inherited pending record must be discarded with it.
+      engine.getBaseHost().vfs.addDirectory('/root/ordner');
+      engine.getBaseHost().vfs.addFile('/root/kopie2.log', 'daten2\n');
+      const fail = engine.execute('sudo sha256sum /root/kopie2.log > /root/ordner');
+      expect(fail.exitCode).toBe(1);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie2.log' } })).toBe(false);
+    });
+
+    it('with multiple output redirects the LAST one is the effective writtenTo', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie2.log', 'daten\n');
+      engine.execute('sha256sum /root/kopie2.log > /root/first.txt > /root/second.txt');
+      // bash semantics: first is created empty, second receives the content.
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie2.log', writtenTo: '/root/second.txt' },
+        })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie2.log', writtenTo: '/root/first.txt' },
+        })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { file: '/root/second.txt', sha256Of: '/root/kopie2.log' })
+      ).toBe(true);
+    });
+
+    it('Get-FileHash records too (PowerShell side, normalized algo)', () => {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.getBaseHost().vfs.addFile('C:\\Logs\\a.log', 'x');
+      ps.execute('Get-FileHash C:\\Logs\\a.log');
+      expect(
+        checkStateGoal(ps, { hashComputed: { path: 'C:\\Logs\\a.log', algorithm: 'sha256' } })
+      ).toBe(true);
+    });
+  });
+
+  describe('mailboxInspected (operand-bound identity record)', () => {
+    function exchShell(): ShellEngine {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.getBaseHost().mailboxes.push(
+        { name: 'k.mertens', displayName: 'Mertens, K.', auditEnabled: false, auditLogAgeLimit: '90.00:00:00' },
+        { name: 'poststelle', displayName: 'Poststelle', auditEnabled: false, auditLogAgeLimit: '90.00:00:00' },
+      );
+      return ps;
+    }
+
+    it('reviewer repro: "Get-Mailbox poststelle k.mertens" inspects ONLY poststelle', () => {
+      const ps = exchShell();
+      const r = ps.execute('Get-Mailbox poststelle k.mertens');
+      expect(r.exitCode).toBe(0); // the cmdlet ignores the extra argument
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(false);
+      expect(checkStateGoal(ps, { mailboxInspected: 'poststelle' })).toBe(true);
+    });
+
+    it('a real (even lowercase) inspection of the identity counts', () => {
+      const ps = exchShell();
+      ps.execute('get-mailbox K.MERTENS');
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(true);
+    });
+
+    it('listing ALL mailboxes is not an identity inspection', () => {
+      const ps = exchShell();
+      ps.execute('Get-Mailbox');
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(false);
+    });
+  });
+
+  describe('commandRan.ignoreCase', () => {
+    it('matches PowerShell-style case variants only when ignoreCase is set', () => {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.execute('get-location');
+      expect(
+        checkStateGoal(ps, { commandRan: { pattern: '^Get-Location\\b', ignoreCase: true } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(ps, { commandRan: { pattern: '^Get-Location\\b' } })
+      ).toBe(false);
+    });
+  });
+
+  describe('fileRead (semantic read record)', () => {
+    const GOAL: StateGoal = { fileRead: '/srv/exports/notizen.txt' };
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig, siehe Wiki\n');
+      engine.getBaseHost().vfs.addFile('/home/timo/andere.txt', 'harmlos\n');
+    });
+
+    it('reviewer repro: grep using the target name as a search PATTERN does not count', () => {
+      // Only andere.txt is read; the goal file name is grep's -v pattern.
+      const r = engine.execute('grep -v notizen.txt /home/timo/andere.txt');
+      expect(r.exitCode).toBe(0);
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('any REAL read counts, independent of tool and phrasing', () => {
+      engine.execute("awk '{print}' /srv/exports/notizen.txt");
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('grep that actually reads the target file counts', () => {
+      engine.execute('grep Wiki /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('a relative read is recorded under its canonical absolute path', () => {
+      engine.execute('cd /srv/exports');
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('a failed read (wrong cwd) is never recorded', () => {
+      engine.execute('cat notizen.txt'); // from /root — no such file
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('`< file` input redirection is a genuine read', () => {
+      engine.execute('grep wichtig < /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('appending to the file is NOT a read (internal rewrite reads are unrecorded)', () => {
+      engine.execute('echo nachtrag >> /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('stat is metadata, not a content read', () => {
+      engine.execute('stat /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('scopes to goal.host: a base-host read never satisfies a web01-scoped goal', () => {
+      const web = createHostState({
+        id: 'web01', hostname: 'web01', ip: '10.0.20.10',
+        accounts: [{ name: 'admin', password: 'pw1' }],
+      });
+      web.vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      engine.registerHost(web);
+
+      engine.execute('cat /srv/exports/notizen.txt'); // reads the BASE host copy
+      const scoped: StateGoal = { host: 'web01', fileRead: '/srv/exports/notizen.txt' };
+      expect(checkStateGoal(engine, scoped)).toBe(false);
+
+      engine.execute('ssh admin@web01');
+      engine.continueInput('pw1');
+      engine.execute('cat /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, scoped)).toBe(true);
+    });
+
+    it('is non-vacuous: no reads yet → unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { fileRead: '/srv/exports/notizen.txt' })).toBe(false);
+    });
+  });
+
+  describe('host filter', () => {
+      it('a set goal.host only counts stages executed ON that host (reviewer repro)', () => {
+        const web = createHostState({
+          id: 'web01', hostname: 'web01', ip: '10.0.20.10',
+          accounts: [{ name: 'admin', password: 'pw1' }],
+        });
+        engine.registerHost(web);
+
+        // `ls` on the BASE host must not satisfy a web01-scoped goal …
+        engine.execute('ls');
+        const goal: StateGoal = { host: 'web01', commandRan: { pattern: '^ls\\b', outcome: 'succeeded' } };
+        expect(checkStateGoal(engine, goal)).toBe(false);
+        // … while an unscoped goal matches on any host.
+        expect(checkStateGoal(engine, { commandRan: { pattern: '^ls\\b', outcome: 'succeeded' } })).toBe(true);
+
+        // After an ssh session onto web01 the same command counts there.
+        engine.execute('ssh admin@web01');
+        engine.continueInput('pw1');
+        engine.execute('ls');
+        expect(checkStateGoal(engine, goal)).toBe(true);
+      });
+
+      it('an unresolvable goal.host is false, never a throw', () => {
+        engine.execute('ls');
+        expect(checkStateGoal(engine, { host: 'ghost', commandRan: { pattern: '^ls\\b' } })).toBe(false);
+      });
     });
   });
 

@@ -35,6 +35,7 @@ interface GameScreenProps {
   onContinue: () => void;
   onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
   onTerminalCancel: () => void;
+  onTerminalFlagsSet: (flags: string[]) => void;
   onSave?: () => void;
   onLoad?: () => void;
   /** learning mode only: explicit next-step CTAs on the result screen */
@@ -60,6 +61,7 @@ export function GameScreen({
   onContinue,
   onTerminalSolved,
   onTerminalCancel,
+  onTerminalFlagsSet,
   onSave,
   onLoad,
   learningResultCtas,
@@ -220,6 +222,7 @@ export function GameScreen({
                 task={terminalTask}
                 onSolved={onTerminalSolved}
                 onCancel={onTerminalCancel}
+                onFlagsSet={onTerminalFlagsSet}
                 gameMode={state.gameMode}
               />
             )}
@@ -406,9 +409,10 @@ export function GameScreen({
         )}
       </div>
 
-      {/* Footer with save/load hints */}
-      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex justify-between items-center">
-        <span className="flex items-center gap-4">
+      {/* Footer with save/load hints — wraps so week/day, the back control and
+          the save hints never get pushed off a narrow screen. */}
+      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex flex-wrap justify-between items-center gap-x-4 gap-y-1">
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span>Woche {state.currentWeek} / Tag {state.currentDay}</span>
           {backAction && onBack && (
             <BackButton label={backAction.label} onClick={onBack} />

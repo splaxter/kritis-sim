@@ -91,6 +91,23 @@ export interface CommandSideEffect {
  * open across password prompts and is finalised once no more input is owed.
  * Passwords are never stored — only the original command line.
  */
+/**
+ * One actually-EXECUTED pipeline command of an outer input. Short-circuited
+ * chain segments (`a && b` with a failing, `a || b` with a succeeding) are
+ * never recorded, and a pipeline is split into its individual commands, each
+ * with ITS OWN exit code — the granularity `commandRan` stateGoals match
+ * against. Neither a chained decoy (`ok-cmd || echo target-name`) nor a
+ * pipeline decoy (`cat missing-target | echo ok`, whose pipeline exit code
+ * comes from the succeeding echo) can satisfy a matcher via a combined
+ * command string.
+ */
+export interface CommandStageAttempt {
+  command: string;
+  exitCode: number;
+  /** Host id the stage started on. */
+  host: string;
+}
+
 export interface CommandAttempt {
   command: string;
   sequence: number;
@@ -98,6 +115,12 @@ export interface CommandAttempt {
   hostAfter: string;
   exitCode: number;
   authMethod?: 'publickey' | 'password';
+  /**
+   * Executed pipeline commands (see CommandStageAttempt). Optional so
+   * hand-constructed attempts in tests stay valid; the engine always fills it.
+   * FeedbackRules keep matching the OUTER entry; `commandRan` matches stages.
+   */
+  stages?: CommandStageAttempt[];
 }
 
 // ============================================================================
@@ -157,6 +180,16 @@ export interface ExecutionContext {
    * records ssh logins for loggedIn goals.
    */
   recordAnsibleRun?: (run: AnsibleRunRecord) => void;
+  /**
+   * Structured operand-bound records for stateGoals (see fileCopied /
+   * hashComputed / mailboxInspected): commands report what they ACTUALLY
+   * operated on (canonical paths / resolved identity), so a goal can bind
+   * "the copy was made with cp FROM the original TO the evidence dir" instead
+   * of pattern-matching raw command lines.
+   */
+  recordFileCopy?: (from: string, to: string) => void;
+  recordHashComputed?: (path: string, algo: string) => void;
+  recordMailboxInspected?: (name: string) => void;
   /**
    * Ask the player for one more input line. Returns the pendingInput result
    * to hand back from execute(); `next` runs on the line typed. Chaining is

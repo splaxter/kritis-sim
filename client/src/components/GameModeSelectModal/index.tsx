@@ -31,6 +31,12 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
     if (moveFocus) optionRefs.current[index]?.focus();
   };
 
+  // onClose is created inline by the parent; re-running this effect on a parent
+  // re-render would reset focus and selection to the recommended mode
+  // mid-interaction. Mount-only, latest callback read through a ref.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -39,7 +45,7 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         e.preventDefault();
         const nextIndex = e.key === 'ArrowUp'
@@ -65,7 +71,8 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose, recommendedIndex]);
+    // recommendedIndex is derived from a module-level constant — stable.
+  }, []);
 
   return (
     <div
@@ -73,9 +80,11 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
       role="dialog"
       aria-modal="true"
       aria-label="Simulation wählen"
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 overscroll-contain"
+      className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain bg-black/80 p-4"
     >
-      <div className="w-full max-w-2xl">
+      {/* m-auto (not items-center): auto margins collapse to 0 once the card is
+          taller than the viewport, so the top stays scroll-reachable on phones. */}
+      <div className="m-auto w-full min-w-0 max-w-2xl">
         <AsciiFrame title="SIMULATION WÄHLEN" variant="info">
           <div className="p-4 space-y-3">
             {/* Newcomer guidance — the picker shows 3 variants before you know the game. */}
@@ -100,14 +109,14 @@ export function GameModeSelectModal({ onSelect, onClose }: GameModeSelectModalPr
               ))}
             </div>
 
-            {/* Footer */}
-            <div className="flex justify-between pt-2 border-t border-terminal-border">
+            {/* Footer — wraps so the control never lands outside the viewport. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-terminal-border">
               <span className="text-terminal-green-dim text-sm">
                 [↑↓] Navigieren  [Enter/Klick] Starten  [ESC] Abbrechen
               </span>
               <button
                 onClick={onClose}
-                className="px-3 py-1 border border-terminal-border hover:border-terminal-green text-sm"
+                className="shrink-0 px-3 py-1 border border-terminal-border hover:border-terminal-green text-sm"
               >
                 Abbrechen
               </button>
@@ -144,13 +153,17 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter, 
       onMouseEnter={onMouseEnter}
       onFocus={onFocus}
     >
-      <div className="flex items-center gap-3">
+      {/* min-w-0 on the row AND the text column: flex items floor at their
+          content width, so without it the name + weeks + badge line pushes the
+          card's content past its own box (clipped, unreadable at 320px). */}
+      <div className="flex min-w-0 items-center gap-3">
         {/* Icon */}
-        <span className="text-2xl">{mode.icon}</span>
+        <span className="shrink-0 text-2xl">{mode.icon}</span>
 
         {/* Title and weeks */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          {/* Wraps: three metadata chips don't share one line on a phone. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className={`font-bold ${isSelected ? 'text-terminal-green' : ''}`}>
               {mode.name}
             </span>
@@ -163,14 +176,16 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter, 
               </span>
             )}
           </div>
-          <div className="text-terminal-green-dim text-sm">
+          {/* break-words: long compound terms ("Kettenreaktionen") exceed the
+              column at 320px and would be clipped rather than wrapped. */}
+          <div className="text-terminal-green-dim text-sm break-words">
             {mode.description}
           </div>
         </div>
 
         {/* Selection indicator */}
         {isSelected && (
-          <span className="text-terminal-green">[*]</span>
+          <span className="shrink-0 text-terminal-green">[*]</span>
         )}
       </div>
     </button>

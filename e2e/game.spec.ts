@@ -7,7 +7,8 @@ test.describe('KRITIS Admin Simulator', () => {
 
       // Intro screen shows first
       await expect(page.locator('h1')).toContainText('KRITIS ADMIN SIMULATOR');
-      await expect(page.locator('text=Probezeit Edition')).toBeVisible();
+      // Campaign-neutral shell copy — the title screen fronts every campaign.
+      await expect(page.locator('text=Kommunale Edition')).toBeVisible();
       await expect(page.locator('text=KLICKEN ODER ENTER ZUM STARTEN')).toBeVisible({ timeout: 3000 });
     });
 

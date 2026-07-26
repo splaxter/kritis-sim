@@ -1,4 +1,5 @@
 import { GameState, getGameModeConfig } from '@kritis/shared';
+import { getRunLabel, getChapterProgress } from '../../content/campaigns';
 import { SkillBar } from './SkillBar';
 import { RelationshipBar } from './RelationshipBar';
 import {
@@ -73,7 +74,15 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
   }
 
   const modeConfig = getGameModeConfig(state.gameMode);
+  // The badge names the run: story runs by campaign (so a second campaign never
+  // reads as "Die Probezeit"), everything else by mode.
+  const runLabel = getRunLabel(state.gameMode, state.storyState?.campaignId);
   const totalWeeks = modeConfig.gameLength.totalWeeks;
+  // Story runs measure progress in CHAPTERS: the mode's week budget is not the
+  // campaign's length, so "Woche N/12" would overstate what is left.
+  const chapters = state.storyState
+    ? getChapterProgress(state.storyState.campaignId, state.storyState.currentChapter)
+    : null;
   const { stressGameOver, complianceGameOver, chefRelationshipGameOver } = modeConfig.thresholds;
 
   const stressColor = BAND_CLASS[stressBand(state.stress, stressGameOver)];
@@ -93,22 +102,29 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4 pb-2 border-b border-terminal-border">
-        <div className="flex items-center gap-3">
+      {/* Header — wraps: title + run badge + week don't share one line on a
+          320px phone, and without wrapping the week readout is pushed
+          off-screen. */}
+      <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 mb-4 pb-2 border-b border-terminal-border">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
           <span className="text-lg">KRITIS ADMIN SIMULATOR</span>
           <span className="text-terminal-green-dim text-sm border border-terminal-border px-2 py-0.5">
-            {modeConfig.icon} {modeConfig.name}
+            {runLabel.icon} {runLabel.name}
           </span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-terminal-green-dim">
-            Woche {state.currentWeek}/{totalWeeks} | {DAYS[state.currentDay]}
+            {chapters
+              ? `Woche ${state.currentWeek} · Kapitel ${chapters.position}/${chapters.total}`
+              : `Woche ${state.currentWeek}/${totalWeeks}`}
+            {' | '}{DAYS[state.currentDay]}
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
+      {/* Single column on phones: two columns of skill bars with fixed-width
+          value labels overflow a 375px viewport sideways. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
         {/* Skills */}
         <div>
           <div className="text-terminal-green-dim mb-2 text-sm">─ SKILLS ─</div>
@@ -137,7 +153,9 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
       </div>
 
       {/* Status bar */}
-      <div className="mt-4 pt-2 border-t border-terminal-border flex gap-8 text-sm">
+      {/* Stress · Budget · Compliance — wraps rather than pushing the last
+          value off a narrow screen. */}
+      <div className="mt-4 pt-2 border-t border-terminal-border flex flex-wrap gap-x-8 gap-y-1 text-sm">
         <span className={stressColor}>
           Stress:{' '}
           <span className="font-mono">

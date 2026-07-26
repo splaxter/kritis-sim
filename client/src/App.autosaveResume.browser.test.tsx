@@ -43,6 +43,32 @@ describe('App — autosave resume flow', () => {
     expect(screen.queryByText(/NEUES SPIEL STARTEN/i)).toBeNull();
   });
 
+  it('names the campaign of the save in the resume line, and resumes INTO it', async () => {
+    // A run of the second campaign must not read as "Die Probezeit" on the menu.
+    writeAutosave(PLAYER, createInitialState('AT_RESUME', 'story', 'audit-trail'));
+
+    const user = userEvent.setup();
+    await enterMenu();
+
+    const resumeBtn = await screen.findByText(/WEITER SPIELEN/i);
+    expect(screen.getByText(/Story: Audit Trail/)).toBeInTheDocument();
+    expect(screen.queryByText(/Story: Die Probezeit/)).toBeNull();
+
+    await user.click(resumeBtn);
+    // Resumes into AUDIT TRAIL's first beat, not probation's opener.
+    expect(await screen.findByText('Ein zusätzlicher Auftrag')).toBeInTheDocument();
+    expect(screen.queryByText('Willkommen im Team')).toBeNull();
+  });
+
+  it('keeps the probation resume line unchanged', async () => {
+    writeAutosave(PLAYER, createInitialState('PROB_RESUME', 'story', 'probation'));
+
+    await enterMenu();
+
+    await screen.findByText(/WEITER SPIELEN/i);
+    expect(screen.getByText(/Story: Die Probezeit/)).toBeInTheDocument();
+  });
+
   it('shows no resume option without an autosave', async () => {
     await enterMenu();
     expect(screen.queryByText(/WEITER SPIELEN/i)).toBeNull();

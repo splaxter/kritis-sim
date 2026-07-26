@@ -23,7 +23,7 @@ describe('Terminal task panel — the quest stays reviewable', () => {
       <Terminal
         context={{ ...baseContext, taskText: 'Finde die Angreifer-IP in syslog.' }}
         onSolved={() => {}}
-        onCancel={() => {}}
+        onCancel={() => {}} onFlagsSet={() => {}}
       />
     );
     expect(screen.getByText(/Aufgabe:/)).toBeInTheDocument();
@@ -36,7 +36,7 @@ describe('Terminal task panel — the quest stays reviewable', () => {
         context={baseContext}
         task={'Extrahierte Aufgabe aus dem Briefing.'}
         onSolved={() => {}}
-        onCancel={() => {}}
+        onCancel={() => {}} onFlagsSet={() => {}}
       />
     );
     expect(screen.getByText(/Extrahierte Aufgabe aus dem Briefing\./)).toBeInTheDocument();
@@ -48,7 +48,7 @@ describe('Terminal task panel — the quest stays reviewable', () => {
         context={{ ...baseContext, taskText: 'Aus dem Kontext.' }}
         task={'Aus dem Prop.'}
         onSolved={() => {}}
-        onCancel={() => {}}
+        onCancel={() => {}} onFlagsSet={() => {}}
       />
     );
     expect(screen.getByText(/Aus dem Kontext\./)).toBeInTheDocument();
@@ -56,12 +56,12 @@ describe('Terminal task panel — the quest stays reviewable', () => {
   });
 
   it('renders no panel when there is no task at all', () => {
-    render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} />);
+    render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} onFlagsSet={() => {}} />);
     expect(screen.queryByText(/Aufgabe:/)).not.toBeInTheDocument();
   });
 
   it('wraps terminal controls into readable mobile rows', () => {
-    render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} />);
+    render(<Terminal context={baseContext} onSolved={() => {}} onCancel={() => {}} onFlagsSet={() => {}} />);
 
     const headerCancel = screen.getByRole('button', { name: /Abbrechen/ });
     const hint = screen.getByRole('button', { name: /Hinweis/ });

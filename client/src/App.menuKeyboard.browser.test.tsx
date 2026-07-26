@@ -54,14 +54,17 @@ describe('App — main menu arrow-key navigation', () => {
     fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
 
     expect(await screen.findByRole('button', { name: /Freie Simulation/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Story: Die Probezeit/ })).toBeInTheDocument();
+    // The story option leads to the campaign picker, so it names no campaign.
+    const storyOption = screen.getByRole('button', { name: /Story-Kampagne/ });
+    expect(storyOption).toBeInTheDocument();
+    expect(storyOption).not.toHaveTextContent('Die Probezeit');
     expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Freie Simulation/ }));
 
     expect(await screen.findByRole('button', { name: /Standard/ })).toBeInTheDocument();
     expect(screen.queryByText('Lernmodus')).not.toBeInTheDocument();
-    expect(screen.queryByText('Story: Die Probezeit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Story-Kampagne')).not.toBeInTheDocument();
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(await screen.findByRole('button', { name: /Freie Simulation/ })).toBeInTheDocument();
@@ -69,11 +72,13 @@ describe('App — main menu arrow-key navigation', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
-  it('starts story directly and Standard through the simulation branch', async () => {
+  it('starts a story campaign through the campaign picker and Standard through the simulation branch', async () => {
     const first = render(<App />);
     fireEvent.keyDown(window, { key: 'Enter' });
     fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
-    fireEvent.click(await screen.findByRole('button', { name: /Story: Die Probezeit/ }));
+    // Story is now two steps: experience → campaign.
+    fireEvent.click(await screen.findByRole('button', { name: /Story-Kampagne/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Die Probezeit/ }));
     expect(await screen.findByText('Willkommen im Team')).toBeInTheDocument();
 
     first.unmount();
@@ -85,6 +90,34 @@ describe('App — main menu arrow-key navigation', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Freie Simulation/ }));
     fireEvent.click(await screen.findByRole('button', { name: /Standard/ }));
     expect(await screen.findByText(/Woche 1\/12/)).toBeInTheDocument();
+  });
+
+  it('starts AUDIT TRAIL through the picker — its own first beat, not probation\'s', async () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+    fireEvent.click(await screen.findByRole('button', { name: /Story-Kampagne/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Audit Trail/ }));
+
+    // The run boots into AUDIT TRAIL's first authored beat; probation's opener
+    // must not appear (campaign content is selected by the picked campaign).
+    expect(await screen.findByText('Ein zusätzlicher Auftrag')).toBeInTheDocument();
+    expect(screen.queryByText('Willkommen im Team')).not.toBeInTheDocument();
+  });
+
+  it('Escape in the campaign picker returns to the experience picker, not the menu', async () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+    fireEvent.click(await screen.findByRole('button', { name: /Story-Kampagne/ }));
+
+    expect(await screen.findByRole('dialog', { name: 'Kampagne wählen' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(await screen.findByRole('dialog', { name: 'Einsatzart wählen' })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('opens the existing load dialog through Spielstände', async () => {

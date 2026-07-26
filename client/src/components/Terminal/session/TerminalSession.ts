@@ -26,6 +26,11 @@ export interface TerminalSessionDeps {
   context: TerminalContext;
   gameMode: GameModeId;
   onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
+  /** Fired the moment a scenario command with `setsFlags` matches — immediately
+   *  and independent of solving (honeypot: "the player read this"). Mandatory so
+   *  the flag effect can never be silently dropped along the wiring chain; tests
+   *  may pass a no-op. */
+  onFlagsSet: (flags: string[]) => void;
 }
 
 export interface TerminalSnapshot {
@@ -405,16 +410,33 @@ export class TerminalSession {
       this.savedLine = '';
 
       // First, check scenario-specific commands (for solutions/partial solutions).
+      // PowerShell resolves command names case-insensitively — canned matching
+      // must too, or `get-content honigtopf.pst` would slip past a honeypot
+      // that its exact-case twin triggers.
+      const caseInsensitive = this.deps.context.type === 'windows';
       for (const cmd of this.deps.context.commands) {
         let matches = false;
         if (cmd.patternRegex) {
-          matches = new RegExp(cmd.patternRegex).test(trimmed);
+          matches = new RegExp(cmd.patternRegex, caseInsensitive ? 'i' : '').test(trimmed);
+        } else if (caseInsensitive) {
+          const t = trimmed.toLowerCase();
+          const p = cmd.pattern.toLowerCase();
+          matches = t.startsWith(p) || t === p;
         } else {
           matches = trimmed.startsWith(cmd.pattern) || trimmed === cmd.pattern;
         }
 
         if (matches) {
           this.commandsUsed.push(trimmed);
+
+          // Honeypot / "seen is seen": fire run-flags the instant this command
+          // matches, before any solve/partial branching, so the effect survives
+          // even if the player cancels the level. Idempotency is enforced by the
+          // consumer (useGame.setRunFlags).
+          if (cmd.setsFlags && cmd.setsFlags.length > 0) {
+            this.deps.onFlagsSet(cmd.setsFlags);
+          }
+
           const output = cmd.output;
 
           // Ping-style commands stream their reply lines over time (see
