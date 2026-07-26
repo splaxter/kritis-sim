@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { auditTrailStoryEvents } from '../../content/campaigns/audit-trail/events';
 
 const context: GuiContext = {
   app: 'explorer',
@@ -71,6 +72,7 @@ const filesContext: GuiContext = {
       sharePath: '\\\\FILE01\\Projekte',
       items: [
         { id: 'ordner_bastion', name: '02_BASTION-01', kind: 'folder', modified: '02.05.2025' },
+        { id: 'ordner_leer', name: '03_Leer', kind: 'folder', modified: '01.01.2026' }, // empty decoy
         { id: 'notizen_root', name: 'Ablage_alt.txt', kind: 'file', modified: '11.01.2024', preview: 'Nichts Relevantes.' },
         {
           id: 'angebot',
@@ -161,13 +163,15 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     firstRow.focus();
     expect(firstRow).toHaveFocus();
 
-    // ArrowDown moves selection to the next row (the root file).
-    await user.keyboard('{ArrowDown}');
+    // ArrowDown moves selection down the list; folders sort first, so two
+    // downs (past the empty decoy folder) reach the first root file.
+    await user.keyboard('{ArrowDown}{ArrowDown}');
     const ablage = screen.getByText(/Ablage_alt/).closest('[role="option"]') as HTMLElement;
     expect(ablage).toHaveFocus();
     expect(ablage).toHaveAttribute('aria-selected', 'true');
 
-    // Home jumps back to the folder; Enter opens it and focus follows inside.
+    // Home jumps back to the first folder (BASTION); Enter opens it and focus
+    // follows inside.
     await user.keyboard('{Home}');
     await user.keyboard('{Enter}');
     await waitFor(() => {
@@ -199,5 +203,43 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     await user.keyboard('{Backspace}'); // back out
     await waitFor(() => expect(screen.getByText(/Ablage_alt/)).toBeInTheDocument());
     expect(screen.queryByText(/Angebot_2025-03/)).not.toBeInTheDocument();
+  });
+
+  it('an EMPTY folder is not a keyboard dead end (focus lands on the empty state, Backspace exits)', async () => {
+    const user = userEvent.setup();
+    render(<WindowsLevel context={filesContext} onSolved={() => {}} onCancel={() => {}} />);
+
+    // Navigate to the empty decoy folder and open it by keyboard.
+    const emptyFolder = screen.getByText(/03_Leer/).closest('[role="option"]') as HTMLElement;
+    emptyFolder.focus();
+    await user.keyboard('{Enter}');
+
+    // Focus lands on the focusable empty-state (not lost to <body>).
+    const emptyState = await screen.findByLabelText('Ordner ist leer');
+    await waitFor(() => expect(emptyState).toHaveFocus());
+    expect(document.body).not.toHaveFocus();
+
+    // Backspace from the empty state navigates back up — no dead end.
+    await user.keyboard('{Backspace}');
+    await waitFor(() => expect(screen.getByText(/02_BASTION-01/)).toBeInTheDocument());
+    expect(screen.queryByLabelText('Ordner ist leer')).not.toBeInTheDocument();
+  });
+
+  it('the REAL L7 dataset: an empty decoy folder (Fuhrpark) is keyboard-recoverable', async () => {
+    const user = userEvent.setup();
+    const l7Context = auditTrailStoryEvents.find((e) => e.id === 'at_l7_delivery_note')!.guiContext!;
+    render(<WindowsLevel context={l7Context} onSolved={() => {}} onCancel={() => {}} />);
+
+    // Fuhrpark and Kompostanlage are empty decoys in the shipped level.
+    const fuhrpark = screen.getByText(/Fuhrpark-Telematik/).closest('[role="option"]') as HTMLElement;
+    fuhrpark.focus();
+    await user.keyboard('{Enter}');
+
+    const emptyState = await screen.findByLabelText('Ordner ist leer');
+    await waitFor(() => expect(emptyState).toHaveFocus());
+
+    await user.keyboard('{Backspace}');
+    // Back at the root — the real Lieferschein folder is reachable again.
+    await waitFor(() => expect(screen.getByText(/02_BASTION-01/)).toBeInTheDocument());
   });
 });

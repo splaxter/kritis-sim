@@ -220,7 +220,9 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
   const [openFile, setOpenFile] = useState<ExplorerFileItem | null>(null);
   // Row refs by id, so navigation and folder entry can move real DOM focus.
   const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  // When set, focus the first row after the next render (folder just changed).
+  // Focusable empty-state, so an empty folder is not a keyboard dead end.
+  const emptyRef = useRef<HTMLDivElement>(null);
+  // When set, focus the first row (or the empty state) after the next render.
   const focusFirstOnRender = useRef(false);
 
   const visible = useMemo(() => {
@@ -232,12 +234,14 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
   const crumb = folder ? items.find((i) => i.id === folder)?.name ?? folder : '';
 
   // After a folder change, hand keyboard focus to the first row of the new
-  // listing so arrow navigation continues without a mouse.
+  // listing — or, when the folder is empty, to the focusable empty state, so
+  // arrow/Backspace navigation continues without a mouse (no dead end).
   useEffect(() => {
     if (!focusFirstOnRender.current) return;
     focusFirstOnRender.current = false;
     const first = visible[0];
     if (first) rowRefs.current.get(first.id)?.focus();
+    else emptyRef.current?.focus();
   }, [visible]);
 
   const select = (id: string) => {
@@ -377,6 +381,27 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
             <span className={styles.perm}>{item.modified ?? ''}</span>
           </div>
         ))}
+        {visible.length === 0 && (
+          // Focusable empty state: an empty folder must not trap the keyboard.
+          // Backspace/Enter here navigate back up (mirrors the Zurück button).
+          <div
+            ref={emptyRef}
+            className={styles.row}
+            role="option"
+            aria-selected={false}
+            aria-label="Ordner ist leer"
+            tabIndex={locked ? -1 : 0}
+            onKeyDown={(e) => {
+              if (locked) return;
+              if (e.key === 'Backspace' || e.key === 'Enter') {
+                e.preventDefault();
+                goUp();
+              }
+            }}
+          >
+            <span className={styles.perm}>(Dieser Ordner ist leer — Zurück mit ⌫)</span>
+          </div>
+        )}
       </div>
 
       <div className={styles.footer}>
