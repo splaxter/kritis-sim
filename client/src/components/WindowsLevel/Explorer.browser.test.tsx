@@ -150,4 +150,54 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     expect(screen.getByText(/Ablage_alt/)).toBeInTheDocument();
     expect(screen.queryByText(/Angebot_2025-03/)).not.toBeInTheDocument();
   });
+
+  it('is fully keyboard-drivable: arrows select, Enter enters/opens, focus follows into folders', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={filesContext} onSolved={onSolved} onCancel={() => {}} />);
+
+    // The first row is the single initial tab stop (roving tabindex).
+    const firstRow = screen.getByText(/02_BASTION-01/).closest('[role="option"]') as HTMLElement;
+    firstRow.focus();
+    expect(firstRow).toHaveFocus();
+
+    // ArrowDown moves selection to the next row (the root file).
+    await user.keyboard('{ArrowDown}');
+    const ablage = screen.getByText(/Ablage_alt/).closest('[role="option"]') as HTMLElement;
+    expect(ablage).toHaveFocus();
+    expect(ablage).toHaveAttribute('aria-selected', 'true');
+
+    // Home jumps back to the folder; Enter opens it and focus follows inside.
+    await user.keyboard('{Home}');
+    await user.keyboard('{Enter}');
+    await waitFor(() => {
+      const angebot = screen.getByText(/Angebot_2025-03/).closest('[role="option"]') as HTMLElement;
+      expect(angebot).toHaveFocus();
+    });
+
+    // End → the last file (the Lieferschein); Enter opens it and solves.
+    await user.keyboard('{End}');
+    await user.keyboard('{Enter}');
+    const preview = screen.getByTestId('explorer-preview');
+    expect(preview).toHaveAttribute('aria-live', 'polite');
+    expect(preview).toHaveTextContent('MFA-Modul — ENTHALTEN');
+    await waitFor(
+      () => expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found']),
+      { timeout: 2500 }
+    );
+  });
+
+  it('Backspace navigates up a folder (keyboard-only)', async () => {
+    const user = userEvent.setup();
+    render(<WindowsLevel context={filesContext} onSolved={() => {}} onCancel={() => {}} />);
+
+    const firstRow = screen.getByText(/02_BASTION-01/).closest('[role="option"]') as HTMLElement;
+    firstRow.focus();
+    await user.keyboard('{Enter}'); // into the folder
+    await screen.findByText(/Angebot_2025-03/);
+
+    await user.keyboard('{Backspace}'); // back out
+    await waitFor(() => expect(screen.getByText(/Ablage_alt/)).toBeInTheDocument());
+    expect(screen.queryByText(/Angebot_2025-03/)).not.toBeInTheDocument();
+  });
 });

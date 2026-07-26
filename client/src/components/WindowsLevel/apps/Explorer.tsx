@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   makeStyles,
   tokens,
@@ -218,6 +218,10 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
   const [folder, setFolder] = useState<string | undefined>(undefined);
   const [selected, setSelected] = useState<string | null>(null);
   const [openFile, setOpenFile] = useState<ExplorerFileItem | null>(null);
+  // Row refs by id, so navigation and folder entry can move real DOM focus.
+  const rowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // When set, focus the first row after the next render (folder just changed).
+  const focusFirstOnRender = useRef(false);
 
   const visible = useMemo(() => {
     const inFolder = items.filter((i) => i.parent === folder);
@@ -226,6 +230,15 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
   }, [items, folder]);
 
   const crumb = folder ? items.find((i) => i.id === folder)?.name ?? folder : '';
+
+  // After a folder change, hand keyboard focus to the first row of the new
+  // listing so arrow navigation continues without a mouse.
+  useEffect(() => {
+    if (!focusFirstOnRender.current) return;
+    focusFirstOnRender.current = false;
+    const first = visible[0];
+    if (first) rowRefs.current.get(first.id)?.focus();
+  }, [visible]);
 
   const select = (id: string) => {
     if (locked) return;
@@ -236,6 +249,7 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
   const open = (item: ExplorerFileItem) => {
     if (locked) return;
     if (item.kind === 'folder') {
+      focusFirstOnRender.current = true;
       setFolder(item.id);
       setSelected(null);
       setOpenFile(null);
@@ -243,15 +257,63 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
       return;
     }
     setOpenFile(item);
+    setSelected(item.id);
     emit(`open:${item.id}`);
   };
 
   const goUp = () => {
     if (locked || folder === undefined) return;
     const current = items.find((i) => i.id === folder);
+    focusFirstOnRender.current = true;
     setFolder(current?.parent);
     setSelected(null);
     setOpenFile(null);
+  };
+
+  const focusRowAt = (index: number) => {
+    const item = visible[index];
+    if (!item) return;
+    setSelected(item.id);
+    rowRefs.current.get(item.id)?.focus();
+  };
+
+  const onRowKeyDown = (e: React.KeyboardEvent, item: ExplorerFileItem, index: number) => {
+    if (locked) return;
+    switch (e.key) {
+      case 'Enter':
+        e.preventDefault();
+        open(item);
+        break;
+      case ' ':
+        e.preventDefault();
+        select(item.id);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        focusRowAt(Math.min(index + 1, visible.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        focusRowAt(Math.max(index - 1, 0));
+        break;
+      case 'Home':
+        e.preventDefault();
+        focusRowAt(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        focusRowAt(visible.length - 1);
+        break;
+      case 'Backspace':
+        // Navigate up a folder (mirrors the Zurück button), keyboard-only.
+        if (folder !== undefined) {
+          e.preventDefault();
+          goUp();
+        }
+        break;
+      default:
+        break;
+    }
   };
 
   return (
@@ -265,8 +327,21 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
         {folder !== undefined ? `📁 ${crumb}` : '📁 Stammverzeichnis'}
       </div>
 
+      {/* Live region: opening a file announces the preview to assistive tech. */}
       {openFile && (
-        <div className={styles.preview} data-testid="explorer-preview">
+        <div
+          className={styles.preview}
+          data-testid="explorer-preview"
+          role="region"
+          aria-live="polite"
+          aria-label={`Vorschau: ${openFile.name}`}
+          tabIndex={-1}
+          ref={(el) => {
+            // Move focus to the freshly opened preview so a screen reader lands
+            // on the document content (the actual find).
+            if (el && openFile) el.focus();
+          }}
+        >
           <div className={styles.previewTitle}>📄 {openFile.name}</div>
           {openFile.preview ?? '(Vorschau nicht verfügbar)'}
         </div>
@@ -277,24 +352,23 @@ function ExplorerFiles({ shareName, sharePath, items = [], emit, locked }: Explo
         <span>Geändert am</span>
       </div>
 
-      <div className={styles.list} role="listbox" aria-label="Dateien">
-        {visible.map((item) => (
+      <div className={styles.list} role="listbox" aria-label="Dateien" aria-activedescendant={selected ?? undefined}>
+        {visible.map((item, index) => (
           <div
             key={item.id}
+            id={item.id}
+            ref={(el) => {
+              if (el) rowRefs.current.set(item.id, el);
+              else rowRefs.current.delete(item.id);
+            }}
             className={mergeClasses(styles.row, selected === item.id && styles.rowSelected)}
             onClick={() => select(item.id)}
             onDoubleClick={() => open(item)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                open(item);
-              } else if (e.key === ' ') {
-                e.preventDefault();
-                select(item.id);
-              }
-            }}
+            onKeyDown={(e) => onRowKeyDown(e, item, index)}
             role="option"
-            tabIndex={locked ? -1 : 0}
+            // Roving tabindex: the selected row (or the first when none) is the
+            // single tab stop; arrows move focus within the listbox.
+            tabIndex={locked ? -1 : (selected ?? visible[0]?.id) === item.id ? 0 : -1}
             aria-selected={selected === item.id}
           >
             <span className={styles.principal}>
