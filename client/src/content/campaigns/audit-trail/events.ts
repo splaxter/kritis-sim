@@ -1350,7 +1350,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
         text: 'Auf Bjorg zeigen: Er hat die Übergabe vierzehn Monate blockiert.',
         effects: { stress: 2, relationships: { kollegen: -2 } },
         resultText:
-          'Mag sein. Aber genau an der Stelle, die den Vorwurf belegen müsste, ist deine Akte leer — und was dort fehlt, ersetzt keine Erzählung. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
+          'Mag sein. Aber für eine eindeutige Zuweisung der Verantwortung sind deine Unterlagen unvollständig — und die Lücke schließt keine Erzählung. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
       },
     ],
     tags: ['audit-trail', 'act4'],
@@ -1472,7 +1472,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
         text: 'Den Kontext erklären: die Provokation kam zuerst.',
         effects: { stress: 2, relationships: { kollegen: -1 } },
         resultText:
-          'Vielleicht. Aber ohne gesicherte Notiz steht deine Erinnerung gegen sein Dossier — und sein Dossier hat Seitenzahlen. Der ISB hört sich beide Seiten an; hängen bleibt die mit den Belegen.',
+          'Vielleicht. Aber die Notiz, die das zeigen würde, hast du nicht gesichert — deine Erinnerung steht gegen eine Beschwerde, die schriftlich vorliegt. Der ISB hört sich beide Seiten an; hängen bleibt, was auf Papier steht.',
       },
       {
         id: 'at_audit_f5_fail_concede',
