@@ -1141,4 +1141,327 @@ export const auditTrailStoryEvents: GameEvent[] = [
     },
     tags: ['audit-trail', 'act3', 'terminal'],
   },
+
+  // ══ ACT 4 — Das Audit (Showdown) ══════════════════════════════════════════
+  // Pure authored dialogue: the five audit questions. Each beat's branchCondition
+  // (chapters.ts, the SAME AUDIT_DOMAINS object the ending reads) has already
+  // picked the success or the _fail variant BEFORE this event is served. The
+  // ending is derived from Acts 1–3 flags — so NO Act-4 choice sets a flag; the
+  // file is already written, the player only reads it out. The choices are tone,
+  // not consequence: a real second reaction in the room, same audit outcome.
+
+  // ── F1 (D1 Zurechenbarkeit) — belastbare Antwort ──────────────────────────
+  {
+    id: 'at_audit_f1',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 1: Zurechenbarkeit',
+    description:
+      'Der neue ISB sitzt am Konferenztisch, einen dünnen Ordner vor sich. Kein Ton von Bosskampf, nur eine ruhige erste Frage: „Wer kann bei Ihnen auf E-Mail-Postfächer zugreifen — und woran erkennen Sie hinterher, wer es war?" Du hast eine Antwort, die trägt: das Sammelkonto administrator liegt als strukturelles Finding auf dem Tisch, das Mailbox-Auditing läuft.',
+    image: undefined,
+    involvedCharacters: ['isb'],
+    mentorNote:
+      'Zurechenbarkeit heißt: Jede Handlung lässt sich einer Person zuordnen. Ein geteiltes Konto verhindert genau das. Auditing kann Zugriffe protokollieren — aber solange sich alle als dieselbe Kennung anmelden, bleibt es eine Kompensation, keine Lösung.',
+    choices: [
+      {
+        id: 'at_audit_f1_present',
+        text: 'Nüchtern vortragen: Sammelkonto als Finding dokumentiert, Auditing aktiv, Abstellung beantragt.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Du legst die drei Belege nebeneinander. Der ISB hört zu, ohne zu unterbrechen. „Gut. Und Sie behaupten nicht, das Problem sei damit gelöst?" Nein — das Auditing macht Zugriffe nachvollziehbar, individuell zurechenbar macht es das geteilte Konto nicht. Er notiert etwas. Es sieht aus wie ein Haken.',
+      },
+      {
+        id: 'at_audit_f1_honest',
+        text: 'Die Grenze der Maßnahme selbst benennen: Auditing kompensiert, es beseitigt das Konto nicht.',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Du sagst den unbequemen Teil, bevor er fragen muss: Solange sich alle als administrator anmelden, bleibt Zurechenbarkeit eine Kompensation — deshalb der Antrag, das Konto abzuschaffen. „Dass Sie das aussprechen", sagt der ISB, „erspart uns die halbe Sitzung."',
+      },
+      {
+        id: 'at_audit_f1_overclaim',
+        text: 'Selbstbewusst auftreten: das Auditing als erledigte Sache verkaufen.',
+        effects: { stress: -1 },
+        resultText:
+          'Du präsentierst das Auditing, als wäre die Frage damit vom Tisch. Der ISB blättert eine Seite zurück. „Und das geteilte Konto?" Der Satz hängt. Du ruderst zurück — die Sache stimmt trotzdem, aber der Glanz ist weg.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F1 fail — Zurechenbarkeit nicht hergestellt ───────────────────────────
+  {
+    id: 'at_audit_f1_fail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 1: Zurechenbarkeit',
+    description:
+      'Der neue ISB schlägt seinen Ordner auf. „Wer kann bei Ihnen auf E-Mail-Postfächer zugreifen — und woran erkennen Sie hinterher, wer es war?" Du beginnst zu antworten und hörst selbst, wo es fehlt: Alle melden sich als administrator an, und das Protokoll, das die Frage beantworten würde, läuft nicht oder ist nirgends dokumentiert.',
+    image: undefined,
+    involvedCharacters: ['isb'],
+    choices: [
+      {
+        id: 'at_audit_f1_fail_own',
+        text: 'Die Lücke benennen, statt sie zu überspielen.',
+        effects: { skills: { softSkills: 1 }, stress: 1 },
+        resultText:
+          '„Also könnte es jeder gewesen sein", fasst der ISB zusammen. So ist es. „Dann fangen Sie hier an: ein Konto pro Person, und ein Protokoll, das mitschreibt." Du weißt das. Jetzt weiß er, dass du es weißt — mehr aber auch nicht.',
+      },
+      {
+        id: 'at_audit_f1_fail_defend',
+        text: 'Auf das Vertrauen im Team verweisen: hier greift niemand fremd zu.',
+        effects: { stress: 2 },
+        resultText:
+          'Der ISB blickt kurz auf. „Vertrauen ist keine Zugriffskontrolle." Ein geteiltes Konto ist ein geteiltes Konto — und was sich nicht zuordnen lässt, lässt sich auch nicht ausschließen. Das Feld bleibt leer.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F2 (D2 Beweiskette) — belastbare Antwort ──────────────────────────────
+  {
+    id: 'at_audit_f2',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 2: Die Beweiskette',
+    description:
+      '„Es gab einen Zugriff auf das Postfach von Herrn M.", sagt der ISB und schlägt die nächste Seite auf. „Was wissen Sie darüber — und woher?" Das ist die Frage, für die du die Kette gebaut hast: gemeldet, mandatiert, exportiert, gehasht. Und kein einziger Postfachinhalt, den niemand freigegeben hätte.',
+    image: undefined,
+    involvedCharacters: ['isb'],
+    mentorNote:
+      'Eine Beweiskette überzeugt nicht dadurch, dass sie viel zeigt, sondern dadurch, dass sie lückenlos ist: wer wann was gesichert hat, mit welchem Mandat — und wo die Befugnis aufhört.',
+    choices: [
+      {
+        id: 'at_audit_f2_chain',
+        text: 'Die Kette der Reihe nach zeigen: Fund, Mandat, Export, Hash — und die Grenze, die du nicht überschritten hast.',
+        effects: { skills: { softSkills: 2, security: 1 } },
+        resultText:
+          'Du gehst es Schritt für Schritt durch. Beim Wort „Hashliste" nickt der ISB zum ersten Mal sichtbar. Am Ende fragt er: „Sie haben zu keinem Zeitpunkt Inhalte gelesen?" Nein — nur die Zugriffsspur. „Dann ist aus dem Verdacht ein Beleg geworden, ohne selbst zum Vorfall zu werden. Selten genug."',
+      },
+      {
+        id: 'at_audit_f2_short',
+        text: 'Kurz machen: Freigabe von Bert, Originale gehasht, fertig.',
+        effects: { stress: -1 },
+        resultText:
+          'Die Kurzfassung sitzt, aber der ISB will das Papier sehen, nicht die Zusammenfassung. Du reichst es nach. Es ist da — und dass es da ist, ist am Ende, was zählt.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F2 fail — Kette hält nicht (Lücke ODER Scope-Verstoß) ─────────────────
+  // Robust to both failure modes: an incomplete chain and a scope violation.
+  // The concrete Personalrat/DSGVO consequence lives in the Rächer epilogue
+  // (endings.ts), which the negative flags trigger — this scene only names that
+  // the chain is not presentable, without asserting a damage that may not apply.
+  {
+    id: 'at_audit_f2_fail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 2: Die Beweiskette',
+    description:
+      '„Es gab einen Zugriff auf das Postfach von Herrn M. Was wissen Sie — und woher?" Du beginnst zu erzählen und hörst selbst, wo es dünn wird: hier fehlt die Freigabe, dort der Zeitstempel, an einer Stelle der Hash. Aus einer Beweiskette wird eine Erzählung — und Erzählungen kann man bestreiten.',
+    image: undefined,
+    involvedCharacters: ['isb'],
+    choices: [
+      {
+        id: 'at_audit_f2_fail_own',
+        text: 'Die Lücken selbst benennen, statt sie zu überspielen.',
+        effects: { skills: { softSkills: 1 }, stress: 1 },
+        resultText:
+          'Du sagst, was fehlt, bevor er es findet. Das ist mehr wert als Ausreden — aber es füllt die Lücken nicht. „Beim nächsten Mal", sagt der ISB, „sichern Sie zuerst, dann werten Sie aus." Du weißt das. Jetzt weiß er, dass du es weißt.',
+      },
+      {
+        id: 'at_audit_f2_fail_defend',
+        text: 'Auf das Ergebnis pochen: Der Zugriff hat schließlich stattgefunden.',
+        effects: { stress: 2, relationships: { chef: -2 } },
+        resultText:
+          'Dass etwas passiert ist, bestreitet niemand. Nur belegen kannst du es nicht sauber — und ohne Beleg steht deine Vermutung gegen jede andere Version. Der ISB schließt die Seite. „Recht haben und es zeigen können sind zwei verschiedene Dinge."',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F3 (D3 BASTION) — belastbare Antwort ──────────────────────────────────
+  {
+    id: 'at_audit_f3',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 3: Die PAM-Blockade',
+    description:
+      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack", sagt der ISB. „Warum ist sie nie in Betrieb gegangen?" Du legst den Lieferschein auf den Tisch — Position 3, MFA-Modul, enthalten — und daneben die Schnittstellen-Mail mit Zeitstempel und CC an die IT-Leitung.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    choices: [
+      {
+        id: 'at_audit_f3_paper',
+        text: 'Beim Papier bleiben: Lieferschein plus dokumentierte Übergabe — die Blockade war organisatorisch, nicht technisch.',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Der ISB liest beide Dokumente. „Also war das Modul da, und die Einweisung wurde bestellt und nie abgerufen." Genau. „Dann ist die Frage nicht, ob es ging, sondern warum es niemand angestoßen hat." Sein Blick geht kurz zu Bjorgs Stuhl.',
+      },
+      {
+        id: 'at_audit_f3_state',
+        text: 'Sachlich den Stand nennen: Die Inbetriebnahme ist angestoßen, die Zuarbeiten sind angefordert.',
+        effects: { stress: -1 },
+        resultText:
+          'Kein Triumph, nur ein Stand. „Gut", sagt der ISB. „Ein dokumentierter Stand ist mehr als eine Ausrede." Er trägt das Datum ein, ab dem WARM nachweislich geliefert hat.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F3 fail — BASTION-Erzählung unwidersprochen ───────────────────────────
+  {
+    id: 'at_audit_f3_fail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 3: Die PAM-Blockade',
+    description:
+      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack. Warum?" Du hast Vermutungen, aber kein Papier. Bjorgs Version — ‚MFA war nie Teil des Pakets’ — steht unwidersprochen im Raum, weil du den Lieferschein nie gesichtet oder die Übergabe nie dokumentiert hast.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    choices: [
+      {
+        id: 'at_audit_f3_fail_honest',
+        text: 'Zugeben, dass dir der Beleg fehlt.',
+        effects: { skills: { softSkills: 1 } },
+        resultText:
+          'Der ISB nickt langsam. „Dann bleibt es bei Aussage gegen Aussage — und die lautere Aussage gewinnt." Du weißt, wessen Aussage das ist.',
+      },
+      {
+        id: 'at_audit_f3_fail_blame',
+        text: 'Auf Bjorg zeigen: Er hat die Übergabe vierzehn Monate blockiert.',
+        effects: { stress: 2, relationships: { kollegen: -2 } },
+        resultText:
+          'Mag sein. Aber ohne Lieferschein und ohne dokumentierte Bringschuld ist auch das nur deine Erzählung gegen seine. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F4 (D4 Dokumentation) — belastbare Antwort ────────────────────────────
+  {
+    id: 'at_audit_f4',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 4: Ihre Dokumentation',
+    description:
+      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate", sagt der ISB und lehnt sich zurück. Das ist die Frage, auf die du seit dem ersten Arbeitstag hinarbeitest: das Onboarding-Inventar von damals und der per diff belegte Eingriff in die Ticket-Historie liegen sortiert bereit.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bert'],
+    choices: [
+      {
+        id: 'at_audit_f4_show',
+        text: 'Die Spur chronologisch aufblättern: erst das Inventar, dann der dokumentierte Ticket-Eingriff.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Du gehst die Monate durch, Beleg für Beleg. Der ISB blättert mit. „Das ist eine Aktenlage, keine Ausrede." Bert, zwei Stühle weiter, atmet hörbar aus.',
+      },
+      {
+        id: 'at_audit_f4_diff',
+        text: 'Den Ticket-diff in den Mittelpunkt stellen: hier wurde nachträglich aufgeräumt, hier ist der Beweis.',
+        effects: { skills: { security: 2 } },
+        resultText:
+          'Der Vergleich der beiden Exportstände macht den Eingriff schwarz auf weiß sichtbar. „Wer hat das geändert?", fragt der ISB. Die Frage stellt sich jetzt von selbst — und sie zeigt nicht auf dich.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F4 fail — keine Aktenlage, Bjorgs Mappe füllt die Lücke ───────────────
+  {
+    id: 'at_audit_f4_fail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 4: Ihre Dokumentation',
+    description:
+      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate." Du greifst ins Leere. Was fehlt, füllt ein anderer: Bjorg schiebt eine Mappe über den Tisch — seine Version der Ticket-Historie, gut sortiert, ohne die Zeile, die dich entlasten würde.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    choices: [
+      {
+        id: 'at_audit_f4_fail_reconstruct',
+        text: 'Aus dem Gedächtnis rekonstruieren, was du getan hast.',
+        effects: { stress: 2 },
+        resultText:
+          'Du erzählst, was war. Aber Erinnerung ist kein Beleg, und Bjorgs Mappe hat den Vorteil, ein Deckblatt zu haben. Der ISB hört dir zu — und liest trotzdem in der Mappe.',
+      },
+      {
+        id: 'at_audit_f4_fail_concede',
+        text: 'Einräumen, dass die Doku dünn ist.',
+        effects: { skills: { softSkills: 1 } },
+        resultText:
+          'Ehrlich, aber folgenlos. Ohne eigene Aktenlage erzählt die einzige vorhandene Akte die Geschichte — und die stammt nicht von dir.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F5 (D5 Deeskalation) — belastbare Antwort ─────────────────────────────
+  {
+    id: 'at_audit_f5',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 5: Der Umgangston',
+    description:
+      '„Ihr Kollege Bjorg hat sich über Ihren Umgangston beschwert", sagt der ISB, fast beiläufig. Du hast die ‚[intern]’-Notizen mit Zeitstempel gesichert, statt sie zu beantworten — und nie eine Spitze produziert, die man dir jetzt vorhalten könnte.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    choices: [
+      {
+        id: 'at_audit_f5_calm',
+        text: 'Ruhig bleiben: die gesicherten Notizen zeigen, wer hier welchen Ton gewählt hat.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Du legst die Ticket-Notizen vor, unkommentiert. Der ISB liest zwei, drei davon. „Das sind seine Worte, nicht Ihre." Er schiebt die Beschwerde zur Seite. Bjorg studiert die Tischplatte.',
+      },
+      {
+        id: 'at_audit_f5_short',
+        text: 'Es kurz halten: kein Kommentar, nur die Belege.',
+        effects: { stress: -1 },
+        resultText:
+          'Du sagst fast nichts und lässt die Zeitstempel reden. Manchmal ist die stärkste Antwort die, die man nicht selbst formulieren muss.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
+
+  // ── F5 fail — Bjorgs Dossier bestimmt den Ton ─────────────────────────────
+  {
+    id: 'at_audit_f5_fail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 5: Der Umgangston',
+    description:
+      '„Ihr Kollege Bjorg hat sich über Ihren Umgangston beschwert." Und diesmal hat die Beschwerde Anhänge: ein Dossier, das jede deiner spitzen Antworten sammelt — oder schlicht das Fehlen der Notiz, die zeigen würde, wer angefangen hat. So oder so bestimmt Bjorgs Version den Ton im Raum.',
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    choices: [
+      {
+        id: 'at_audit_f5_fail_context',
+        text: 'Den Kontext erklären: die Provokation kam zuerst.',
+        effects: { stress: 2, relationships: { kollegen: -1 } },
+        resultText:
+          'Vielleicht. Aber ohne gesicherte Notiz steht deine Erinnerung gegen sein Dossier — und sein Dossier hat Seitenzahlen. Der ISB hört sich beide Seiten an; hängen bleibt die mit den Belegen.',
+      },
+      {
+        id: 'at_audit_f5_fail_concede',
+        text: 'Einräumen, dass du dich hast provozieren lassen.',
+        effects: { skills: { softSkills: 1 } },
+        resultText:
+          'Die Ehrlichkeit ehrt dich und ändert wenig. Was du im Chat geschrieben hast, steht im Chat. Was du nicht gesichert hast, fehlt. Bjorgs Erzählung füllt beide Lücken.',
+      },
+    ],
+    tags: ['audit-trail', 'act4'],
+  },
 ];

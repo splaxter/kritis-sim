@@ -78,27 +78,26 @@ describe('Act-4 beats branch on the domain objects', () => {
   });
 });
 
-describe('authored/unauthored seam (moves as acts are authored)', () => {
-  it('Acts 1–3 are fully authored (playable, not an act-break)', () => {
-    for (const ch of ['at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence', 'at_ch04_blockade']) {
+describe('campaign fully authored end-to-end (no act-break seam)', () => {
+  it('every chapter (Acts 1–4) is fully authored — never raises the act-break', () => {
+    for (const ch of auditTrailChapters) {
       expect(
-        isAtAuthoredStoryEnd(stateAt(ch), auditTrailStoryEvents, []),
-        `${ch} must be fully authored`
+        isAtAuthoredStoryEnd(stateAt(ch.id), auditTrailStoryEvents, []),
+        `${ch.id} must be fully authored`
       ).toBe(false);
     }
   });
 
-  it('entering Act 4 (unauthored) raises the act-break', () => {
-    expect(isAtAuthoredStoryEnd(stateAt('at_ch05_audit_1'), auditTrailStoryEvents, [])).toBe(true);
-  });
-
-  it('the completed act at the seam is Act 3 (correct act-break copy)', () => {
-    expect(
-      getLastCompletedAct(
-        stateAt('at_ch05_audit_1', [
-          'at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence', 'at_ch04_blockade',
-        ])
-      )
-    ).toBe(3);
+  it('completing the last chapter lands past the campaign (real completion, not a seam)', () => {
+    // at_ch06_audit_2 has completionUnlocks: [] — after it, there is no current
+    // chapter, so isAtAuthoredStoryEnd is false and the game resolves on the
+    // derived ending screen rather than a "Fortsetzung folgt" act-break.
+    const pastEnd = stateAt('', [
+      'at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence',
+      'at_ch04_blockade', 'at_ch05_audit_1', 'at_ch06_audit_2',
+    ]);
+    expect(isAtAuthoredStoryEnd(pastEnd, auditTrailStoryEvents, [])).toBe(false);
+    // The last completed act is Act 4.
+    expect(getLastCompletedAct(pastEnd)).toBe(4);
   });
 });
