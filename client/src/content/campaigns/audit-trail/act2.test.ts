@@ -148,6 +148,12 @@ describe('L4 „Die Spur im IIS-Log" — honeypot fires on EVERY read path', () 
     'sls Betreff k_mertens_export.pst',
     'Get-Content k_mertens_export.pst | Select-String Betreff',
     'Get-ChildItem | Get-Content k_mertens_export.pst',
+    // PowerShell is case-insensitive — lower/mixed/upper case must not
+    // slip past the honeypot (reviewer repro).
+    'get-content C:\\inetpub\\logs\\LogFiles\\W3SVC1\\k_mertens_export.pst',
+    'GET-CONTENT K_MERTENS_EXPORT.PST',
+    'select-string -path k_mertens_export.pst -pattern betreff',
+    'sls betreff k_mertens_export.PST',
   ])('fires immediately WITHOUT solving on: %s', (cmd) => {
     const { session, onFlagsSet } = makeSession(l4.terminalContext!);
     run(session, cmd);
@@ -271,7 +277,7 @@ describe('L5 „Die Beweiskette"', () => {
     expect(session.getSnapshot().solved).toBe(true);
   });
 
-  it('the real sha256sum output satisfies the hash goal format', () => {
+  it('the real sha256sum output prints "<64 hex>  <path>" (what the player writes to hashes.txt)', () => {
     const { session } = makeSession(l5.terminalContext!);
     run(session, 'mkdir /home/timo/beweis');
     run(session, 'cp /home/timo/eingang/u_ex260722.log /home/timo/beweis/');
@@ -283,6 +289,26 @@ describe('L5 „Die Beweiskette"', () => {
     expect(out).toMatch(/^[0-9a-f]{64}\s+\/home\/timo\/beweis\/u_ex260722\.log/m);
   });
 
+  it('a fully INVENTED chain does not solve (reviewer forgery repro — no real read/copy/hash)', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'mkdir /home/timo/beweis');
+    run(session, 'echo fake > /home/timo/beweis/u_ex260722.log');
+    run(session, `echo "${'a'.repeat(64)}  /home/timo/beweis/u_ex260722.log" > /home/timo/beweis/hashes.txt`);
+    run(session, 'echo "2026-07-22 12:40 erfunden" > /home/timo/beweis/timeline.md');
+    run(session, 'echo "Erledigt: synthetisch" >> /home/timo/eingang/protokoll_export.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('a copy made WITHOUT cp (cat >) does not anchor the taught tool', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'mkdir /home/timo/beweis');
+    run(session, 'cat /home/timo/eingang/u_ex260722.log > /home/timo/beweis/u_ex260722.log');
+    run(session, 'sha256sum /home/timo/beweis/u_ex260722.log > /home/timo/beweis/hashes.txt');
+    run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
+    run(session, 'echo "Erledigt: fertig" >> /home/timo/eingang/protokoll_export.txt');
+    expect(session.getSnapshot().solved).toBe(false); // cp never ran
+  });
+
   it('hashing some OTHER file does not satisfy the hash goal', () => {
     const { session } = makeSession(l5.terminalContext!);
     run(session, 'mkdir /home/timo/beweis');
@@ -291,6 +317,17 @@ describe('L5 „Die Beweiskette"', () => {
     run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
     run(session, 'echo "Erledigt: alles" >> /home/timo/eingang/protokoll_export.txt');
     expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('tampering with the copy AFTER hashing breaks the chain again', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'mkdir /home/timo/beweis');
+    run(session, 'cp /home/timo/eingang/u_ex260722.log /home/timo/beweis/');
+    run(session, 'sha256sum /home/timo/beweis/u_ex260722.log > /home/timo/beweis/hashes.txt');
+    run(session, 'echo manipuliert >> /home/timo/beweis/u_ex260722.log');
+    run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
+    run(session, 'echo "Erledigt: fertig" >> /home/timo/eingang/protokoll_export.txt');
+    expect(session.getSnapshot().solved).toBe(false); // copy ≠ original, hash stale
   });
 
   it('the seeded protocol does not pre-satisfy the closing line', () => {
@@ -335,6 +372,16 @@ describe('L6 „Ab jetzt wird geloggt"', () => {
     const { session } = makeSession(l6.terminalContext!);
     run(session, 'Set-Mailbox k.mertens -AuditEnabled $ture');
     expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('erst prüfen, dann ändern: a direct Set-Mailbox WITHOUT the Get-Mailbox check does not solve', () => {
+    const { session } = makeSession(l6.terminalContext!);
+    run(session, 'Set-Mailbox k.mertens -AuditEnabled $true');
+    expect(session.getSnapshot().solved).toBe(false); // check still missing
+    // The check counts case-insensitively (real PowerShell semantics) and
+    // also as the AFTER-verification the hints teach.
+    run(session, 'get-mailbox k.mertens');
+    expect(session.getSnapshot().solved).toBe(true);
   });
 
   it('enabling a DIFFERENT mailbox does not solve', () => {

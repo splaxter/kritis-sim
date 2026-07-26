@@ -381,7 +381,65 @@ describe('stateGoals', () => {
       });
     });
 
-    describe('fileRead (semantic read record)', () => {
+    describe('sameContentAs (chain of custody)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'zeile1\nzeile2\n');
+    });
+    const GOAL: StateGoal = { file: '/root/kopie.log', sameContentAs: '/srv/original.log' };
+
+    it('a REAL copy passes; a forged file fails', () => {
+      engine.execute('cp /srv/original.log /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+
+      engine.execute('echo fake > /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('missing copy or missing original fails, never throws', () => {
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+      expect(
+        checkStateGoal(engine, { file: '/srv/original.log', sameContentAs: '/no/such.log' })
+      ).toBe(false);
+    });
+  });
+
+  describe('sha256Of (hash-list integrity)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'beweis\n');
+    });
+    const GOAL: StateGoal = { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' };
+
+    it('the digest actually computed by sha256sum passes', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('an invented 64-hex string fails (reviewer forgery repro)', () => {
+      engine.execute(`echo ${'a'.repeat(64)} /root/kopie.log > /root/hashes.txt`);
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('modifying the copy AFTER hashing invalidates the goal (digest is live)', () => {
+      engine.execute('sha256sum /root/kopie.log > /root/hashes.txt');
+      engine.execute('echo nachtrag >> /root/kopie.log');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+  });
+
+  describe('commandRan.ignoreCase', () => {
+    it('matches PowerShell-style case variants only when ignoreCase is set', () => {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.execute('get-location');
+      expect(
+        checkStateGoal(ps, { commandRan: { pattern: '^Get-Location\\b', ignoreCase: true } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(ps, { commandRan: { pattern: '^Get-Location\\b' } })
+      ).toBe(false);
+    });
+  });
+
+  describe('fileRead (semantic read record)', () => {
     const GOAL: StateGoal = { fileRead: '/srv/exports/notizen.txt' };
     beforeEach(() => {
       engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig, siehe Wiki\n');

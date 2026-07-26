@@ -652,11 +652,19 @@ export const auditTrailStoryEvents: GameEvent[] = [
         {
           commands: [],
           allRequired: false,
+          // A chain of custody must be REAL, not merely well-formatted:
+          // the copy must be byte-equal to the original, the hash list must
+          // contain the digest ACTUALLY computed for that copy, and the taught
+          // tools must really have run. A fully invented set of files
+          // (echo fake > kopie; echo <64×a> > hashes.txt) satisfies none of it.
           stateGoals: [
-            { file: '/home/timo/beweis/u_ex260722.log', fileExists: true },
-            // sha256sum output format: '<64 hex>  <path>' — the hash must
-            // belong to the log, not to some arbitrary file.
-            { file: '/home/timo/beweis/hashes.txt', matches: '[0-9a-f]{64}\\s+\\S*u_ex260722' },
+            {
+              file: '/home/timo/beweis/u_ex260722.log',
+              sameContentAs: '/home/timo/eingang/u_ex260722.log',
+            },
+            { file: '/home/timo/beweis/hashes.txt', sha256Of: '/home/timo/beweis/u_ex260722.log' },
+            { commandRan: { pattern: '^cp\\b', outcome: 'succeeded' } },
+            { commandRan: { pattern: '^sha256sum\\b', outcome: 'succeeded' } },
             { file: '/home/timo/beweis/timeline.md', matches: '2026-07-22.*12:4' },
             // 'Erledigt:' is deliberately absent from the seeded Protokoll, so
             // only the player's closing line satisfies this.
@@ -730,7 +738,19 @@ export const auditTrailStoryEvents: GameEvent[] = [
           // Live mailbox attribute on EXCH01 — only a REAL, correctly typed
           // Set-Mailbox flips it (typos like $ture fail with exit 1, no
           // mutation — guarded by the cmdlet's strict bool validation).
-          stateGoals: [{ mailbox: 'k.mertens', auditEnabled: true }],
+          // "Erst prüfen, dann ändern" is mechanical: a successful
+          // Get-Mailbox on M.s mailbox must be on record (case-insensitive,
+          // like real PowerShell; checking again afterwards also counts).
+          stateGoals: [
+            { mailbox: 'k.mertens', auditEnabled: true },
+            {
+              commandRan: {
+                pattern: '^Get-Mailbox\\b.*k\\.mertens',
+                outcome: 'succeeded',
+                ignoreCase: true,
+              },
+            },
+          ],
           resultText:
             'Mailbox-Auditing für k.mertens ist aktiv — ohne Neustart, ohne Wartungsfenster, wirksam ab sofort.\n\nLernnotiz: On-prem gilt Set-Mailbox -AuditEnabled $true pro Postfach; in Exchange Online ist Auditing standardmäßig an (organisationsweit via AuditDisabled). Referenzen: learn.microsoft.com/en-us/purview/audit-mailboxes und learn.microsoft.com/en-us/exchange/policy-and-compliance/mailbox-audit-logging/enable-or-disable?view=exchserver-2019',
           skillGain: { windows: 4, security: 4 },

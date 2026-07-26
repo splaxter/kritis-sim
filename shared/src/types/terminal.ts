@@ -29,6 +29,12 @@ export interface CommandMatcher {
   outcome?: 'attempted' | 'succeeded' | 'failed';
   /** When set, the matched attempt must have opened an SSH session with this auth method. */
   authMethod?: 'publickey' | 'password';
+  /**
+   * Compile the pattern case-insensitively. Use for PowerShell command
+   * assertions — real PowerShell resolves `get-mailbox` and `Get-Mailbox`
+   * alike, and the execution log records commands AS TYPED.
+   */
+  ignoreCase?: boolean;
 }
 
 /**
@@ -230,6 +236,20 @@ export interface TerminalHostSpec {
 
 /** Declarative win condition, checked against live engine state after every command. */
 export interface StateGoal {
+  /**
+   * Asserts BYTE EQUALITY between `file` and this second path (both must
+   * exist and be regular files on the goal's host). The chain-of-custody
+   * check: a secured copy only counts when it really equals the original —
+   * `echo fake > kopie` can never satisfy it.
+   */
+  sameContentAs?: string;
+  /**
+   * Asserts that `file` (the hash list) contains the ACTUAL SHA-256 hex
+   * digest of this path's CURRENT content. The digest is computed live by the
+   * evaluator, so a hand-invented 64-hex string never matches — only a hash
+   * genuinely produced for that copy does.
+   */
+  sha256Of?: string;
   /**
    * Host addressed by id, full hostname, short hostname (before the first
    * '.'), or IP. Defaults to the primary (base) host.

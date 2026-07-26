@@ -14,9 +14,9 @@ import { CommandAttempt } from './types';
 const warnedPatterns = new Set<string>();
 
 /** Compile an authored regex; invalid patterns warn once and yield null. */
-function safeRegex(pattern: string): RegExp | null {
+function safeRegex(pattern: string, flags = ''): RegExp | null {
   try {
-    return new RegExp(pattern);
+    return new RegExp(pattern, flags);
   } catch {
     if (!warnedPatterns.has(pattern)) {
       warnedPatterns.add(pattern);
@@ -42,7 +42,7 @@ function matchOutcome(a: CommandAttempt, outcome: CommandMatcher['outcome']): bo
  *  Exported for the `commandRan` stateGoal, which evaluates the same matcher
  *  shape against the execution log. */
 export function attemptMatches(a: CommandAttempt, m: CommandMatcher): boolean {
-  const re = safeRegex(m.pattern);
+  const re = safeRegex(m.pattern, m.ignoreCase ? 'i' : '');
   if (!re) return false;
   if (!re.test(a.command)) return false;
   if (!matchOutcome(a, m.outcome)) return false;

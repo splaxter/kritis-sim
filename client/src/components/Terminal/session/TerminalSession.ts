@@ -410,10 +410,18 @@ export class TerminalSession {
       this.savedLine = '';
 
       // First, check scenario-specific commands (for solutions/partial solutions).
+      // PowerShell resolves command names case-insensitively — canned matching
+      // must too, or `get-content honigtopf.pst` would slip past a honeypot
+      // that its exact-case twin triggers.
+      const caseInsensitive = this.deps.context.type === 'windows';
       for (const cmd of this.deps.context.commands) {
         let matches = false;
         if (cmd.patternRegex) {
-          matches = new RegExp(cmd.patternRegex).test(trimmed);
+          matches = new RegExp(cmd.patternRegex, caseInsensitive ? 'i' : '').test(trimmed);
+        } else if (caseInsensitive) {
+          const t = trimmed.toLowerCase();
+          const p = cmd.pattern.toLowerCase();
+          matches = t.startsWith(p) || t === p;
         } else {
           matches = trimmed.startsWith(cmd.pattern) || trimmed === cmd.pattern;
         }

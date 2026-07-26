@@ -7,6 +7,7 @@ import { StateGoal } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { HostState, UfwRule, canonicalUnitName } from './hosts';
 import { attemptMatches } from './feedback';
+import { sha256Hex, toBytes } from './commands/linux/extended';
 
 /** Compile an authored regex; invalid patterns yield null instead of throwing. */
 function safeRegex(pattern: string): RegExp | null {
@@ -27,6 +28,8 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.absentMatches !== undefined
     || goal.fileExists !== undefined
     || goal.fileAbsent !== undefined
+    || goal.sameContentAs !== undefined
+    || goal.sha256Of !== undefined
   );
   // serviceEnabled: false is a legal assertion — check "given", not truthiness.
   const serviceAssertion = goal.service !== undefined && (
@@ -89,6 +92,29 @@ function checkFileGoals(host: HostState, goal: StateGoal): boolean {
       if (!re || re.test(content)) return false;
     }
   }
+
+  // Chain-of-custody: `file` must be byte-equal to this second path. Both
+  // must exist as regular files — a forged `echo fake > kopie` never passes.
+  if (goal.sameContentAs !== undefined) {
+    const a = vfs.stat(goal.file);
+    const b = vfs.stat(goal.sameContentAs);
+    if (!a.ok || a.value.type === 'directory') return false;
+    if (!b.ok || b.value.type === 'directory') return false;
+    if ((a.value.content ?? '') !== (b.value.content ?? '')) return false;
+  }
+
+  // Hash-list integrity: `file` must contain the ACTUAL SHA-256 hex digest of
+  // this path's CURRENT content — computed live, so an invented 64-hex string
+  // can never match.
+  if (goal.sha256Of !== undefined) {
+    const list = vfs.stat(goal.file);
+    const target = vfs.stat(goal.sha256Of);
+    if (!list.ok || list.value.type === 'directory') return false;
+    if (!target.ok || target.value.type === 'directory') return false;
+    const digest = sha256Hex(toBytes(target.value.content ?? ''));
+    if (!(list.value.content ?? '').includes(digest)) return false;
+  }
+
   return true;
 }
 
