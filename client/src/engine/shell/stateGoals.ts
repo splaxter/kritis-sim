@@ -161,9 +161,14 @@ function checkMailboxGoals(host: HostState, goal: StateGoal): boolean {
 /**
  * Goals have no proto field — matching is proto-insensitive by design: a
  * proto-less stored rule and a 22/tcp rule both satisfy a port-22 goal.
+ * `goal.from` narrows the scope: undefined = any rule (legacy), a string =
+ * only rules scoped to exactly that source, null = only UNSCOPED rules.
  */
 function ruleMatches(rule: UfwRule, goal: NonNullable<StateGoal['firewallRule']>): boolean {
-  return rule.action === goal.action && rule.port === goal.port;
+  if (rule.action !== goal.action || rule.port !== goal.port) return false;
+  if (goal.from === undefined) return true;
+  if (goal.from === null) return !rule.from;
+  return rule.from === goal.from;
 }
 
 function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
@@ -172,12 +177,18 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
     const present = fwGoal.present ?? true;
     const matching = host.firewall.rules.filter(r => ruleMatches(r, fwGoal));
     if (present) {
-      // A from-scoped rule (`allow from 10.0.30.5 to any port 22`) does NOT
-      // count as "port 22 open" — present:true needs a global rule.
-      if (!matching.some(r => !r.from)) return false;
+      if (fwGoal.from === undefined) {
+        // Legacy semantics: a from-scoped rule (`allow from 10.0.30.5 to any
+        // port 22`) does NOT count as "port 22 open" — needs a global rule.
+        if (!matching.some(r => !r.from)) return false;
+      } else if (matching.length === 0) {
+        // Scoped assertion (string or null): the described rule must exist.
+        return false;
+      }
     } else {
-      // present:false means the hole is fully closed: ANY matching rule —
-      // from-scoped included — leaves the goal unmet.
+      // present:false means no matching rule within the goal's scope: with
+      // from undefined that is ANY rule (legacy full closure); with from:null
+      // only global rules are counted, so a scoped allow may remain.
       if (matching.length > 0) return false;
     }
   }

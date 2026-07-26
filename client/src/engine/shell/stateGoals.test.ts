@@ -191,6 +191,39 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('firewallRule.from (scoped assertions)', () => {
+    it('from:<ip> asserts the SCOPED door exists; legacy check still needs a global rule', () => {
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: '10.0.99.1', present: true } })
+      ).toBe(false);
+      // Legacy (from undefined): a scoped rule is NOT "port 22 open".
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, present: true } })
+      ).toBe(false);
+    });
+
+    it('from:null + present:false asserts "no GLOBAL door" while a scoped allow remains', () => {
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: null, present: false } })
+      ).toBe(true);
+      // Legacy present:false still fails on ANY matching rule, scoped included.
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, present: false } })
+      ).toBe(false);
+
+      // Opening the port globally breaks the scoped-only claim.
+      engine.execute('sudo ufw allow 22');
+      expect(
+        checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: null, present: false } })
+      ).toBe(false);
+    });
+  });
+
   describe('firewallDefaultIncoming', () => {
     it('compares the configured default policy, regardless of enabled', () => {
       expect(checkStateGoal(engine, { firewallDefaultIncoming: 'allow' })).toBe(true);

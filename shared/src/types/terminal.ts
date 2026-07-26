@@ -267,7 +267,15 @@ export interface StateGoal {
   service?: string;
   serviceState?: 'active' | 'inactive' | 'failed';
   serviceEnabled?: boolean;
-  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean };
+  /**
+   * `from` scopes the assertion: undefined keeps the legacy semantics
+   * (present:true needs a GLOBAL rule; present:false fails on ANY matching
+   * rule, scoped included). A string requires a rule scoped to exactly that
+   * source ("the bastion door exists"). `null` matches only UNSCOPED rules —
+   * `{ action:'allow', port:22, from:null, present:false }` asserts "no
+   * globally open SSH" while a bastion-scoped allow may remain.
+   */
+  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean; from?: string | null };
   firewallDefaultIncoming?: 'allow' | 'deny';
   /**
    * Asserts the firewall's enabled state (`ufw enable` / `ufw disable`). Rules
