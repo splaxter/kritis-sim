@@ -52,13 +52,14 @@ export function ScenarioCard({ scenario, onChoice }: ScenarioCardProps) {
 
   return (
     <div className="border border-terminal-border p-4">
-      {/* Header with urgency and category */}
-      <div className="flex justify-between items-center mb-2 text-sm">
+      {/* Header with urgency and category — wraps so the difficulty stars don't
+          run off a narrow screen. */}
+      <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-1 mb-2 text-sm">
         <div className="flex items-center gap-2">
           <CategoryIcon category={scenario.category} size="sm" />
           <span className="text-terminal-green-dim">─ SZENARIO ─</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <UrgencyBadge urgency={scenario.urgency} />
           <span className="text-terminal-green-muted">
             Schwierigkeit: {'★'.repeat(scenario.difficulty)}{'☆'.repeat(5 - scenario.difficulty)}

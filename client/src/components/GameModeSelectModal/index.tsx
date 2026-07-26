@@ -153,13 +153,17 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter, 
       onMouseEnter={onMouseEnter}
       onFocus={onFocus}
     >
-      <div className="flex items-center gap-3">
+      {/* min-w-0 on the row AND the text column: flex items floor at their
+          content width, so without it the name + weeks + badge line pushes the
+          card's content past its own box (clipped, unreadable at 320px). */}
+      <div className="flex min-w-0 items-center gap-3">
         {/* Icon */}
-        <span className="text-2xl">{mode.icon}</span>
+        <span className="shrink-0 text-2xl">{mode.icon}</span>
 
         {/* Title and weeks */}
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          {/* Wraps: three metadata chips don't share one line on a phone. */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className={`font-bold ${isSelected ? 'text-terminal-green' : ''}`}>
               {mode.name}
             </span>
@@ -179,7 +183,7 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter, 
 
         {/* Selection indicator */}
         {isSelected && (
-          <span className="text-terminal-green">[*]</span>
+          <span className="shrink-0 text-terminal-green">[*]</span>
         )}
       </div>
     </button>

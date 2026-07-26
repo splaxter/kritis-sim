@@ -16,6 +16,37 @@ async function expectNoDocumentOverflow(page: Page) {
   )).toBe(true);
 }
 
+/**
+ * Content overflowing INSIDE an element is invisible to bounding-box checks —
+ * a clipped ancestor keeps the outer rectangle looking fine while the title,
+ * badge or marker inside is cut off. Compare each element's scrollWidth to its
+ * clientWidth instead. The dialog's own vertical scroller is exempt (it scrolls
+ * by design; only horizontal overflow is a defect here).
+ */
+async function expectNoInternalOverflow(page: Page, dialogName: string) {
+  const clipped = await page.evaluate((name) => {
+    const dialog = document.querySelector(`[role=dialog][aria-label="${name}"]`);
+    if (!dialog) return ['dialog not found'];
+    const out: string[] = [];
+    // AsciiFrame's rules (═ runs) are decoration drawn to the frame edge and
+    // clipped ON PURPOSE. Exempt elements whose text is nothing but box-drawing
+    // characters — narrow enough that real content can't hide behind it.
+    const isDecorativeRule = (el: Element) => /^[─-╿\s]+$/.test(el.textContent || '');
+    dialog.querySelectorAll('*').forEach((el) => {
+      if (isDecorativeRule(el)) return;
+      // 1px slack: sub-pixel text metrics round scrollWidth up.
+      if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) {
+        out.push(
+          `${el.tagName}.${(el.className || '').toString().slice(0, 50)} ` +
+          `client=${el.clientWidth} scroll=${el.scrollWidth} text="${(el.textContent || '').slice(0, 25)}"`
+        );
+      }
+    });
+    return out;
+  }, dialogName);
+  expect(clipped, `content clipped inside ${dialogName}:\n${clipped.join('\n')}`).toEqual([]);
+}
+
 /** The dialog's own scroll container (role=dialog is the scroller). */
 async function scrollDialogTo(page: Page, top: number) {
   await page.evaluate((y) => {
@@ -65,6 +96,7 @@ for (const viewport of VIEWPORTS) {
     // Step 1 — experience picker.
     await expect(page.getByRole('dialog', { name: 'Einsatzart wählen' })).toBeVisible();
     await expectNoDocumentOverflow(page);
+    await expectNoInternalOverflow(page, 'Einsatzart wählen');
     await scrollDialogTo(page, 0);
     await expectFullyInsideViewport(page, /Freie Simulation/, viewport);
     await expectReachable(page, /Story-Kampagne/, viewport);
@@ -74,6 +106,7 @@ for (const viewport of VIEWPORTS) {
     // Step 2a — campaign picker: the taller of the two (longer descriptions).
     await expect(page.getByRole('dialog', { name: 'Kampagne wählen' })).toBeVisible();
     await expectNoDocumentOverflow(page);
+    await expectNoInternalOverflow(page, 'Kampagne wählen');
 
     // Top of the list is reachable at scrollTop 0 …
     await scrollDialogTo(page, 0);
@@ -91,6 +124,7 @@ for (const viewport of VIEWPORTS) {
     // Step 2b — simulation mode picker: three stacked mode cards.
     await expect(page.getByRole('dialog', { name: 'Simulation wählen' })).toBeVisible();
     await expectNoDocumentOverflow(page);
+    await expectNoInternalOverflow(page, 'Simulation wählen');
     await scrollDialogTo(page, 0);
     await expectFullyInsideViewport(page, /Einsteiger/, viewport);
     await expectReachable(page, /KRITIS/, viewport);
