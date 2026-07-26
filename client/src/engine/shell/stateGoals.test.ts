@@ -355,6 +355,30 @@ describe('stateGoals', () => {
         engine.execute('echo cat notizen.txt');
         expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
       });
+
+      it('the PIPELINE decoy does NOT satisfy the goal (reviewer repro: failing cat | succeeding echo)', () => {
+        // The pipeline's overall exit code comes from the last command (echo,
+        // 0) — but stages record each pipe command separately: the cat stage
+        // carries ITS exit 1 and the echo stage does not match the pattern.
+        const r = engine.execute('cat /no/notizen.txt | echo ok');
+        expect(r.exitCode).toBe(0); // bash semantics: last stage wins
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
+
+      it('a successful read inside a pipeline DOES count, even when a later stage fails', () => {
+        // Inverse case: cat succeeds (exit 0 stage), grep finds nothing
+        // (pipeline exit 1) — the read still really happened.
+        const r = engine.execute('cat /srv/exports/notizen.txt | grep kein-treffer');
+        expect(r.exitCode).toBe(1);
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(true);
+      });
+
+      it('piping INTO the target-named command without reading it does not count', () => {
+        // `echo notizen.txt | cat` — cat reads stdin, not the file; the cat
+        // stage string carries no filename, the echo stage fails the ^cat.
+        engine.execute('echo notizen.txt | cat');
+        expect(checkStateGoal(engine, READ_GOAL)).toBe(false);
+      });
     });
 
     describe('host filter', () => {

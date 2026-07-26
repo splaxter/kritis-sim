@@ -92,11 +92,14 @@ export interface CommandSideEffect {
  * Passwords are never stored — only the original command line.
  */
 /**
- * One actually-EXECUTED chain segment of an outer command. Short-circuited
- * segments (`a && b` with a failing, `a || b` with a succeeding) are never
- * recorded, and each stage carries the exit code and host of ITS OWN pipeline
- * — the granularity `commandRan` stateGoals match against, so a chained decoy
- * (`ok-cmd || echo target-name`) cannot satisfy a matcher via the outer string.
+ * One actually-EXECUTED pipeline command of an outer input. Short-circuited
+ * chain segments (`a && b` with a failing, `a || b` with a succeeding) are
+ * never recorded, and a pipeline is split into its individual commands, each
+ * with ITS OWN exit code — the granularity `commandRan` stateGoals match
+ * against. Neither a chained decoy (`ok-cmd || echo target-name`) nor a
+ * pipeline decoy (`cat missing-target | echo ok`, whose pipeline exit code
+ * comes from the succeeding echo) can satisfy a matcher via a combined
+ * command string.
  */
 export interface CommandStageAttempt {
   command: string;
@@ -113,7 +116,7 @@ export interface CommandAttempt {
   exitCode: number;
   authMethod?: 'publickey' | 'password';
   /**
-   * Executed chain segments (see CommandStageAttempt). Optional so
+   * Executed pipeline commands (see CommandStageAttempt). Optional so
    * hand-constructed attempts in tests stay valid; the engine always fills it.
    * FeedbackRules keep matching the OUTER entry; `commandRan` matches stages.
    */

@@ -202,14 +202,16 @@ function checkAnsibleRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
 }
 
 /**
- * Session-aware command goal: at least one actually-EXECUTED chain stage in the
- * REAL execution log matches (pattern AND outcome AND authMethod — same matcher
- * semantics as FeedbackRule). Matching is per STAGE, each with its own exit
- * code and host: a chained decoy (`ok-cmd || echo target-name`) never executes
- * its second segment, so it cannot satisfy the matcher via the outer command
- * string. `outcome: 'succeeded'` inherits true cwd/path semantics — a relative
- * read only counts after a matching `cd`. Canned scenario commands never appear
- * in this log.
+ * Session-aware command goal: at least one actually-EXECUTED pipeline command
+ * in the REAL execution log matches (pattern AND outcome AND authMethod — same
+ * matcher semantics as FeedbackRule). Matching is per STAGE — one individual
+ * pipe command with its own exit code and host: a chained decoy
+ * (`ok-cmd || echo target-name`) never executes its second segment, and a
+ * pipeline decoy (`cat missing-target | echo ok`) records the failing cat and
+ * the succeeding echo SEPARATELY, so neither can satisfy the matcher via a
+ * combined command string. `outcome: 'succeeded'` inherits true cwd/path
+ * semantics — a relative read only counts after a matching `cd`. Canned
+ * scenario commands never appear in this log.
  *
  * Host: like the other session-aware goals (loggedIn), an UNSET goal.host means
  * "any host"; a set host restricts matching to stages executed ON that host.

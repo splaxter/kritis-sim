@@ -135,12 +135,14 @@ export const auditTrailStoryEvents: GameEvent[] = [
           // wins — cat/tac/less/head/tail/nl/grep, absolute path or relative
           // after a matching cd. A read from the wrong directory exits non-zero
           // and does not count (genuine path semantics, no canned shortcut).
+          // `[^>]*` keeps a redirect spoof (`cat andere.txt > notizen_m.txt`)
+          // from matching — the target must be an ARGUMENT, not a redirect.
           commands: [],
           allRequired: false,
           stateGoals: [
             {
               commandRan: {
-                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b.*notizen_m\\.txt',
+                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b[^>]*notizen_m\\.txt',
                 outcome: 'succeeded',
               },
             },
@@ -236,13 +238,13 @@ export const auditTrailStoryEvents: GameEvent[] = [
             { file: '/home/timo/inventar.md', matches: 'BASTION-01' },
             {
               commandRan: {
-                pattern: '^(stat|cat|tac|less|head|tail|nl|wc|grep)\\b.*assets_2026-07\\.csv',
+                pattern: '^(stat|cat|tac|less|head|tail|nl|wc|grep)\\b[^>]*assets_2026-07\\.csv',
                 outcome: 'succeeded',
               },
             },
             {
               commandRan: {
-                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b.*konten\\.md',
+                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b[^>]*konten\\.md',
                 outcome: 'succeeded',
               },
             },

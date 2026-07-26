@@ -117,6 +117,26 @@ describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () 
     expect(session.getSnapshot().solved).toBe(false);
   });
 
+  it('the PIPELINE decoy does NOT solve (failing cat | succeeding echo)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    // Reviewer spoof round 2: the pipeline exits 0 via echo, but the cat
+    // stage failed — per-pipe-command stages keep the goal unmet.
+    run(session, 'cat /no/notizen_m.txt | echo ok');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('a redirect naming the target is not a read (`cat andere.txt > notizen_m.txt`)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    run(session, 'cat /home/timo/notiz-von-jens.txt > notizen_m.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('a real read WITHIN a pipeline still solves', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    run(session, 'cat /srv/ticket-exports/notizen_m.txt | head -n 3');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
   it('sets no domain flags — L1 is orientation only', () => {
     expect(l1.choices.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
     expect(l1.terminalContext!.commands.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
@@ -199,6 +219,16 @@ describe('L2 „Die Inventur" — inspection + written inventory', () => {
     // both target files.
     run(session, 'ls || stat /srv/assets/assets_2026-07.csv');
     run(session, 'ls || cat /srv/wiki-export/konten.md');
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('pipeline decoys naming the sources do NOT count as inspections', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    // Failing reads piped into a succeeding echo: pipeline exit 0, but the
+    // per-stage records keep both inspection goals unmet.
+    run(session, 'stat /no/assets_2026-07.csv | echo ok');
+    run(session, 'cat /no/konten.md | echo ok');
     writeInventory(session);
     expect(session.getSnapshot().solved).toBe(false);
   });

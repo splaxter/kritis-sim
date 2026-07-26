@@ -293,15 +293,20 @@ export interface StateGoal {
   mailbox?: string;
   auditEnabled?: boolean;
   /**
-   * Session-aware: at least one actually-EXECUTED chain stage in the REAL
-   * shell's execution log must match. Matching is per stage with the stage's
-   * OWN exit code and host, so a short-circuited decoy (`ok-cmd || echo
-   * target-name`) cannot satisfy the matcher via the outer command string, and
-   * with `outcome: 'succeeded'` a `cat notizen.txt` from the wrong directory
-   * exits non-zero and does NOT satisfy the goal — the same command after a
-   * proper `cd` (or with a valid absolute path) does. This is the mechanism
-   * for "the player really read/inspected X" win conditions. Canned scenario
-   * commands bypass the shell and are never in this log.
+   * Session-aware: at least one actually-EXECUTED pipeline command in the REAL
+   * shell's execution log must match. Matching is per stage — one individual
+   * pipe command with its OWN exit code and host — so neither a short-circuited
+   * decoy (`ok-cmd || echo target-name`) nor a pipeline decoy
+   * (`cat missing-target | echo ok`) can satisfy the matcher via a combined
+   * command string. With `outcome: 'succeeded'` a `cat notizen.txt` from the
+   * wrong directory exits non-zero and does NOT satisfy the goal — the same
+   * command after a proper `cd` (or with a valid absolute path) does. This is
+   * the mechanism for "the player really read/inspected X" win conditions.
+   * Canned scenario commands bypass the shell and are never in this log.
+   *
+   * Authoring note: exclude output-redirection spoofs in the pattern itself —
+   * `[^>]*` before the target name (as in `'^cat\\b[^>]*ziel\\.txt'`) keeps
+   * `cat andere.txt > ziel.txt` from matching a read goal.
    *
    * `host` semantics follow the session-aware convention (like `loggedIn`):
    * UNSET means "on any host"; a set `host` counts only stages executed there.

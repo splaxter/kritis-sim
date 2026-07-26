@@ -48,9 +48,9 @@ export class ShellEngine implements ShellEngineInterface {
   private openAttempt: CommandAttempt | null = null;
 
   /**
-   * Chain segment that returned pendingInput (password prompt): its exit code
-   * is unknown until the continuation settles, so it is parked here and turned
-   * into a recorded stage by closeOpenAttempt with the final exit code.
+   * Pipeline command that returned pendingInput (password prompt): its exit
+   * code is unknown until the continuation settles, so it is parked here and
+   * turned into a recorded stage by closeOpenAttempt with the final exit code.
    */
   private pendingStage: { command: string; host: string } | null = null;
 
@@ -215,9 +215,8 @@ export class ShellEngine implements ShellEngineInterface {
         continue;
       }
 
-      // Stage host is where the segment STARTS (a segment like `exit` pops
-      // the session, but it ran on the host it was typed on).
-      const stageHost = this.getCurrentHost().id;
+      // Stage recording happens per PIPELINE COMMAND inside executePipeline —
+      // a short-circuited segment never reaches it and is never recorded.
       lastResult = this.executePipeline(cmd, pendingInitialStdin);
       pendingInitialStdin = undefined;
       executedAny = true;
@@ -230,14 +229,8 @@ export class ShellEngine implements ShellEngineInterface {
       // A command awaiting input aborts the remaining chain segments —
       // deviation from bash, but keeps hasPendingInput() ⟺ result.pendingInput.
       if (lastResult.pendingInput) {
-        // Not finished — remember it; closeOpenAttempt records it with the
-        // final exit code once the continuation settles the attempt.
-        if (this.openAttempt) this.pendingStage = { command: cmd, host: stageHost };
         break;
       }
-      // Only actually-executed segments become stages, each with its OWN exit
-      // code — the per-stage truth `commandRan` stateGoals match against.
-      this.openAttempt?.stages?.push({ command: cmd, exitCode: lastResult.exitCode, host: stageHost });
     }
 
     // Single command (no chaining): preserve the raw result, including its
@@ -268,18 +261,35 @@ export class ShellEngine implements ShellEngineInterface {
 
     for (let i = 0; i < stages.length; i++) {
       const isLast = i === stages.length - 1;
+      // Host where THIS pipe command starts (a stage like `exit` pops the
+      // session, but it ran on the host it was typed on).
+      const stageHost = this.getCurrentHost().id;
       result = this.executeStage(stages[i], stdin, isLast);
       if (result.error) {
         errors.push(result.error);
       }
       // A stage awaiting input aborts the pipeline: later stages never run.
       if (result.pendingInput) {
+        // Its exit code is unknown until the continuation settles — parked and
+        // recorded by closeOpenAttempt with the final code.
+        if (this.openAttempt) {
+          this.pendingStage = { command: stages[i].trim(), host: stageHost };
+        }
         this.state.exitCode = result.exitCode;
         return {
           ...result,
           error: errors.length > 0 ? errors.join('\n') : undefined,
         };
       }
+      // Record each actually-executed PIPELINE COMMAND with its OWN exit code
+      // and host — the granularity `commandRan` stateGoals match against. The
+      // pipeline's overall exit code is the last stage's, so without this a
+      // `cat missing | echo ok` would look like a successful cat.
+      this.openAttempt?.stages?.push({
+        command: stages[i].trim(),
+        exitCode: result.exitCode,
+        host: stageHost,
+      });
       stdin = result.output;
     }
 
