@@ -176,7 +176,9 @@ function GameModeCard({ mode, isSelected, isRecommended, onClick, onMouseEnter, 
               </span>
             )}
           </div>
-          <div className="text-terminal-green-dim text-sm">
+          {/* break-words: long compound terms ("Kettenreaktionen") exceed the
+              column at 320px and would be clipped rather than wrapped. */}
+          <div className="text-terminal-green-dim text-sm break-words">
             {mode.description}
           </div>
         </div>

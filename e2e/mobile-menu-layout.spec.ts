@@ -23,41 +23,77 @@ async function expectNoDocumentOverflow(page: Page) {
  * clientWidth instead. The dialog's own vertical scroller is exempt (it scrolls
  * by design; only horizontal overflow is a defect here).
  */
-async function expectNoInternalOverflowIn(page: Page, selector: string) {
-  const clipped = await page.evaluate((sel) => {
+interface OverflowEntry {
+  isRoot: boolean;
+  tag: string;
+  cls: string;
+  client: number;
+  scroll: number;
+  text: string;
+}
+
+/** Raw detector — returns the offenders so callers can assert WHICH node
+ *  overflowed, not merely that something did. */
+async function collectInternalOverflow(page: Page, selector: string): Promise<OverflowEntry[]> {
+  return page.evaluate((sel) => {
     const root = document.querySelector(sel);
-    if (!root) return [`root not found: ${sel}`];
-    const out: string[] = [];
-    // The ROOT itself is in the scan set: an over-wide direct child pushes the
-    // root's scrollWidth out while no descendant exceeds its own box, so
-    // scanning only descendants would report nothing. scrollWidth is horizontal
-    // only, so this does not clash with intended vertical scrolling.
+    if (!root) throw new Error(`root not found: ${sel}`);
+    const out: OverflowEntry[] = [];
+    // The ROOT itself is in the scan set: an over-wide, non-shrinking direct
+    // child pushes the root's scrollWidth out while every descendant stays
+    // inside its own box, so scanning only descendants would report nothing.
+    // scrollWidth is horizontal only, so this does not clash with intended
+    // vertical scrolling.
     const nodes: Element[] = [root, ...root.querySelectorAll('*')];
     // AsciiFrame's rules (═ runs) are decoration drawn to the frame edge and
     // clipped ON PURPOSE. Exempt elements whose text is nothing but box-drawing
     // characters — narrow enough that real content can't hide behind it.
     const isDecorativeRule = (el: Element) => /^[─-╿\s]+$/.test(el.textContent || '');
-    // Replaced elements (img/svg/video/canvas) report intrinsic media size in
-    // scrollWidth; with object-fit: cover, exceeding the box is the point. Their
-    // BOX is still checked by the bounding-box assertions.
-    const REPLACED = ['IMG', 'SVG', 'VIDEO', 'CANVAS'];
+    // Raster/media replaced elements report intrinsic media size in scrollWidth;
+    // with object-fit: cover, exceeding the box is the point, and their BOX is
+    // still covered by the bounding-box assertions. Inline SVG is NOT exempt —
+    // it lays out like normal content and can genuinely clip.
+    const REPLACED = ['IMG', 'VIDEO', 'CANVAS'];
     nodes.forEach((el) => {
       if (isDecorativeRule(el) || REPLACED.includes(el.tagName)) return;
       // 1px slack: sub-pixel text metrics round scrollWidth up.
       if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) {
-        out.push(
-          `${el.tagName}.${(el.className || '').toString().slice(0, 50)} ` +
-          `client=${el.clientWidth} scroll=${el.scrollWidth} text="${(el.textContent || '').slice(0, 25)}"`
-        );
+        out.push({
+          isRoot: el === root,
+          tag: el.tagName,
+          cls: (el.className || '').toString().slice(0, 50),
+          client: el.clientWidth,
+          scroll: el.scrollWidth,
+          text: (el.textContent || '').slice(0, 25),
+        });
       }
     });
     return out;
   }, selector);
-  expect(clipped, `content clipped inside ${selector}:\n${clipped.join('\n')}`).toEqual([]);
 }
 
+const describeEntries = (entries: OverflowEntry[]) =>
+  entries.map((e) => `${e.isRoot ? '[root] ' : ''}${e.tag}.${e.cls} client=${e.client} scroll=${e.scroll} text="${e.text}"`).join('\n');
+
+async function expectNoInternalOverflowIn(page: Page, selector: string) {
+  const clipped = await collectInternalOverflow(page, selector);
+  expect(clipped, `content clipped inside ${selector}:\n${describeEntries(clipped)}`).toEqual([]);
+}
+
+const dialogSelector = (name: string) => `[role=dialog][aria-label="${name}"]`;
+
 const expectNoInternalOverflow = (page: Page, dialogName: string) =>
-  expectNoInternalOverflowIn(page, `[role=dialog][aria-label="${dialogName}"]`);
+  expectNoInternalOverflowIn(page, dialogSelector(dialogName));
+
+/** Scan a picker in EVERY selection state: the '>' / '[*]' markers only render
+ *  on the highlighted card and add width. */
+async function expectNoInternalOverflowAcrossSelections(page: Page, dialogName: string, optionCount: number) {
+  await expectNoInternalOverflow(page, dialogName);
+  for (let i = 1; i < optionCount; i++) {
+    await page.keyboard.press('ArrowDown');
+    await expectNoInternalOverflow(page, dialogName);
+  }
+}
 
 /** The dialog's own scroll container (role=dialog is the scroller). */
 async function scrollDialogTo(page: Page, top: number) {
@@ -112,10 +148,7 @@ for (const viewport of VIEWPORTS) {
     await scrollDialogTo(page, 0);
     await expectFullyInsideViewport(page, /Freie Simulation/, viewport);
     await expectReachable(page, /Story-Kampagne/, viewport);
-    // Selection markers ('> ') only render on the highlighted card and add
-    // width — re-scan with the selection moved.
-    await page.keyboard.press('ArrowDown');
-    await expectNoInternalOverflow(page, 'Einsatzart wählen');
+    await expectNoInternalOverflowAcrossSelections(page, 'Einsatzart wählen', 2);
 
     await page.getByRole('button', { name: /Story-Kampagne/ }).click();
 
@@ -131,8 +164,7 @@ for (const viewport of VIEWPORTS) {
     // … and the last card plus the [ESC] control are reachable by scrolling.
     await expectReachable(page, /Audit Trail/, viewport);
     await expectReachable(page, /Zurück/, viewport);
-    await page.keyboard.press('ArrowDown');
-    await expectNoInternalOverflow(page, 'Kampagne wählen');
+    await expectNoInternalOverflowAcrossSelections(page, 'Kampagne wählen', 2);
 
     // Back out to the experience picker and take the OTHER branch.
     await page.getByRole('button', { name: /Zurück/ }).click();
@@ -147,9 +179,8 @@ for (const viewport of VIEWPORTS) {
     await expectFullyInsideViewport(page, /Einsteiger/, viewport);
     await expectReachable(page, /KRITIS/, viewport);
     await expectReachable(page, /Abbrechen/, viewport);
-    // The selected mode card also renders a '[*]' marker.
-    await page.keyboard.press('ArrowDown');
-    await expectNoInternalOverflow(page, 'Simulation wählen');
+    // All three modes, incl. the explicitly selected KRITIS state ('[*]').
+    await expectNoInternalOverflowAcrossSelections(page, 'Simulation wählen', 3);
 
     // Starting a simulation run works from here.
     await page.getByRole('button', { name: /Einsteiger/ }).click();
@@ -235,12 +266,14 @@ for (const viewport of VIEWPORTS) {
 }
 
 /**
- * Meta-test: the guard has been patched twice for blind spots, so prove it
- * actually fires. Injects the reviewer's repro — an over-wide DIRECT CHILD of
- * the dialog, which leaves every descendant within its own box and was
- * therefore invisible while the scan skipped the root.
+ * Meta-test: the guard has been patched twice for blind spots, so prove the
+ * root scan actually fires — and prove it on a ROOT-ONLY overflow. Appending a
+ * new child does NOT reproduce it: as a flex item it shrinks and its own
+ * descendants overflow instead, which the old descendant-only guard already
+ * caught. The real repro widens the EXISTING first child and stops it
+ * shrinking, so the dialog overflows while every node stays inside its own box.
  */
-test('the internal-overflow guard catches an over-wide direct child', async ({ page }) => {
+test('the internal-overflow guard catches a root-only overflow', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.goto('/');
   await page.getByText(/KLICKEN ODER ENTER ZUM STARTEN/).click();
@@ -250,20 +283,27 @@ test('the internal-overflow guard catches an over-wide direct child', async ({ p
   // Clean before the mutation …
   await expectNoInternalOverflow(page, 'Einsatzart wählen');
 
-  await page.evaluate(() => {
-    const dialog = document.querySelector('[role=dialog][aria-label="Einsatzart wählen"]')!;
-    const wide = document.createElement('div');
-    wide.style.width = '1000px';
-    wide.textContent = 'injected overflow';
-    dialog.appendChild(wide);
-  });
+  const geometry = await page.evaluate((sel) => {
+    const dialog = document.querySelector(sel) as HTMLElement;
+    const child = dialog.firstElementChild as HTMLElement;
+    child.style.width = '1000px';
+    child.style.minWidth = '1000px';
+    child.style.flex = 'none';
+    return {
+      dialog: { client: dialog.clientWidth, scroll: dialog.scrollWidth },
+      child: { client: child.clientWidth, scroll: child.scrollWidth },
+    };
+  }, dialogSelector('Einsatzart wählen'));
 
-  // … and the guard must report it now.
-  let failed = false;
-  try {
-    await expectNoInternalOverflow(page, 'Einsatzart wählen');
-  } catch {
-    failed = true;
-  }
-  expect(failed, 'guard did not catch the injected 1000px child').toBe(true);
+  // The repro is genuinely root-only: the dialog overflows, the child does not.
+  expect(geometry.dialog.scroll).toBeGreaterThan(geometry.dialog.client);
+  expect(geometry.child.scroll).toBeLessThanOrEqual(geometry.child.client + 1);
+
+  // … and the detector names the ROOT, not just "something overflowed".
+  const entries = await collectInternalOverflow(page, dialogSelector('Einsatzart wählen'));
+  const roots = entries.filter((e) => e.isRoot);
+  expect(roots, `expected the root to be reported:\n${describeEntries(entries)}`).toHaveLength(1);
+  expect(roots[0].scroll).toBeGreaterThan(roots[0].client);
+  // A descendant-only scan would have returned nothing here — that is the point.
+  expect(entries.filter((e) => !e.isRoot)).toEqual([]);
 });
