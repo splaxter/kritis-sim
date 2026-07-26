@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { GameState, createInitialAdventureState } from '@kritis/shared';
-import { isAtAuthoredStoryEnd, getLastCompletedAct } from '../../../engine/adventureEngine';
+import {
+  isAtAuthoredStoryEnd,
+  getLastCompletedAct,
+  advanceStoryBeat,
+  isAdventureModeComplete,
+} from '../../../engine/adventureEngine';
+import { getCampaign } from '../index';
 import { auditTrailChapters } from './chapters';
 import { auditTrailStoryEvents } from './events';
 import { AUDIT_DOMAINS } from './domains';
@@ -89,15 +95,36 @@ describe('campaign fully authored end-to-end (no act-break seam)', () => {
   });
 
   it('completing the last chapter lands past the campaign (real completion, not a seam)', () => {
-    // at_ch06_audit_2 has completionUnlocks: [] — after it, there is no current
-    // chapter, so isAtAuthoredStoryEnd is false and the game resolves on the
-    // derived ending screen rather than a "Fortsetzung folgt" act-break.
-    const pastEnd = stateAt('', [
+    // Drive the REAL final progression instead of hand-crafting a post-state:
+    // the player answers the last beat of at_ch06_audit_2 and (as in
+    // applyStoryProgression) advanceStoryBeat runs. With completionUnlocks: []
+    // the engine keeps currentChapter on the final id and records it as
+    // completed — that, not currentChapter: '', is the runtime shape the
+    // ending path must resolve from.
+    const finalChapter = chapterById('at_ch06_audit_2');
+    const atLastBeat = stateAt('at_ch06_audit_2', [
       'at_ch01_onboarding', 'at_ch02_trail', 'at_ch03_evidence',
-      'at_ch04_blockade', 'at_ch05_audit_1', 'at_ch06_audit_2',
+      'at_ch04_blockade', 'at_ch05_audit_1',
     ]);
+    atLastBeat.storyState!.currentBeatIndex = finalChapter.storyBeats.length - 1;
+
+    const advanced = advanceStoryBeat(atLastBeat);
+    expect(advanced.completedChapters).toContain('at_ch06_audit_2');
+    expect(advanced.currentChapter).toBe('at_ch06_audit_2');
+
+    const pastEnd: GameState = { ...atLastBeat, storyState: advanced };
+    // App.tsx checks isAdventureModeComplete BEFORE the act-break check; it must
+    // be true here (otherwise beat 0 of the final chapter would re-serve), and
+    // the fully authored final chapter must never read as an act-break seam.
+    expect(isAdventureModeComplete(pastEnd)).toBe(true);
     expect(isAtAuthoredStoryEnd(pastEnd, auditTrailStoryEvents, [])).toBe(false);
     // The last completed act is Act 4.
     expect(getLastCompletedAct(pastEnd)).toBe(4);
+
+    // The completed run resolves through the campaign's own ending pipeline.
+    const campaign = getCampaign('audit-trail');
+    const ending = campaign.deriveEnding(pastEnd);
+    expect(Object.keys(campaign.endingTexts)).toContain(ending);
+    expect(campaign.buildEpilogue!(pastEnd).trim().length).toBeGreaterThan(0);
   });
 });

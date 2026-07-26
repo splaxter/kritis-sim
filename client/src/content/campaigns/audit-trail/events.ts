@@ -1190,6 +1190,9 @@ export const auditTrailStoryEvents: GameEvent[] = [
   },
 
   // ── F1 fail — Zurechenbarkeit nicht hergestellt ───────────────────────────
+  // D1 is composite (Finding dokumentiert UND Auditing aktiv). The scene must
+  // stay truth-stable when only ONE half is missing: possible causes are named
+  // disjunctively, no specific gap is asserted as fact.
   {
     id: 'at_audit_f1_fail',
     weekRange: [1, 6],
@@ -1197,7 +1200,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 1: Zurechenbarkeit',
     description:
-      'Der neue ISB schlägt seinen Ordner auf. „Wer kann bei Ihnen auf E-Mail-Postfächer zugreifen — und woran erkennen Sie hinterher, wer es war?" Du beginnst zu antworten und hörst selbst, wo es fehlt: Alle melden sich als administrator an, und das Protokoll, das die Frage beantworten würde, läuft nicht oder ist nirgends dokumentiert.',
+      'Der neue ISB schlägt seinen Ordner auf. „Wer kann bei Ihnen auf E-Mail-Postfächer zugreifen — und woran erkennen Sie hinterher, wer es war?" Du beginnst zu antworten und hörst selbst, dass die Antwort nicht trägt: Alle melden sich als administrator an — und mindestens ein Baustein fehlt: das Finding, das das Sammelkonto aktenfest macht, oder das Protokoll, das mitschreibt. Zurechenbar ist so niemand.',
     image: undefined,
     involvedCharacters: ['isb'],
     choices: [
@@ -1206,7 +1209,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
         text: 'Die Lücke benennen, statt sie zu überspielen.',
         effects: { skills: { softSkills: 1 }, stress: 1 },
         resultText:
-          '„Also könnte es jeder gewesen sein", fasst der ISB zusammen. So ist es. „Dann fangen Sie hier an: ein Konto pro Person, und ein Protokoll, das mitschreibt." Du weißt das. Jetzt weiß er, dass du es weißt — mehr aber auch nicht.',
+          '„Also könnte es jeder gewesen sein", fasst der ISB zusammen. So ist es. „Dann machen Sie es vollständig: ein Konto pro Person, ein Protokoll, das mitschreibt — und ein Finding, in dem beides steht." Du weißt das. Jetzt weiß er, dass du es weißt — mehr aber auch nicht.',
       },
       {
         id: 'at_audit_f1_fail_defend',
@@ -1253,9 +1256,12 @@ export const auditTrailStoryEvents: GameEvent[] = [
 
   // ── F2 fail — Kette hält nicht (Lücke ODER Scope-Verstoß) ─────────────────
   // Robust to both failure modes: an incomplete chain and a scope violation.
-  // The concrete Personalrat/DSGVO consequence lives in the Rächer epilogue
-  // (endings.ts), which the negative flags trigger — this scene only names that
-  // the chain is not presentable, without asserting a damage that may not apply.
+  // Truth-stable across them: possible causes appear only as disjunction (a
+  // fully documented chain can fail on scope alone — no missing Freigabe/
+  // Zeitstempel/Hash may be asserted as fact). The concrete Personalrat/DSGVO
+  // consequence lives in the Rächer epilogue (endings.ts), which the negative
+  // flags trigger — this scene only names that the chain is not presentable,
+  // without asserting a damage that may not apply.
   {
     id: 'at_audit_f2_fail',
     weekRange: [1, 6],
@@ -1263,23 +1269,23 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 2: Die Beweiskette',
     description:
-      '„Es gab einen Zugriff auf das Postfach von Herrn M. Was wissen Sie — und woher?" Du beginnst zu erzählen und hörst selbst, wo es dünn wird: hier fehlt die Freigabe, dort der Zeitstempel, an einer Stelle der Hash. Aus einer Beweiskette wird eine Erzählung — und Erzählungen kann man bestreiten.',
+      '„Es gab einen Zugriff auf das Postfach von Herrn M. Was wissen Sie — und woher?" Du beginnst zu erzählen und hörst selbst, dass die Kette nicht trägt: Entweder fehlt ein Glied — Meldung, Freigabe, dokumentierter Export, Hash —, oder sie hat unterwegs eine Grenze überschritten, die kein Mandat gedeckt hat. Aus einer Beweiskette wird so eine Erzählung — und Erzählungen kann man bestreiten.',
     image: undefined,
     involvedCharacters: ['isb'],
     choices: [
       {
         id: 'at_audit_f2_fail_own',
-        text: 'Die Lücken selbst benennen, statt sie zu überspielen.',
+        text: 'Den wunden Punkt selbst benennen, statt ihn zu überspielen.',
         effects: { skills: { softSkills: 1 }, stress: 1 },
         resultText:
-          'Du sagst, was fehlt, bevor er es findet. Das ist mehr wert als Ausreden — aber es füllt die Lücken nicht. „Beim nächsten Mal", sagt der ISB, „sichern Sie zuerst, dann werten Sie aus." Du weißt das. Jetzt weiß er, dass du es weißt.',
+          'Du benennst den wunden Punkt, bevor er ihn findet. Das ist mehr wert als Ausreden — aber es repariert die Kette nicht. „Beim nächsten Mal", sagt der ISB, „stecken Sie zuerst den Rahmen ab: was gesichert wird, wer es freigibt — und wie weit Sie gehen dürfen." Du weißt das. Jetzt weiß er, dass du es weißt.',
       },
       {
         id: 'at_audit_f2_fail_defend',
         text: 'Auf das Ergebnis pochen: Der Zugriff hat schließlich stattgefunden.',
         effects: { stress: 2, relationships: { chef: -2 } },
         resultText:
-          'Dass etwas passiert ist, bestreitet niemand. Nur belegen kannst du es nicht sauber — und ohne Beleg steht deine Vermutung gegen jede andere Version. Der ISB schließt die Seite. „Recht haben und es zeigen können sind zwei verschiedene Dinge."',
+          'Dass etwas passiert ist, bestreitet niemand. Nur trägt deine Kette es nicht: Was lückenhaft ist, lässt sich bestreiten — und was selbst eine Grenze verletzt hat, wird vom Beleg zum eigenen Vorfall. Der ISB schließt die Seite. „Recht haben und es belastbar zeigen können sind zwei verschiedene Dinge."',
       },
     ],
     tags: ['audit-trail', 'act4'],
@@ -1316,6 +1322,9 @@ export const auditTrailStoryEvents: GameEvent[] = [
   },
 
   // ── F3 fail — BASTION-Erzählung unwidersprochen ───────────────────────────
+  // D3 is composite (Lieferschein gefunden UND Übergabe-Mail mit CC). Truth-
+  // stable when only the mail is missing: the player may well HAVE the
+  // Lieferschein — the scene claims "nicht aktenfest", never "kein Papier".
   {
     id: 'at_audit_f3_fail',
     weekRange: [1, 6],
@@ -1323,23 +1332,23 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 3: Die PAM-Blockade',
     description:
-      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack. Warum?" Du hast Vermutungen, aber kein Papier. Bjorgs Version — ‚MFA war nie Teil des Pakets’ — steht unwidersprochen im Raum, weil du den Lieferschein nie gesichtet oder die Übergabe nie dokumentiert hast.',
+      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack. Warum?" Was du dem entgegensetzen kannst, ist nicht aktenfest: Entweder hast du den Lieferschein nie gesichtet — oder du hast ihn zwar gefunden, die Übergabe aber nirgends dokumentiert, wo eine dritte Stelle sie nachlesen könnte. Bjorgs Version — ‚MFA war nie Teil des Pakets’ — steht damit unwidersprochen im Raum.',
     image: undefined,
     involvedCharacters: ['isb', 'bjorg'],
     choices: [
       {
         id: 'at_audit_f3_fail_honest',
-        text: 'Zugeben, dass dir der Beleg fehlt.',
+        text: 'Zugeben, dass du nichts Aktenfestes vorlegen kannst.',
         effects: { skills: { softSkills: 1 } },
         resultText:
-          'Der ISB nickt langsam. „Dann bleibt es bei Aussage gegen Aussage — und die lautere Aussage gewinnt." Du weißt, wessen Aussage das ist.',
+          'Der ISB nickt langsam. „Was nicht in der Akte liegt, existiert für dieses Verfahren nicht. Dann steht Aussage gegen Aussage — und die lautere gewinnt." Du weißt, wessen Aussage das ist.',
       },
       {
         id: 'at_audit_f3_fail_blame',
         text: 'Auf Bjorg zeigen: Er hat die Übergabe vierzehn Monate blockiert.',
         effects: { stress: 2, relationships: { kollegen: -2 } },
         resultText:
-          'Mag sein. Aber ohne Lieferschein und ohne dokumentierte Bringschuld ist auch das nur deine Erzählung gegen seine. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
+          'Mag sein. Aber nichts davon liegt aktenfest vor — und was nicht in der Akte steht, ist nur deine Erzählung gegen seine. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
       },
     ],
     tags: ['audit-trail', 'act4'],
@@ -1375,7 +1384,10 @@ export const auditTrailStoryEvents: GameEvent[] = [
     tags: ['audit-trail', 'act4'],
   },
 
-  // ── F4 fail — keine Aktenlage, Bjorgs Mappe füllt die Lücke ───────────────
+  // ── F4 fail — lückenhafte Aktenlage, Bjorgs Mappe füllt die Lücke ─────────
+  // D4 is composite (Onboarding-Inventar UND Ticket-diff). Truth-stable when
+  // only one of the two exists: the scene claims gaps at the decisive spots,
+  // never a completely empty record.
   {
     id: 'at_audit_f4_fail',
     weekRange: [1, 6],
@@ -1383,7 +1395,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 4: Ihre Dokumentation',
     description:
-      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate." Du greifst ins Leere. Was fehlt, füllt ein anderer: Bjorg schiebt eine Mappe über den Tisch — seine Version der Ticket-Historie, gut sortiert, ohne die Zeile, die dich entlasten würde.',
+      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate." Was du vorlegen kannst, beantwortet die Frage nicht — an entscheidender Stelle fehlt der Beleg. Und Lücken füllt ein anderer: Bjorg schiebt eine Mappe über den Tisch — seine Version der Ticket-Historie, gut sortiert, ohne die Zeile, die dich entlasten würde.',
     image: undefined,
     involvedCharacters: ['isb', 'bjorg'],
     choices: [
@@ -1399,7 +1411,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
         text: 'Einräumen, dass die Doku dünn ist.',
         effects: { skills: { softSkills: 1 } },
         resultText:
-          'Ehrlich, aber folgenlos. Ohne eigene Aktenlage erzählt die einzige vorhandene Akte die Geschichte — und die stammt nicht von dir.',
+          'Ehrlich, aber folgenlos. Wo deine Akte schweigt, erzählt Bjorgs Mappe die Geschichte — und deine schweigt genau an den Stellen, auf die es ankommt.',
       },
     ],
     tags: ['audit-trail', 'act4'],
