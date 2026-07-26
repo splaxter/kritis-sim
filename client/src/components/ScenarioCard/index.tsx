@@ -83,8 +83,12 @@ export function ScenarioCard({ scenario, onChoice }: ScenarioCardProps) {
         </div>
       )}
 
-      {/* Flavor text */}
-      <div className="whitespace-pre-wrap mb-6 text-terminal-green-dim leading-relaxed">
+      {/* Flavor text. break-words because pre-wrap only breaks at whitespace:
+          long unbreakable tokens (mail addresses, hostnames, paths) otherwise
+          overrun the card on narrow screens — and how much overruns depends on
+          the platform's font metrics, so it shows up on CI before it shows up
+          locally. min-w-0 keeps it shrinkable inside flex ancestors. */}
+      <div className="min-w-0 whitespace-pre-wrap break-words mb-6 text-terminal-green-dim leading-relaxed">
         {scenario.flavorText}
       </div>
 

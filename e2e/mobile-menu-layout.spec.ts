@@ -54,8 +54,17 @@ async function collectInternalOverflow(page: Page, selector: string): Promise<Ov
     // still covered by the bounding-box assertions. Inline SVG is NOT exempt —
     // it lays out like normal content and can genuinely clip.
     const REPLACED = ['IMG', 'VIDEO', 'CANVAS'];
+    // Deliberate horizontal scrollers (overflow-x: auto/scroll) are not
+    // clipping — their content stays reachable by scrolling, same reasoning as
+    // the dialog's intended vertical scroll. EventCard's narrative block uses
+    // this on purpose.
+    const scrollsHorizontally = (el: Element) =>
+      ['auto', 'scroll'].includes(getComputedStyle(el).overflowX);
     nodes.forEach((el) => {
+      // The root is never exempt: a dialog with overflow-y:auto computes
+      // overflow-x to 'auto' too, which would skip the very node under test.
       if (isDecorativeRule(el) || REPLACED.includes(el.tagName)) return;
+      if (el !== root && scrollsHorizontally(el)) return;
       // 1px slack: sub-pixel text metrics round scrollWidth up.
       if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) {
         out.push({
@@ -306,4 +315,31 @@ test('the internal-overflow guard catches a root-only overflow', async ({ page }
   expect(roots[0].scroll).toBeGreaterThan(roots[0].client);
   // A descendant-only scan would have returned nothing here — that is the point.
   expect(entries.filter((e) => !e.isRoot)).toEqual([]);
+});
+
+/**
+ * Narrative text is the one thing whose overflow depends on the platform's FONT
+ * METRICS: a long unbreakable token in the scenario flavor text cleared 320px
+ * on macOS and clipped on CI's Linux fonts, so the defect only ever failed in
+ * CI. Asserting the text block at a width below any real device gives that
+ * class of bug a margin to fail locally — scoped to the text block, since
+ * demanding the entire game screen fit 280px would be a made-up requirement.
+ */
+test('narrative text stays breakable below any real device width', async ({ page }) => {
+  await page.setViewportSize({ width: 280, height: 568 });
+  await seedScenarioRun(page);
+  await page.goto('/');
+  await page.getByText(/WEITER SPIELEN/).click();
+  await expect(page.getByText('─ SZENARIO ─')).toBeVisible();
+
+  const flavor = await page.evaluate(() => {
+    const el = document.querySelector('.whitespace-pre-wrap');
+    if (!el) throw new Error('flavor text block not found');
+    return { client: el.clientWidth, scroll: el.scrollWidth };
+  });
+
+  expect(
+    flavor.scroll,
+    `flavor text clipped: client=${flavor.client} scroll=${flavor.scroll} — a long token needs break-words`
+  ).toBeLessThanOrEqual(flavor.client + 1);
 });
