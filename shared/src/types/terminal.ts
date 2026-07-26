@@ -274,8 +274,14 @@ export interface StateGoal {
    * source ("the bastion door exists"). `null` matches only UNSCOPED rules —
    * `{ action:'allow', port:22, from:null, present:false }` asserts "no
    * globally open SSH" while a bastion-scoped allow may remain.
+   *
+   * `exclusive: true` (only with `present:true`) additionally requires the
+   * scoped set to be the ONLY allow rules for this port: no global door AND no
+   * second scoped source. `{ action:'allow', port:22, from:'10.0.30.10',
+   * present:true, exclusive:true }` asserts "port 22 is reachable from exactly
+   * this one source" — a second `allow from <other>` leaves it unsatisfied.
    */
-  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean; from?: string | null };
+  firewallRule?: { action: 'allow' | 'deny'; port: number; present?: boolean; from?: string | null; exclusive?: boolean };
   firewallDefaultIncoming?: 'allow' | 'deny';
   /**
    * Asserts the firewall's enabled state (`ufw enable` / `ufw disable`). Rules

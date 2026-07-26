@@ -261,6 +261,22 @@ describe('L8 ★ „BASTION-01 in Betrieb"', () => {
     expect(session.getSnapshot().solved).toBe(false);
   });
 
+  it('a SECOND scoped door does not solve — "only from BASTION-01" is exact (reviewer repro)', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    loginWaageDirect(session);
+    run(session, 'sudo ufw status');
+    // Correct hardening — but also punch a second scoped hole for another host.
+    run(session, 'sudo ufw allow from 10.0.30.10 to any port 22');
+    run(session, 'sudo ufw allow from 10.0.30.99 to any port 22'); // the extra door
+    run(session, 'sudo ufw default deny incoming');
+    run(session, 'sudo ufw enable');
+    run(session, 'sudo ufw delete allow 22');
+    hopViaBastion(session);
+    // The bastion hop itself succeeds, but two allowed sources contradict
+    // "reachable ONLY via BASTION-01" → the exclusive goal keeps it unsolved.
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
   it('a global allow-22 instead of the bastion-scoped rule does not solve', () => {
     const { session } = makeSession(l8.terminalContext!);
     loginWaageDirect(session);

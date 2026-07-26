@@ -1110,16 +1110,16 @@ export const auditTrailStoryEvents: GameEvent[] = [
           commands: [],
           allRequired: false,
           // The claim "reachable ONLY via the bastion" as live state: wall up,
-          // default deny, the bastion-scoped door exists, and NO global SSH
-          // rule remains (from:null matches only unscoped rules). Plus the two
-          // instructed checks: the Ist-Zustand was read (ufw status on waage01)
-          // and the new path was PROVEN — an ssh into waage01 launched from the
-          // bastion, not a lingering direct session.
+          // default deny, and the ONLY SSH door is the bastion-scoped one —
+          // `exclusive` rejects both a lingering global allow AND a second
+          // scoped source (a widened `allow from <other> to port 22`). Plus the
+          // two instructed checks: the Ist-Zustand was read (ufw status on
+          // waage01) and the new path was PROVEN — an ssh into waage01 launched
+          // from the bastion, not a lingering direct session.
           stateGoals: [
             { host: 'waage01', firewallEnabled: true },
             { host: 'waage01', firewallDefaultIncoming: 'deny' },
-            { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } },
-            { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: null, present: false } },
+            { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true, exclusive: true } },
             { host: 'waage01', commandRan: { pattern: '^(?:sudo\\s+)?ufw\\s+status(?:\\s+numbered)?$', outcome: 'succeeded' } },
             // viaScopedRule: the hop must have been admitted by waage01's
             // bastion-only rule — i.e. it happened AFTER the lockdown, not a

@@ -222,6 +222,25 @@ describe('stateGoals', () => {
         checkStateGoal(engine, { firewallRule: { action: 'allow', port: 22, from: null, present: false } })
       ).toBe(false);
     });
+
+    it('exclusive:true requires the scoped set to be the ONLY allow rules for the port', () => {
+      const goal: StateGoal = {
+        firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true, exclusive: true },
+      };
+      // The one scoped door alone: exact match.
+      engine.execute('sudo ufw allow from 10.0.30.10 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+
+      // A SECOND scoped source widens access → no longer "only from .10".
+      engine.execute('sudo ufw allow from 10.0.30.99 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+
+      // Remove the extra door, but leave a GLOBAL allow: still not exclusive.
+      engine.execute('sudo ufw delete allow from 10.0.30.99 to any port 22');
+      expect(checkStateGoal(engine, goal)).toBe(true);
+      engine.execute('sudo ufw allow 22');
+      expect(checkStateGoal(engine, goal)).toBe(false);
+    });
   });
 
   describe('firewallDefaultIncoming', () => {

@@ -185,6 +185,15 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
         // Scoped assertion (string or null): the described rule must exist.
         return false;
       }
+      if (fwGoal.exclusive) {
+        // The scoped set must be the ONLY allow rules for this port: kills a
+        // silently-widening second door (`allow from <other> to port 22`) and
+        // any lingering global allow. Every allow-<port> rule must match scope.
+        const allowsForPort = host.firewall.rules.filter(
+          r => r.action === 'allow' && r.port === fwGoal.port
+        );
+        if (allowsForPort.some(r => !ruleMatches(r, fwGoal))) return false;
+      }
     } else {
       // present:false means no matching rule within the goal's scope: with
       // from undefined that is ANY rule (legacy full closure); with from:null
