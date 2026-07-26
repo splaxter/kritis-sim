@@ -8,7 +8,8 @@
  * skeleton stops cleanly at the Act-1/2 seam. No sidequests in v1.
  *
  * Beat plan per chapter (levels are added by Tasks 12–15 as they are authored):
- *   Akt 1  ch01_onboarding : at_welcome, at_team_intro [+ L1 at_l1_first_day, L2 at_l2_inventory]
+ *   Akt 1  ch01_onboarding : at_welcome, at_team_intro, L1 at_l1_first_day,
+ *                            L2 at_l2_inventory, at_wiki_password (Task 12 ✓)
  *   Akt 2  ch02_trail      : L3 at_l3_ticket_diff, L4 at_l4_iis_log, at_authorization
  *          ch03_evidence   : at_finding_mail, L5 at_l5_evidence_chain, L6 at_l6_enable_auditing
  *   Akt 3  ch04_blockade   : at_bjorg_dialogue, L7 at_l7_delivery_note, at_handover_mail, L8 at_l8_bastion_live
@@ -19,7 +20,7 @@ import { AdventureChapter } from '@kritis/shared';
 import { AUDIT_DOMAINS } from './domains';
 
 export const auditTrailChapters: AdventureChapter[] = [
-  // ── ACT 1 — Onboarding (authored; Task 12 adds L1/L2 beats) ────────────────
+  // ── ACT 1 — Onboarding (fully authored: dialogs + L1/L2 + Wiki-Fund) ──────
   {
     id: 'at_ch01_onboarding',
     title: 'Der zusätzliche Auftrag',
@@ -28,6 +29,13 @@ export const auditTrailChapters: AdventureChapter[] = [
     storyBeats: [
       { id: 'at_b0101', eventId: 'at_welcome', isOptional: false },
       { id: 'at_b0102', eventId: 'at_team_intro', isOptional: false },
+      // L1/L2 are pure terminal beats: they resolve through the solve path
+      // (closeTerminal advances the beat via applyStoryProgression).
+      { id: 'at_b0103', eventId: 'at_l1_first_day', isOptional: false },
+      { id: 'at_b0104', eventId: 'at_l2_inventory', isOptional: false },
+      // The Wiki-Passwort dialog carries the shared_account_documented decision
+      // (D1) — deliberately AFTER the level, so the find precedes the choice.
+      { id: 'at_b0105', eventId: 'at_wiki_password', isOptional: false },
     ],
     sidequests: [],
     unlockConditions: { minimumWeek: 1 },
