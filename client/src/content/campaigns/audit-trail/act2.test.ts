@@ -299,14 +299,27 @@ describe('L5 „Die Beweiskette"', () => {
     expect(session.getSnapshot().solved).toBe(false);
   });
 
-  it('a copy made WITHOUT cp (cat >) does not anchor the taught tool', () => {
+  it('a copy made WITHOUT cp (cat >) does not satisfy the bound copy goal', () => {
     const { session } = makeSession(l5.terminalContext!);
     run(session, 'mkdir /home/timo/beweis');
     run(session, 'cat /home/timo/eingang/u_ex260722.log > /home/timo/beweis/u_ex260722.log');
     run(session, 'sha256sum /home/timo/beweis/u_ex260722.log > /home/timo/beweis/hashes.txt');
     run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
     run(session, 'echo "Erledigt: fertig" >> /home/timo/eingang/protokoll_export.txt');
-    expect(session.getSnapshot().solved).toBe(false); // cp never ran
+    expect(session.getSnapshot().solved).toBe(false); // no cp original→kopie on record
+  });
+
+  it('borrowed tool runs do not count (reviewer repro: fremd-cp + hash of the ORIGINAL)', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'mkdir /home/timo/beweis');
+    // Copy made by cat, an UNRELATED cp, and a hash of the ORIGINAL (whose
+    // digest equals the copy's — but was not computed FOR the copy).
+    run(session, 'cat /home/timo/eingang/u_ex260722.log > /home/timo/beweis/u_ex260722.log');
+    run(session, 'cp /home/timo/eingang/protokoll_export.txt /home/timo/protokoll_kopie.txt');
+    run(session, 'sha256sum /home/timo/eingang/u_ex260722.log > /home/timo/beweis/hashes.txt');
+    run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
+    run(session, 'echo "Erledigt: fertig" >> /home/timo/eingang/protokoll_export.txt');
+    expect(session.getSnapshot().solved).toBe(false);
   });
 
   it('hashing some OTHER file does not satisfy the hash goal', () => {
@@ -381,6 +394,17 @@ describe('L6 „Ab jetzt wird geloggt"', () => {
     // The check counts case-insensitively (real PowerShell semantics) and
     // also as the AFTER-verification the hints teach.
     run(session, 'get-mailbox k.mertens');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
+  it('inspecting a DIFFERENT mailbox does not count (reviewer repro: extra arg is ignored)', () => {
+    const { session } = makeSession(l6.terminalContext!);
+    run(session, 'Set-Mailbox k.mertens -AuditEnabled $true');
+    // The cmdlet resolves only 'poststelle'; 'k.mertens' is a discarded
+    // second positional — the operand-bound record must not credit it.
+    run(session, 'Get-Mailbox poststelle k.mertens');
+    expect(session.getSnapshot().solved).toBe(false);
+    run(session, 'Get-Mailbox k.mertens');
     expect(session.getSnapshot().solved).toBe(true);
   });
 

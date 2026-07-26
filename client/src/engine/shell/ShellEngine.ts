@@ -66,6 +66,17 @@ export class ShellEngine implements ShellEngineInterface {
    */
   private fileReads: { path: string; host: string }[] = [];
 
+  /**
+   * Operand-bound tool records: what cp/Copy-Item actually copied (final
+   * resolved destination), what the hash tools actually digested, and which
+   * mailbox Get-Mailbox actually resolved. These bind stateGoals to the REAL
+   * operands — a cp of some unrelated file or a Get-Mailbox that resolved a
+   * different identity can never satisfy a bound goal.
+   */
+  private fileCopies: { from: string; to: string; host: string }[] = [];
+  private hashesComputed: { path: string; algo: string; host: string }[] = [];
+  private mailboxesInspected: { name: string; host: string }[] = [];
+
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
@@ -187,6 +198,36 @@ export class ShellEngine implements ShellEngineInterface {
 
   private recordFileRead(path: string, hostId: string): void {
     this.fileReads.push({ path, host: hostId });
+  }
+
+  /** All recorded copies (canonical from/to + host). */
+  getFileCopies(): { from: string; to: string; host: string }[] {
+    return [...this.fileCopies];
+  }
+
+  /** True iff a copy matching the provided fields was recorded (omitted = any). */
+  hasFileCopy(from?: string, to?: string, hostId?: string): boolean {
+    return this.fileCopies.some(
+      (c) =>
+        (!from || c.from === from) &&
+        (!to || c.to === to) &&
+        (!hostId || c.host === hostId)
+    );
+  }
+
+  /** True iff a hash was ACTUALLY computed for this canonical path. */
+  hasHashComputed(path: string, hostId?: string): boolean {
+    return this.hashesComputed.some(
+      (h) => h.path === path && (!hostId || h.host === hostId)
+    );
+  }
+
+  /** True iff Get-Mailbox actually RESOLVED this identity (case-insensitive). */
+  hasMailboxInspected(name: string, hostId?: string): boolean {
+    const wanted = name.toLowerCase();
+    return this.mailboxesInspected.some(
+      (m) => m.name.toLowerCase() === wanted && (!hostId || m.host === hostId)
+    );
   }
 
   /** Snapshot of all successful command file reads (canonical path + host). */
@@ -476,6 +517,12 @@ export class ShellEngine implements ShellEngineInterface {
           ? this.hosts.get(this.sessionStack[this.sessionStack.length - 2].hostId)
           : undefined,
       recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
+      recordFileCopy: (from: string, to: string) =>
+        void this.fileCopies.push({ from, to, host: this.getCurrentHost().id }),
+      recordHashComputed: (path: string, algo: string) =>
+        void this.hashesComputed.push({ path, algo, host: this.getCurrentHost().id }),
+      recordMailboxInspected: (name: string) =>
+        void this.mailboxesInspected.push({ name, host: this.getCurrentHost().id }),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
         this.pendingContinuation = next;
         this.pendingPrompt = { prompt, mask };

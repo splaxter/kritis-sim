@@ -53,7 +53,11 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.sshdEffective !== undefined
     || goal.ansibleRan !== undefined
     || goal.commandRan !== undefined
-    || goal.fileRead !== undefined;
+    || goal.fileRead !== undefined
+    // A bare {} for these is non-vacuous ("any copy happened") like ansibleRan.
+    || goal.fileCopied !== undefined
+    || goal.hashComputed !== undefined
+    || goal.mailboxInspected !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -279,6 +283,35 @@ function checkFileReadGoal(engine: ShellEngine, goal: StateGoal): boolean {
   return engine.hasFileRead(goal.fileRead, targetHost);
 }
 
+/** Resolve goal.host to an id for session-aware records; null = unresolvable. */
+function resolveGoalHostId(engine: ShellEngine, goal: StateGoal): string | null | undefined {
+  if (!goal.host) return undefined; // unset = any host
+  return engine.resolveHost(goal.host)?.id ?? null;
+}
+
+/**
+ * Operand-bound tool records — the goals bind to what cp / the hash tools /
+ * Get-Mailbox ACTUALLY operated on, so an unrelated invocation of the same
+ * tool can never stand in for the required one.
+ */
+function checkToolRecordGoals(engine: ShellEngine, goal: StateGoal): boolean {
+  if (goal.fileCopied === undefined && goal.hashComputed === undefined && goal.mailboxInspected === undefined) {
+    return true;
+  }
+  const hostId = resolveGoalHostId(engine, goal);
+  if (hostId === null) return false;
+  if (goal.fileCopied !== undefined) {
+    if (!engine.hasFileCopy(goal.fileCopied.from, goal.fileCopied.to, hostId)) return false;
+  }
+  if (goal.hashComputed !== undefined) {
+    if (!engine.hasHashComputed(goal.hashComputed, hostId)) return false;
+  }
+  if (goal.mailboxInspected !== undefined) {
+    if (!engine.hasMailboxInspected(goal.mailboxInspected, hostId)) return false;
+  }
+  return true;
+}
+
 /** True iff every set field of the goal holds on the addressed host. */
 export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
   try {
@@ -300,7 +333,8 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       && checkLoggedInGoal(engine, goal)
       && checkAnsibleRanGoal(engine, goal)
       && checkCommandRanGoal(engine, goal)
-      && checkFileReadGoal(engine, goal);
+      && checkFileReadGoal(engine, goal)
+      && checkToolRecordGoals(engine, goal);
   } catch {
     return false;
   }

@@ -447,6 +447,14 @@ export const cpCommand: ShellCommand = {
       if (!result.ok) {
         return { output: '', exitCode: 1, error: result.error };
       }
+      // Operand-bound record: canonical source → FINAL destination path
+      // (a directory destination lands as dest/basename(src)).
+      const destStat = ctx.vfs.stat(dest);
+      const finalDest =
+        destStat.ok && destStat.value.type === 'directory'
+          ? ctx.vfs.join(ctx.vfs.resolvePath(dest), ctx.vfs.basename(src))
+          : ctx.vfs.resolvePath(dest);
+      ctx.recordFileCopy?.(ctx.vfs.resolvePath(src), finalDest);
       if (verbose) {
         outputs.push(`'${src}' -> '${dest}'`);
       }

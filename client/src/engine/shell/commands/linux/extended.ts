@@ -205,6 +205,8 @@ function makeHashCommand(name: string, hash: (b: Uint8Array) => string): ShellCo
           errors.push(`${name}: ${file}: No such file or directory`);
           continue;
         }
+        // Operand-bound record: the digest was computed for THIS file.
+        ctx.recordHashComputed?.(ctx.vfs.resolvePath(file), name);
         out.push(`${hash(toBytes(r.value))}  ${file}`);
       }
       return {

@@ -376,6 +376,14 @@ export const copyItemCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: result.error };
     }
 
+    // Operand-bound record (see linux cp): canonical source → final dest.
+    const destStat = ctx.vfs.stat(dest);
+    const finalDest =
+      destStat.ok && destStat.value.type === 'directory'
+        ? ctx.vfs.join(ctx.vfs.resolvePath(dest), ctx.vfs.basename(src))
+        : ctx.vfs.resolvePath(dest);
+    ctx.recordFileCopy?.(ctx.vfs.resolvePath(src), finalDest);
+
     return { output: '', exitCode: 0 };
   },
 };
@@ -802,6 +810,10 @@ export const getMailboxCommand: ShellCommand = {
       if (!mb) {
         return { output: '', exitCode: 1, error: `Get-Mailbox : The operation couldn't be performed because object '${identity}' couldn't be found.` };
       }
+      // Operand-bound record: THIS identity was actually resolved and shown —
+      // extra positional args are ignored by the cmdlet, so they are never
+      // recorded ('Get-Mailbox poststelle k.mertens' inspects only poststelle).
+      ctx.recordMailboxInspected?.(mb.name);
       // Single mailbox → property block (readable, and Format-List-passthrough safe).
       return { output: mailboxDetail(mb), exitCode: 0 };
     }
@@ -1152,6 +1164,8 @@ export const getFileHashCommand: ShellCommand = {
     // PowerShell renders hashes in uppercase, as an Algorithm/Hash/Path table.
     const hash = hasher(toBytes(file.value)).toUpperCase();
     const resolved = ctx.vfs.resolvePath(path);
+    // Operand-bound record: the digest was computed for THIS file.
+    ctx.recordHashComputed?.(resolved, algorithm);
     const lines = [
       '',
       'Algorithm       Hash                                                                   Path',

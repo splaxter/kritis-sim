@@ -426,6 +426,98 @@ describe('stateGoals', () => {
     });
   });
 
+  describe('fileCopied (operand-bound copy record)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/srv/andere.txt', 'x\n');
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+    });
+    const BOUND: StateGoal = {
+      fileCopied: { from: '/srv/original.log', to: '/root/beweis/original.log' },
+    };
+
+    it('records the FINAL destination for a directory target', () => {
+      engine.execute('cp /srv/original.log /root/beweis/');
+      expect(checkStateGoal(engine, BOUND)).toBe(true);
+    });
+
+    it('an unrelated cp does NOT satisfy the bound goal (reviewer repro)', () => {
+      engine.execute('cp /srv/andere.txt /root/andere_kopie.txt');
+      expect(checkStateGoal(engine, BOUND)).toBe(false);
+      // …and a cat-made "copy" records nothing either.
+      engine.execute('cat /srv/original.log > /root/beweis/original.log');
+      expect(checkStateGoal(engine, BOUND)).toBe(false);
+    });
+
+    it('relative invocations record canonical paths', () => {
+      engine.execute('cd /srv');
+      engine.execute('cp original.log /root/beweis/original.log');
+      expect(checkStateGoal(engine, BOUND)).toBe(true);
+    });
+
+    it('a bare {} matches any copy; nothing recorded → unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { fileCopied: {} })).toBe(false);
+      engine.execute('cp /srv/andere.txt /root/x.txt');
+      expect(checkStateGoal(engine, { fileCopied: {} })).toBe(true);
+    });
+  });
+
+  describe('hashComputed (operand-bound digest record)', () => {
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/original.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n'); // same bytes!
+    });
+
+    it('hashing the ORIGINAL does not count as hashing the COPY — even with identical content', () => {
+      engine.execute('sha256sum /srv/original.log > /root/hashes.txt');
+      // sha256Of passes (digest identical), but the operand-bound record
+      // knows WHICH file was digested.
+      expect(
+        checkStateGoal(engine, { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(true);
+      expect(checkStateGoal(engine, { hashComputed: '/root/kopie.log' })).toBe(false);
+      expect(checkStateGoal(engine, { hashComputed: '/srv/original.log' })).toBe(true);
+    });
+
+    it('Get-FileHash records too (PowerShell side)', () => {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.getBaseHost().vfs.addFile('C:\\Logs\\a.log', 'x');
+      ps.execute('Get-FileHash C:\\Logs\\a.log');
+      expect(checkStateGoal(ps, { hashComputed: 'C:\\Logs\\a.log' })).toBe(true);
+    });
+  });
+
+  describe('mailboxInspected (operand-bound identity record)', () => {
+    function exchShell(): ShellEngine {
+      const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
+      ps.getBaseHost().mailboxes.push(
+        { name: 'k.mertens', displayName: 'Mertens, K.', auditEnabled: false, auditLogAgeLimit: '90.00:00:00' },
+        { name: 'poststelle', displayName: 'Poststelle', auditEnabled: false, auditLogAgeLimit: '90.00:00:00' },
+      );
+      return ps;
+    }
+
+    it('reviewer repro: "Get-Mailbox poststelle k.mertens" inspects ONLY poststelle', () => {
+      const ps = exchShell();
+      const r = ps.execute('Get-Mailbox poststelle k.mertens');
+      expect(r.exitCode).toBe(0); // the cmdlet ignores the extra argument
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(false);
+      expect(checkStateGoal(ps, { mailboxInspected: 'poststelle' })).toBe(true);
+    });
+
+    it('a real (even lowercase) inspection of the identity counts', () => {
+      const ps = exchShell();
+      ps.execute('get-mailbox K.MERTENS');
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(true);
+    });
+
+    it('listing ALL mailboxes is not an identity inspection', () => {
+      const ps = exchShell();
+      ps.execute('Get-Mailbox');
+      expect(checkStateGoal(ps, { mailboxInspected: 'k.mertens' })).toBe(false);
+    });
+  });
+
   describe('commandRan.ignoreCase', () => {
     it('matches PowerShell-style case variants only when ignoreCase is set', () => {
       const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });

@@ -181,6 +181,16 @@ export interface ExecutionContext {
    */
   recordAnsibleRun?: (run: AnsibleRunRecord) => void;
   /**
+   * Structured operand-bound records for stateGoals (see fileCopied /
+   * hashComputed / mailboxInspected): commands report what they ACTUALLY
+   * operated on (canonical paths / resolved identity), so a goal can bind
+   * "the copy was made with cp FROM the original TO the evidence dir" instead
+   * of pattern-matching raw command lines.
+   */
+  recordFileCopy?: (from: string, to: string) => void;
+  recordHashComputed?: (path: string, algo: string) => void;
+  recordMailboxInspected?: (name: string) => void;
+  /**
    * Ask the player for one more input line. Returns the pendingInput result
    * to hand back from execute(); `next` runs on the line typed. Chaining is
    * allowed — `next` may call requestInput again. Requesting input aborts any

@@ -335,6 +335,29 @@ export interface StateGoal {
    */
   commandRan?: CommandMatcher;
   /**
+   * Operand-bound copy proof: met iff cp/Copy-Item ACTUALLY copied matching
+   * canonical paths (a directory destination is recorded as its final
+   * dest/basename form). Omitted fields match any — but a bound goal like
+   * `{ fileCopied: { from: original, to: kopie } }` is only satisfied by THE
+   * copy, never by copying some unrelated file. Host follows the
+   * session-aware convention (unset = any host).
+   */
+  fileCopied?: { from?: string; to?: string };
+  /**
+   * Operand-bound hash proof: met iff a hash tool (sha256sum family,
+   * Get-FileHash) ACTUALLY digested this canonical path. Hashing a different
+   * file — even one with identical content — does not satisfy it; pair with
+   * `sha256Of` to also pin the digest's presence and correctness in the list.
+   */
+  hashComputed?: string;
+  /**
+   * Operand-bound inspection proof: met iff Get-Mailbox actually RESOLVED
+   * this identity (case-insensitive). Extra positional arguments the cmdlet
+   * ignores are never recorded, so 'Get-Mailbox other target' does not count
+   * as inspecting 'target'.
+   */
+  mailboxInspected?: string;
+  /**
    * Session-aware, SEMANTIC read proof: met iff a command successfully read
    * THIS file's content during the terminal session. `fileRead` is the
    * canonical absolute path. The engine records reads at the vfs boundary
