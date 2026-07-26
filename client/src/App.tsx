@@ -948,7 +948,9 @@ function AppContent() {
           }
         }}
         onContinue={game.continueGame}
-        onTerminalSolved={(skillGain, setsFlags) => game.closeTerminal(true, skillGain, setsFlags)}
+        onTerminalSolved={(skillGain, setsFlags, solutionEffects) =>
+          game.closeTerminal(true, skillGain, setsFlags, solutionEffects)
+        }
         onTerminalCancel={() => game.closeTerminal(false)}
         onTerminalFlagsSet={game.setRunFlags}
         onSave={() => setSaveLoadModal({ show: true, mode: 'save' })}
