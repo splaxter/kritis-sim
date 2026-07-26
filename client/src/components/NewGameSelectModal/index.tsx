@@ -65,6 +65,11 @@ export function NewGameSelectModal({
     if (moveFocus) optionRefs.current[index]?.focus();
   };
 
+  // onClose is created inline by the parent; re-running this effect on a parent
+  // re-render would reset focus and selection to the first card mid-interaction.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -73,7 +78,7 @@ export function NewGameSelectModal({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
         event.preventDefault();
         const next = selectedIndexRef.current === 0 ? 1 : 0;
@@ -97,7 +102,7 @@ export function NewGameSelectModal({
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div
@@ -105,9 +110,11 @@ export function NewGameSelectModal({
       role="dialog"
       aria-modal="true"
       aria-label="Einsatzart wählen"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain"
+      className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain bg-black/85 p-4"
     >
-      <div className="w-full max-w-2xl">
+      {/* m-auto (not items-center): auto margins collapse to 0 once the card is
+          taller than the viewport, so the top stays scroll-reachable on phones. */}
+      <div className="m-auto w-full min-w-0 max-w-2xl">
         <AsciiFrame title="NEUES SPIEL · EINSATZART" variant="info">
           <div className="space-y-3 p-4">
             <div className="flex items-center justify-between border-b border-terminal-border pb-3 text-xs tracking-[0.18em] text-terminal-green-dim">
@@ -162,12 +169,15 @@ export function NewGameSelectModal({
               })}
             </div>
 
-            <div className="flex justify-between border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
+            {/* flex-wrap + gap: on a phone the hint text and the [ESC] control
+                don't fit on one line — without wrapping the button is pushed
+                past the right edge and scrolls the page sideways. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
               <span>[↑↓] Auswahl · [Enter] Bestätigen</span>
               <button
                 type="button"
                 onClick={onClose}
-                className="border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
+                className="shrink-0 border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
               >
                 [ESC] Zurück
               </button>

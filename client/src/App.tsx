@@ -542,14 +542,17 @@ function AppContent() {
 
   if (game.phase === 'menu') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="border border-terminal-border p-8 text-center max-w-lg">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        {/* w-full + max-w-lg: the fixed 32rem card overflowed phones sideways. */}
+        <div className="border border-terminal-border p-6 sm:p-8 text-center w-full max-w-lg">
           <h1 className="text-3xl mb-2">KRITIS ADMIN SIMULATOR</h1>
-          <div className="text-terminal-green-dim mb-6">v1.0 - Probezeit Edition</div>
+          {/* Shell copy is campaign-neutral: this entry leads to the free
+              simulation, the learning area AND several story campaigns. */}
+          <div className="text-terminal-green-dim mb-6">v1.0 - Kommunale Edition</div>
 
           <div className="text-left mb-6 text-terminal-green-dim text-sm">
             <p className="mb-2">Du bist der neue Sysadmin bei einer kommunalen Abfallwirtschaft.</p>
-            <p className="mb-2">12 Wochen Probezeit. Drucker reparieren. Server retten. Überleben.</p>
+            <p className="mb-2">Drucker reparieren. Server retten. Prüfungen bestehen. Überleben.</p>
             <p>Deine IT-Skills entscheiden, ob du bleibst oder fliegst.</p>
           </div>
 
@@ -629,7 +632,8 @@ function AppContent() {
                 Wie heißt du?{' '}
                 <span className="text-terminal-green-muted">(optional — für persönliche Ansprache und Team-Statistik)</span>
               </div>
-              <div className="flex gap-2">
+              {/* flex-wrap: input + two buttons don't fit one phone line. */}
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="text"
                   value={nameInput}
@@ -643,7 +647,7 @@ function AppContent() {
                   maxLength={40}
                   placeholder="Dein Name"
                   aria-label="Dein Name"
-                  className="flex-1 bg-terminal-bg-dark border border-terminal-border px-2 py-1 text-terminal-green outline-none focus:border-terminal-green"
+                  className="min-w-0 flex-1 bg-terminal-bg-dark border border-terminal-border px-2 py-1 text-terminal-green outline-none focus:border-terminal-green"
                 />
                 <button
                   onClick={saveName}

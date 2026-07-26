@@ -75,6 +75,35 @@ describe('CampaignSelectModal', () => {
     expect(screen.getByRole('button', { name: new RegExp(campaigns[0].title) })).toHaveFocus();
   });
 
+  it('keeps focus and selection across a parent re-render', async () => {
+    // onSelect/onClose are created inline by App, so every parent re-render
+    // hands this component new callbacks. That must not reset the highlight
+    // (and yank focus) back to the first campaign mid-interaction.
+    const user = userEvent.setup();
+    const { rerender } = render(<CampaignSelectModal onSelect={vi.fn()} onClose={vi.fn()} />);
+
+    await user.keyboard('{ArrowDown}');
+    const auditTrail = screen.getByRole('button', { name: /Audit Trail/ });
+    expect(auditTrail).toHaveFocus();
+
+    rerender(<CampaignSelectModal onSelect={vi.fn()} onClose={vi.fn()} />);
+
+    expect(auditTrail).toHaveFocus();
+    expect(auditTrail).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('the overlay scrolls instead of clipping tall content', () => {
+    render(<CampaignSelectModal onSelect={vi.fn()} onClose={vi.fn()} />);
+
+    const dialog = screen.getByRole('dialog', { name: 'Kampagne wählen' });
+    // Scroll container…
+    expect(dialog).toHaveClass('overflow-y-auto');
+    // …centred by auto margins, NOT by items-center: auto margins collapse to
+    // 0 when the card is taller than the viewport, keeping the top reachable.
+    expect(dialog).not.toHaveClass('items-center');
+    expect(dialog.firstElementChild).toHaveClass('m-auto');
+  });
+
   it('goes back to the experience picker with Escape', () => {
     const onClose = vi.fn();
     render(<CampaignSelectModal onSelect={vi.fn()} onClose={onClose} />);

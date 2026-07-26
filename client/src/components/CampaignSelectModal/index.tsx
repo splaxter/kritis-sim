@@ -27,6 +27,13 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
     if (moveFocus) optionRefs.current[index]?.focus();
   };
 
+  // onClose is created inline by the parent, so a parent re-render would give
+  // this effect a new identity — re-running it would yank focus and the
+  // selection back to the first campaign mid-interaction. Keep it mount-only
+  // and read the latest callback through a ref.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; });
+
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
       ? document.activeElement
@@ -35,14 +42,14 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
         event.preventDefault();
-        const count = campaigns.length;
+        const count = optionRefs.current.length;
         selectOption((selectedIndexRef.current - 1 + count) % count, true);
       } else if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
         event.preventDefault();
-        selectOption((selectedIndexRef.current + 1) % campaigns.length, true);
+        selectOption((selectedIndexRef.current + 1) % optionRefs.current.length, true);
       } else if (event.key === 'Tab') {
         const buttons = Array.from(dialogRef.current?.querySelectorAll('button') ?? []);
         const first = buttons[0];
@@ -62,7 +69,7 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
       window.removeEventListener('keydown', handleKeyDown);
       previouslyFocused?.focus();
     };
-  }, [onClose, campaigns.length]);
+  }, []);
 
   return (
     <div
@@ -70,9 +77,11 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
       role="dialog"
       aria-modal="true"
       aria-label="Kampagne wählen"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 overscroll-contain"
+      className="fixed inset-0 z-50 flex overflow-y-auto overscroll-contain bg-black/85 p-4"
     >
-      <div className="w-full max-w-2xl">
+      {/* m-auto (not items-center): auto margins collapse to 0 once the card is
+          taller than the viewport, so the top stays scroll-reachable on phones. */}
+      <div className="m-auto w-full min-w-0 max-w-2xl">
         <AsciiFrame title="NEUES SPIEL · KAMPAGNE" variant="info">
           <div className="space-y-3 p-4">
             <div className="flex items-center justify-between border-b border-terminal-border pb-3 text-xs tracking-[0.18em] text-terminal-green-dim">
@@ -127,12 +136,15 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
               })}
             </div>
 
-            <div className="flex justify-between border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
+            {/* flex-wrap + gap: on a phone the hint text and the [ESC] control
+                don't fit on one line — without wrapping the button is pushed
+                past the right edge and scrolls the page sideways. */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-terminal-border pt-3 text-xs text-terminal-green-dim">
               <span>[↑↓] Auswahl · [Enter] Bestätigen</span>
               <button
                 type="button"
                 onClick={onClose}
-                className="border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
+                className="shrink-0 border border-terminal-border px-3 py-1 hover:border-terminal-green focus-visible:ring-2 focus-visible:ring-terminal-green"
               >
                 [ESC] Zurück
               </button>

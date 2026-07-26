@@ -52,4 +52,24 @@ export function getRunLabel(
   return { icon: config.icon, name: `Story: ${getCampaign(campaignId).title}` };
 }
 
+/**
+ * Where a story run stands in ITS campaign: 1-based chapter position and the
+ * campaign's chapter count. Story runs can't honestly show "Woche N/12" — the
+ * mode's week budget is not the campaign's length (AUDIT TRAIL's 6 chapters end
+ * around week 5). Returns null when the chapter is unknown, so callers fall
+ * back to the mode display instead of inventing a number.
+ *
+ * Note: after the last chapter completes, currentChapter stays on the final id
+ * (advanceStoryBeat keeps it), so the position saturates at total — never > total.
+ */
+export function getChapterProgress(
+  campaignId: CampaignId,
+  currentChapterId: string
+): { position: number; total: number } | null {
+  const chapters = getCampaign(campaignId).chapters;
+  const index = chapters.findIndex((c) => c.id === currentChapterId);
+  if (index === -1) return null;
+  return { position: index + 1, total: chapters.length };
+}
+
 export type { CampaignDefinition, CampaignMenuEntry, StoryCharacter } from './types';

@@ -1,5 +1,5 @@
 import { GameState, getGameModeConfig } from '@kritis/shared';
-import { getRunLabel } from '../../content/campaigns';
+import { getRunLabel, getChapterProgress } from '../../content/campaigns';
 import { SkillBar } from './SkillBar';
 import { RelationshipBar } from './RelationshipBar';
 import {
@@ -78,6 +78,11 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
   // reads as "Die Probezeit"), everything else by mode.
   const runLabel = getRunLabel(state.gameMode, state.storyState?.campaignId);
   const totalWeeks = modeConfig.gameLength.totalWeeks;
+  // Story runs measure progress in CHAPTERS: the mode's week budget is not the
+  // campaign's length, so "Woche N/12" would overstate what is left.
+  const chapters = state.storyState
+    ? getChapterProgress(state.storyState.campaignId, state.storyState.currentChapter)
+    : null;
   const { stressGameOver, complianceGameOver, chefRelationshipGameOver } = modeConfig.thresholds;
 
   const stressColor = BAND_CLASS[stressBand(state.stress, stressGameOver)];
@@ -107,7 +112,10 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
         </div>
         <div className="flex items-center gap-4">
           <span className="text-terminal-green-dim">
-            Woche {state.currentWeek}/{totalWeeks} | {DAYS[state.currentDay]}
+            {chapters
+              ? `Woche ${state.currentWeek} · Kapitel ${chapters.position}/${chapters.total}`
+              : `Woche ${state.currentWeek}/${totalWeeks}`}
+            {' | '}{DAYS[state.currentDay]}
           </span>
         </div>
       </div>
