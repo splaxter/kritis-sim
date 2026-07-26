@@ -82,7 +82,16 @@ export const auditTrailChapters: AdventureChapter[] = [
     storyBeats: [
       { id: 'at_b0401', eventId: 'at_bjorg_dialogue', isOptional: false },
       { id: 'at_b0402', eventId: 'at_l7_delivery_note', isOptional: false },
-      { id: 'at_b0403', eventId: 'at_handover_mail', isOptional: false },
+      // The Mail beat branches on whether the Lieferschein was actually found:
+      // without the evidence it plays the neutral variant instead of citing a
+      // document the player never opened.
+      {
+        id: 'at_b0403',
+        eventId: 'at_handover_mail',
+        isOptional: false,
+        branchCondition: 'bastion_delivery_found',
+        alternateEventId: 'at_handover_mail_nodelivery',
+      },
       { id: 'at_b0404', eventId: 'at_l8_bastion_live', isOptional: true },
     ],
     sidequests: [],

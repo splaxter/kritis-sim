@@ -104,10 +104,30 @@ describe('L7 „Der Lieferschein" — Explorer file browser', () => {
   });
 });
 
+const mailNoDelivery = byId.get('at_handover_mail_nodelivery')!;
+
 describe('Schnittstellen-Mail — the D3 handover decision', () => {
   it('composes a NEUTRAL draft to the vendor (no static CC; the CC is the choice)', () => {
     expect(mail.mailCompose?.to).toContain('pam-hersteller');
     expect(mail.mailCompose?.cc).toBeUndefined();
+  });
+
+  it('the Mail beat branches on bastion_delivery_found (no citing an unopened document)', () => {
+    const beat = auditTrailChapters
+      .flatMap((c) => c.storyBeats)
+      .find((b) => b.eventId === 'at_handover_mail')!;
+    expect(beat.branchCondition).toBe('bastion_delivery_found');
+    expect(beat.alternateEventId).toBe('at_handover_mail_nodelivery');
+  });
+
+  it('the primary variant cites the Lieferschein; the alternate never does', () => {
+    // Found → the mail may reference the delivery note and its dated content.
+    expect(mail.description).toContain('Lieferschein');
+    expect(mail.mailCompose?.body).toMatch(/Lieferschein/);
+    // Not found → neither the framing nor the body claims a document exists.
+    expect(mailNoDelivery.description).not.toContain('Lieferschein');
+    expect(mailNoDelivery.mailCompose?.body ?? '').not.toMatch(/Lieferschein/);
+    expect(mailNoDelivery.mailCompose?.cc).toBeUndefined();
   });
 
   it('only the CC-Bert send sets handover_mail_sent; ≥2 ungated options', () => {
@@ -138,13 +158,18 @@ describe('Act-3 flags each have exactly ONE source across the campaign', () => {
     expect(sources.get('bjorg_warning_preserved')).toEqual(['at_bjorg_dialogue/at_bjorg_preserve']);
     expect(sources.get('bjorg_provoked')).toEqual(['at_bjorg_dialogue/at_bjorg_snap']);
     expect(sources.get('bastion_delivery_found')).toEqual(['at_l7_delivery_note/gui']);
-    expect(sources.get('handover_mail_sent')).toEqual(['at_handover_mail/at_handover_cc_bert']);
+    // handover_mail_sent comes from the two MUTUALLY-EXCLUSIVE mail variants
+    // (with/without the Lieferschein) — the beat branches on bastion_delivery_found.
+    expect(sources.get('handover_mail_sent')?.sort()).toEqual([
+      'at_handover_mail/at_handover_cc_bert',
+      'at_handover_mail_nodelivery/at_handover_nd_cc_bert',
+    ]);
     expect(sources.get('bastion_live')).toEqual(['at_l8_bastion_live/at_l8_start']);
   });
 });
 
 describe('L8 ★ „BASTION-01 in Betrieb"', () => {
-  function loginWaage(session: TerminalSession) {
+  function loginWaageDirect(session: TerminalSession) {
     run(session, 'ssh admin@waage01');
     run(session, 'wiegeschein-42'); // password continuation
   }
@@ -156,31 +181,48 @@ describe('L8 ★ „BASTION-01 in Betrieb"', () => {
     run(session, 'sudo ufw enable');
     run(session, 'sudo ufw delete allow 22');
   }
-
-  it('plays through: harden waage01 over ssh, then the bastion path still works — solved', () => {
-    const { session, shell } = makeSession(l8.terminalContext!);
-    loginWaage(session);
-    hardenWaage(session);
-    expect(session.getSnapshot().solved).toBe(true);
-
-    // The taught verification: back out, then in via the bastion.
+  // The taught verification hop: out to local, into the bastion, then into
+  // waage01 FROM the bastion (the only door left).
+  function hopViaBastion(session: TerminalSession) {
     run(session, 'exit');
     run(session, 'ssh admin@bastion01');
     run(session, 'schleuse-blau-9');
     run(session, 'ssh admin@waage01');
     run(session, 'wiegeschein-42');
-    expect(shell.getBaseHost().id).not.toBe(''); // session healthy
-    const whoami = run(session, 'hostname');
-    const out = whoami
-      .filter((e): e is { type: 'writeLine'; text: string } => e.type === 'writeLine')
-      .map((e) => e.text)
-      .join('\n');
-    expect(out).toContain('waage01');
+  }
+
+  it('plays through: check, harden, prove the bastion path — solved only after the hop', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    loginWaageDirect(session);
+    run(session, 'sudo ufw status'); // the instructed Ist-Zustand check
+    hardenWaage(session);
+    // Firewall state is correct, but the new path is not yet PROVEN.
+    expect(session.getSnapshot().solved).toBe(false);
+
+    hopViaBastion(session);
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
+  it('the direct session alone never solves — the bastion hop is required', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    loginWaageDirect(session);
+    run(session, 'sudo ufw status');
+    hardenWaage(session);
+    // No hop: a direct login from local does not satisfy fromHost: bastion01.
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('skipping the Ist-Zustand check (ufw status) does not solve', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    loginWaageDirect(session);
+    hardenWaage(session); // no `ufw status`
+    hopViaBastion(session);
+    expect(session.getSnapshot().solved).toBe(false);
   });
 
   it('leaving the GLOBAL ssh rule in place does not solve (the door past the bastion)', () => {
     const { session } = makeSession(l8.terminalContext!);
-    loginWaage(session);
+    loginWaageDirect(session);
     // Everything except deleting the old global allow.
     run(session, 'sudo ufw allow from 10.0.30.10 to any port 22');
     run(session, 'sudo ufw default deny incoming');
@@ -190,7 +232,7 @@ describe('L8 ★ „BASTION-01 in Betrieb"', () => {
 
   it('a global allow-22 instead of the bastion-scoped rule does not solve', () => {
     const { session } = makeSession(l8.terminalContext!);
-    loginWaage(session);
+    loginWaageDirect(session);
     // Global allow stays (never deleted, no scoped door) → the wall is up but
     // the door is open to everyone: not "bastion-only".
     run(session, 'sudo ufw default deny incoming');
@@ -200,7 +242,7 @@ describe('L8 ★ „BASTION-01 in Betrieb"', () => {
 
   it('configuring without ENABLING the wall does not solve', () => {
     const { session } = makeSession(l8.terminalContext!);
-    loginWaage(session);
+    loginWaageDirect(session);
     run(session, 'sudo ufw allow from 10.0.30.10 to any port 22');
     run(session, 'sudo ufw default deny incoming');
     run(session, 'sudo ufw delete allow 22');

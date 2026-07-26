@@ -978,6 +978,54 @@ export const auditTrailStoryEvents: GameEvent[] = [
     tags: ['audit-trail', 'act3'],
   },
 
+  // ── Mail (alternate): ohne gefundenen Lieferschein ────────────────────────
+  // Played when bastion_delivery_found is NOT set (L7 skipped): the same
+  // handover push, but it cannot cite a document the player never opened.
+  // Still lets the CC-Bert decision set handover_mail_sent.
+  {
+    id: 'at_handover_mail_nodelivery',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Die Schnittstellen-Mail',
+    description:
+      'Du willst die BASTION-Übergabe endlich in Bewegung bringen — auch ohne die Beschaffungsunterlagen gesichtet zu haben. Es bleibt bei der belegbaren Tatsache: Die Appliance steht seit Monaten, eine Inbetriebnahme hat nie stattgefunden. Die Entscheidung ist, wer die Mail im CC mitliest.',
+    image: undefined,
+    involvedCharacters: ['bert'],
+    mailCompose: {
+      from: 'timo@warm.local',
+      to: 'service@pam-hersteller.example',
+      subject: 'BASTION-01: Stand Inbetriebnahme — Terminanfrage',
+      body:
+        'Sehr geehrte Damen und Herren,\n\ndie bei uns installierte PAM-Appliance BASTION-01 ist bislang nicht in Betrieb genommen worden. Wir möchten das nachholen.\n\nBitte teilen Sie uns mit, welche Zuarbeiten (Remote-Einweisung, Freischaltung Wartungskonten, benötigte Portfreigaben) dafür erforderlich sind und schlagen Sie einen Termin vor.\n\nUm Rückmeldung bis 07.08. wird gebeten.',
+    },
+    choices: [
+      {
+        id: 'at_handover_nd_cc_bert',
+        text: 'Senden — mit CC an Bert. Zeitstempel und Zeuge: WARM hat die Inbetriebnahme nachweislich angestoßen.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Gesendet, CC an die IT-Leitung. Es fehlt zwar der Lieferschein-Beleg, der Bjorgs „MFA war nie dabei" widerlegen würde — aber immerhin ist jetzt dokumentiert, dass du die Übergabe angestoßen hast. Bert: „Gut. Den Lieferschein reichen wir nach."',
+        setsFlags: ['handover_mail_sent'],
+      },
+      {
+        id: 'at_handover_nd_solo',
+        text: 'Nur an den Hersteller — kein CC-Theater nötig.',
+        effects: { stress: -1 },
+        resultText:
+          'Die Mail ist raus, ohne Mitleser und ohne Beleg. Wenn drüben niemand antwortet, steht Aussage gegen Aussage — und Bjorgs Version ist die lautere.',
+      },
+      {
+        id: 'at_handover_nd_via_bjorg',
+        text: 'Erst mit Bjorg abstimmen — es ist formal sein Projekt.',
+        effects: { stress: 2 },
+        resultText:
+          '„Lass mal, ich kümmere mich", sagt Bjorg. So wie seit vierzehn Monaten. Die Mail bleibt im Entwurfsordner liegen.',
+      },
+    ],
+    tags: ['audit-trail', 'act3'],
+  },
+
   // ── L8 ★ [CLI Linux, optional] „BASTION-01 in Betrieb" ────────────────────
   // Optional bonus payoff (D3-Epilog upgrade via bastion_live) — the beat is
   // soft-gated: the narrative choice skips without the flag.
@@ -1063,12 +1111,17 @@ export const auditTrailStoryEvents: GameEvent[] = [
           allRequired: false,
           // The claim "reachable ONLY via the bastion" as live state: wall up,
           // default deny, the bastion-scoped door exists, and NO global SSH
-          // rule remains (from:null matches only unscoped rules).
+          // rule remains (from:null matches only unscoped rules). Plus the two
+          // instructed checks: the Ist-Zustand was read (ufw status on waage01)
+          // and the new path was PROVEN — an ssh into waage01 launched from the
+          // bastion, not a lingering direct session.
           stateGoals: [
             { host: 'waage01', firewallEnabled: true },
             { host: 'waage01', firewallDefaultIncoming: 'deny' },
             { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } },
             { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: null, present: false } },
+            { host: 'waage01', commandRan: { pattern: '\\bufw\\s+status\\b', outcome: 'succeeded' } },
+            { loggedIn: { host: 'waage01', fromHost: 'bastion01', method: 'password' } },
           ],
           resultText:
             'waage01 eingehend dicht, genau eine Tür: BASTION-01. Prüf es ruhig — direkt läuft nichts mehr, über die Bastion alles. Genau so sieht „in Betrieb" aus.',
