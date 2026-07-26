@@ -344,6 +344,16 @@ describe('L5 „Die Beweiskette"', () => {
     expect(session.getSnapshot().solved).toBe(false);
   });
 
+  it('the honest flow also works through sudo (nested execute inherits the redirect)', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'mkdir /home/timo/beweis');
+    run(session, 'cp /home/timo/eingang/u_ex260722.log /home/timo/beweis/');
+    run(session, 'sudo sha256sum /home/timo/beweis/u_ex260722.log > /home/timo/beweis/hashes.txt');
+    run(session, 'echo "2026-07-22 12:40-12:44 Zugriff" >> /home/timo/beweis/timeline.md');
+    run(session, 'echo "Erledigt: Kette steht" >> /home/timo/eingang/protokoll_export.txt');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
   it('the honest RELATIVE flow still solves (cd + basename output into the list)', () => {
     const { session } = makeSession(l5.terminalContext!);
     run(session, 'mkdir /home/timo/beweis');

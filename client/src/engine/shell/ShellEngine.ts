@@ -491,18 +491,25 @@ export class ShellEngine implements ShellEngineInterface {
     const isTty = isLastStage && !hasStdoutRedirect;
     // Expose THIS stage's canonical redirect target to records made inside the
     // command (hashComputed.writtenTo), and park such records as PENDING until
-    // the redirect write actually succeeds. Save/restore both so nested
-    // executes (sudo/source) see their own stage's values, not the outer ones.
+    // the redirect write actually succeeds. Only a stage WITH its own redirect
+    // opens a new context — a nested execute without one (sudo sha256sum … ,
+    // source script.sh) INHERITS the outer stage's target and pending buffer,
+    // so `sudo sha256sum kopie > hashes.txt` records writtenTo correctly and
+    // stays coupled to the OUTER redirect's success.
     const prevOutTarget = this.stageOutTarget;
     const prevPending = this.pendingHashRecords;
-    this.stageOutTarget = effectiveOut ? vfs.resolvePath(effectiveOut.file) : null;
-    this.pendingHashRecords = hasStdoutRedirect ? [] : null;
+    if (hasStdoutRedirect) {
+      this.stageOutTarget = vfs.resolvePath(effectiveOut!.file);
+      this.pendingHashRecords = [];
+    }
     let result: CommandResult;
     let stagePendingHashes: { path: string; algo: string; host: string; writtenTo?: string }[];
     try {
       result = this.executeCommand(parsed.command, parsed, stdin, isTty);
     } finally {
-      stagePendingHashes = this.pendingHashRecords ?? [];
+      // Only the redirect-owning stage collects and restores; an inheriting
+      // stage leaves the outer context untouched.
+      stagePendingHashes = hasStdoutRedirect ? (this.pendingHashRecords ?? []) : [];
       this.stageOutTarget = prevOutTarget;
       this.pendingHashRecords = prevPending;
     }

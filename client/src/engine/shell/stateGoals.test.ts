@@ -559,6 +559,41 @@ describe('stateGoals', () => {
       expect(engine.getHashesComputed()).toHaveLength(0);
     });
 
+    it('a nested execute WITHOUT its own redirect inherits the outer target (sudo, reviewer repro)', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n');
+      const r = engine.execute('sudo sha256sum /root/kopie.log > /root/hashes.txt');
+      expect(r.exitCode).toBe(0);
+      // The inner sha256sum ran via ctx.execute at depth ≥1 — its record must
+      // carry the OUTER redirect target and commit with the outer write.
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie.log', algorithm: 'sha256', writtenTo: '/root/hashes.txt' },
+        })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, { file: '/root/hashes.txt', sha256Of: '/root/kopie.log' })
+      ).toBe(true);
+    });
+
+    it('source script > list inherits too; a FAILED outer redirect still discards', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie.log', 'daten\n');
+      engine.getBaseHost().vfs.addFile('/root/mach_hash.sh', 'sha256sum /root/kopie.log\n');
+      engine.execute('source /root/mach_hash.sh > /root/hashes.txt');
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie.log', writtenTo: '/root/hashes.txt' },
+        })
+      ).toBe(true);
+
+      // Same nested shape, but the OUTER redirect fails (directory target) —
+      // the inherited pending record must be discarded with it.
+      engine.getBaseHost().vfs.addDirectory('/root/ordner');
+      engine.getBaseHost().vfs.addFile('/root/kopie2.log', 'daten2\n');
+      const fail = engine.execute('sudo sha256sum /root/kopie2.log > /root/ordner');
+      expect(fail.exitCode).toBe(1);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/kopie2.log' } })).toBe(false);
+    });
+
     it('with multiple output redirects the LAST one is the effective writtenTo', () => {
       engine.getBaseHost().vfs.addFile('/root/kopie2.log', 'daten\n');
       engine.execute('sha256sum /root/kopie2.log > /root/first.txt > /root/second.txt');
