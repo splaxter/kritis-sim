@@ -296,10 +296,20 @@ export interface StateGoal {
    * password login, which is what makes "log in without a password" a real win
    * condition. `fromHost` pins the SOURCE the login was made from (id/hostname/
    * IP) — the win condition for "reach the target THROUGH the bastion": an ssh
-   * to waage01 launched from bastion01 counts, a direct one does not. Logins
-   * persist after `exit` (you still logged in).
+   * to waage01 launched from bastion01 counts, a direct one does not.
+   * `viaScopedRule` requires the login to have been admitted specifically by a
+   * source-SCOPED firewall allow (target enabled, default deny, NO global
+   * allow) — i.e. the target was ALREADY locked to bastion-only when the login
+   * happened. This makes the proof order-aware: a hop made BEFORE the lockdown
+   * (while the port was globally open) does not count. Logins persist after
+   * `exit` (you still logged in).
    */
-  loggedIn?: { host?: string; method?: 'publickey' | 'password'; fromHost?: string };
+  loggedIn?: {
+    host?: string;
+    method?: 'publickey' | 'password';
+    fromHost?: string;
+    viaScopedRule?: boolean;
+  };
   /**
    * The RUNNING sshd's effective config on the host (defaults to the base
    * host). Editing /etc/ssh/sshd_config hardens the file, but the daemon only

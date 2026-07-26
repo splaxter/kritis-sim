@@ -1120,8 +1120,11 @@ export const auditTrailStoryEvents: GameEvent[] = [
             { host: 'waage01', firewallDefaultIncoming: 'deny' },
             { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } },
             { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: null, present: false } },
-            { host: 'waage01', commandRan: { pattern: '\\bufw\\s+status\\b', outcome: 'succeeded' } },
-            { loggedIn: { host: 'waage01', fromHost: 'bastion01', method: 'password' } },
+            { host: 'waage01', commandRan: { pattern: '^(?:sudo\\s+)?ufw\\s+status(?:\\s+numbered)?$', outcome: 'succeeded' } },
+            // viaScopedRule: the hop must have been admitted by waage01's
+            // bastion-only rule — i.e. it happened AFTER the lockdown, not a
+            // pre-hardening pass-through that the old direct door allowed.
+            { loggedIn: { host: 'waage01', fromHost: 'bastion01', method: 'password', viaScopedRule: true } },
           ],
           resultText:
             'waage01 eingehend dicht, genau eine Tür: BASTION-01. Prüf es ruhig — direkt läuft nichts mehr, über die Bastion alles. Genau so sieht „in Betrieb" aus.',

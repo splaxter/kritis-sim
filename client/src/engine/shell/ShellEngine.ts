@@ -28,6 +28,22 @@ function normalizeHashAlgo(algo: string): string {
   return algo.toLowerCase().replace(/sum$/, '');
 }
 
+/**
+ * Was an SSH login to `target` from a source with `sourceIp` admitted
+ * specifically by a source-SCOPED allow — i.e. the target was already locked
+ * to bastion-only (firewall up, default deny, NO global from-less allow-22,
+ * and a from-scoped allow-22 matching the source)? Evaluated at login time so
+ * a loggedIn goal can require the hop to have happened AFTER the lockdown.
+ */
+function admittedViaScopedRule(target: HostState, sourceIp?: string): boolean {
+  const fw = target.firewall;
+  if (!fw.enabled) return false;
+  if (fw.defaultIncoming !== 'deny') return false;
+  const rules22 = fw.rules.filter(r => r.port === 22 && (!r.proto || r.proto === 'tcp'));
+  if (rules22.some(r => r.action === 'allow' && !r.from)) return false; // a global door is open
+  return sourceIp !== undefined && rules22.some(r => r.action === 'allow' && r.from === sourceIp);
+}
+
 export class ShellEngine implements ShellEngineInterface {
   private commands: Map<string, ShellCommand> = new Map();
   private aliases: Map<string, string> = new Map();
@@ -1512,11 +1528,17 @@ export class ShellEngine implements ShellEngineInterface {
     if (!host) {
       throw new Error(`pushSession: unknown host '${hostId}'`);
     }
-    // An SSH login opens a session AND is recorded (with its auth method and
-    // the SOURCE host it was launched from) so a loggedIn stateGoal can assert
-    // the player actually logged in — and, via fromHost, that they came in
-    // through the right door (e.g. the bastion).
-    if (method) this.recordLogin(hostId, method, this.getCurrentHost().id);
+    // An SSH login opens a session AND is recorded (with its auth method, the
+    // SOURCE host it was launched from, and whether it was admitted via a
+    // source-scoped firewall rule) so a loggedIn stateGoal can assert the
+    // player actually logged in — via fromHost that they came through the
+    // right door, and via viaScopedRule that the target was ALREADY locked
+    // down at that moment (order-aware proof).
+    if (method) {
+      const source = this.getCurrentHost();
+      const viaScoped = admittedViaScopedRule(host, source.ip);
+      this.recordLogin(hostId, method, source.id, viaScoped);
+    }
     host.vfs.setUser(user);
     this.sessionStack.push({ hostId, user });
     // Annotate the open attempt with the auth method that opened this session,
@@ -1526,21 +1548,32 @@ export class ShellEngine implements ShellEngineInterface {
 
   /**
    * Record a successful SSH login (target, auth method, source host it was
-   * launched from). Persists across session pop (`exit`). `fromHostId`
-   * defaults to '' for hand-built calls that don't track a source.
+   * launched from, and whether a source-scoped firewall rule admitted it).
+   * Persists across session pop (`exit`). `fromHostId` defaults to '' for
+   * hand-built calls that don't track a source.
    */
-  recordLogin(hostId: string, method: 'publickey' | 'password', fromHostId = ''): void {
-    this.loginRecords.add(JSON.stringify({ host: hostId, method, from: fromHostId }));
+  recordLogin(
+    hostId: string,
+    method: 'publickey' | 'password',
+    fromHostId = '',
+    viaScopedRule = false
+  ): void {
+    this.loginRecords.add(JSON.stringify({ host: hostId, method, from: fromHostId, scoped: viaScopedRule }));
   }
 
   /**
-   * Has the player logged into `hostId` (any host when omitted) via `method`
-   * (any when omitted) from `fromHostId` (any when omitted)? Used by the
-   * loggedIn stateGoal evaluator.
+   * Has the player logged into `hostId` (any when omitted) via `method` (any),
+   * from `fromHostId` (any), admitted via a source-scoped rule when
+   * `viaScopedRule` is set? Used by the loggedIn stateGoal evaluator.
    */
-  hasLoggedIn(hostId?: string, method?: 'publickey' | 'password', fromHostId?: string): boolean {
+  hasLoggedIn(
+    hostId?: string,
+    method?: 'publickey' | 'password',
+    fromHostId?: string,
+    viaScopedRule?: boolean
+  ): boolean {
     for (const rec of this.loginRecords) {
-      let parsed: { host: string; method: string; from: string };
+      let parsed: { host: string; method: string; from: string; scoped?: boolean };
       try {
         parsed = JSON.parse(rec);
       } catch {
@@ -1549,6 +1582,7 @@ export class ShellEngine implements ShellEngineInterface {
       if (hostId !== undefined && parsed.host !== hostId) continue;
       if (method !== undefined && parsed.method !== method) continue;
       if (fromHostId !== undefined && parsed.from !== fromHostId) continue;
+      if (viaScopedRule !== undefined && !!parsed.scoped !== viaScopedRule) continue;
       return true;
     }
     return false;

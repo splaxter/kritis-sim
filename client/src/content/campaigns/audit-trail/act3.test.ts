@@ -220,6 +220,37 @@ describe('L8 ★ „BASTION-01 in Betrieb"', () => {
     expect(session.getSnapshot().solved).toBe(false);
   });
 
+  it('a printed "ufw status" (echo) does not satisfy the Ist-check (anchored pattern)', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    loginWaageDirect(session);
+    run(session, 'echo ufw status'); // prints the words, never runs ufw
+    hardenWaage(session);
+    hopViaBastion(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('a PRE-hardening bastion hop does not count — the proof is order-aware (reviewer repro)', () => {
+    const { session } = makeSession(l8.terminalContext!);
+    // Hop bastion→waage FIRST, while waage is still wide open (global allow).
+    run(session, 'ssh admin@bastion01');
+    run(session, 'schleuse-blau-9');
+    run(session, 'ssh admin@waage01');
+    run(session, 'wiegeschein-42');
+    // Back out to local, then harden directly — never hopping again.
+    run(session, 'exit'); // waage → bastion
+    run(session, 'exit'); // bastion → local
+    loginWaageDirect(session);
+    run(session, 'sudo ufw status');
+    hardenWaage(session);
+    // The early hop was admitted by the open door (viaScopedRule=false), so it
+    // does NOT satisfy the post-lockdown proof.
+    expect(session.getSnapshot().solved).toBe(false);
+
+    // Only a hop AFTER the lockdown (admitted by the bastion-scoped rule) does.
+    hopViaBastion(session);
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
   it('leaving the GLOBAL ssh rule in place does not solve (the door past the bastion)', () => {
     const { session } = makeSession(l8.terminalContext!);
     loginWaageDirect(session);
