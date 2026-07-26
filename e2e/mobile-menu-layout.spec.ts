@@ -23,17 +23,26 @@ async function expectNoDocumentOverflow(page: Page) {
  * clientWidth instead. The dialog's own vertical scroller is exempt (it scrolls
  * by design; only horizontal overflow is a defect here).
  */
-async function expectNoInternalOverflow(page: Page, dialogName: string) {
-  const clipped = await page.evaluate((name) => {
-    const dialog = document.querySelector(`[role=dialog][aria-label="${name}"]`);
-    if (!dialog) return ['dialog not found'];
+async function expectNoInternalOverflowIn(page: Page, selector: string) {
+  const clipped = await page.evaluate((sel) => {
+    const root = document.querySelector(sel);
+    if (!root) return [`root not found: ${sel}`];
     const out: string[] = [];
+    // The ROOT itself is in the scan set: an over-wide direct child pushes the
+    // root's scrollWidth out while no descendant exceeds its own box, so
+    // scanning only descendants would report nothing. scrollWidth is horizontal
+    // only, so this does not clash with intended vertical scrolling.
+    const nodes: Element[] = [root, ...root.querySelectorAll('*')];
     // AsciiFrame's rules (═ runs) are decoration drawn to the frame edge and
     // clipped ON PURPOSE. Exempt elements whose text is nothing but box-drawing
     // characters — narrow enough that real content can't hide behind it.
     const isDecorativeRule = (el: Element) => /^[─-╿\s]+$/.test(el.textContent || '');
-    dialog.querySelectorAll('*').forEach((el) => {
-      if (isDecorativeRule(el)) return;
+    // Replaced elements (img/svg/video/canvas) report intrinsic media size in
+    // scrollWidth; with object-fit: cover, exceeding the box is the point. Their
+    // BOX is still checked by the bounding-box assertions.
+    const REPLACED = ['IMG', 'SVG', 'VIDEO', 'CANVAS'];
+    nodes.forEach((el) => {
+      if (isDecorativeRule(el) || REPLACED.includes(el.tagName)) return;
       // 1px slack: sub-pixel text metrics round scrollWidth up.
       if (el.scrollWidth > el.clientWidth + 1 && el.clientWidth > 0) {
         out.push(
@@ -43,9 +52,12 @@ async function expectNoInternalOverflow(page: Page, dialogName: string) {
       }
     });
     return out;
-  }, dialogName);
-  expect(clipped, `content clipped inside ${dialogName}:\n${clipped.join('\n')}`).toEqual([]);
+  }, selector);
+  expect(clipped, `content clipped inside ${selector}:\n${clipped.join('\n')}`).toEqual([]);
 }
+
+const expectNoInternalOverflow = (page: Page, dialogName: string) =>
+  expectNoInternalOverflowIn(page, `[role=dialog][aria-label="${dialogName}"]`);
 
 /** The dialog's own scroll container (role=dialog is the scroller). */
 async function scrollDialogTo(page: Page, top: number) {
@@ -100,6 +112,10 @@ for (const viewport of VIEWPORTS) {
     await scrollDialogTo(page, 0);
     await expectFullyInsideViewport(page, /Freie Simulation/, viewport);
     await expectReachable(page, /Story-Kampagne/, viewport);
+    // Selection markers ('> ') only render on the highlighted card and add
+    // width — re-scan with the selection moved.
+    await page.keyboard.press('ArrowDown');
+    await expectNoInternalOverflow(page, 'Einsatzart wählen');
 
     await page.getByRole('button', { name: /Story-Kampagne/ }).click();
 
@@ -115,6 +131,8 @@ for (const viewport of VIEWPORTS) {
     // … and the last card plus the [ESC] control are reachable by scrolling.
     await expectReachable(page, /Audit Trail/, viewport);
     await expectReachable(page, /Zurück/, viewport);
+    await page.keyboard.press('ArrowDown');
+    await expectNoInternalOverflow(page, 'Kampagne wählen');
 
     // Back out to the experience picker and take the OTHER branch.
     await page.getByRole('button', { name: /Zurück/ }).click();
@@ -129,6 +147,9 @@ for (const viewport of VIEWPORTS) {
     await expectFullyInsideViewport(page, /Einsteiger/, viewport);
     await expectReachable(page, /KRITIS/, viewport);
     await expectReachable(page, /Abbrechen/, viewport);
+    // The selected mode card also renders a '[*]' marker.
+    await page.keyboard.press('ArrowDown');
+    await expectNoInternalOverflow(page, 'Simulation wählen');
 
     // Starting a simulation run works from here.
     await page.getByRole('button', { name: /Einsteiger/ }).click();
@@ -149,3 +170,100 @@ for (const viewport of VIEWPORTS) {
     await expectNoDocumentOverflow(page);
   });
 }
+
+/**
+ * The scenario card is served by a deterministic hash of
+ * (seed + week + day + completedEvents.length) — see App.tsx — so a fixed seed
+ * reliably produces one. That matters: the card's header overflowed at 320px
+ * and only appeared on the RNG draws that served a scenario instead of an
+ * event, which is exactly the kind of defect a flaky check would keep missing.
+ */
+const SCENARIO_PLAYER = 'player-mobile-scenario';
+const SCENARIO_SEED = 'E2E-SCEN-2'; // hash%100 === 3 < 10 at week 1/day 1
+
+async function seedScenarioRun(page: Page) {
+  const envelope = {
+    version: 1,
+    updatedAt: '2026-07-26T10:00:00.000Z',
+    gameState: {
+      seed: SCENARIO_SEED,
+      runNumber: 1,
+      gameMode: 'beginner',
+      currentWeek: 1,
+      currentDay: 1,
+      skills: { netzwerk: 40, linux: 40, windows: 40, security: 40, troubleshooting: 40, softSkills: 40 },
+      relationships: { chef: 10, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 15 },
+      stress: 10,
+      budget: 15000,
+      compliance: 50,
+      activeEvents: [],
+      completedEvents: [],
+      completedScenarios: [],
+      flags: {},
+      unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
+      terminalHistory: [],
+      isStoryMode: false,
+      decisions: [],
+      pendingChainEvents: [],
+    },
+  };
+  await page.addInitScript(
+    ([id, env]) => {
+      localStorage.setItem('kritis_player_id', id);
+      localStorage.setItem('kritis_seen_intro', '1');
+      localStorage.setItem('kritis_name_skipped', '1');
+      localStorage.setItem(`kritis_autosave_${id}`, env);
+    },
+    [SCENARIO_PLAYER, JSON.stringify(envelope)] as const
+  );
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`scenario card fits ${viewport.name}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await seedScenarioRun(page);
+    await page.goto('/');
+    await page.getByText(/WEITER SPIELEN/).click();
+
+    // Fails loudly if the seed ever stops producing a scenario, rather than
+    // silently degrading into an event-only check.
+    await expect(page.getByText('─ SZENARIO ─')).toBeVisible();
+    await expectNoDocumentOverflow(page);
+    await expectNoInternalOverflowIn(page, 'body');
+  });
+}
+
+/**
+ * Meta-test: the guard has been patched twice for blind spots, so prove it
+ * actually fires. Injects the reviewer's repro — an over-wide DIRECT CHILD of
+ * the dialog, which leaves every descendant within its own box and was
+ * therefore invisible while the scan skipped the root.
+ */
+test('the internal-overflow guard catches an over-wide direct child', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto('/');
+  await page.getByText(/KLICKEN ODER ENTER ZUM STARTEN/).click();
+  await page.getByRole('button', { name: /NEUES SPIEL STARTEN/ }).click();
+  await expect(page.getByRole('dialog', { name: 'Einsatzart wählen' })).toBeVisible();
+
+  // Clean before the mutation …
+  await expectNoInternalOverflow(page, 'Einsatzart wählen');
+
+  await page.evaluate(() => {
+    const dialog = document.querySelector('[role=dialog][aria-label="Einsatzart wählen"]')!;
+    const wide = document.createElement('div');
+    wide.style.width = '1000px';
+    wide.textContent = 'injected overflow';
+    dialog.appendChild(wide);
+  });
+
+  // … and the guard must report it now.
+  let failed = false;
+  try {
+    await expectNoInternalOverflow(page, 'Einsatzart wählen');
+  } catch {
+    failed = true;
+  }
+  expect(failed, 'guard did not catch the injected 1000px child').toBe(true);
+});

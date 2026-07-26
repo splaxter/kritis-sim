@@ -409,9 +409,10 @@ export function GameScreen({
         )}
       </div>
 
-      {/* Footer with save/load hints */}
-      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex justify-between items-center">
-        <span className="flex items-center gap-4">
+      {/* Footer with save/load hints — wraps so week/day, the back control and
+          the save hints never get pushed off a narrow screen. */}
+      <div className="mt-4 pt-2 border-t border-terminal-border text-sm text-terminal-green-muted flex flex-wrap justify-between items-center gap-x-4 gap-y-1">
+        <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span>Woche {state.currentWeek} / Tag {state.currentDay}</span>
           {backAction && onBack && (
             <BackButton label={backAction.label} onClick={onBack} />
