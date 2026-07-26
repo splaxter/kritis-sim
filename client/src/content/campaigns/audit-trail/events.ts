@@ -1321,10 +1321,12 @@ export const auditTrailStoryEvents: GameEvent[] = [
     tags: ['audit-trail', 'act4'],
   },
 
-  // ── F3 fail — BASTION-Erzählung unwidersprochen ───────────────────────────
-  // D3 is composite (Lieferschein gefunden UND Übergabe-Mail mit CC). Truth-
-  // stable when only the mail is missing: the player may well HAVE the
-  // Lieferschein — the scene claims "nicht aktenfest", never "kein Papier".
+  // ── F3 fail — halbe Beweislage, Bjorg erzählt weiter ──────────────────────
+  // D3 is composite, and EITHER half can exist alone: the Lieferschein without
+  // the mail, or the CC mail without the Lieferschein (the nodelivery variant
+  // also sets handover_mail_sent). The scene may only claim that at least one
+  // of the two needed Belege is missing — never "nichts Aktenfestes", never
+  // that Bjorg's version stands "unwidersprochen".
   {
     id: 'at_audit_f3_fail',
     weekRange: [1, 6],
@@ -1332,23 +1334,23 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 3: Die PAM-Blockade',
     description:
-      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack. Warum?" Was du dem entgegensetzen kannst, ist nicht aktenfest: Entweder hast du den Lieferschein nie gesichtet — oder du hast ihn zwar gefunden, die Übergabe aber nirgends dokumentiert, wo eine dritte Stelle sie nachlesen könnte. Bjorgs Version — ‚MFA war nie Teil des Pakets’ — steht damit unwidersprochen im Raum.',
+      '„Die PAM-Appliance steht seit vierzehn Monaten im Rack. Warum?" Eine Antwort, die trägt, bräuchte zwei Belege: den Lieferschein zum MFA-Modul und die aktenfest dokumentierte Übergabe. Mindestens einer davon fehlt dir — und eine halbe Beweiskette beantwortet die Frage des ISB nicht. Was offen bleibt, füllt Bjorg mit seiner Version der Geschichte.',
     image: undefined,
     involvedCharacters: ['isb', 'bjorg'],
     choices: [
       {
         id: 'at_audit_f3_fail_honest',
-        text: 'Zugeben, dass du nichts Aktenfestes vorlegen kannst.',
+        text: 'Einräumen, dass deine Beweislage unvollständig ist.',
         effects: { skills: { softSkills: 1 } },
         resultText:
-          'Der ISB nickt langsam. „Was nicht in der Akte liegt, existiert für dieses Verfahren nicht. Dann steht Aussage gegen Aussage — und die lautere gewinnt." Du weißt, wessen Aussage das ist.',
+          'Der ISB nickt langsam. „Ein halber Nachweis ist kein Nachweis. Für das, was fehlt, steht Aussage gegen Aussage — und die lautere gewinnt." Du weißt, wessen Aussage das ist.',
       },
       {
         id: 'at_audit_f3_fail_blame',
         text: 'Auf Bjorg zeigen: Er hat die Übergabe vierzehn Monate blockiert.',
         effects: { stress: 2, relationships: { kollegen: -2 } },
         resultText:
-          'Mag sein. Aber nichts davon liegt aktenfest vor — und was nicht in der Akte steht, ist nur deine Erzählung gegen seine. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
+          'Mag sein. Aber genau an der Stelle, die den Vorwurf belegen müsste, ist deine Akte leer — und was dort fehlt, ersetzt keine Erzählung. Der ISB trägt nichts ein. Ein leeres Feld ist auch eine Antwort.',
       },
     ],
     tags: ['audit-trail', 'act4'],
@@ -1385,9 +1387,11 @@ export const auditTrailStoryEvents: GameEvent[] = [
   },
 
   // ── F4 fail — lückenhafte Aktenlage, Bjorgs Mappe füllt die Lücke ─────────
-  // D4 is composite (Onboarding-Inventar UND Ticket-diff). Truth-stable when
-  // only one of the two exists: the scene claims gaps at the decisive spots,
-  // never a completely empty record.
+  // D4 is composite (Onboarding-Inventar UND Ticket-diff), and EITHER half can
+  // be the missing one — with the diff documented, the player owns exactly the
+  // entlastende Zeile and Bjorg's Mappe cannot replace that part. The scene
+  // claims only that at least one Beleg is missing; the Mappe is "seine
+  // Version der Monate", not a stand-in for the ticket history.
   {
     id: 'at_audit_f4_fail',
     weekRange: [1, 6],
@@ -1395,23 +1399,23 @@ export const auditTrailStoryEvents: GameEvent[] = [
     category: 'story',
     title: 'Frage 4: Ihre Dokumentation',
     description:
-      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate." Was du vorlegen kannst, beantwortet die Frage nicht — an entscheidender Stelle fehlt der Beleg. Und Lücken füllt ein anderer: Bjorg schiebt eine Mappe über den Tisch — seine Version der Ticket-Historie, gut sortiert, ohne die Zeile, die dich entlasten würde.',
+      '„Zeigen Sie mir Ihre Dokumentation der letzten Monate." Auf den Tisch gehörten jetzt zwei Belege: das Inventar aus deiner Anfangszeit und der dokumentierte Eingriff in die Ticket-Historie. Mindestens einer fehlt — und für Lücken hat Bjorg vorgesorgt: Er schiebt eine eigene Mappe über den Tisch, gut sortiert, seine Version der Monate.',
     image: undefined,
     involvedCharacters: ['isb', 'bjorg'],
     choices: [
       {
         id: 'at_audit_f4_fail_reconstruct',
-        text: 'Aus dem Gedächtnis rekonstruieren, was du getan hast.',
+        text: 'Die Lücke aus dem Gedächtnis füllen.',
         effects: { stress: 2 },
         resultText:
-          'Du erzählst, was war. Aber Erinnerung ist kein Beleg, und Bjorgs Mappe hat den Vorteil, ein Deckblatt zu haben. Der ISB hört dir zu — und liest trotzdem in der Mappe.',
+          'Du erzählst, was in deiner Akte fehlt, aus der Erinnerung. Aber Erinnerung ist kein Beleg, und Bjorgs Mappe hat den Vorteil, ein Deckblatt zu haben. Der ISB hört dir zu — und liest trotzdem in der Mappe.',
       },
       {
         id: 'at_audit_f4_fail_concede',
         text: 'Einräumen, dass die Doku dünn ist.',
         effects: { skills: { softSkills: 1 } },
         resultText:
-          'Ehrlich, aber folgenlos. Wo deine Akte schweigt, erzählt Bjorgs Mappe die Geschichte — und deine schweigt genau an den Stellen, auf die es ankommt.',
+          'Ehrlich, aber folgenlos. Wo deine Akte schweigt, erzählt Bjorgs Mappe die Geschichte — und mindestens an einer Stelle, auf die es ankommt, schweigt sie.',
       },
     ],
     tags: ['audit-trail', 'act4'],
@@ -1448,6 +1452,10 @@ export const auditTrailStoryEvents: GameEvent[] = [
   },
 
   // ── F5 fail — Bjorgs Dossier bestimmt den Ton ─────────────────────────────
+  // D5's two real fail modes are mutually exclusive (one choice in
+  // at_bjorg_dialogue: spitz geantwortet ODER Notiz gelöscht — never both).
+  // Description AND both choices must stay neutral across them: after
+  // "löschen" the player wrote nothing, so no text may assert chat replies.
   {
     id: 'at_audit_f5_fail',
     weekRange: [1, 6],
@@ -1468,10 +1476,10 @@ export const auditTrailStoryEvents: GameEvent[] = [
       },
       {
         id: 'at_audit_f5_fail_concede',
-        text: 'Einräumen, dass du dich hast provozieren lassen.',
+        text: 'Einräumen, dass du Bjorg das Feld überlassen hast.',
         effects: { skills: { softSkills: 1 } },
         resultText:
-          'Die Ehrlichkeit ehrt dich und ändert wenig. Was du im Chat geschrieben hast, steht im Chat. Was du nicht gesichert hast, fehlt. Bjorgs Erzählung füllt beide Lücken.',
+          'Die Ehrlichkeit ehrt dich und ändert wenig. Entweder liegen deine eigenen Worte jetzt in seinem Dossier — oder es fehlt die Notiz, die zeigen würde, wer angefangen hat. So oder so erzählt Bjorgs Version die Geschichte zu Ende.',
       },
     ],
     tags: ['audit-trail', 'act4'],
