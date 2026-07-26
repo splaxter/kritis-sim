@@ -548,6 +548,36 @@ describe('stateGoals', () => {
       expect(checkStateGoal(engine, GOAL)).toBe(true);
     });
 
+    it('a FAILED redirect discards the pending record (reviewer repro)', () => {
+      engine.getBaseHost().vfs.addDirectory('/root/beweis');
+      engine.getBaseHost().vfs.addFile('/root/beweis/kopie.log', 'daten\n');
+      // Redirect target is a DIRECTORY → the write fails; the hash record
+      // must vanish with it (no list was fed, nothing may vouch for one).
+      const r = engine.execute('sha256sum /root/beweis/kopie.log > /root/beweis');
+      expect(r.exitCode).toBe(1);
+      expect(checkStateGoal(engine, { hashComputed: { path: '/root/beweis/kopie.log' } })).toBe(false);
+      expect(engine.getHashesComputed()).toHaveLength(0);
+    });
+
+    it('with multiple output redirects the LAST one is the effective writtenTo', () => {
+      engine.getBaseHost().vfs.addFile('/root/kopie2.log', 'daten\n');
+      engine.execute('sha256sum /root/kopie2.log > /root/first.txt > /root/second.txt');
+      // bash semantics: first is created empty, second receives the content.
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie2.log', writtenTo: '/root/second.txt' },
+        })
+      ).toBe(true);
+      expect(
+        checkStateGoal(engine, {
+          hashComputed: { path: '/root/kopie2.log', writtenTo: '/root/first.txt' },
+        })
+      ).toBe(false);
+      expect(
+        checkStateGoal(engine, { file: '/root/second.txt', sha256Of: '/root/kopie2.log' })
+      ).toBe(true);
+    });
+
     it('Get-FileHash records too (PowerShell side, normalized algo)', () => {
       const ps = createShell({ type: 'powershell', user: 'timo', hostname: 'EXCH01' });
       ps.getBaseHost().vfs.addFile('C:\\Logs\\a.log', 'x');

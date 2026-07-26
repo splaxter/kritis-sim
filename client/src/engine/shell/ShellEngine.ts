@@ -91,10 +91,22 @@ export class ShellEngine implements ShellEngineInterface {
 
   /**
    * Canonical stdout-redirect target of the CURRENTLY executing stage (null =
-   * no redirect). Save/restored per stage so records made inside a command can
-   * note where their output goes.
+   * no redirect). This is the LAST `>`/`>>` of the stage — bash applies all of
+   * them but only the last receives the content. Save/restored per stage so
+   * records made inside a command note where their output actually goes.
    */
   private stageOutTarget: string | null = null;
+
+  /**
+   * Hash records made during a redirected stage are PENDING until the redirect
+   * write succeeds: a `sha256sum kopie > hashes.txt` whose write FAILS must not
+   * leave a writtenTo record behind (it would vouch for a hash list that was
+   * never fed). null = current stage has no stdout redirect → records commit
+   * directly. Save/restored per stage like stageOutTarget.
+   */
+  private pendingHashRecords:
+    | { path: string; algo: string; host: string; writtenTo?: string }[]
+    | null = null;
 
   constructor(
     vfs: VirtualFilesystemInterface,
@@ -471,24 +483,32 @@ export class ShellEngine implements ShellEngineInterface {
     }
 
     const parsed = this.parseCommand(cmdString);
-    const outRedirect = redirects.find(r => r.type === '>' || r.type === '>>');
-    const hasStdoutRedirect = outRedirect !== undefined;
+    const outRedirects = redirects.filter(r => r.type === '>' || r.type === '>>');
+    const hasStdoutRedirect = outRedirects.length > 0;
+    // bash applies every redirect but only the LAST receives the content —
+    // that is the stage's effective output target.
+    const effectiveOut = hasStdoutRedirect ? outRedirects[outRedirects.length - 1] : undefined;
     const isTty = isLastStage && !hasStdoutRedirect;
     // Expose THIS stage's canonical redirect target to records made inside the
-    // command (hashComputed.writtenTo). Save/restore so nested executes
-    // (sudo/source) see their own stage's value, not the outer one.
+    // command (hashComputed.writtenTo), and park such records as PENDING until
+    // the redirect write actually succeeds. Save/restore both so nested
+    // executes (sudo/source) see their own stage's values, not the outer ones.
     const prevOutTarget = this.stageOutTarget;
-    this.stageOutTarget = outRedirect ? vfs.resolvePath(outRedirect.file) : null;
+    const prevPending = this.pendingHashRecords;
+    this.stageOutTarget = effectiveOut ? vfs.resolvePath(effectiveOut.file) : null;
+    this.pendingHashRecords = hasStdoutRedirect ? [] : null;
     let result: CommandResult;
+    let stagePendingHashes: { path: string; algo: string; host: string; writtenTo?: string }[];
     try {
       result = this.executeCommand(parsed.command, parsed, stdin, isTty);
     } finally {
+      stagePendingHashes = this.pendingHashRecords ?? [];
       this.stageOutTarget = prevOutTarget;
+      this.pendingHashRecords = prevPending;
     }
 
     // Output redirection: `>` truncates, `>>` appends. Only stdout is
     // redirected; stderr (result.error) still flows to the terminal.
-    const outRedirects = redirects.filter(r => r.type === '>' || r.type === '>>');
     if (outRedirects.length > 0) {
       // bash applies multiple redirects but only the last one ends up with the
       // content; earlier targets are created/truncated empty.
@@ -501,9 +521,13 @@ export class ShellEngine implements ShellEngineInterface {
           ? vfs.appendFile(path, content)
           : vfs.writeFile(path, content);
         if (!write.ok) {
+          // The redirect FAILED — pending hash records are discarded: no list
+          // was fed, so nothing may vouch for one.
           return { output: '', exitCode: 1, error: `bash: ${rd.file}: ${write.error}` };
         }
       }
+      // Every redirect landed — commit the stage's hash records now.
+      this.hashesComputed.push(...stagePendingHashes);
       // stdout was redirected; nothing prints, but stderr/exit code remain.
       return { output: '', exitCode: result.exitCode, error: result.error };
     }
@@ -564,14 +588,18 @@ export class ShellEngine implements ShellEngineInterface {
       recordAnsibleRun: (run: AnsibleRunRecord) => this.recordAnsibleRun(run),
       recordFileCopy: (from: string, to: string) =>
         void this.fileCopies.push({ from, to, host: this.getCurrentHost().id }),
-      recordHashComputed: (path: string, algo: string) =>
-        void this.hashesComputed.push({
+      recordHashComputed: (path: string, algo: string) => {
+        const record = {
           path,
           algo: normalizeHashAlgo(algo),
           host: this.getCurrentHost().id,
-          // Couples the record to the list it fed: the stage's redirect target.
+          // Couples the record to the list it fed: the stage's EFFECTIVE
+          // (last) redirect target.
           ...(this.stageOutTarget ? { writtenTo: this.stageOutTarget } : {}),
-        }),
+        };
+        // Redirected stages park the record until the write succeeds.
+        (this.pendingHashRecords ?? this.hashesComputed).push(record);
+      },
       recordMailboxInspected: (name: string) =>
         void this.mailboxesInspected.push({ name, host: this.getCurrentHost().id }),
       requestInput: (prompt: string, mask: boolean, next: (line: string) => CommandResult) => {
