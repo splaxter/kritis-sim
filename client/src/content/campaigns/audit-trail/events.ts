@@ -779,4 +779,310 @@ export const auditTrailStoryEvents: GameEvent[] = [
     },
     tags: ['audit-trail', 'act2', 'terminal'],
   },
+
+  // ═══════════════════════════════ ACT 3 — Die Blockade ═══════════════════════
+
+  // ── Dialog: Bjorgs [intern]-Notiz ─────────────────────────────────────────
+  // The D5 decision. Preserving the note (documented, unanswered) is the only
+  // path to bjorg_warning_preserved; ANY sharp reply sets bjorg_provoked —
+  // once set, it stays (checked verbatim at Audit question F5).
+  {
+    id: 'at_bjorg_dialogue',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Die interne Notiz',
+    description:
+      'Deine Anfrage zur BASTION-Übergabe beantwortet Bjorg nicht — jedenfalls nicht dir. Stattdessen steht im Ticket eine neue interne Notiz: „[intern] Der Neue spielt jetzt also Auditor. Vielleicht erst mal die Anlage kennenlernen, bevor man Kollegen kontrolliert? :)" Sichtbar für die halbe IT. Deine Reaktion entscheidet, welche Geschichte das Audit später über dich erzählen kann.',
+    image: undefined,
+    involvedCharacters: ['bjorg'],
+    choices: [
+      {
+        id: 'at_bjorg_preserve',
+        text: 'Kühl bleiben: Notiz mit Zeitstempel zu den Audit-Unterlagen sichern, sachlich erneut um die Übergabe bitten.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Du exportierst das Ticket samt Notiz in deine Unterlagen und schreibst zwei nüchterne Sätze: Bitte um Übergabetermin, Frist Freitag. Es fühlt sich unbefriedigend an. Es ist trotzdem richtig: Die Notiz arbeitet ab jetzt für dich — nicht gegen dich.',
+        setsFlags: ['bjorg_warning_preserved'],
+      },
+      {
+        id: 'at_bjorg_snap',
+        text: 'Zurückschießen: „Wer eine Appliance 14 Monate im Karton lagert, sollte mit Kontrolle rechnen."',
+        effects: { stress: -3, relationships: { kollegen: -3 } },
+        resultText:
+          'Der Satz sitzt. Es fühlt sich großartig an — ungefähr eine Stunde lang. Dann ist dein Kommentar in drei Team-Chats, und aus „Bjorg blockiert die Übergabe" wird hausintern „die zwei haben ein Problem miteinander".',
+        setsFlags: ['bjorg_provoked'],
+      },
+      {
+        id: 'at_bjorg_delete',
+        text: 'Die Notiz löschen und Bjorg mündlich zur Rede stellen — kein Theater im Ticketsystem.',
+        effects: { stress: -1 },
+        resultText:
+          'Das Gespräch verläuft freundlich und ergebnislos, wie immer. Die Notiz ist weg — und mit ihr dein Beleg, falls Bjorg später eine ganz andere Version dieser Wochen erzählt.',
+      },
+    ],
+    tags: ['audit-trail', 'act3'],
+  },
+
+  // ── L7 [GUI Explorer, files] „Der Lieferschein" ───────────────────────────
+  {
+    id: 'at_l7_delivery_note',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Der Lieferschein',
+    description:
+      'Henry lehnt am Rack: „Bjorg erzählt jedem, MFA sei ‚nie Teil des Pakets’ gewesen — deshalb könne BASTION-01 nicht live gehen. Wenn das stimmt, steht es auf dem Lieferschein. Wenn nicht, steht es da auch." Die Projektunterlagen liegen auf dem Fileshare von FILE01.',
+    image: undefined,
+    involvedCharacters: ['henry', 'bjorg'],
+    mentorNote:
+      'Beschaffungsunterlagen sind Audit-Gold: Angebot (was möglich war), Bestellung (was gewollt war), Lieferschein (was tatsächlich kam). Bei Widersprüchen zählt das Papier, das mit der Kiste kam.',
+    choices: [
+      {
+        id: 'at_l7_open_share',
+        text: 'Den Projektshare durchsuchen...',
+        effects: { skills: { windows: 1 } },
+        resultText:
+          'Da steht es, schwarz auf weiß: „Pos. 3: MFA-Modul (Hardware-Token, 25 Stk.) — ENTHALTEN". Und darunter: „Pos. 4: Einweisung/Inbetriebnahme durch Hersteller — nicht abgerufen". Empfangen und unterschrieben im Mai 2025. Bjorgs Erzählung hat ab jetzt ein Aktenzeichen.',
+        guiCommand: true,
+      },
+      {
+        id: 'at_l7_take_word',
+        text: 'Auf die Suche verzichten — du hast doch Bjorgs Aussage.',
+        effects: { stress: -1 },
+        resultText:
+          'Du sparst dir eine halbe Stunde Ablage-Archäologie. Aber ohne Beleg bleibt die MFA-Frage genau das, was Bjorg daraus macht: seine Erzählung gegen deine Vermutung.',
+      },
+    ],
+    guiContext: {
+      app: 'explorer',
+      title: 'Projekte',
+      hostname: 'FILE01',
+      briefing:
+        'Finde im Projektshare die Beschaffungsunterlagen zu BASTION-01 und öffne den LIEFERSCHEIN — entscheidend ist, was laut Papier tatsächlich geliefert wurde.',
+      state: {
+        explorer: {
+          mode: 'files',
+          shareName: 'Projekte',
+          sharePath: '\\\\FILE01\\Projekte',
+          items: [
+            { id: 'ordner_fuhrpark', name: '01_Fuhrpark-Telematik', kind: 'folder', modified: '03.02.2026' },
+            { id: 'ordner_bastion', name: '02_BASTION-01', kind: 'folder', modified: '02.05.2025' },
+            { id: 'ordner_kompost', name: '03_Kompostanlage', kind: 'folder', modified: '19.06.2026' },
+            {
+              id: 'telefonliste',
+              name: 'Telefonliste_2023.xlsx',
+              kind: 'file',
+              modified: '11.01.2023',
+              preview: '(Tabellenkalkulation) Veraltete Durchwahlen. M. steht noch als „neu" drin.',
+            },
+            {
+              id: 'angebot',
+              name: 'Angebot_2025-03.pdf',
+              kind: 'file',
+              parent: 'ordner_bastion',
+              modified: '14.03.2025',
+              preview:
+                'ANGEBOT Nr. 2025-0311 — PAM-Appliance\nPos. 1: PAM-Appliance BASTION-01\nPos. 2: Lizenz PAM Basis, 3 Jahre\nPos. 3: MFA-Modul (Hardware-Token) — OPTIONAL, nicht im Grundpaket\nPos. 4: Einweisung/Inbetriebnahme (Remote) — optional',
+            },
+            {
+              id: 'bestellung',
+              name: 'Bestellung_2025-04.pdf',
+              kind: 'file',
+              parent: 'ordner_bastion',
+              modified: '09.04.2025',
+              preview:
+                'BESTELLUNG zu Angebot 2025-0311\nPos. 1–2 wie angeboten.\nPos. 3: MFA-Modul (25 Stk.) — MITBESTELLT\nPos. 4: Einweisung (Remote) — mitbestellt',
+            },
+            {
+              id: 'lieferschein',
+              name: 'Lieferschein_2025-05-02.pdf',
+              kind: 'file',
+              parent: 'ordner_bastion',
+              modified: '02.05.2025',
+              preview:
+                'LIEFERSCHEIN — PAM-Appliance BASTION-01\nLieferdatum: 02.05.2025\nPos. 1: PAM-Appliance BASTION-01 (Hardware) — geliefert\nPos. 2: Lizenz PAM Basis, 3 Jahre — aktiviert\nPos. 3: MFA-Modul (Hardware-Token, 25 Stk.) — ENTHALTEN\nPos. 4: Einweisung/Inbetriebnahme durch Hersteller (Remote) — nicht abgerufen\n\nEmpfangen: 02.05.2025, Unterschrift: B.',
+            },
+            {
+              id: 'foto_rack',
+              name: 'Foto_Rack3.jpg',
+              kind: 'file',
+              parent: 'ordner_bastion',
+              modified: '05.05.2025',
+              preview: '(Bilddatei) BASTION-01 im Rack 3. Daneben: ungeöffneter Karton mit Hersteller-Logo.',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['open:lieferschein'],
+          allRequired: true,
+          resultText:
+            'Der Lieferschein widerlegt die Blockade-Erzählung: MFA war im Paket, die Hersteller-Einweisung war bestellt und wurde schlicht nie abgerufen. Das ist kein Beschaffungsproblem — das ist ein Übergabeproblem.',
+          skillGain: { windows: 2, security: 3 },
+          setsFlags: ['bastion_delivery_found'],
+        },
+      ],
+      hints: [
+        '🤖 Henry: Projektunterlagen liegen im Projektshare — such den Ordner, der nach BASTION klingt.',
+        '🤖 Henry: Angebot, Bestellung, Lieferschein: Dich interessiert, was WIRKLICH kam. Also das Papier, das mit der Kiste kam.',
+        '🤖 Henry: Öffne Lieferschein_2025-05-02.pdf im Ordner 02_BASTION-01 — Position 3 ist die Antwort.',
+      ],
+    },
+    tags: ['audit-trail', 'act3', 'gui'],
+  },
+
+  // ── Mail: die Schnittstellen-Mail ─────────────────────────────────────────
+  {
+    id: 'at_handover_mail',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Die Schnittstellen-Mail',
+    description:
+      'Mit dem Lieferschein in der Hand drehst du die Richtung um: Nicht WARM wartet auf den Hersteller — der Hersteller schuldet WARM eine nie abgerufene Einweisung. Du setzt die Mail auf. Die eigentliche Entscheidung ist, wer sie im CC mitliest.',
+    image: undefined,
+    involvedCharacters: ['bert'],
+    mailCompose: {
+      from: 'timo@warm.local',
+      to: 'service@pam-hersteller.example',
+      subject: 'BASTION-01 (Lieferung 02.05.2025): Inbetriebnahme — benötigte Zuarbeiten und Terminvorschlag',
+      body:
+        'Sehr geehrte Damen und Herren,\n\nlaut Lieferschein vom 02.05.2025 wurden PAM-Appliance BASTION-01, Lizenz und MFA-Modul (25 Token) geliefert; die mitbestellte Remote-Einweisung (Pos. 4) wurde bislang nicht abgerufen.\n\nFür die Inbetriebnahme benötigen wir von Ihnen: (1) Termin für die Remote-Einweisung, (2) Freischaltung der Wartungskonten, (3) Bestätigung der benötigten Portfreigaben.\n\nTerminvorschlag: KW 32. Um Rückmeldung bis 07.08. wird gebeten.',
+    },
+    choices: [
+      {
+        id: 'at_handover_cc_bert',
+        text: 'Senden — mit CC an Bert. Zeitstempel und Zeuge: Die Bringschuld liegt ab jetzt dokumentiert drüben.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Gesendet, 14:52 Uhr, CC an die IT-Leitung. Ab jetzt gibt es ein Datum, ab dem WARM nachweislich geliefert hat und der Hersteller schuldet. Bert antwortet nur: „Gut. Genau so."',
+        setsFlags: ['handover_mail_sent'],
+      },
+      {
+        id: 'at_handover_solo',
+        text: 'Nur an den Hersteller — kein CC-Theater nötig.',
+        effects: { stress: -1 },
+        resultText:
+          'Die Mail ist raus, aber ohne Mitleser. Wenn drüben niemand antwortet, gibt es keinen Zeugen dafür, dass du geliefert hast — und die Bringschuld fühlt sich weiter an wie deine.',
+      },
+      {
+        id: 'at_handover_via_bjorg',
+        text: 'Erst mit Bjorg abstimmen — es ist formal sein Projekt.',
+        effects: { stress: 2 },
+        resultText:
+          '„Lass mal, ich kümmere mich", sagt Bjorg. So wie seit vierzehn Monaten. Die Mail bleibt im Entwurfsordner liegen.',
+      },
+    ],
+    tags: ['audit-trail', 'act3'],
+  },
+
+  // ── L8 ★ [CLI Linux, optional] „BASTION-01 in Betrieb" ────────────────────
+  // Optional bonus payoff (D3-Epilog upgrade via bastion_live) — the beat is
+  // soft-gated: the narrative choice skips without the flag.
+  {
+    id: 'at_l8_bastion_live',
+    weekRange: [1, 6],
+    probability: 1,
+    category: 'story',
+    title: 'BASTION-01 in Betrieb ★',
+    description: `Henry hat die Grundkonfiguration der Bastion fertig: „Appliance läuft, Konten stehen. Fehlt nur der wichtigste Schritt — dass die Anlage AUSSCHLIESSLICH noch über die Bastion erreichbar ist. Nimm die Brückenwaage: Da hängt der Wartungszugang vom Dienstleister dran, direkt am Netz, seit Jahren."
+
+**Deine Aufgabe (auf \`waage01\`):**
+- Sieh dir den Ist-Zustand der Firewall an — und entferne die pauschale SSH-Freigabe
+- Eingehend standardmäßig verbieten; SSH nur noch von BASTION-01 (\`10.0.30.10\`) erlauben
+- Firewall aktivieren — und danach den Weg über die Bastion prüfen (\`bastion01\` → \`waage01\`)`,
+    image: undefined,
+    involvedCharacters: ['henry'],
+    mentorNote:
+      'Eine Bastion (Jumphost) ist nur dann eine Schleuse, wenn es keinen Weg daran vorbei gibt: Zielsystem eingehend dicht, genau EINE Quelle erlaubt — die Bastion. Reihenfolge zählt: erst den neuen (Bastion-)Zugang einrichten, dann die pauschale Freigabe entfernen — sonst sperrst du dich mitten in der Umstellung selbst aus.',
+    choices: [
+      {
+        id: 'at_l8_start',
+        text: 'BASTION-01 scharf schalten...',
+        effects: {},
+        resultText:
+          'Die Waage kennt jetzt genau eine Tür, und die heißt BASTION-01. Der Dienstleister meldet sich ab sofort an der Bastion an — protokolliert, zurechenbar, kündbar. Aus „steht seit 14 Monaten im Rack" ist „in Betrieb" geworden.',
+        terminalCommand: true,
+        setsFlags: ['bastion_live'],
+      },
+      {
+        id: 'at_l8_postpone',
+        text: 'Verschieben — das Audit ist morgen, die Waage lief ja bisher auch so.',
+        effects: { stress: -2 },
+        resultText:
+          'Verständlich — es ist der optionale Schritt. Die Freigabe zur Inbetriebnahme hast du dir erarbeitet; die Inbetriebnahme selbst bleibt ein Plan mit Lieferschein.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Auf waage01: pauschale SSH-Freigabe entfernen, eingehend default deny, SSH nur von 10.0.30.10 (BASTION-01) erlauben, Firewall aktivieren. Danach Weg über bastion01 prüfen. Zugangsdaten: siehe bastion-zugang.txt.',
+      vfsOverlay: {
+        files: [
+          {
+            path: '/home/timo/bastion-zugang.txt',
+            content:
+              'BASTION-01 (Schleuse) — bastion01 / 10.0.30.10\nKonto: admin, Passwort: schleuse-blau-9\n\nwaage01 (Anlagen-Netz, Wartungszugang Dienstleister)\nKonto: admin, Passwort: wiegeschein-42\n',
+          },
+        ],
+      },
+      hosts: [
+        {
+          id: 'bastion01',
+          hostname: 'bastion01',
+          ip: '10.0.30.10',
+          accounts: [{ name: 'admin', password: 'schleuse-blau-9' }, { name: 'root' }],
+        },
+        {
+          id: 'waage01',
+          hostname: 'waage01',
+          ip: '10.0.40.21',
+          accounts: [{ name: 'admin', password: 'wiegeschein-42' }, { name: 'root' }],
+          // The current bad state: firewall down, SSH globally open — the
+          // standing direct service access the level retires.
+          firewall: {
+            enabled: false,
+            defaultIncoming: 'allow',
+            rules: [{ action: 'allow', port: 22 }],
+          },
+        },
+      ],
+      commands: [],
+      commandSkillGain: {
+        ssh: { linux: 1, security: 1 },
+        ufw: { linux: 2, security: 2 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          // The claim "reachable ONLY via the bastion" as live state: wall up,
+          // default deny, the bastion-scoped door exists, and NO global SSH
+          // rule remains (from:null matches only unscoped rules).
+          stateGoals: [
+            { host: 'waage01', firewallEnabled: true },
+            { host: 'waage01', firewallDefaultIncoming: 'deny' },
+            { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: '10.0.30.10', present: true } },
+            { host: 'waage01', firewallRule: { action: 'allow', port: 22, from: null, present: false } },
+          ],
+          resultText:
+            'waage01 eingehend dicht, genau eine Tür: BASTION-01. Prüf es ruhig — direkt läuft nichts mehr, über die Bastion alles. Genau so sieht „in Betrieb" aus.',
+          skillGain: { linux: 3, security: 4 },
+          effects: { stress: -2, compliance: 5 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Erst auf die Waage (Zugangsdaten liegen bei dir im Home), dann Ist-Zustand ansehen: Was erlaubt die Firewall heute?',
+        '🤖 Henry: Drei Dinge auf waage01: die pauschale 22er-Freigabe muss weg, eingehend default deny, und eine Erlaubnis NUR für die Bastion-IP.',
+        '🤖 Henry: ufw kann Quellen einschränken: `sudo ufw allow from 10.0.30.10 to any port 22`. Erst DIESE Regel setzen — dann erst die alte Pauschalfreigabe `sudo ufw delete allow 22`, sonst kappst du deine eigene Sitzung.',
+        '🤖 Henry: Reihenfolge: `sudo ufw allow from 10.0.30.10 to any port 22` → `sudo ufw default deny incoming` → `sudo ufw enable` → zuletzt `sudo ufw delete allow 22`. Danach: exit, und über bastion01 wieder rein.',
+      ],
+    },
+    tags: ['audit-trail', 'act3', 'terminal'],
+  },
 ];

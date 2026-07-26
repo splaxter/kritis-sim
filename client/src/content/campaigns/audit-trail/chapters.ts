@@ -12,7 +12,8 @@
  *                            L2 at_l2_inventory, at_wiki_password (Task 12 ✓)
  *   Akt 2  ch02_trail      : L3 at_l3_ticket_diff, L4 at_l4_iis_log, at_authorization (Task 13 ✓)
  *          ch03_evidence   : at_finding_mail, L5 at_l5_evidence_chain, L6 at_l6_enable_auditing (Task 13 ✓)
- *   Akt 3  ch04_blockade   : at_bjorg_dialogue, L7 at_l7_delivery_note, at_handover_mail, L8 at_l8_bastion_live
+ *   Akt 3  ch04_blockade   : at_bjorg_dialogue, L7 at_l7_delivery_note, at_handover_mail,
+ *                            L8★ at_l8_bastion_live (optional, soft-gated) (Task 14 ✓)
  *   Akt 4  ch05_audit_1    : F1 (D1), F2 (D2), F3 (D3)
  *          ch06_audit_2    : F4 (D4), F5 (D5)
  */
@@ -72,7 +73,7 @@ export const auditTrailChapters: AdventureChapter[] = [
     completionUnlocks: ['at_ch04_blockade'],
   },
 
-  // ── ACT 3 — Die Blockade (authored in Task 14) ────────────────────────────
+  // ── ACT 3 — Die Blockade (fully authored: Bjorg, L7, Mail, L8★) ───────────
   {
     id: 'at_ch04_blockade',
     title: 'Die Blockade',
