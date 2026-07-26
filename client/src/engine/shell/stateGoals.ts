@@ -49,7 +49,8 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.loggedIn !== undefined
     || goal.sshdEffective !== undefined
     || goal.ansibleRan !== undefined
-    || goal.commandRan !== undefined;
+    || goal.commandRan !== undefined
+    || goal.fileRead !== undefined;
 }
 
 const warnedGoals = new Set<string>();
@@ -221,6 +222,9 @@ function checkCommandRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
   const matcher = goal.commandRan;
   const targetHost = goal.host ? engine.resolveHost(goal.host)?.id : undefined;
   if (goal.host && !targetHost) return false;
+  // NOTE: for "player really read file X" proofs use `fileRead` — a regex over
+  // raw command lines cannot know a filename token's role (grep pattern vs
+  // read operand).
   return engine.getExecutionLog().some((a) => {
     // Attempts hand-built without stages (tests, legacy) fall back to the
     // outer entry; engine-recorded attempts always carry their stages.
@@ -233,6 +237,20 @@ function checkCommandRanGoal(engine: ShellEngine, goal: StateGoal): boolean {
         attemptMatches({ ...a, command: s.command, exitCode: s.exitCode }, matcher)
     );
   });
+}
+
+/**
+ * Session-aware SEMANTIC read proof: the engine's file-read record contains
+ * every successful content read a command performed (canonical path + host),
+ * so this is independent of command-line phrasing — the only way to satisfy
+ * it is an actual read of the actual file. Host follows the session-aware
+ * convention: unset = any host, set = reads ON that host.
+ */
+function checkFileReadGoal(engine: ShellEngine, goal: StateGoal): boolean {
+  if (!goal.fileRead) return true;
+  const targetHost = goal.host ? engine.resolveHost(goal.host)?.id : undefined;
+  if (goal.host && !targetHost) return false;
+  return engine.hasFileRead(goal.fileRead, targetHost);
 }
 
 /** True iff every set field of the goal holds on the addressed host. */
@@ -255,7 +273,8 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       && checkSshdEffectiveGoal(engine, host, goal)
       && checkLoggedInGoal(engine, goal)
       && checkAnsibleRanGoal(engine, goal)
-      && checkCommandRanGoal(engine, goal);
+      && checkCommandRanGoal(engine, goal)
+      && checkFileReadGoal(engine, goal);
   } catch {
     return false;
   }

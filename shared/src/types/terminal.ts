@@ -304,12 +304,28 @@ export interface StateGoal {
    * the mechanism for "the player really read/inspected X" win conditions.
    * Canned scenario commands bypass the shell and are never in this log.
    *
-   * Authoring note: exclude output-redirection spoofs in the pattern itself —
-   * `[^>]*` before the target name (as in `'^cat\\b[^>]*ziel\\.txt'`) keeps
-   * `cat andere.txt > ziel.txt` from matching a read goal.
+   * Authoring note: a raw command-line regex cannot know the ROLE of a
+   * filename token (`grep -v ziel.txt andere.txt` uses the target as a search
+   * PATTERN and never reads it) — for "the player really read file X" goals
+   * use `fileRead` instead; `commandRan` is for command-shaped assertions
+   * (specific tool invoked, a restart ran, an option was used).
    *
    * `host` semantics follow the session-aware convention (like `loggedIn`):
    * UNSET means "on any host"; a set `host` counts only stages executed there.
    */
   commandRan?: CommandMatcher;
+  /**
+   * Session-aware, SEMANTIC read proof: met iff a command successfully read
+   * THIS file's content during the terminal session. `fileRead` is the
+   * canonical absolute path. The engine records reads at the vfs boundary
+   * commands actually read through (cat/tac/head/tail/nl/less/grep/awk/sed/
+   * Get-Content/Select-String/…, plus `< file` input redirection), so the
+   * proof is independent of how the command line was phrased: `grep -v
+   * ziel.txt andere.txt` does NOT satisfy a goal on ziel.txt (the name is
+   * only a search pattern), while any real read — relative after `cd`,
+   * absolute, piped onward, via awk — does. Failed reads (wrong cwd, missing
+   * file, permission denied) are never recorded. `host` follows the
+   * session-aware convention: UNSET = any host, set = reads ON that host.
+   */
+  fileRead?: string;
 }

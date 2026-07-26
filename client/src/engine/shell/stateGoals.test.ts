@@ -381,7 +381,80 @@ describe('stateGoals', () => {
       });
     });
 
-    describe('host filter', () => {
+    describe('fileRead (semantic read record)', () => {
+    const GOAL: StateGoal = { fileRead: '/srv/exports/notizen.txt' };
+    beforeEach(() => {
+      engine.getBaseHost().vfs.addFile('/srv/exports/notizen.txt', 'wichtig, siehe Wiki\n');
+      engine.getBaseHost().vfs.addFile('/home/timo/andere.txt', 'harmlos\n');
+    });
+
+    it('reviewer repro: grep using the target name as a search PATTERN does not count', () => {
+      // Only andere.txt is read; the goal file name is grep's -v pattern.
+      const r = engine.execute('grep -v notizen.txt /home/timo/andere.txt');
+      expect(r.exitCode).toBe(0);
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('any REAL read counts, independent of tool and phrasing', () => {
+      engine.execute("awk '{print}' /srv/exports/notizen.txt");
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('grep that actually reads the target file counts', () => {
+      engine.execute('grep Wiki /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('a relative read is recorded under its canonical absolute path', () => {
+      engine.execute('cd /srv/exports');
+      engine.execute('cat notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('a failed read (wrong cwd) is never recorded', () => {
+      engine.execute('cat notizen.txt'); // from /root — no such file
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('`< file` input redirection is a genuine read', () => {
+      engine.execute('grep wichtig < /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(true);
+    });
+
+    it('appending to the file is NOT a read (internal rewrite reads are unrecorded)', () => {
+      engine.execute('echo nachtrag >> /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('stat is metadata, not a content read', () => {
+      engine.execute('stat /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, GOAL)).toBe(false);
+    });
+
+    it('scopes to goal.host: a base-host read never satisfies a web01-scoped goal', () => {
+      const web = createHostState({
+        id: 'web01', hostname: 'web01', ip: '10.0.20.10',
+        accounts: [{ name: 'admin', password: 'pw1' }],
+      });
+      web.vfs.addFile('/srv/exports/notizen.txt', 'wichtig\n');
+      engine.registerHost(web);
+
+      engine.execute('cat /srv/exports/notizen.txt'); // reads the BASE host copy
+      const scoped: StateGoal = { host: 'web01', fileRead: '/srv/exports/notizen.txt' };
+      expect(checkStateGoal(engine, scoped)).toBe(false);
+
+      engine.execute('ssh admin@web01');
+      engine.continueInput('pw1');
+      engine.execute('cat /srv/exports/notizen.txt');
+      expect(checkStateGoal(engine, scoped)).toBe(true);
+    });
+
+    it('is non-vacuous: no reads yet → unmet, not rejected', () => {
+      expect(checkStateGoal(engine, { fileRead: '/srv/exports/notizen.txt' })).toBe(false);
+    });
+  });
+
+  describe('host filter', () => {
       it('a set goal.host only counts stages executed ON that host (reviewer repro)', () => {
         const web = createHostState({
           id: 'web01', hostname: 'web01', ip: '10.0.20.10',

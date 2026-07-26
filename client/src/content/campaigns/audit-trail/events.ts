@@ -131,21 +131,15 @@ export const auditTrailStoryEvents: GameEvent[] = [
       },
       solutions: [
         {
-          // Core find via the REAL shell: any successful read of M.s Notizen
-          // wins — cat/tac/less/head/tail/nl/grep, absolute path or relative
-          // after a matching cd. A read from the wrong directory exits non-zero
-          // and does not count (genuine path semantics, no canned shortcut).
-          // `[^>]*` keeps a redirect spoof (`cat andere.txt > notizen_m.txt`)
-          // from matching — the target must be an ARGUMENT, not a redirect.
+          // Core find via the SEMANTIC read record: the goal is met exactly
+          // when a command actually read M.s Notizen — any tool (cat, less,
+          // grep, awk, …), relative after cd or absolute. No command-line
+          // regex, so no phrasing spoof (grep-pattern, redirect, pipeline
+          // decoy) can fake the read and no legitimate read path is missed.
           commands: [],
           allRequired: false,
           stateGoals: [
-            {
-              commandRan: {
-                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b[^>]*notizen_m\\.txt',
-                outcome: 'succeeded',
-              },
-            },
+            { fileRead: '/srv/ticket-exports/notizen_m.txt' },
           ],
           resultText:
             'Du hast M.s Notizen gefunden — und damit die erste Spur: Tickets werden hier nachträglich verändert, und M. hat Beweisstände gesichert, bevor er ausfiel.\n\nMerke: Der erste Schritt in fremder Infrastruktur ist nicht konfigurieren, sondern LESEN.',
@@ -173,7 +167,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
     description: `Bert kommt mit einem Notizblock vorbei: „Der neue ISB wird als Erstes fragen, was wir überhaupt betreiben. Ich hätte gern eine erste Inventur — nichts Großes, aber schriftlich." Er tippt auf den Block. „Und zwar als Datei, nicht in Ihrem Kopf. Was wir nicht aufschreiben, existiert für ein Audit nicht."
 
 **Deine Aufgabe (alle Schritte zählen):**
-- Finde den Asset-Export unter \`/srv\` (\`find\`) und sieh ihn dir wirklich an (\`stat\` oder \`cat\`)
+- Finde den Asset-Export unter \`/srv\` (\`find\`), prüfe seine Metadaten (\`stat\`) und lies ihn (\`cat\`)
 - Sichte den Wiki-Export: Lies \`konten.md\` unter \`/srv/wiki-export\` — was ist überhaupt dokumentiert?
 - Lege erst danach deine Inventur als \`/home/timo/inventar.md\` an — mindestens \`EXCH01\` und \`BASTION-01\` müssen drinstehen`,
     image: undefined,
@@ -197,7 +191,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Asset-Export unter /srv finden und prüfen (stat/cat); konten.md im Wiki-Export lesen; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).',
+        'Asset-Export unter /srv finden und LESEN (cat; stat für die Metadaten); konten.md im Wiki-Export lesen; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).',
       vfsOverlay: {
         directories: ['/srv/assets', '/srv/wiki-export'],
         files: [
@@ -227,27 +221,17 @@ export const auditTrailStoryEvents: GameEvent[] = [
       solutions: [
         {
           // The written file alone is NOT enough — the inventory must be based
-          // on actually inspecting the sources. Both inspections run through
-          // the real shell (commandRan, outcome succeeded), so only valid
-          // paths count and the follow-up dialog ("beim Sichten des Wikis
-          // aufgefallen …") is narratively true.
+          // on actually READING the sources (semantic fileRead record; stat is
+          // taught for the metadata but seeing the content is the inspection).
+          // That keeps the follow-up dialog ("beim Sichten des Wikis
+          // aufgefallen …") narratively true.
           commands: [],
           allRequired: false,
           stateGoals: [
             { file: '/home/timo/inventar.md', matches: 'EXCH01' },
             { file: '/home/timo/inventar.md', matches: 'BASTION-01' },
-            {
-              commandRan: {
-                pattern: '^(stat|cat|tac|less|head|tail|nl|wc|grep)\\b[^>]*assets_2026-07\\.csv',
-                outcome: 'succeeded',
-              },
-            },
-            {
-              commandRan: {
-                pattern: '^(cat|tac|less|head|tail|nl|grep)\\b[^>]*konten\\.md',
-                outcome: 'succeeded',
-              },
-            },
+            { fileRead: '/srv/assets/assets_2026-07.csv' },
+            { fileRead: '/srv/wiki-export/konten.md' },
           ],
           resultText:
             'Deine Inventur steht als Datei — mit EXCH01 und BASTION-01 drin. Das ist der Unterschied zwischen „weiß ich doch" und „kann ich belegen": Ab heute gibt es einen dokumentierten Stand, gegen den jede Veränderung sichtbar wird.',
@@ -257,7 +241,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       ],
       hints: [
         '🤖 Jens: Erst gucken, dann schreiben — der Asset-Export liegt unter /srv. Mit find findest du CSV-Dateien.',
-        '🤖 Jens: `stat /srv/assets/assets_2026-07.csv` zeigt dir Größe, Besitzer und Zeitstempel. Und lies /srv/wiki-export/konten.md — `cat` reicht.',
+        '🤖 Jens: `stat /srv/assets/assets_2026-07.csv` zeigt dir Größe, Besitzer und Zeitstempel — und dann lies beides: die CSV selbst und /srv/wiki-export/konten.md (`cat` reicht).',
         '🤖 Jens: Deine Doku ist eine ganz normale Datei: `echo "Zeile" >> /home/timo/inventar.md` hängt jeweils eine Zeile an.',
         '🤖 Jens: Zum Beispiel: `echo "EXCH01 - Mailserver" >> /home/timo/inventar.md` und danach so eine Zeile für BASTION-01. Beide Namen müssen in der Datei stehen.',
       ],

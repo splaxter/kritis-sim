@@ -54,6 +54,18 @@ export class ShellEngine implements ShellEngineInterface {
    */
   private pendingStage: { command: string; host: string } | null = null;
 
+  /**
+   * Structured file-read record: every SUCCESSFUL content read a COMMAND
+   * performed (via the instrumented ctx.vfs handed to implementations, plus
+   * `< file` input redirection), with the canonical absolute path and host.
+   * This is what `fileRead` stateGoals evaluate — role-independent semantics
+   * that a regex over raw command lines cannot provide (`grep -v ziel.txt
+   * andere.txt` uses the target name as a PATTERN and never reads the file).
+   * Engine internals (append rewrites, ssh key checks, unit preconditions,
+   * sshd refresh) use the raw host vfs and are never recorded.
+   */
+  private fileReads: { path: string; host: string }[] = [];
+
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
@@ -171,6 +183,49 @@ export class ShellEngine implements ShellEngineInterface {
   /** Snapshot of the execution log (one entry per finalised outer command). */
   getExecutionLog(): CommandAttempt[] {
     return [...this.executionLog];
+  }
+
+  private recordFileRead(path: string, hostId: string): void {
+    this.fileReads.push({ path, host: hostId });
+  }
+
+  /** Snapshot of all successful command file reads (canonical path + host). */
+  getFileReads(): { path: string; host: string }[] {
+    return [...this.fileReads];
+  }
+
+  /**
+   * True iff a command successfully read this file's content during the
+   * session. `path` is the canonical absolute path; `hostId` restricts the
+   * match to reads ON that host (omitted = any host).
+   */
+  hasFileRead(path: string, hostId?: string): boolean {
+    return this.fileReads.some((r) => r.path === path && (!hostId || r.host === hostId));
+  }
+
+  /**
+   * VFS view handed to command implementations: forwards everything to the
+   * current host's vfs and records each SUCCESSFUL readFile with its canonical
+   * path — the source of truth for `fileRead` stateGoals. Only commands see
+   * this view; engine internals keep using the raw host vfs.
+   */
+  private instrumentedVfs(): VirtualFilesystemInterface {
+    const host = this.getCurrentHost();
+    const vfs = host.vfs;
+    const record = (path: string) => this.recordFileRead(path, host.id);
+    return new Proxy(vfs, {
+      get(target, prop) {
+        if (prop === 'readFile') {
+          return (path: string) => {
+            const res = target.readFile(path);
+            if (res.ok) record(target.resolvePath(path));
+            return res;
+          };
+        }
+        const v = Reflect.get(target, prop, target);
+        return typeof v === 'function' ? v.bind(target) : v;
+      },
+    });
   }
 
   /** Close the open attempt with an explicit exit code (host captured now). */
@@ -335,6 +390,8 @@ export class ShellEngine implements ShellEngineInterface {
       if (!read.ok) {
         return { output: '', exitCode: 1, error: `bash: ${inRedirect.file}: ${read.error}` };
       }
+      // `< file` is a genuine user-initiated content read (`grep x < f`).
+      this.recordFileRead(path, this.getCurrentHost().id);
       stdin = read.value;
     }
 
@@ -390,7 +447,10 @@ export class ShellEngine implements ShellEngineInterface {
       return { output: this.formatHelp(command), exitCode: 0 };
     }
 
-    const vfs = this.getVfs();
+    // Commands get the INSTRUMENTED vfs so their successful content reads
+    // land in the file-read record (fileRead stateGoals); engine internals
+    // keep using the raw host vfs and are never recorded.
+    const vfs = this.instrumentedVfs();
     const ctx: ExecutionContext = {
       vfs,
       env: { ...this.state.env },

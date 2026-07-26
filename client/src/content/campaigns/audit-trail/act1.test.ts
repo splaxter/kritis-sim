@@ -60,11 +60,11 @@ describe('AUDIT TRAIL Act 1 — chapter beats', () => {
 });
 
 describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () => {
-  it('wins by a commandRan stateGoal (no canned commands, no regex shortcut)', () => {
+  it('wins by the SEMANTIC fileRead goal (no canned commands, no command-line regex)', () => {
     expect(l1.terminalContext!.commands).toEqual([]);
     const sol = l1.terminalContext!.solutions[0];
     expect(sol.commands).toEqual([]);
-    expect(sol.stateGoals?.[0].commandRan?.outcome).toBe('succeeded');
+    expect(sol.stateGoals).toEqual([{ fileRead: '/srv/ticket-exports/notizen_m.txt' }]);
   });
 
   it('plays through: find locates the notes, an absolute-path read solves the level', () => {
@@ -137,6 +137,19 @@ describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () 
     expect(session.getSnapshot().solved).toBe(true);
   });
 
+  it('grep with the target name as search PATTERN does NOT solve (reviewer repro)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    // Reads ONLY Jens' note; 'notizen_m.txt' is grep's -v pattern, not a file.
+    run(session, 'grep -v notizen_m.txt /home/timo/notiz-von-jens.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('grep that actually READS the notes solves (role-independent semantics)', () => {
+    const { session } = makeSession(l1.terminalContext!);
+    run(session, 'grep Wiki /srv/ticket-exports/notizen_m.txt');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
   it('sets no domain flags — L1 is orientation only', () => {
     expect(l1.choices.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
     expect(l1.terminalContext!.commands.flatMap((c) => c.setsFlags ?? [])).toEqual([]);
@@ -144,10 +157,11 @@ describe('L1 „Der erste Arbeitstag" — core find through the REAL shell', () 
 });
 
 describe('L2 „Die Inventur" — inspection + written inventory', () => {
-  // The honest full path: check the asset export, read the wiki accounts page,
-  // then write the inventory.
+  // The honest full path: check the asset export (metadata AND content), read
+  // the wiki accounts page, then write the inventory.
   function inspectSources(session: TerminalSession) {
     run(session, 'stat /srv/assets/assets_2026-07.csv');
+    run(session, 'cat /srv/assets/assets_2026-07.csv');
     run(session, 'cat /srv/wiki-export/konten.md');
   }
   function writeInventory(session: TerminalSession) {
@@ -155,14 +169,15 @@ describe('L2 „Die Inventur" — inspection + written inventory', () => {
     run(session, 'echo "BASTION-01 - PAM, seit 14 Monaten unkonfiguriert" >> /home/timo/inventar.md');
   }
 
-  it('requires file content AND both real inspections (asset export + konten.md)', () => {
+  it('requires file content AND both semantic reads (asset export + konten.md)', () => {
     const sol = l2.terminalContext!.solutions[0];
     expect(sol.commands).toEqual([]);
-    const goals = sol.stateGoals!;
-    expect(goals.filter((g) => g.file === '/home/timo/inventar.md')).toHaveLength(2);
-    const ran = goals.filter((g) => g.commandRan);
-    expect(ran).toHaveLength(2);
-    expect(ran.every((g) => g.commandRan!.outcome === 'succeeded')).toBe(true);
+    expect(sol.stateGoals).toEqual([
+      { file: '/home/timo/inventar.md', matches: 'EXCH01' },
+      { file: '/home/timo/inventar.md', matches: 'BASTION-01' },
+      { fileRead: '/srv/assets/assets_2026-07.csv' },
+      { fileRead: '/srv/wiki-export/konten.md' },
+    ]);
   });
 
   it('plays through the honest path: inspect, read the wiki, write the inventory', () => {
@@ -190,6 +205,22 @@ describe('L2 „Die Inventur" — inspection + written inventory', () => {
   it('without inspecting the asset export the level stays unsolved', () => {
     const { session } = makeSession(l2.terminalContext!);
     run(session, 'cat /srv/wiki-export/konten.md');
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('stat alone is metadata, not the read — the CSV content must be seen', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    run(session, 'stat /srv/assets/assets_2026-07.csv');
+    run(session, 'cat /srv/wiki-export/konten.md');
+    writeInventory(session);
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('grep with a source name as PATTERN is not an inspection (reviewer repro)', () => {
+    const { session } = makeSession(l2.terminalContext!);
+    run(session, 'grep -v konten.md /srv/assets/assets_2026-07.csv'); // reads only the CSV
+    run(session, 'grep -v assets_2026-07.csv /srv/wiki-export/bastion.md'); // reads neither source
     writeInventory(session);
     expect(session.getSnapshot().solved).toBe(false);
   });
