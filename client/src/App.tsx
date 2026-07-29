@@ -224,7 +224,15 @@ function AppContent() {
     const isFreshRun = s.currentWeek === 1 && s.currentDay === 1 && s.completedEvents.length === 0;
     if (active && isFreshRun && startedSeed.current !== s.seed) {
       startedSeed.current = s.seed;
-      trackRunStarted(playerId, s.seed, s.gameMode);
+      // Carry the campaign like run_completed does — otherwise a story START is
+      // only attributable to the shared 'story' mode and a hidden campaign stays
+      // invisible in the stats unless someone finishes it.
+      trackRunStarted(
+        playerId,
+        s.seed,
+        s.gameMode,
+        s.isStoryMode ? s.storyState?.campaignId : undefined
+      );
     }
   }, [game.phase, game.state, playerId]);
 

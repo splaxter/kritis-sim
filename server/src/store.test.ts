@@ -94,6 +94,62 @@ describe('aggregate', () => {
     expect(agg.players[0].runsCompleted).toBe(1); // same (probation) run
   });
 
+  it('keeps outcome and ending per finished run — "durchgespielt" vs "Lauf zu Ende"', () => {
+    const agg = aggregate(
+      [
+        // Reached the last week, but no ending → never saw an ending screen.
+        ev({ type: 'run_completed', seed: 's1', payload: { mode: 'story', campaignId: 'probation', outcome: 'ended', weekReached: 12, totalWeeks: 12 }, receivedAt: '2026-07-10' }),
+        // A real completion of the same campaign, different seed.
+        ev({ type: 'run_completed', seed: 's2', payload: { mode: 'story', campaignId: 'probation', outcome: 'ended', weekReached: 12, totalWeeks: 12, ending: 'good', score: 82 }, receivedAt: '2026-07-11' }),
+      ],
+      NOW
+    );
+    const p = agg.players[0];
+    expect(p.runsCompleted).toBe(2);
+    // The counter alone cannot tell these apart — the run list can.
+    expect(p.completedRuns).toEqual([
+      { mode: 'story', campaignId: 'probation', outcome: 'ended', weekReached: 12, totalWeeks: 12, ending: undefined, score: undefined, at: '2026-07-10' },
+      { mode: 'story', campaignId: 'probation', outcome: 'ended', weekReached: 12, totalWeeks: 12, ending: 'good', score: 82, at: '2026-07-11' },
+    ]);
+    expect(p.endingsSeen).toEqual(['good']);
+  });
+
+  it('attributes a START to its campaign and records hidden-campaign unlocks', () => {
+    const agg = aggregate(
+      [
+        ev({ type: 'campaign_unlocked', payload: { campaignId: 'audit-trail' }, receivedAt: '2026-07-29' }),
+        ev({ type: 'run_started', seed: 's1', payload: { mode: 'story', campaignId: 'audit-trail' } }),
+        ev({ type: 'run_started', seed: 's2', payload: { mode: 'story', campaignId: 'probation' } }),
+        ev({ type: 'run_started', seed: 's3', payload: { mode: 'kritis' } }), // no campaign
+        ev({ type: 'campaign_unlocked', payload: { campaignId: 'audit-trail' } }), // repeat
+        ev({ type: 'campaign_unlocked', payload: {} }), // malformed
+      ],
+      NOW
+    );
+    const p = agg.players[0];
+    expect(p.campaignsUnlocked).toEqual(['audit-trail']);
+    expect(p.campaignsStarted).toEqual(['audit-trail', 'probation']);
+    expect(p.runsStarted).toBe(3);
+  });
+
+  it('legacy events without campaign data leave the new fields empty', () => {
+    const agg = aggregate(
+      [ev({ type: 'run_started', seed: 's', payload: { mode: 'story' } })],
+      NOW
+    );
+    expect(agg.players[0].campaignsStarted).toEqual([]);
+    expect(agg.players[0].campaignsUnlocked).toEqual([]);
+  });
+
+  it('caps the per-player run list instead of growing without bound', () => {
+    const many = Array.from({ length: 60 }, (_, i) =>
+      ev({ type: 'run_completed', seed: `s${i}`, payload: { mode: 'kritis', outcome: 'burnout' } })
+    );
+    const p = aggregate(many, NOW).players[0];
+    expect(p.runsCompleted).toBe(60); // counter is exact…
+    expect(p.completedRuns).toHaveLength(50); // …the detail list is bounded
+  });
+
   it('ignores events from tombstoned players entirely', () => {
     const agg = aggregate(
       [

@@ -12,10 +12,25 @@ Sent from the browser to `POST /api/track`, keyed to the pseudonymous
 
 | Event | When | Payload |
 |-------|------|---------|
-| `run_started` | a fresh run begins | mode |
-| `run_completed` | a run ends (win/lose/story ending) | mode, outcome, week reached, score, ending, sidequests, **full `decisions[]`** |
+| `run_started` | a fresh run begins | mode, campaignId (story runs) |
+| `run_completed` | a run ends (win/lose/story ending) | mode, campaignId, outcome, week reached, score, ending, sidequests, **full `decisions[]`** |
 | `lesson_completed` | a learning level is finished | lessonId, trackId |
 | `player_named` | the player saves a name in the menu | name |
+| `campaign_unlocked` | a hidden campaign's code is entered in the picker (once, on the transition) | campaignId |
+
+**Reading a story run correctly:** `runsCompleted` counts *every* run end —
+burnout and Kündigung included. What separates "played the campaign to its end"
+from "the run stopped in week 12" is `outcome` plus `ending`: the client only
+sends `ending` (and `score`) when `isAdventureModeComplete()` holds, the same
+condition that gates the real ending screen. A run with `outcome: 'ended'` and
+**no** `ending` never reached an ending screen. The aggregate surfaces this per
+run in `players[].completedRuns[]`, rendered in the *Abschlüsse* column as
+e.g. `Probezeit W12/12 · Beendet (kein Ende)`.
+
+**Measuring a hidden campaign:** `campaign_unlocked` plus the campaignId on
+`run_started` answer "did anyone find Trick 17, and did they play it?" — visible
+in the *Kampagnen* column as `Audit Trail (entsperrt, gestartet)`. Events logged
+before this existed carry no campaignId and simply don't attribute.
 
 Game **saves stay local** (localStorage) and are never sent. See the in-app
 Datenschutz page for the user-facing disclosure.
@@ -40,8 +55,11 @@ return 404** (disabled) — the write path stays open regardless.
 Ad-hoc analysis with `jq` on the raw log:
 
 ```bash
-# every completed run with mode + outcome
-jq -c 'select(.type=="run_completed") | {player:.playerName, mode:.payload.mode, outcome:.payload.outcome, week:.payload.weekReached}' data/events.jsonl
+# every completed run with mode + outcome + whether an ending was reached
+jq -c 'select(.type=="run_completed") | {player:.playerName, mode:.payload.mode, campaign:.payload.campaignId, outcome:.payload.outcome, week:.payload.weekReached, ending:.payload.ending}' data/events.jsonl
+
+# who found a hidden campaign
+jq -c 'select(.type=="campaign_unlocked") | {ts, player:.playerName, campaign:.payload.campaignId}' data/events.jsonl
 
 # choice tags across all runs (what people engage with)
 jq -r 'select(.type=="run_completed") | .payload.decisions[].tags[]' data/events.jsonl | sort | uniq -c | sort -rn

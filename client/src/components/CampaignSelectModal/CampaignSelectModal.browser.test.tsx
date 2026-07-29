@@ -3,6 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CampaignSelectModal } from './index';
 import { listVisibleCampaigns } from '../../content/campaigns';
+import { trackCampaignUnlocked } from '../../engine/telemetry';
+
+// The unlock is the one moment worth measuring — mocked here so the test asserts
+// the call instead of a network POST.
+vi.mock('../../engine/telemetry', () => ({ trackCampaignUnlocked: vi.fn() }));
 
 const PLAYER = 'picker-player';
 /** What the modal shows before anything is unlocked — just the open campaign. */
@@ -23,7 +28,10 @@ function renderModal(props: Partial<Parameters<typeof CampaignSelectModal>[0]> =
   );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  vi.mocked(trackCampaignUnlocked).mockClear();
+});
 afterEach(() => localStorage.clear());
 
 describe('CampaignSelectModal', () => {
@@ -102,6 +110,34 @@ describe('CampaignSelectModal', () => {
     expect(screen.queryByText(/ACCESS GRANTED/)).not.toBeInTheDocument();
     // Probation keeps the initial selection for the returning player.
     expect(screen.getByRole('button', { name: /Die Probezeit/ })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('reports the unlock exactly once — the find, not every later visit', async () => {
+    const user = userEvent.setup();
+    const firstVisit = renderModal();
+
+    await enterCode(user);
+    await screen.findByRole('button', { name: /Audit Trail/ });
+    expect(trackCampaignUnlocked).toHaveBeenCalledExactlyOnceWith(PLAYER, 'audit-trail');
+
+    // Re-typing a code the player already owns is not a new find…
+    await enterCode(user);
+    expect(trackCampaignUnlocked).toHaveBeenCalledOnce();
+
+    // …and neither is coming back to the picker later.
+    firstVisit.unmount();
+    renderModal();
+    await enterCode(user);
+    expect(trackCampaignUnlocked).toHaveBeenCalledOnce();
+  });
+
+  it('does not report anything for a wrong code', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.keyboard('trick18');
+
+    expect(trackCampaignUnlocked).not.toHaveBeenCalled();
   });
 
   it('the unlock belongs to one player only', async () => {

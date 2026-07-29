@@ -21,6 +21,7 @@ const KNOWN_TYPES = new Set([
   'run_completed',
   'lesson_completed',
   'player_named',
+  'campaign_unlocked',
 ]);
 const VALID_PLAYER = /^player-[\w-]{3,60}$/;
 const MAX_BATCH = 50;

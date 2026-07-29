@@ -47,6 +47,24 @@ describe('POST /api/track', () => {
     expect(p.perMode[0]).toMatchObject({ mode: 'kritis', bestWeekReached: 14 });
   });
 
+  it('accepts campaign_unlocked and surfaces the find in the aggregate', async () => {
+    const app = createApp();
+    const res = await request(app).post('/api/track').send([
+      { v: 1, type: 'campaign_unlocked', playerId: 'player-abc12', ts: '2026-07-29T10:00:00.000Z', payload: { campaignId: 'audit-trail' } },
+      runEvent({ type: 'run_started', seed: 'SEED2', payload: { mode: 'story', campaignId: 'audit-trail' } }),
+    ]);
+    expect(res.body).toEqual({ accepted: 2, rejected: 0 });
+
+    process.env.STATS_TOKEN = 'secret';
+    const p = (await request(app).get('/api/stats?token=secret')).body.players[0];
+    expect(p.campaignsUnlocked).toEqual(['audit-trail']);
+    expect(p.campaignsStarted).toEqual(['audit-trail']);
+
+    // …and it reaches the HTML view, not just the JSON.
+    const page = await request(app).get('/stats?token=secret');
+    expect(page.text).toContain('Audit Trail (entsperrt, gestartet)');
+  });
+
   it('drops events with bad playerId or unknown type', async () => {
     const app = createApp();
     const res = await request(app).post('/api/track').send([

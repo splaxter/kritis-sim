@@ -7,6 +7,7 @@ import {
   listVisibleCampaigns,
 } from '../../content/campaigns';
 import { readUnlockedCampaigns, unlockCampaign } from '../../engine/unlocks';
+import { trackCampaignUnlocked } from '../../engine/telemetry';
 
 interface CampaignSelectModalProps {
   playerId: string;
@@ -97,8 +98,13 @@ export function CampaignSelectModal({ playerId, onSelect, onClose }: CampaignSel
         const match = findCampaignByUnlockCode(codeBuffer.current);
         if (match) {
           codeBuffer.current = '';
-          setUnlocked(unlockCampaign(playerIdRef.current, match.id));
+          const player = playerIdRef.current;
+          // Read BEFORE unlocking: the telemetry event marks the moment a player
+          // finds the secret, so re-typing a known code must not send it again.
+          const firstTime = !readUnlockedCampaigns(player).includes(match.id);
+          setUnlocked(unlockCampaign(player, match.id));
           setRevealed(match);
+          if (firstTime) trackCampaignUnlocked(player, match.id);
         }
       }
     };

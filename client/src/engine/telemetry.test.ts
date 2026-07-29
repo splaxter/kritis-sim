@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { trackRunStarted, trackRunCompleted, trackLessonCompleted } from './telemetry';
+import {
+  trackRunStarted,
+  trackRunCompleted,
+  trackLessonCompleted,
+  trackCampaignUnlocked,
+} from './telemetry';
 
 function lastBody(fetchMock: ReturnType<typeof vi.fn>) {
   const [, init] = fetchMock.mock.calls.at(-1)!;
@@ -25,6 +30,22 @@ describe('telemetry', () => {
     const body = lastBody(fetchMock);
     expect(body).toMatchObject({ v: 1, type: 'run_started', playerId: 'player-abc12', seed: 'SEED9', payload: { mode: 'kritis' } });
     expect(typeof body.ts).toBe('string');
+  });
+
+  it('attributes a story start to its campaign', () => {
+    trackRunStarted('player-abc12', 'SEED9', 'story', 'audit-trail');
+    expect(lastBody(fetchMock).payload).toEqual({ mode: 'story', campaignId: 'audit-trail' });
+  });
+
+  it('sends campaign_unlocked with the campaign and no seed', () => {
+    trackCampaignUnlocked('player-abc12', 'audit-trail');
+    const body = lastBody(fetchMock);
+    expect(body).toMatchObject({
+      type: 'campaign_unlocked',
+      playerId: 'player-abc12',
+      payload: { campaignId: 'audit-trail' },
+    });
+    expect(body.seed).toBeUndefined();
   });
 
   it('carries the full run_completed payload including decisions', () => {

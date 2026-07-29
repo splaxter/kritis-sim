@@ -14,13 +14,18 @@ export type TrackEventType =
   | 'run_started'
   | 'run_completed'
   | 'lesson_completed'
-  | 'player_named';
+  | 'player_named'
+  | 'campaign_unlocked';
 
 /** Mirrors RunOutcome in client/src/engine/runSummary.ts (kept in sync by tests). */
 export type TrackRunOutcome = 'victory' | 'burnout' | 'fired' | 'bsi_bussgeld' | 'ended';
 
 export interface RunStartedPayload {
   mode: GameModeId;
+  /** Campaign of a story run (omitted for non-story modes) — same shape as
+   *  RunCompletedPayload, so a START is attributable to a campaign too. Without
+   *  it a hidden campaign is only measurable once someone FINISHES it. */
+  campaignId?: CampaignId;
 }
 
 export interface RunCompletedPayload {
@@ -48,6 +53,12 @@ export interface PlayerNamedPayload {
   name: string;
 }
 
+/** A hidden campaign was revealed by entering its code in the campaign picker.
+ *  Sent once, on the transition — not on every later visit to the picker. */
+export interface CampaignUnlockedPayload {
+  campaignId: CampaignId;
+}
+
 interface BaseEnvelope {
   v: number;
   playerId: string;
@@ -62,4 +73,5 @@ export type TrackEnvelope =
   | (BaseEnvelope & { type: 'run_started'; payload: RunStartedPayload })
   | (BaseEnvelope & { type: 'run_completed'; payload: RunCompletedPayload })
   | (BaseEnvelope & { type: 'lesson_completed'; payload: LessonCompletedPayload })
-  | (BaseEnvelope & { type: 'player_named'; payload: PlayerNamedPayload });
+  | (BaseEnvelope & { type: 'player_named'; payload: PlayerNamedPayload })
+  | (BaseEnvelope & { type: 'campaign_unlocked'; payload: CampaignUnlockedPayload });

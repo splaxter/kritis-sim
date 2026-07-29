@@ -2,7 +2,7 @@
  * Server-rendered /stats page — no client JS, terminal aesthetic, German labels.
  * Player names are self-supplied, so every interpolation is HTML-escaped.
  */
-import { StatsAggregate, PlayerStat } from './store.js';
+import { StatsAggregate, PlayerStat, CompletedRunStat } from './store.js';
 
 // Total learning lessons (16 CLI + 10 GUI + 5 Blackout) — see docs/CONTENT_INVENTORY.md.
 const TOTAL_LESSONS = 31;
@@ -22,6 +22,66 @@ const ENDING_LABELS: Record<string, string> = {
   neutral: 'Gerade so',
   bad: 'Pech gehabt',
 };
+
+const CAMPAIGN_LABELS: Record<string, string> = {
+  probation: 'Probezeit',
+  'audit-trail': 'Audit Trail',
+};
+
+/**
+ * How a run ended. 'ended' is the neutral bucket — it covers BOTH a story that
+ * ran to its ending screen and a run that simply stopped, so the ending id (or
+ * its absence) is what disambiguates; see runOutcome().
+ */
+const OUTCOME_LABELS: Record<string, string> = {
+  victory: 'Bestanden',
+  burnout: 'Burnout',
+  fired: 'Gekündigt',
+  bsi_bussgeld: 'BSI-Bußgeld',
+  ended: 'Beendet',
+};
+
+function campaignLabel(id: string): string {
+  return esc(CAMPAIGN_LABELS[id] ?? id);
+}
+
+/** The readable verdict for one finished run: ending if there was one, else the
+ *  outcome — and an explicit "kein Ende" when a run stopped without one, which
+ *  is precisely the case the old counters hid. */
+function runOutcome(r: CompletedRunStat): string {
+  if (r.ending) return esc(ENDING_LABELS[r.ending] ?? r.ending);
+  const label = r.outcome ? (OUTCOME_LABELS[r.outcome] ?? r.outcome) : 'unbekannt';
+  return r.outcome === 'ended' || !r.outcome
+    ? `${esc(label)} (kein Ende)`
+    : esc(label);
+}
+
+/** One finished run as "Probezeit W12 · Der Held". */
+function runLine(r: CompletedRunStat): string {
+  const what = r.campaignId
+    ? campaignLabel(r.campaignId)
+    : esc(MODE_LABELS[r.mode] ?? r.mode);
+  const week = typeof r.weekReached === 'number' && r.weekReached > 0
+    ? ` W${r.weekReached}${r.totalWeeks ? `/${r.totalWeeks}` : ''}`
+    : '';
+  const score = typeof r.score === 'number' ? ` · ${r.score} P` : '';
+  return `${what}${week} · ${runOutcome(r)}${score}`;
+}
+
+/** Which campaigns a player touched, and how far in: unlocking a secret is worth
+ *  seeing even when they never started it. */
+function campaignCell(p: PlayerStat): string {
+  const ids = [...new Set([...p.campaignsUnlocked, ...p.campaignsStarted])];
+  if (ids.length === 0) return '—';
+  return ids
+    .map((id) => {
+      const marks: string[] = [];
+      if (p.campaignsUnlocked.includes(id)) marks.push('entsperrt');
+      if (p.campaignsStarted.includes(id)) marks.push('gestartet');
+      return `${campaignLabel(id)} (${marks.join(', ')})`;
+    })
+    .join(' · ');
+}
 
 function esc(s: string): string {
   return s
@@ -77,12 +137,18 @@ export function renderStatsHtml(agg: StatsAggregate): string {
             `${esc(MODE_LABELS[m.mode] ?? m.mode)} ${m.runsCompleted}/${m.runsStarted}`
         )
         .join(' · ');
+      // Newest first, and only the last few — the full list lives in the JSON.
+      const runs = [...p.completedRuns].reverse();
+      const shown = runs.slice(0, 3).map(runLine);
+      if (runs.length > shown.length) shown.push(`+${runs.length - shown.length} weitere`);
       return `
       <tr>
         <td class="name">${displayName(p)}</td>
         <td>${p.runsStarted}</td>
         <td>${p.runsCompleted}</td>
         <td>${bestResult(p)}</td>
+        <td>${shown.join('<br>') || '—'}</td>
+        <td>${campaignCell(p)}</td>
         <td>${modeCells || '—'}</td>
         <td class="learn"><span class="barbox">${bar(p.lessonsCompleted.length, TOTAL_LESSONS)}</span> ${p.lessonsCompleted.length}/${TOTAL_LESSONS}</td>
         <td>${fmtDate(p.lastSeen)}</td>
@@ -106,7 +172,7 @@ export function renderStatsHtml(agg: StatsAggregate): string {
   h1 { color:#7fff7f; letter-spacing:0.15em; font-size:1.3rem; margin:0 0 0.25rem; }
   .sub { color:#5a7a5a; font-size:0.8rem; margin-bottom:1.5rem; }
   .wrap { overflow-x:auto; }
-  table { border-collapse:collapse; width:100%; min-width:720px; }
+  table { border-collapse:collapse; width:100%; min-width:900px; }
   th, td { text-align:left; padding:0.5rem 0.9rem; border-bottom:1px solid #1e2a1e; font-size:0.85rem; white-space:nowrap; }
   th { color:#7fff7f; text-transform:uppercase; letter-spacing:0.08em; font-size:0.72rem; }
   td.name { color:#c8f7c8; }
@@ -125,6 +191,7 @@ export function renderStatsHtml(agg: StatsAggregate): string {
     <thead>
       <tr>
         <th>Spieler</th><th>Starts</th><th>Beendet</th><th>Bestes Ergebnis</th>
+        <th>Abschlüsse (wie ausgegangen)</th><th>Kampagnen</th>
         <th>Pro Modus (beendet/gestartet)</th><th>Lernfortschritt</th><th>Zuletzt</th>
       </tr>
     </thead>

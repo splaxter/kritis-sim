@@ -235,11 +235,15 @@ function Datenschutz() {
           </li>
           <li>
             <strong>Spielverläufe:</strong> Beginn und Abschluss von Durchläufen samt Modus,
-            Ergebnis (bestanden/Burnout/…), erreichter Woche, Punktzahl/Ende sowie den in diesem
-            Durchlauf getroffenen Entscheidungen.
+            gespielter Story-Kampagne, Ergebnis (bestanden/Burnout/…), erreichter Woche,
+            Punktzahl/Ende sowie den in diesem Durchlauf getroffenen Entscheidungen.
           </li>
           <li>
             <strong>Lernfortschritt:</strong> Welche Lernlektionen abgeschlossen wurden.
+          </li>
+          <li>
+            <strong>Freigeschaltete Inhalte:</strong> Wenn Sie eine versteckte Story-Kampagne
+            freischalten, wird dieser Umstand einmalig übermittelt (welche Kampagne, wann).
           </li>
         </ul>
         <p className="text-terminal-green-dim mt-2">

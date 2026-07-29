@@ -80,6 +80,29 @@ export interface PlayerModeStat {
   bestWeekReached: number;
 }
 
+/**
+ * One finished run, kept individually instead of only as a counter. `outcome`
+ * and `ending` are what distinguish "played the campaign to its end" from "ran
+ * out of weeks in week 12" — the counters alone cannot tell those apart, which
+ * made a completed-looking row unreadable.
+ */
+export interface CompletedRunStat {
+  mode: string;
+  campaignId?: string;
+  /** TrackRunOutcome — 'victory' | 'burnout' | 'fired' | 'bsi_bussgeld' | 'ended'. */
+  outcome?: string;
+  weekReached?: number;
+  totalWeeks?: number;
+  /** Campaign ending id; ABSENT means the run ended without reaching an ending. */
+  ending?: string;
+  score?: number;
+  /** When it was recorded (receivedAt, else the client ts). */
+  at?: string;
+}
+
+/** Keep a player's run list bounded — the tail is what anyone reads anyway. */
+const MAX_COMPLETED_RUNS = 50;
+
 export interface PlayerStat {
   playerId: string;
   name?: string;
@@ -90,6 +113,12 @@ export interface PlayerStat {
   endingsSeen: string[];
   lessonsCompleted: string[];
   perMode: PlayerModeStat[];
+  /** Finished runs, newest last, capped at MAX_COMPLETED_RUNS. */
+  completedRuns: CompletedRunStat[];
+  /** Campaigns this player STARTED (from run_started; needs campaignId). */
+  campaignsStarted: string[];
+  /** Hidden campaigns this player unlocked — the find-rate of a secret. */
+  campaignsUnlocked: string[];
 }
 
 export interface StatsAggregate {
@@ -127,6 +156,9 @@ export function aggregate(events: StoredEvent[], now: string): StatsAggregate {
         endingsSeen: [],
         lessonsCompleted: [],
         perMode: [],
+        completedRuns: [],
+        campaignsStarted: [],
+        campaignsUnlocked: [],
       };
       byPlayer.set(id, p);
       modeOf.set(id, new Map());
@@ -166,6 +198,11 @@ export function aggregate(events: StoredEvent[], now: string): StatsAggregate {
         if (e.seed) seenStart.add(key);
         p.runsStarted++;
         ensureMode(id, mode).runsStarted++;
+        // Older run_started events carry no campaignId — nothing to attribute.
+        if (typeof pl.campaignId === 'string' && pl.campaignId
+            && !p.campaignsStarted.includes(pl.campaignId)) {
+          p.campaignsStarted.push(pl.campaignId);
+        }
         break;
       }
       case 'run_completed': {
@@ -191,6 +228,26 @@ export function aggregate(events: StoredEvent[], now: string): StatsAggregate {
         if (typeof pl.ending === 'string' && !p.endingsSeen.includes(pl.ending)) {
           p.endingsSeen.push(pl.ending);
         }
+        // Keep the run itself, not just the counters: outcome + ending are the
+        // only way to read "finished the story" apart from "run ended somehow".
+        if (p.completedRuns.length < MAX_COMPLETED_RUNS) {
+          p.completedRuns.push({
+            mode,
+            campaignId: campaign || undefined,
+            outcome: typeof pl.outcome === 'string' ? pl.outcome : undefined,
+            weekReached: typeof pl.weekReached === 'number' ? pl.weekReached : undefined,
+            totalWeeks: typeof pl.totalWeeks === 'number' ? pl.totalWeeks : undefined,
+            ending: typeof pl.ending === 'string' ? pl.ending : undefined,
+            score: typeof pl.score === 'number' ? pl.score : undefined,
+            at: typeof stamp === 'string' ? stamp : undefined,
+          });
+        }
+        break;
+      }
+      case 'campaign_unlocked': {
+        const campaignId = typeof pl.campaignId === 'string' ? pl.campaignId : undefined;
+        if (!campaignId) break;
+        if (!p.campaignsUnlocked.includes(campaignId)) p.campaignsUnlocked.push(campaignId);
         break;
       }
       case 'lesson_completed': {

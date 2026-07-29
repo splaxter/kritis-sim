@@ -8,6 +8,7 @@ import {
   TrackEnvelope,
   TELEMETRY_VERSION,
   GameModeId,
+  CampaignId,
   RunCompletedPayload,
 } from '@kritis/shared';
 
@@ -46,8 +47,19 @@ function base(playerId: string, seed?: string) {
   };
 }
 
-export function trackRunStarted(playerId: string, seed: string, mode: GameModeId): void {
-  post({ ...base(playerId, seed), type: 'run_started', payload: { mode } });
+export function trackRunStarted(
+  playerId: string,
+  seed: string,
+  mode: GameModeId,
+  campaignId?: CampaignId
+): void {
+  post({ ...base(playerId, seed), type: 'run_started', payload: { mode, campaignId } });
+}
+
+/** Fire once when a hidden campaign is unlocked, so the find-rate of a secret is
+ *  visible even for players who never start it. */
+export function trackCampaignUnlocked(playerId: string, campaignId: CampaignId): void {
+  post({ ...base(playerId), type: 'campaign_unlocked', payload: { campaignId } });
 }
 
 export function trackRunCompleted(
