@@ -710,6 +710,7 @@ function AppContent() {
           )}
           {newGamePicker === 'campaign' && (
             <CampaignSelectModal
+              playerId={playerId}
               onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />
@@ -750,6 +751,7 @@ function AppContent() {
         )}
         {newGamePicker === 'campaign' && (
           <CampaignSelectModal
+            playerId={playerId}
             onSelect={handleCampaignSelect}
             onClose={() => setNewGamePicker('experience')}
           />
@@ -882,6 +884,7 @@ function AppContent() {
           )}
           {newGamePicker === 'campaign' && (
             <CampaignSelectModal
+              playerId={playerId}
               onSelect={handleCampaignSelect}
               onClose={() => setNewGamePicker('experience')}
             />

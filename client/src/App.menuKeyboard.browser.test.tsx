@@ -92,11 +92,25 @@ describe('App — main menu arrow-key navigation', () => {
     expect(await screen.findByText(/Woche 1\/12/)).toBeInTheDocument();
   });
 
+  it('hides AUDIT TRAIL in the picker until the secret code is typed', async () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'Enter' });
+    fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
+    fireEvent.click(await screen.findByRole('button', { name: /Story-Kampagne/ }));
+
+    // The normal path through the menu offers exactly one campaign.
+    expect(await screen.findByRole('dialog', { name: 'Kampagne wählen' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Die Probezeit/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Audit Trail/ })).not.toBeInTheDocument();
+  });
+
   it('starts AUDIT TRAIL through the picker — its own first beat, not probation\'s', async () => {
     render(<App />);
     fireEvent.keyDown(window, { key: 'Enter' });
     fireEvent.click(await screen.findByText(/NEUES SPIEL STARTEN/));
     fireEvent.click(await screen.findByRole('button', { name: /Story-Kampagne/ }));
+    // Trick 17: the code is typed blind into the campaign picker.
+    for (const key of 'trick17') fireEvent.keyDown(window, { key });
     fireEvent.click(await screen.findByRole('button', { name: /Audit Trail/ }));
 
     // The run boots into AUDIT TRAIL's first authored beat; probation's opener

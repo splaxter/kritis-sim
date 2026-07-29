@@ -16,13 +16,18 @@ export const auditTrailCampaign: CampaignDefinition = {
   id: 'audit-trail',
   title: 'Audit Trail',
   menu: {
-    eyebrow: 'KAMPAGNE 2',
+    eyebrow: 'KAMPAGNE 2 · GEHEIM',
     description:
       'Eine NIS-2-Prüfung bei WARM: Du sollst die Auditfähigkeit herstellen — und findest eine Spur, die jemand lieber loswerden würde. Beweise sauber sichern, Grenzen einhalten, im Audit bestehen.',
     meta: '6 Kapitel · 3 Enden · Hands-on (Terminal & GUI)',
-    badge: 'NEU',
-    badgeClass: 'border-terminal-green text-terminal-green',
+    badge: 'GEHEIM',
+    badgeClass: 'border-terminal-warning text-terminal-warning',
   },
+  // Not offered to a normal player: the card only appears in the picker after the
+  // code is typed there (blind, case-insensitive), and the unlock then persists
+  // per player. Hiding is menu-only — an existing AUDIT TRAIL save still resumes.
+  hidden: true,
+  unlockCode: 'trick17',
   startChapterId: 'at_ch01_onboarding',
   chapters: auditTrailChapters,
   sidequests: [],

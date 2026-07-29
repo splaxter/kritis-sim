@@ -166,6 +166,12 @@ for (const viewport of VIEWPORTS) {
     await expectNoDocumentOverflow(page);
     await expectNoInternalOverflow(page, 'Kampagne wählen');
 
+    // The secret campaign is absent until its code is typed — checked here in the
+    // real build, not just in jsdom.
+    await expect(page.getByRole('button', { name: /Audit Trail/ })).toHaveCount(0);
+    await page.keyboard.type('trick17');
+    await expect(page.getByRole('button', { name: /Audit Trail/ })).toBeVisible();
+
     // Top of the list is reachable at scrollTop 0 …
     await scrollDialogTo(page, 0);
     await expectFullyInsideViewport(page, /Die Probezeit/, viewport);
@@ -204,6 +210,8 @@ for (const viewport of VIEWPORTS) {
     await page.getByText(/KLICKEN ODER ENTER ZUM STARTEN/).click();
     await page.getByRole('button', { name: /NEUES SPIEL STARTEN/ }).click();
     await page.getByRole('button', { name: /Story-Kampagne/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Kampagne wählen' })).toBeVisible();
+    await page.keyboard.type('trick17'); // unlock the hidden campaign
     await page.getByRole('button', { name: /Audit Trail/ }).click();
 
     await expect(page.getByText('Ein zusätzlicher Auftrag')).toBeVisible();

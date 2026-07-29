@@ -1,10 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { AsciiFrame } from '../TerminalUI';
-import { listCampaigns } from '../../content/campaigns';
-
-// The story option leads to the campaign picker, so it names no single
-// campaign — and the count follows the registry instead of going stale.
-const CAMPAIGN_COUNT = listCampaigns().length;
 
 interface NewGameSelectModalProps {
   onSelectSimulation: () => void;
@@ -42,7 +37,10 @@ const EXPERIENCES: ExperienceCard[] = [
     title: 'Story-Kampagne',
     description:
       'Zusammenhängende IT-Krimis mit Kapiteln, Beziehungen und mehreren Enden. Welche Kampagne du spielst, wählst du im nächsten Schritt.',
-    meta: `${CAMPAIGN_COUNT} Kampagnen · mehrere Enden`,
+    // Deliberately count-free: a "N Kampagnen" line would advertise the hidden
+    // campaign to a player who has not unlocked it (and would undercount for one
+    // who has). The picker itself is the honest list.
+    meta: 'Kapitel · Beziehungen · mehrere Enden',
     // No badge: the campaigns differ in difficulty (Probezeit casual, AUDIT
     // TRAIL hands-on), so one label here would misdescribe the other. Each
     // campaign carries its own badge in the campaign picker.

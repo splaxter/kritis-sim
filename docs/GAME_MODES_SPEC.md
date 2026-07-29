@@ -14,20 +14,30 @@ The main menu offers three primary destinations plus one contextual shortcut:
 **Neues Spiel** opens an *experience picker* (`NewGameSelectModal`) with two choices:
 
 - **Freie Simulation** (recommended, preselected) — badge `EMPFOHLEN`; emphasizes "Hands-on-Aufgaben an Terminal & GUI" as the product's hands-on focus.
-- **Story: Die Probezeit** — badge `CASUAL`; "vorwiegend Text & Entscheidungen, wenig Hands-on".
+- **Story-Kampagne** — campaign-neutral copy, deliberately without a campaign count (see *Hidden campaigns* below).
 
-Choosing **Freie Simulation** opens a second picker (`GameModeSelectModal`, now simulation-only) offering **Einsteiger · Standard · KRITIS**. Choosing **Story** starts the `story` mode directly.
+Choosing **Freie Simulation** opens a second picker (`GameModeSelectModal`, simulation-only) offering **Einsteiger · Standard · KRITIS**. Choosing **Story-Kampagne** opens the *campaign picker* (`CampaignSelectModal`), which lists the campaigns from the registry (`content/campaigns/index.ts`) with their campaign-owned menu copy; every campaign runs in the same `story` mode.
 
 The **Lernmodus** was removed from the new-game mode picker but remains fully available via **Lernbereich** (all tracks/levels). The hidden **hard** mode stays hidden. No mode ids, configs, or saves changed by this reorganization.
 
 **Picker controls:** arrows change selection, Enter confirms, Escape goes back one level, focus is trapped inside the modal.
+
+### Hidden campaigns (Trick 17)
+
+A campaign can declare `hidden: true` plus an `unlockCode` (`content/campaigns/types.ts`). A hidden campaign is **absent from the campaign picker** — not greyed out, not teased — until the player types its code blind into that picker. The unlock then persists per player under `kritis_unlocks_<playerId>` (`engine/unlocks.ts`, never-throw like autosave/meta), so the card stays visible on later visits.
+
+- **AUDIT TRAIL** is hidden; its code is **`trick17`** (case-insensitive, matched on the *end* of a capped keystroke buffer, so typos before it are tolerated). Badge `GEHEIM`.
+- On unlock the revealed card takes selection + focus and an `aria-live` line confirms `> ACCESS GRANTED · <TITEL> ENTSPERRT`.
+- Hiding is a **menu concern only**: `getCampaign(id)` is unaffected, so an existing AUDIT TRAIL save always resumes regardless of unlock state.
+- Nothing outside the picker may reveal a hidden campaign — hence the count-free "Story-Kampagne" copy and the probation-only ending counter on the main menu.
+- Guards: `content/campaigns/campaignMenu.test.ts` (hidden ⇒ code declared, visible ⇒ no code, code resolution), `engine/unlocks.test.ts`, `CampaignSelectModal.browser.test.tsx`, `App.menuKeyboard.browser.test.tsx`, and `e2e/mobile-menu-layout.spec.ts` (absent in the real build until typed).
 
 ## Active Modes (4)
 
 These four modes remain defined and playable. They are now reached through the menu flow above rather than a single flat selection screen:
 1. **Beginner** (📚 Einsteiger) — for newcomers · via Freie Simulation
 2. **Learning** (🎓 Lernmodus) — for IT training · via Lernbereich
-3. **Story** (📖 Die Probezeit) — narrative adventure · via Story: Die Probezeit
+3. **Story** (📖) — narrative adventure · via Story-Kampagne → campaign picker (Die Probezeit; Audit Trail after unlock)
 4. **KRITIS** (🏛️ KRITIS) — realistic simulation · via Freie Simulation
 
 ---
@@ -348,9 +358,14 @@ Selection is now two-step (see **Menu Information Architecture**), not one flat 
 Step 1 — experience picker (`NewGameSelectModal`):
 ```
 01. Freie Simulation — EMPFOHLEN (preselected) — hands-on Terminal & GUI
-02. Story: Die Probezeit — CASUAL — mostly text & choices
+02. Story-Kampagne — chapters, relationships, several endings
 ```
-Step 2 — simulation picker (`GameModeSelectModal`, simulation-only), Einsteiger preselected:
+Step 2a — campaign picker (`CampaignSelectModal`), first entry preselected:
+```
+01. Die Probezeit — EMPFOHLEN — 12 Kapitel · 3 Enden · Casual
+02. Audit Trail  — GEHEIM    — 6 Kapitel · 3 Enden · Hands-on  (only after 'trick17')
+```
+Step 2b — simulation picker (`GameModeSelectModal`, simulation-only), Einsteiger preselected:
 ```
 1. 📚 Einsteiger (Beginner) — recommended for new players
 2. 💼 Standard (Intermediate) — classic baseline experience

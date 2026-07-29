@@ -47,6 +47,15 @@ export interface CampaignDefinition {
   title: string;
   /** How this campaign presents itself in the campaign picker. */
   menu: CampaignMenuEntry;
+  /** Hidden from the campaign picker until the player enters `unlockCode`.
+   *  Hiding is a MENU concern only: the campaign stays fully playable and
+   *  resolvable by id, so an existing save always resumes into it. */
+  hidden?: boolean;
+  /** Secret code that reveals a hidden campaign in the picker — typed blind,
+   *  case-insensitive. MANDATORY for a hidden campaign (without it the campaign
+   *  would be unreachable) and forbidden for a visible one; both guarded in
+   *  campaignMenu.test.ts. */
+  unlockCode?: string;
   /** Chapter the run starts in. */
   startChapterId: AdventureChapterId;
   chapters: AdventureChapter[];

@@ -1,21 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CampaignId } from '@kritis/shared';
 import { AsciiFrame } from '../TerminalUI';
-import { listCampaigns } from '../../content/campaigns';
+import {
+  CampaignDefinition,
+  findCampaignByUnlockCode,
+  listVisibleCampaigns,
+} from '../../content/campaigns';
+import { readUnlockedCampaigns, unlockCampaign } from '../../engine/unlocks';
 
 interface CampaignSelectModalProps {
+  playerId: string;
   onSelect: (campaignId: CampaignId) => void;
   onClose: () => void;
 }
+
+/** Enough to hold the longest unlock code plus the typos in front of it; the
+ *  buffer is matched on its END, so it never needs to grow unbounded. */
+const CODE_BUFFER_MAX = 32;
 
 /**
  * Step 2 of the story entry: pick the campaign. Content comes from the campaign
  * registry (title + campaign-owned menu copy), so adding a campaign needs no
  * change here. Keyboard-first like every other modal: arrows cycle, Enter
  * confirms, Escape goes back, Tab is trapped.
+ *
+ * Hidden campaigns are the one exception to "the registry drives the list": they
+ * only appear once their code has been typed here (blind — nothing hints at it),
+ * and the unlock persists per player. No code, no card.
  */
-export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalProps) {
-  const campaigns = listCampaigns();
+export function CampaignSelectModal({ playerId, onSelect, onClose }: CampaignSelectModalProps) {
+  const [unlocked, setUnlocked] = useState<string[]>(() => readUnlockedCampaigns(playerId));
+  const campaigns = useMemo(() => listVisibleCampaigns(unlocked), [unlocked]);
+  /** Set when a code was entered THIS visit — drives the confirmation line. */
+  const [revealed, setRevealed] = useState<CampaignDefinition | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const selectedIndexRef = useRef(0);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -33,6 +50,11 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
   // and read the latest callback through a ref.
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
+  // Same reason the handler below is mount-only: it must read the current
+  // playerId without re-subscribing (and resetting the code buffer).
+  const playerIdRef = useRef(playerId);
+  useEffect(() => { playerIdRef.current = playerId; });
+  const codeBuffer = useRef('');
 
   useEffect(() => {
     const previouslyFocused = document.activeElement instanceof HTMLElement
@@ -61,6 +83,23 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
           event.preventDefault();
           first?.focus();
         }
+      } else if (
+        event.key.length === 1 &&
+        event.key !== ' ' && // Space activates the focused card — never buffer it
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        // Blind code entry. Typing a hidden campaign's code reveals it; anything
+        // else just fills a capped buffer and is forgotten. Nothing is echoed —
+        // a wrong guess must not even confirm that a code exists.
+        codeBuffer.current = (codeBuffer.current + event.key).slice(-CODE_BUFFER_MAX);
+        const match = findCampaignByUnlockCode(codeBuffer.current);
+        if (match) {
+          codeBuffer.current = '';
+          setUnlocked(unlockCampaign(playerIdRef.current, match.id));
+          setRevealed(match);
+        }
       }
     };
 
@@ -70,6 +109,18 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
       previouslyFocused?.focus();
     };
   }, []);
+
+  // The payoff of the trick: the freshly revealed card takes the selection and
+  // the focus, so Enter starts it right away. Written without selectOption so it
+  // can't close over a stale render's copy.
+  useEffect(() => {
+    if (!revealed) return;
+    const index = campaigns.findIndex((c) => c.id === revealed.id);
+    if (index === -1) return;
+    selectedIndexRef.current = index;
+    setSelectedIndex(index);
+    optionRefs.current[index]?.focus();
+  }, [revealed, campaigns]);
 
   return (
     <div
@@ -89,7 +140,22 @@ export function CampaignSelectModal({ onSelect, onClose }: CampaignSelectModalPr
               <span>SIM-BOOT / 02</span>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
+            {/* Always mounted so screen readers announce the unlock when it
+                happens; invisible (and empty) until then. */}
+            <div
+              aria-live="polite"
+              className={
+                revealed
+                  ? 'border border-terminal-warning/60 bg-terminal-warning/10 px-3 py-2 text-xs tracking-[0.15em] text-terminal-warning'
+                  : 'sr-only'
+              }
+            >
+              {revealed ? `> ACCESS GRANTED · ${revealed.title.toUpperCase()} ENTSPERRT` : ''}
+            </div>
+
+            {/* One card would sit in a half-width column on desktop — only go
+                two-up once there is something to put beside it. */}
+            <div className={`grid gap-3 ${campaigns.length > 1 ? 'md:grid-cols-2' : ''}`}>
               {campaigns.map((campaign, index) => {
                 const selected = selectedIndex === index;
                 return (

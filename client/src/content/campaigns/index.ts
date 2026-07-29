@@ -22,10 +22,11 @@ export function getCampaign(id: CampaignId): CampaignDefinition {
 }
 
 /**
- * All playable campaigns, in picker order. Derived from the REGISTRY, not from
- * a hand-maintained parallel list — a new campaign shows up in the menu by
- * being registered; an id missing from CAMPAIGN_ORDER just sorts last instead
- * of silently disappearing from the picker.
+ * All REGISTERED campaigns, in picker order. Derived from the registry, not from
+ * a hand-maintained parallel list — a new campaign shows up by being registered;
+ * an id missing from CAMPAIGN_ORDER just sorts last instead of silently
+ * disappearing. This is the full roster, secrets included; the picker asks
+ * listVisibleCampaigns instead.
  */
 export function listCampaigns(): CampaignDefinition[] {
   const rank = (id: CampaignId) => {
@@ -35,6 +36,36 @@ export function listCampaigns(): CampaignDefinition[] {
   return (Object.keys(CAMPAIGNS) as CampaignId[])
     .sort((a, b) => rank(a) - rank(b))
     .map((id) => CAMPAIGNS[id]);
+}
+
+/**
+ * What the campaign picker may show: every non-hidden campaign, plus the hidden
+ * ones this player has already unlocked (ids from engine/unlocks). Order is the
+ * registry order, so an unlocked secret slots into its release position.
+ */
+export function listVisibleCampaigns(
+  unlockedIds: readonly string[] = []
+): CampaignDefinition[] {
+  return listCampaigns().filter((c) => !c.hidden || unlockedIds.includes(c.id));
+}
+
+/**
+ * The lookup behind the picker's blind code entry: does this typed buffer end in
+ * a hidden campaign's unlock code? Matching the END of the buffer means stray
+ * keystrokes before the code don't spoil the attempt. Case-insensitive.
+ *
+ * Only hidden campaigns with a declared code can match — a visible campaign is
+ * never "unlockable", and an empty/absent code never matches (which would
+ * otherwise make every keystroke an unlock).
+ */
+export function findCampaignByUnlockCode(typed: string): CampaignDefinition | null {
+  const buffer = typed.toLowerCase();
+  if (!buffer) return null;
+  return (
+    listCampaigns().find(
+      (c) => c.hidden && c.unlockCode && buffer.endsWith(c.unlockCode.toLowerCase())
+    ) ?? null
+  );
 }
 
 /**
