@@ -45,15 +45,23 @@ function campaignLabel(id: string): string {
   return esc(CAMPAIGN_LABELS[id] ?? id);
 }
 
-/** The readable verdict for one finished run: ending if there was one, else the
- *  outcome — and an explicit "kein Ende" when a run stopped without one, which
- *  is precisely the case the old counters hid. */
+/**
+ * The readable verdict for one finished run: the ending if one was reached, else
+ * the outcome.
+ *
+ * A STORY run without an ending always gets the explicit "(kein Ende)" marker —
+ * including `outcome: 'victory'`. That combination is real (a probation run that
+ * survived all 12 weeks without completing the final chapter ends via the
+ * game-over path with reason 'probezeit_complete'), and bare "Bestanden" would
+ * read as "campaign completed" for a run that never saw an ending screen — the
+ * very confusion this column exists to remove. Non-story modes have no ending to
+ * miss, so they stay unmarked.
+ */
 function runOutcome(r: CompletedRunStat): string {
   if (r.ending) return esc(ENDING_LABELS[r.ending] ?? r.ending);
   const label = r.outcome ? (OUTCOME_LABELS[r.outcome] ?? r.outcome) : 'unbekannt';
-  return r.outcome === 'ended' || !r.outcome
-    ? `${esc(label)} (kein Ende)`
-    : esc(label);
+  const isStoryRun = Boolean(r.campaignId) || r.mode === 'story';
+  return isStoryRun || !r.outcome ? `${esc(label)} (kein Ende)` : esc(label);
 }
 
 /** One finished run as "Probezeit W12 · Der Held". */

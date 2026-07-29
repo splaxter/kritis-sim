@@ -59,6 +59,22 @@ describe('stats page — run outcomes', () => {
     expect(out).not.toContain('kein Ende');
   });
 
+  it('marks a SURVIVED story run without an ending — "Bestanden" alone would mislead', () => {
+    // Real case from the production log: probation, 12/12 weeks, outcome
+    // 'victory' (reason 'probezeit_complete'), but no ending → the player never
+    // saw the campaign's ending screen.
+    const out = html([
+      player({
+        runsCompleted: 1,
+        completedRuns: [
+          { mode: 'story', campaignId: 'probation', outcome: 'victory', weekReached: 12, totalWeeks: 12 },
+        ],
+      }),
+    ]);
+
+    expect(out).toContain('Probezeit W12/12 · Bestanden (kein Ende)');
+  });
+
   it('labels a real game over by its cause, not as a missing ending', () => {
     const out = html([
       player({
