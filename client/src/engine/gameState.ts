@@ -174,7 +174,27 @@ export function checkGameOver(state: GameState): { isOver: boolean; reason?: str
     return { isOver: true, reason: 'bsi_bussgeld', isVictory: false };
   }
   if (state.currentWeek > totalWeeks) {
-    return { isOver: true, reason: 'probezeit_complete', isVictory: true };
+    // A STORY run ends with its story, not with the calendar. The campaign is
+    // the length — the HUD shows chapter progress rather than "Woche N/12" — and
+    // the week budget does not fit one: probation needs 51 story beats while 12
+    // weeks give 60 day-slots that its sidequests also draw from (9–14 of them),
+    // so a normal playthrough hit week 13 mid-finale and got the "Probezeit
+    // bestanden" screen instead of the campaign ending. Ending the run here also
+    // swallowed a campaign finished ON the last day: the week check fired before
+    // the content pass could route to the ending screen.
+    // The other game-over rules above (stress, compliance, chef) still apply, so
+    // a story run can very much still fail.
+    // Either marker counts: a save written before isStoryMode existed must not
+    // get its campaign cut off at the week limit.
+    const isStoryRun = state.isStoryMode || state.gameMode === 'story';
+    if (!isStoryRun) {
+      return { isOver: true, reason: 'probezeit_complete', isVictory: true };
+    }
+    // Backstop so a run stays bounded if authored content ever runs out in a way
+    // the act-break check doesn't catch — a stuck run must not be endless.
+    if (state.currentWeek > totalWeeks * 2) {
+      return { isOver: true, reason: 'probezeit_complete', isVictory: true };
+    }
   }
   return { isOver: false };
 }

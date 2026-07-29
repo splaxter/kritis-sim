@@ -197,7 +197,7 @@ Each advanced track ships 4 levels (16 total, in `client/src/content/events/lear
 
 | Setting | Value | Rationale |
 |---------|-------|-----------|
-| Duration | 12 weeks | 3 acts, 4 weeks each |
+| Duration | the campaign, not the calendar | 12 weeks is the *pacing target*, not a cut-off — see below |
 | Starting Skills | 20 | Balanced starting point |
 | Starting Stress | 15 | Low initial pressure |
 | Starting Budget | 15,000€ | Standard budget |
@@ -205,6 +205,36 @@ Each advanced track ships 4 levels (16 total, in `client/src/content/events/lear
 | Effect Multiplier | 1.0x | Balanced consequences |
 | Stress Decay | 1.0x | Normal recovery |
 | Max Scenario Difficulty | 4 | Story-appropriate challenge |
+
+### Run length: the campaign ends the run, not the week counter
+
+A story run is **not** ended by `gameLength.totalWeeks`. `checkGameOver` skips the
+`currentWeek > totalWeeks` rule for story runs (`isStoryMode`, or `gameMode ===
+'story'` for pre-flag saves); the other game-over rules — stress, compliance,
+chef relationship — apply unchanged, so a story run can still fail.
+
+Why: story mode serves **exactly one content item per day**, and story beats
+share those day-slots with sidequest events. 12 weeks × 5 days = 60 slots, while
+probation needs **51 story beats** plus the sidequest events drawn from the same
+budget (9–14, depending on play since sidequests start deterministically rather
+than by a 30% roll). Measured end-to-end in
+`client/src/engine/campaignBudget.test.ts` (`BUDGET_TRACE=1` prints the numbers):
+
+| Campaign | play style | days | beats + sidequest events | outcome |
+|---|---|---|---|---|
+| probation | first option | 63 | 51 + 12 | ending, 12/12 chapters |
+| probation | calmest | 60 | 51 + 9 | ending, 12/12 |
+| probation | hardest | 65 | 51 + 14 | ending, 12/12 |
+| audit-trail | any | 20 | 20 + 0 | ending, 6/6 (week 5) |
+
+Before this, two of three play styles hit week 13 with 10–11 of 12 chapters done
+and got the "Probezeit bestanden" run summary instead of the authored ending —
+and a campaign finished ON the last day was swallowed the same way, because the
+week check fired before the content pass could route to the ending screen. A
+far backstop (`> totalWeeks * 2`) still bounds a run that never terminates.
+
+The HUD already reflects this: story runs show chapter progress
+(`getChapterProgress`), not "Woche N/12".
 
 ### Features
 

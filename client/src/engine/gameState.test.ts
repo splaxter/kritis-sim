@@ -773,6 +773,28 @@ describe('gameState', () => {
         expect(result.isOver).toBe(false);
       });
 
+      it('does NOT end a story run — a campaign ends with its story, not the calendar', () => {
+        // 12 weeks give 60 day-slots; probation needs 51 story beats plus the
+        // sidequest events that share them, so the calendar used to cut the run
+        // off mid-finale. Guarded end-to-end in campaignBudget.test.ts.
+        for (const state of [
+          createGameState({ currentWeek: 13, gameMode: 'story', isStoryMode: true }),
+          // A pre-isStoryMode save must be recognised by its mode alone.
+          createGameState({ currentWeek: 13, gameMode: 'story' }),
+        ]) {
+          expect(checkGameOver(state).isOver).toBe(false);
+        }
+      });
+
+      it('still bounds a story run at twice the week budget (stuck-run backstop)', () => {
+        const state = createGameState({ currentWeek: 25, gameMode: 'story', isStoryMode: true });
+
+        const result = checkGameOver(state);
+
+        expect(result.isOver).toBe(true);
+        expect(result.reason).toBe('probezeit_complete');
+      });
+
       it('does not trigger at week 1', () => {
         const state = createGameState({ currentWeek: 1 });
 
