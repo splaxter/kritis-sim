@@ -7,6 +7,7 @@ import { UacPrompt } from './apps/UacPrompt';
 import { Settings } from './apps/Settings';
 import { Explorer } from './apps/Explorer';
 import { CoreFirewall } from './apps/CoreFirewall';
+import { Kataster } from './apps/Kataster';
 import { useGuiLevel } from './useGuiLevel';
 
 interface WindowsLevelProps {
@@ -89,6 +90,7 @@ const APP_ICONS: Record<string, string> = {
   explorer: '🗂️',
   settings: '⚙️',
   corefirewall: '🧱',
+  kataster: '📋',
 };
 
 export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: WindowsLevelProps) {
@@ -148,6 +150,18 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             zoneName={context.state.coreFirewall?.zoneName ?? 'KRITIS-FW-CORE'}
             rules={context.state.coreFirewall?.rules ?? []}
             subnets={context.state.coreFirewall?.subnets ?? []}
+            emit={emit}
+            locked={solved}
+          />
+        );
+      case 'kataster':
+        return (
+          <Kataster
+            title={context.state.kataster?.title ?? 'Pflichtenkataster'}
+            entries={context.state.kataster?.entries ?? []}
+            people={context.state.kataster?.people ?? []}
+            findings={context.state.kataster?.findings}
+            evidence={context.state.kataster?.evidence}
             emit={emit}
             locked={solved}
           />

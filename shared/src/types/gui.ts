@@ -14,7 +14,8 @@ export type GuiAppId =
   | 'uac'
   | 'explorer'
   | 'settings'
-  | 'corefirewall';
+  | 'corefirewall'
+  | 'kataster';
 
 /** Windows Event Viewer severity levels (German labels rendered in the UI). */
 export type EventLevel =
@@ -212,6 +213,108 @@ export interface CoreFirewallState {
   subnets: FirewallSubnet[];
 }
 
+/**
+ * Pflichtenkataster ("register of obligations") — the DAS KATASTER app.
+ *
+ * A grid of duties, each traced back to the SOURCE that creates it (a contract
+ * clause, a statute, a works agreement, a licence term). The teaching sits in
+ * the four columns: Quelle · Pflicht · Aufpasser · Nachweis. A duty with no
+ * named owner is a risk; an owner with no evidence is a claim.
+ */
+
+/** How often a duty comes due. IDs are ASCII (orthography guard); the labels
+ *  rendered in the UI carry the umlauts ("halbjährlich"). */
+export type KatasterCycle =
+  | 'monatlich'
+  | 'quartalsweise'
+  | 'halbjaehrlich'
+  | 'jaehrlich'
+  | 'zweijaehrlich'
+  | 'anlassbezogen';
+
+/** Someone a duty can be assigned to. */
+export interface KatasterPerson {
+  /** Stable key used in interaction tokens ('owner:<entry>:<id>'). */
+  id: string;
+  name: string;
+  role: string;
+  /**
+   * A GROUP, not a person ("IT-Abteilung") — the classic fabrication.
+   *
+   * CONTRACT, DO NOT "FIX": neither this flag nor `unconfirmed` may change how
+   * the row renders. A fabricated assignment must look EXACTLY like a real one,
+   * because the whole campaign turns on the player not being able to see the
+   * difference — only the audit sample exposes it. The judgement lives in the
+   * level's GuiSolution (which sets `kat_owner_fabricated`), never in the UI.
+   */
+  isGroup?: boolean;
+  /** Assignable, but this person never agreed to it. Same contract as `isGroup`. */
+  unconfirmed?: boolean;
+}
+
+/** A clue carried over from a CLI level, turnable into a register row. */
+export interface KatasterFinding {
+  id: string;
+  /** Where the duty comes from, e.g. 'SLA Komm.ONE §4'. */
+  source: string;
+  /** The duty in plain words, e.g. 'Monatlichen Verfügbarkeitsbericht prüfen'. */
+  duty: string;
+  /** The original sentence from the document — the evidence for the entry. */
+  excerpt: string;
+  /**
+   * Creates NO duty (a vendor recommendation, a wish, marketing). `add:` on it
+   * is refused with `riskFeedback` — the level teaches that a recommendation is
+   * not an obligation.
+   */
+  decoy?: boolean;
+  /** Shown when the player tries to file a decoy as a duty. */
+  riskFeedback?: string;
+}
+
+/** A document that can be filed against a duty as proof of fulfilment. */
+export interface KatasterEvidence {
+  id: string;
+  label: string;
+  /** Display date, e.g. '05.08.2026'. */
+  date: string;
+  /** The entry this evidence actually belongs to; anything else is a misfile. */
+  forEntry?: string;
+}
+
+/** One row of the register. */
+export interface KatasterEntry {
+  /** Stable key used in interaction tokens. */
+  id: string;
+  source: string;
+  duty: string;
+  /** Original wording of the source, shown in the detail pane when selected. */
+  sourceExcerpt?: string;
+  cycle?: KatasterCycle;
+  /** KatasterPerson.id; absent = orphaned (🟥). */
+  owner?: string;
+  /** KatasterEvidence.id. */
+  evidenceId?: string;
+  /** Flagged as an open gap ('gap:<id>') — the HONEST state, scored positive. */
+  gap?: boolean;
+  /** Queued for escalation ('escalate:<id>'). */
+  escalated?: boolean;
+  /** Context only: rendered, never editable. */
+  locked?: boolean;
+  /** Hint shown on the row, e.g. "Vertrag vom Einkauf geschlossen". */
+  note?: string;
+}
+
+export interface KatasterState {
+  /** Header line, e.g. 'Pflichtenkataster WARM — Stand 09/2026'. */
+  title: string;
+  entries: KatasterEntry[];
+  people: KatasterPerson[];
+  /** Clues available to file as new rows. */
+  findings?: KatasterFinding[];
+  /** Documents available to attach as proof. */
+  evidence?: KatasterEvidence[];
+}
+
 /** App-specific seed state. The relevant field is keyed by the context's `app`. */
 export interface GuiAppState {
   taskManager?: TaskManagerState;
@@ -220,6 +323,7 @@ export interface GuiAppState {
   settings?: SettingsState;
   explorer?: ExplorerState;
   coreFirewall?: CoreFirewallState;
+  kataster?: KatasterState;
 }
 
 /**

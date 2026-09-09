@@ -17,6 +17,97 @@ const blk = (id: string): GuiContext | undefined =>
  * NOT production code — safe to delete once visual checks are done.
  */
 
+
+/**
+ * Kataster has no authored level yet (Phase C writes L2/L7), so its preview
+ * carries its own sample state. Replace this with a `katasterEvents.find(...)`
+ * lookup as soon as the first real level exists.
+ */
+const katasterSample: GuiContext = {
+  app: 'kataster',
+  title: 'Pflichtenkataster',
+  hostname: 'warm-adm-01',
+  briefing:
+    'Vier Felder pro Zeile: Quelle, Pflicht, Aufpasser, Nachweis. Was keinen Aufpasser hat, ist rot.',
+  state: {
+    kataster: {
+      title: 'Pflichtenkataster WARM — Stand 09/2026',
+      entries: [
+        {
+          id: 'sla_bericht',
+          source: 'SLA Komm.ONE §4',
+          duty: 'Monatlichen Verfügbarkeitsbericht prüfen',
+          sourceExcerpt:
+            'Verfügbarkeit 99,5 % im Monatsmittel. Der Auftragnehmer stellt monatlich einen Verfügbarkeitsbericht bereit.',
+        },
+        {
+          id: 'lizenznachweis',
+          source: 'Rahmenvertrag Lizenzen §9',
+          duty: 'Lizenzbelegung jährlich nachweisen',
+          note: 'Vertrag vom Einkauf geschlossen',
+        },
+        {
+          id: 'notfallhandbuch',
+          source: 'Dienstvereinbarung Protokollierung §7',
+          duty: 'Notfallhandbuch fortschreiben',
+          sourceExcerpt:
+            'Einzelheiten regelt das IT-Notfallhandbuch in seiner jeweils gültigen Fassung.',
+        },
+        {
+          id: 'usv',
+          source: 'Kalb-Ordner',
+          duty: 'USV-Batterietausch',
+          owner: 'henry',
+          cycle: 'jaehrlich',
+          evidenceId: 'usv_protokoll',
+          locked: true,
+        },
+      ],
+      people: [
+        { id: 'henry', name: 'Henry Bartels', role: 'Systemtechnik' },
+        { id: 'jens', name: 'Jens Adam', role: 'IT-Betrieb' },
+        { id: 'bjorg', name: 'Bjorg Jörgensen', role: 'IT-Betrieb', unconfirmed: true },
+        { id: 'einkauf', name: 'Frau Petersen', role: 'Einkauf' },
+        { id: 'it_abteilung', name: 'IT-Abteilung', role: 'Sammelzuweisung', isGroup: true },
+      ],
+      evidence: [
+        {
+          id: 'bericht_07',
+          label: 'Verfügbarkeitsbericht 07/2026',
+          date: '05.08.2026',
+          forEntry: 'sla_bericht',
+        },
+        { id: 'usv_protokoll', label: 'USV-Prüfprotokoll', date: '11.03.2026', forEntry: 'usv' },
+      ],
+      findings: [
+        {
+          id: 'info_postfach',
+          source: 'Mailexport info@',
+          duty: 'Sammelpostfach arbeitstäglich sichten',
+          excerpt: 'Eingang vom 24.06.2026, ungelesen.',
+        },
+        {
+          id: 'hersteller_flyer',
+          source: 'Herstellerbroschüre Athos',
+          duty: 'Quartalsweise Security-Reviews durchführen',
+          excerpt: 'Wir empfehlen quartalsweise Reviews.',
+          decoy: true,
+          riskFeedback: 'Eine Empfehlung des Herstellers ist keine Pflicht.',
+        },
+      ],
+    },
+  },
+  solutions: [
+    {
+      interactions: ['gap:notfallhandbuch'],
+      allRequired: true,
+      resultText: 'Lücke ehrlich vermerkt.',
+      skillGain: { security: 4 },
+    },
+  ],
+  hints: ['Welche Zeile hat keinen Aufpasser — und welche kann keinen haben?'],
+};
+
 // Map preview ids → a GuiContext. Pulls from real level content where possible.
 const PREVIEWS: Record<string, GuiContext | undefined> = {
   taskmanager: guiLevelEvents.find((e) => e.guiContext?.app === 'taskmanager')?.guiContext,
@@ -28,6 +119,7 @@ const PREVIEWS: Record<string, GuiContext | undefined> = {
   blk_logread: blk('blk_c1_logread'),
   blk_hunt_gui: blk('blk_c1_hunt_gui'),
   corefirewall: blk('blk_c3_firewall'),
+  kataster: katasterSample,
 };
 
 export function DevGuiPreview({ previewId }: { previewId: string }) {
