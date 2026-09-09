@@ -457,7 +457,7 @@ Was tust du?`,
     probability: 0.95,
     category: 'compliance',
     title: 'KRITIS-Audit: Die Vorbereitung',
-    description: `In drei Wochen kommt das BSI zur Prüfung. KRITIS-Nachweis nach §8a BSIG.
+    description: `In drei Wochen kommt das BSI zur Prüfung. KRITIS-Nachweis nach § 39 BSIG.
 
 Die Anforderungsliste ist lang: Netzwerkpläne, Notfallhandbuch, Backup-Konzept, Zugriffskontrollen, Schulungsnachweise...
 

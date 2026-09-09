@@ -1062,7 +1062,7 @@ Status: Ready to send
     flavorText: `E-Mail vom BSI:
 
 "Sehr geehrte Damen und Herren,
-im Rahmen unserer Prüfungstätigkeit nach §8a BSIG kündigen wir eine
+im Rahmen unserer Prüfungstätigkeit nach § 39 BSIG kündigen wir eine
 Vor-Ort-Prüfung für den 28.03.2026 an.
 
 Bitte halten Sie folgende Dokumentation bereit:
@@ -1105,7 +1105,7 @@ Du bist auf dem Dokumentationsserver (doc-server, 192.168.1.200). Zeit zu prüfe
         lesson: 'Externe können helfen, aber internes Know-how ist langfristig wertvoller.',
       },
     ],
-    realWorldReference: 'BSI prüft KRITIS-Betreiber regelmäßig nach §8a BSIG. Dokumentation ist der häufigste Mangel.',
+    realWorldReference: 'Betreiber kritischer Anlagen weisen die Umsetzung nach § 39 BSIG alle drei Jahre gegenüber dem BSI nach — einschließlich der dabei aufgedeckten Sicherheitsmängel. Dokumentation ist der häufigste Mangel.',
     bsiReference: 'BSI IT-Grundschutz: ISMS.1 Sicherheitsmanagement',
     involvedNpcs: [],
     tags: ['security', 'bsi', 'audit', 'documentation'],
@@ -1231,16 +1231,16 @@ audit_checklist.md:- [ ] Kontaktlisten aktuell? ❌ PRÜFEN
     title: 'NIS2-Compliance Check',
     category: 'compliance',
     difficulty: 4,
-    flavorText: `Die NIS2-Richtlinie ist in Kraft getreten. Als KRITIS-Betreiber müsst ihr compliant sein.
+    flavorText: `Das NIS2-Umsetzungsgesetz hat das BSI-Gesetz neu gefasst. Als Betreiber einer kritischen Anlage müsst ihr die neuen Pflichten erfüllen.
 
 Die Geschäftsführung fragt:
 "Wo stehen wir bei NIS2? Ich brauche eine Übersicht für den Aufsichtsrat!"
 
-Du bist auf dem Compliance-Server eingeloggt. Prüfe die NIS2-Anforderungen:
-- Risikomanagement (Artikel 21)
-- Incident Reporting (72h-Frist!)
-- Supply Chain Security
-- Schulungen
+Du bist auf dem Compliance-Server eingeloggt. Prüfe die Anforderungen:
+- Risikomanagementmaßnahmen (§§ 30, 31 BSIG)
+- Meldepflichten (§ 32 BSIG: 24 h / 72 h / 1 Monat)
+- Sicherheit der Lieferkette
+- Schulungspflicht der Leitungsorgane
 
 Server: security-srv (192.168.1.210)
 Konfig: /etc/security/nis2/`,
@@ -1250,7 +1250,7 @@ Konfig: /etc/security/nis2/`,
         id: 'A',
         text: 'Schnell "Ja, sind compliant" sagen - was soll schon sein',
         outcome: 'CRITICAL_FAIL',
-        consequence: '6 Monate später: Sicherheitsvorfall. Ihr meldet nach 5 Tagen statt 72 Stunden. BSI verhängt Bußgeld: 2% des Jahresumsatzes. Du wirst entlassen.',
+        consequence: '6 Monate später: erheblicher Sicherheitsvorfall. Ihr meldet nach 5 Tagen — fällig war die Erstmeldung binnen 24 Stunden. Das BSI verhängt ein Bußgeld. Du wirst entlassen.',
         scoreChange: -400,
         reputationChange: -40,
         lesson: 'NIS2-Bußgelder können existenzbedrohend sein. Ehrliche Selbsteinschätzung ist Pflicht.',
@@ -1275,8 +1275,8 @@ Konfig: /etc/security/nis2/`,
         lesson: 'Berater können helfen, aber Compliance muss intern verstanden und gelebt werden.',
       },
     ],
-    realWorldReference: 'NIS2 gilt seit Oktober 2024 für KRITIS-Betreiber. Bußgelder bis 10 Mio. Euro oder 2% Jahresumsatz.',
-    bsiReference: 'NIS2-Umsetzungsgesetz (NIS2UmsuchG)',
+    realWorldReference: 'Das NIS2-Umsetzungsgesetz hat das BSIG zum 6. Dezember 2025 neu gefasst. Für Betreiber kritischer Anlagen drohen empfindliche Bußgelder.',
+    bsiReference: 'NIS2-Umsetzungsgesetz (NIS2UmsuCG), BSIG in der Fassung vom 06.12.2025',
     involvedNpcs: [],
     tags: ['security', 'nis2', 'risk-management', 'eu'],
     terminalContext: {
