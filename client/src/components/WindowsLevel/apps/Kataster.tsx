@@ -91,7 +91,21 @@ const useStyles = makeStyles({
     fontFamily: tokens.fontFamilyMonospace,
   },
   countWarn: { color: tokens.colorPaletteRedForeground1, fontWeight: tokens.fontWeightSemibold },
-  message: { margin: '10px 16px 0' },
+  /**
+   * Sticky, weil die Warnung sonst unsichtbar bleibt: der Fundstapel steht am
+   * UNTEREN Ende des scrollenden Containers, die Meldung oben. Wer dort einen
+   * Köder aufnehmen will, scrollt nicht zurück — er sieht gar nichts und hält
+   * die Ablehnung für einen kaputten Button. Die Lektion ("eine Empfehlung ist
+   * keine Pflicht") steckt in dieser Meldung; sie muss sichtbar sein, egal wo
+   * geklickt wurde. (Im jsdom-Test nicht prüfbar — getByText kennt kein
+   * Scrolling; gefunden beim Durchspielen.)
+   */
+  message: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 2,
+    margin: '10px 16px 0',
+  },
   section: {
     margin: '14px 16px 4px',
     fontSize: tokens.fontSizeBase300,
