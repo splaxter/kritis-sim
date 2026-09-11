@@ -1707,32 +1707,41 @@ Michael liest das Protokoll zuerst. Dann sieht er hoch.
     weekRange: [11, 12],
     probability: 1,
     category: 'story',
-    title: 'Frage 2: Das Notfallhandbuch',
-    description: `„Ihre Dienstvereinbarung von 2019 verweist in § 7 auf ein IT-Notfallhandbuch. Wo ist es?"
+    title: 'Frage 2: Stimmt das, was hier steht?',
+    // ACHTUNG beim Ändern: K4 kann auf VIER Wegen kippen — Lücke nie gemeldet,
+    // Aufpasser erfunden, Handbuch verschwiegen, Waagenwartung grün gelassen.
+    // Der Text darf deshalb kein bestimmtes Dokument benennen: „im Kataster
+    // steht davon nichts" war falsch für jemanden, der das Handbuch gemeldet
+    // und stattdessen die Waagen geschönt hatte (Review #13, 2. Runde).
+    // Wahr in allen vier Fällen ist nur: das Kataster sagt etwas anderes als das,
+    // was du wusstest.
+    description: `Michael legt keine Frage vor, sondern eine Zeile.
 
-Dr. Müller sieht zu dir. Bert sieht zu dir. Bjorg sieht auf den Tisch.
+„Ich greife eine heraus. Sie sagt mir etwas über Ihr Haus — und ich möchte wissen, ob sie stimmt."
 
-Es gibt keins. Es gab nie eins. Du weißt das seit Wochen, und im Kataster steht davon nichts.
+Er liest vor, was im Kataster steht. Dann sieht er auf.
+
+Es stimmt nicht. Nicht ganz, nicht heute, und du wusstest das vorher. Dr. Müller sieht zu dir. Bert sieht zu dir. Bjorg sieht auf den Tisch.
 
 Michael wartet. Er macht das oft, und er ist gut darin.`,
     image: undefined,
     involvedCharacters: ['isb', 'gf', 'bert'],
     mentorNote:
-      'Die Frage „seit wann wissen Sie das?" ist im Audit gefährlicher als die Lücke selbst. Eine Lücke ist ein Zustand; verschwiegenes Wissen ist eine Entscheidung — und Entscheidungen werden Personen zugerechnet.',
+      'Die Frage „seit wann wissen Sie das?" ist im Audit gefährlicher als die Lücke selbst. Eine Lücke ist ein Zustand; ein Kataster, das etwas anderes behauptet als das, was man weiß, ist eine Entscheidung — und Entscheidungen werden Personen zugerechnet. Das gilt für die verschwiegene Lücke genauso wie für die Zeile, die man grün gelassen hat.',
     choices: [
       {
         id: 'kt_audit_q2_offen_ehrlich',
-        text: 'Jetzt sagen, dass es keins gibt — und wie lange du das schon weißt.',
+        text: 'Richtigstellen — und dazusagen, seit wann du es besser weißt.',
         effects: { stress: 14, skills: { softSkills: 3 }, relationships: { gf: -3, chef: -1 } },
         resultText:
-          '„Seit wann?", fragt Michael, und Dr. Müller sieht nicht mehr zu dir, sondern zu Bert.\n\nDu sagst das Datum. Es ist Wochen her. Michael schreibt beides auf: dass die Lücke besteht, und dass sie bekannt war.\n\nIm Bericht werden daraus zwei Sätze, wo einer gereicht hätte.',
+          '„Seit wann?", fragt Michael, und Dr. Müller sieht nicht mehr zu dir, sondern zu Bert.\n\nDu sagst das Datum. Es ist Wochen her. Michael schreibt beides auf: dass die Zeile nicht stimmt, und dass das bekannt war.\n\nIm Bericht werden daraus zwei Sätze, wo einer gereicht hätte.',
       },
       {
         id: 'kt_audit_q2_offen_suchen',
-        text: '„Das muss abgelegt sein, ich schaue nach." — und Zeit gewinnen.',
+        text: '„Da muss es Unterlagen zu geben, ich schaue nach." — und Zeit gewinnen.',
         effects: { stress: 16, relationships: { gf: -4, chef: -3 } },
         resultText:
-          'Du suchst zwei Tage lang etwas, von dem du weißt, dass es nicht existiert. Am Ende musst du dasselbe sagen wie am ersten Tag, nur später.\n\nMichael hat in der Zwischenzeit den Personalrat gefragt. Der wusste es auch nicht — und weiß jetzt zusätzlich, dass die IT zwei Tage gebraucht hat, um es zuzugeben.',
+          'Du suchst zwei Tage lang nach einem Beleg, von dem du weißt, dass er das Gegenteil zeigen wird. Am Ende sagst du dasselbe wie am ersten Tag, nur später.\n\nMichael hat in der Zwischenzeit den Personalrat gefragt. Der wusste es auch nicht — und weiß jetzt zusätzlich, dass die IT zwei Tage gebraucht hat, um es zuzugeben.',
       },
     ],
     tags: ['kataster', 'act4', 'audit'],
@@ -1921,14 +1930,21 @@ Dr. Müller, die daneben sitzt, nickt, bevor du etwas sagen kannst.`,
     weekRange: [11, 12],
     probability: 1,
     category: 'story',
-    title: 'Frage 5: Wer weiß davon?',
+    title: 'Frage 5: Bei wem liegt es jetzt?',
+    // ACHTUNG beim Ändern: dieses Event ist über DREI Wege erreichbar — gar
+    // nicht eskaliert, nur eskaliert, nur den Einkauf eingebunden. Der Text
+    // darf deshalb nichts behaupten, was nur für einen davon gilt. „Niemand
+    // weiß etwas" war falsch für jemanden, der schriftlich an die GF gegangen
+    // ist; „Müller hört es zum ersten Mal" ebenso (Review #13, 2. Runde).
+    // Wahr in allen drei Fällen ist allein: mindestens eine Pflicht liegt
+    // nicht bei der Stelle, die sie schuldet.
     description: `Michael klappt den Block zu und stellt die letzte Frage ohne mitzuschreiben.
 
-„Was in diesem Kataster ist heute nicht erfüllt — und wer weiß davon?"
+„Was in diesem Kataster ist heute nicht erfüllt — und bei wem liegt es?"
 
 Den ersten Teil kannst du beantworten. Du kennst jede offene Zeile.
 
-Der zweite Teil ist dünner. Irgendwo liegt vielleicht eine Mail, irgendwo hat jemand genickt — aber es gibt keine Stelle, an der der ganze Stand steht, und mindestens eine Zeile hat nie jemanden außerhalb dieses Raums erreicht.`,
+Beim zweiten stockst du. Für mindestens eine Pflicht gibt es keine Stelle, die sie angenommen hat — sie steht im Kataster, sie hat einen Absender, aber keinen Empfänger.`,
     image: undefined,
     involvedCharacters: ['isb', 'gf', 'bert'],
     mentorNote:
@@ -1940,17 +1956,21 @@ Der zweite Teil ist dünner. Irgendwo liegt vielleicht eine Mail, irgendwo hat j
         // GF gegangen ist, aber den Einkauf nie eingebunden hat, darf hier
         // nicht behaupten, er habe nichts weitergegeben. Die Antwort benennt
         // deshalb die Naht, nicht das Nichts.
-        text: '„Einen Teil habe ich weitergegeben, einen Teil nicht — ich sage Ihnen genau, welchen."',
+        text: '„Ich gehe sie einzeln durch und sage Ihnen zu jeder, bei wem sie liegt — und wo niemand steht."',
         effects: { stress: 12, skills: { softSkills: 3 }, relationships: { chef: -2 } },
         resultText:
-          'Du gehst die Zeilen durch und sagst zu jeder, wer davon weiss und woher. Es sind weniger, als du gehofft hattest.\n\nMichael sieht Dr. Müller an. Dr. Müller sieht Bert an. Bert sieht niemanden an.\n\n„Dann fangen wir damit an", sagt Michael. „Nicht mit dem Kataster — mit dem Weg, auf dem so etwas hier nach oben kommt. Den gibt es nämlich nicht als Weg, nur als Einzelfall."\n\nEs ist der richtige Befund. Er steht nur an einer unangenehmen Stelle: nicht bei der Technik, sondern bei euch.',
+          'Du gehst die Zeilen durch. Bei manchen kannst du eine Stelle nennen, bei mindestens einer nicht — da endet der Weg bei dir.\n\nMichael schreibt genau diese eine mit. „Das ist der Befund", sagt er. „Nicht die Pflicht. Die Übergabe."\n\n„Eine Pflicht, die niemand angenommen hat, ist nicht weitergegeben — sie ist nur verschickt." Es ist der richtige Befund. Er steht nur an einer unangenehmen Stelle: nicht bei der Technik, sondern im Ablauf.',
       },
       {
         id: 'kt_audit_q5_offen_ausweichen',
-        text: '„Das ist intern alles bekannt."',
+        // Diese Aussage ist in ALLEN drei Zweigen falsch: K5 ist nur erfüllt,
+        // wenn beide Übergaben stattgefunden haben. Wer hier „alles liegt bei
+        // jemandem" sagt, behauptet einen Empfänger, den es nicht gibt — das
+        // ist dieselbe Lüge wie ein erfundener Aufpasser, deshalb dasselbe Flag.
+        text: '„Das liegt alles bei jemandem."',
         effects: { stress: 14, relationships: { gf: -4, chef: -3 } },
         resultText:
-          '„Bei wem?", fragt Michael, und wartet.\n\nDr. Müller geht die Punkte durch. Bei einem nickt sie. Bei den übrigen nicht — die hört sie zum ersten Mal. Bert sagt nichts, was noch schlechter ist.\n\nAus einer offenen Liste ist eine unzutreffende Angabe geworden — und zwar in Anwesenheit der Personen, die sie widerlegen. „Alles" war ein Wort zu viel.',
+          '„Bei wem?", fragt Michael, und wartet.\n\nEr geht die Zeilen der Reihe nach durch und fragt zu jeder denselben Namen ab. Bei einer kommt keiner. Bert sagt nichts, was noch schlechter ist.\n\nAus einer offenen Liste ist eine unzutreffende Angabe geworden — und zwar in Anwesenheit der Personen, die sie widerlegen. „Alles" war ein Wort zu viel.',
         setsFlags: ['kat_owner_fabricated'],
       },
     ],

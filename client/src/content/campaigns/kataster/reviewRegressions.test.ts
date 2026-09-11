@@ -43,8 +43,12 @@ describe('Befund 1 — Frage 5 hat in jeder Teil-Eskalation eine wahre Antwort',
   it('die ehrliche Option bleibt ohne Luegen-Flag, nur die Uebertreibung kippt das Ende', () => {
     const ehrlich = offen.choices.find((c) => !(c.setsFlags ?? []).includes('kat_owner_fabricated'));
     expect(ehrlich, 'es muss eine Option ohne Luegen-Flag geben').toBeDefined();
-    const uebertreibung = offen.choices.find((c) => /alles bekannt/i.test(c.text));
-    expect(uebertreibung?.setsFlags).toContain('kat_owner_fabricated');
+    // Am Flag festgemacht, nicht am Wortlaut: die Formulierung der Option hat
+    // sich in Runde 2 geändert, die Mechanik nicht.
+    const uebertreibung = offen.choices.find((c) =>
+      (c.setsFlags ?? []).includes('kat_owner_fabricated')
+    );
+    expect(uebertreibung, 'die belastende Option muss es weiterhin geben').toBeDefined();
   });
 });
 
@@ -163,5 +167,92 @@ describe('Befund 6 — L8 akzeptiert nur den richtigen Stichtag', () => {
     for (const d of nichtFaellig) {
       expect(absent.some((a) => d.startsWith(a) || d === a), `${d} ist nicht ausgeschlossen`).toBe(true);
     }
+  });
+});
+
+/**
+ * Zweite Review-Runde zu #13: die beiden Szenen, die aus MEHREREN Ursachen
+ * erreichbar sind, dürfen nichts behaupten, was nur für eine davon gilt.
+ * Die Engine lässt hier keine feinere Verzweigung zu — EventChoice.requires
+ * ist ein SkillCheck, kein Flag-Test, und ein Beat hat genau zwei Fassungen.
+ * Also muss der Text in jedem erreichbaren Zweig wahr sein.
+ */
+describe('Review-Runde 2 — Frage 5 trifft auch den, der eskaliert hat', () => {
+  const offen = byId.get('kt_audit_q5_offen')!;
+
+  /** Alle drei Zustände, aus denen die offene Fassung erreichbar ist. */
+  const wege: Array<[string, Record<string, boolean>]> = [
+    ['gar nichts übergeben', {}],
+    ['nur eskaliert, Einkauf fehlt', { kat_gaps_escalated: true }],
+    ['nur Einkauf, nie eskaliert', { kat_purchasing_informed: true }],
+  ];
+
+  it.each(wege)('%s führt in die offene Fassung', (_l, flags) => {
+    expect(checkFlagCondition(KATASTER_DOMAINS.K5.condition, flags)).toBe(false);
+  });
+
+  it('behauptet nirgends, dass niemand etwas weiß', () => {
+    const blob = offen.description + offen.choices.map((c) => c.resultText).join(' ');
+    expect(blob).not.toMatch(/zum ersten Mal/i);
+    expect(blob).not.toMatch(/Es gibt keine Mail/i);
+    expect(blob).not.toMatch(/hört (sie )?von den vier Punkten/i);
+  });
+
+  /** Der Befund ist die fehlende ÜBERGABE, nicht fehlendes Wissen. */
+  it('benennt die fehlende Übergabe als den eigentlichen Befund', () => {
+    const blob = offen.description + offen.choices.map((c) => c.resultText).join(' ');
+    expect(blob).toMatch(/Empfänger|angenommen|Übergabe/i);
+  });
+
+  it('die belastende Option behauptet etwas, das in ALLEN drei Wegen falsch ist', () => {
+    const luege = offen.choices.find((c) => (c.setsFlags ?? []).includes('kat_owner_fabricated'))!;
+    // „liegt alles bei jemandem" ist genau dann falsch, wenn K5 offen ist —
+    // und K5 ist offen, sonst spielte diese Fassung nicht.
+    expect(luege.text).toMatch(/liegt alles bei jemandem/i);
+    for (const [, flags] of wege) {
+      expect(checkFlagCondition(KATASTER_DOMAINS.K5.condition, flags)).toBe(false);
+    }
+  });
+
+  it('es bleibt eine Option ohne Lügen-Flag', () => {
+    const ehrlich = offen.choices.filter((c) => !(c.setsFlags ?? []).includes('kat_owner_fabricated'));
+    expect(ehrlich.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('Review-Runde 2 — Frage 2 nennt kein Dokument, das gemeldet sein kann', () => {
+  const offen = byId.get('kt_audit_q2_offen')!;
+
+  /** Die vier Wege, auf denen K4 kippen kann. */
+  const ursachen: Array<[string, Record<string, boolean>]> = [
+    ['Lücke nie gemeldet', {}],
+    ['Aufpasser erfunden', { kat_gap_reported: true, kat_owner_fabricated: true }],
+    ['Handbuch verschwiegen', { kat_gap_concealed: true }],
+    ['Waagenwartung grün gelassen', { kat_gap_reported: true, kat_stale_concealed: true }],
+  ];
+
+  it.each(ursachen)('%s lässt K4 kippen', (_l, flags) => {
+    expect(checkFlagCondition(KATASTER_DOMAINS.K4.condition, flags)).toBe(false);
+  });
+
+  /**
+   * Das Repro des Reviews: Waagen grün, Handbuch gemeldet, L7 ehrlich. Die
+   * Szene darf dann nicht behaupten, zum Handbuch stehe nichts im Kataster.
+   */
+  it('behauptet nicht, das Notfallhandbuch fehle im Kataster', () => {
+    expect(offen.description).not.toMatch(/im Kataster steht davon nichts/i);
+    expect(offen.description).not.toMatch(/Notfallhandbuch/i);
+    expect(offen.title).not.toMatch(/Notfallhandbuch/i);
+  });
+
+  it('der Vorwurf ist die unzutreffende Zeile — das trifft alle vier Ursachen', () => {
+    expect(offen.description).toMatch(/stimmt|ob sie stimmt/i);
+  });
+
+  it('die Waagen-Verschweigung verschlechtert K4 und ist damit Gegenstand des Vorwurfs', () => {
+    const waagen = { kat_gap_reported: true, kat_stale_concealed: true };
+    expect(checkFlagCondition(KATASTER_DOMAINS.K4.condition, waagen)).toBe(false);
+    // … und die Szene benennt keine Ursache, die hier nicht zuträfe.
+    expect(offen.description).not.toMatch(/Dienstvereinbarung|§ 7/i);
   });
 });
