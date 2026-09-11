@@ -54,13 +54,35 @@ describe('Akt-3-Payoffs branchen auf echte Zustands-Flags', () => {
     }
   });
 
-  it('die Bedingungen nutzen nur Verwaisungs-/Lügen-Flags, keine Domänen-Flags', () => {
+  /**
+   * Akt 3 und Akt 4 branchen auf VERSCHIEDENE Dinge, und das ist der Kern des
+   * Aufbaus: Akt 3 reagiert auf einen ZUSTAND (eine Zeile blieb verwaist, eine
+   * Lücke wurde kaschiert), Akt 4 prüft eine LEISTUNG (hält die Domäne?).
+   * Würde Akt 3 auf Domänen branchen, käme die Rechnung erst, wenn schon alles
+   * entschieden ist; würde Akt 4 auf Zustände branchen, wäre die Auditfrage
+   * nicht dieselbe Bedingung wie das Ende.
+   */
+  it('Akt 3 branched nur auf Zustands-Flags (Verwaisung, Lüge)', () => {
     const stateFlags = new Set<string>([...ORPHAN_FLAGS, ...GRUENE_LISTE_FLAGS]);
-    for (const b of allBeats.filter((x) => x.branchCondition)) {
+    const akt3 = katasterChapters.filter((c) => c.act === 3).flatMap((c) => c.storyBeats);
+    for (const b of akt3.filter((x) => x.branchCondition)) {
       for (const f of flagsInCondition(b.branchCondition)) {
         expect(stateFlags.has(f), `${b.id} branched auf ${f}`).toBe(true);
       }
     }
+  });
+
+  it('Akt 4 branched ausschließlich auf die Domänen-Objekte selbst', () => {
+    const akt4 = katasterChapters.filter((c) => c.act === 4).flatMap((c) => c.storyBeats);
+    const domainConditions = ALL_DOMAINS.map((d) => KATASTER_DOMAINS[d].condition);
+    expect(akt4.filter((b) => b.branchCondition)).toHaveLength(ALL_DOMAINS.length);
+    for (const b of akt4) {
+      // Identität, nicht Gleichheit: die Bedingung muss DAS Objekt aus
+      // domains.ts sein, keine Kopie — sonst driften Szene und Ende auseinander.
+      expect(domainConditions.includes(b.branchCondition as never), `${b.id}`).toBe(true);
+    }
+    // Jede Domäne kommt genau einmal vor: fünf Fragen, fünf Domänen.
+    expect(new Set(akt4.map((b) => b.branchCondition)).size).toBe(ALL_DOMAINS.length);
   });
 });
 
@@ -88,21 +110,24 @@ describe('Begleitmaterial', () => {
   });
 });
 
-describe('Registrierungs-Gate', () => {
+describe('Registrierung', () => {
   /**
-   * Bewusst noch NICHT registriert: `campaignBudget.test.ts` iteriert
-   * `listCampaigns()` und verlangt von jeder Kampagne, dass sie ihr Ende im
-   * Tagesbudget erreicht. Solange die Beats unten auf noch nicht geschriebene
-   * Events zeigen, würde die Registrierung diese Audits rot färben — und
-   * Spielern eine leere Kampagne im Picker zeigen.
-   *
-   * Dieser Test hält das Gate fest: Er fällt, sobald jemand registriert,
-   * ohne den Content zu haben.
+   * Das Gate aus Phase B ist gefallen: der Content steht, also ist die
+   * Kampagne registriert. `campaignBudget.test.ts` prüft ab jetzt automatisch
+   * mit, dass sie im Tagesbudget ihr Ende erreicht.
    */
-  it('alle Beats zeigen auf Events, die Phase C noch schreibt', async () => {
-    const { listCampaigns } = await import('../index');
-    const registered = listCampaigns().map((c) => c.id);
-    expect(registered).not.toContain('kataster');
+  it('ist im Picker registriert und sichtbar', async () => {
+    const { listCampaigns, listVisibleCampaigns } = await import('../index');
+    expect(listCampaigns().map((c) => c.id)).toContain('kataster');
+    expect(listVisibleCampaigns().map((c) => c.id)).toContain('kataster');
+  });
+
+  it('startet im ersten Kapitel und hat keine Sidequests', async () => {
+    const { getCampaign } = await import('../index');
+    const c = getCampaign('kataster');
+    expect(c.startChapterId).toBe(katasterChapters[0].id);
+    expect(c.sidequests).toEqual([]);
+    expect(c.sidequestEvents).toEqual([]);
   });
 
   it('die Domänen sind vollständig und werden von Akt 4 gebraucht', () => {

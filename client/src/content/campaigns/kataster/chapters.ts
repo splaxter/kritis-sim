@@ -23,6 +23,7 @@
  *   Akt 4  kt_ch06_audit     : Q1…Q5 (branchCondition = KATASTER_DOMAINS[Kn])
  */
 import { AdventureChapter } from '@kritis/shared';
+import { KATASTER_DOMAINS } from './domains';
 
 export const katasterChapters: AdventureChapter[] = [
   // ── ACT 1 — Der Ordner ────────────────────────────────────────────────────
@@ -149,11 +150,45 @@ export const katasterChapters: AdventureChapter[] = [
     storyBeats: [
       // branchCondition = das Domänen-Objekt aus domains.ts, importiert statt
       // kopiert (Phase C, Task 13) — eine Wahrheit für Beat UND Ending.
-      { id: 'kt_b0601', eventId: 'kt_audit_q1', isOptional: false },
-      { id: 'kt_b0602', eventId: 'kt_audit_q2', isOptional: false },
-      { id: 'kt_b0603', eventId: 'kt_audit_q3', isOptional: false },
-      { id: 'kt_b0604', eventId: 'kt_audit_q4', isOptional: false },
-      { id: 'kt_b0605', eventId: 'kt_audit_q5', isOptional: false },
+      // branchCondition ist das DOMÄNEN-OBJEKT aus domains.ts, importiert statt
+      // kopiert: dieselbe Bedingung entscheidet über die Szene UND über das
+      // Ende. Eine Auditfrage kann damit nicht anders ausgehen, als der Abspann
+      // sie später bewertet.
+      {
+        id: 'kt_b0601',
+        eventId: 'kt_audit_q1',
+        isOptional: false,
+        branchCondition: KATASTER_DOMAINS.K3.condition,
+        alternateEventId: 'kt_audit_q1_offen',
+      },
+      {
+        id: 'kt_b0602',
+        eventId: 'kt_audit_q2',
+        isOptional: false,
+        branchCondition: KATASTER_DOMAINS.K4.condition,
+        alternateEventId: 'kt_audit_q2_offen',
+      },
+      {
+        id: 'kt_b0603',
+        eventId: 'kt_audit_q3',
+        isOptional: false,
+        branchCondition: KATASTER_DOMAINS.K2.condition,
+        alternateEventId: 'kt_audit_q3_offen',
+      },
+      {
+        id: 'kt_b0604',
+        eventId: 'kt_audit_q4',
+        isOptional: false,
+        branchCondition: KATASTER_DOMAINS.K1.condition,
+        alternateEventId: 'kt_audit_q4_offen',
+      },
+      {
+        id: 'kt_b0605',
+        eventId: 'kt_audit_q5',
+        isOptional: false,
+        branchCondition: KATASTER_DOMAINS.K5.condition,
+        alternateEventId: 'kt_audit_q5_offen',
+      },
     ],
     sidequests: [],
     unlockConditions: { previousChapter: 'kt_ch05_uhr' },

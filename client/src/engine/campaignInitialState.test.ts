@@ -25,6 +25,20 @@ describe('createInitialState — campaign-seeded story state', () => {
     expect(s.storyState?.endingFlags).toEqual([]);
   });
 
+  it('seeds a DAS KATASTER run at its own campaign + start chapter', () => {
+    const s = createInitialState('seed-k', 'story', 'kataster');
+    expect(s.storyState?.campaignId).toBe('kataster');
+    expect(s.storyState?.currentChapter).toBe('kt_ch01_ordner');
+  });
+
+  it('a fresh DAS KATASTER run carries no state from any other campaign', () => {
+    const s = createInitialState('seed-k2', 'story', 'kataster');
+    expect(Object.keys(s.flags)).toHaveLength(0);
+    expect(s.storyState?.characterMemory).toEqual({});
+    expect(s.storyState?.completedChapters).toEqual([]);
+    expect(s.storyState?.endingFlags).toEqual([]);
+  });
+
   it('applies the campaign start relationships over the mode defaults', () => {
     const prob = createInitialState('seed-r1', 'story');            // probation: mode defaults
     const at = createInitialState('seed-r2', 'story', 'audit-trail'); // audit-trail overrides
@@ -33,6 +47,13 @@ describe('createInitialState — campaign-seeded story state', () => {
     expect(at.relationships.chef).toBe(0);
     expect(at.relationships.kollegen).toBe(10);
     expect(at.relationships).not.toEqual(prob.relationships);
+
+    // DAS KATASTER startet wohlwollender — die Kampagne lebt von Unwissen,
+    // nicht von Misstrauen.
+    const kt = createInitialState('seed-r3', 'story', 'kataster');
+    expect(kt.relationships.chef).toBe(5);
+    expect(kt.relationships.kollegen).toBe(5);
+    expect(kt.relationships).not.toEqual(at.relationships);
   });
 
   it('non-story modes are unaffected (no storyState)', () => {

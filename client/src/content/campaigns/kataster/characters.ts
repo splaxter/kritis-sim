@@ -60,6 +60,15 @@ export const KATASTER_CHARACTERS: StoryCharacter[] = [
       'Trägt den ganzen Bogen — Kick-off in Akt 1, Stichprobe in Akt 4. Grenzt sich vom ISB in AUDIT TRAIL ab: dort Beweisführung, hier Zuständigkeit.',
   },
   {
+    id: 'petersen',
+    name: 'Frau Petersen',
+    role: 'Zentraler Einkauf',
+    description:
+      'Hat die Rahmenverträge geschlossen und wusste bis zum Kataster nicht, welche Pflichten daran hängen. Reagiert auf Schriftliches sofort.',
+    arcPotential:
+      'Der Beleg dafür, dass eine Pflicht bei der Stelle, die sie erfüllen kann, mehr wert ist als bei der, die sie bemerkt hat.',
+  },
+  {
     id: 'kalb',
     name: 'Reinhard Kalb',
     role: 'Vorgänger, seit drei Wochen in Rente',

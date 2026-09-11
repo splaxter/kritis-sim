@@ -12,7 +12,7 @@ describe('campaign picker registry', () => {
     const listed = listCampaigns().map((c) => c.id);
     // Every registered id must resolve through getCampaign — the guard against a
     // campaign that exists in the roster but can never be loaded.
-    expect(listed).toEqual(['probation', 'audit-trail']);
+    expect(listed).toEqual(['probation', 'audit-trail', 'kataster']);
     for (const id of listed) {
       expect(getCampaign(id).id, `${id} must resolve to itself`).toBe(id);
     }
@@ -30,17 +30,28 @@ describe('campaign picker registry', () => {
   });
 
   it('hides AUDIT TRAIL from the picker until it is unlocked', () => {
-    // The normal player sees exactly one campaign; the secret one is absent from
-    // the list entirely (not disabled, not greyed out — invisible).
-    expect(listVisibleCampaigns().map((c) => c.id)).toEqual(['probation']);
-    expect(listVisibleCampaigns([]).map((c) => c.id)).toEqual(['probation']);
+    // The normal player sees the two OPEN campaigns; the secret one is absent
+    // from the list entirely (not disabled, not greyed out — invisible).
+    const open = ['probation', 'kataster'];
+    expect(listVisibleCampaigns().map((c) => c.id)).toEqual(open);
+    expect(listVisibleCampaigns([]).map((c) => c.id)).toEqual(open);
     // An unrelated unlock id must not reveal it either.
-    expect(listVisibleCampaigns(['something-else']).map((c) => c.id)).toEqual(['probation']);
-    // Unlocked, it slots back into its registry position.
+    expect(listVisibleCampaigns(['something-else']).map((c) => c.id)).toEqual(open);
+    // Unlocked, it slots back into its registry position — between the two.
     expect(listVisibleCampaigns(['audit-trail']).map((c) => c.id)).toEqual([
       'probation',
       'audit-trail',
+      'kataster',
     ]);
+  });
+
+  it('exactly one campaign is secret — DAS KATASTER is open by design', () => {
+    const hidden = listCampaigns().filter((c) => c.hidden).map((c) => c.id);
+    expect(hidden).toEqual(['audit-trail']);
+    // Ein zweites Geheimnis haette das erste entwertet: DAS KATASTER ist die
+    // zugaenglichste der drei Kampagnen und soll gefunden werden.
+    expect(getCampaign('kataster').hidden).toBeUndefined();
+    expect(getCampaign('kataster').unlockCode).toBeUndefined();
   });
 
   it('every hidden campaign declares an unlock code, and no visible one does', () => {

@@ -7,15 +7,17 @@ import { CampaignId, GameModeId, getGameModeConfig } from '@kritis/shared';
 import { CampaignDefinition } from './types';
 import { probationCampaign } from './probation';
 import { auditTrailCampaign } from './audit-trail';
+import { katasterCampaign } from './kataster';
 
 const CAMPAIGNS: Record<CampaignId, CampaignDefinition> = {
   probation: probationCampaign,
   'audit-trail': auditTrailCampaign,
+  kataster: katasterCampaign,
 };
 
 /** Preferred display order in the campaign picker — chronological by release.
  *  Only a SORT key, never the source of the list (see listCampaigns). */
-const CAMPAIGN_ORDER: CampaignId[] = ['probation', 'audit-trail'];
+const CAMPAIGN_ORDER: CampaignId[] = ['probation', 'audit-trail', 'kataster'];
 
 export function getCampaign(id: CampaignId): CampaignDefinition {
   return CAMPAIGNS[id] ?? probationCampaign;

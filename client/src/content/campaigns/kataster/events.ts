@@ -85,7 +85,7 @@ Michael wartet. Er wartet auffällig lange, und man merkt, dass er das öfter ma
 
 „Ich frage anders", sagt er schließlich. „Mich interessiert nicht, ob es läuft. Mich interessiert, **wer es merkt, wenn es nicht mehr läuft.**"`,
     image: undefined,
-    involvedCharacters: ['isb', 'chef', 'kollege'],
+    involvedCharacters: ['isb', 'bert', 'bjorg'],
     mentorNote:
       'Pflichten entstehen an vier Stellen: in Verträgen (SLA, Wartung, Lizenz), in Gesetz und Aufsicht, in Betriebs- und Dienstvereinbarungen, und in Versicherungspolicen. Kein Betrieb hat sie an einem Ort. Wer die Frage „was schulden wir?" beantworten will, muss alle vier durchsuchen.',
     choices: [
@@ -130,7 +130,7 @@ Es ist nicht viel. Genau das ist der Befund.
 - Durchsuche die Vertragsakten nach dem, was **regelmäßig** zu tun ist (\`grep -r\`)
 - Lies den Fund und halte ihn schriftlich fest in \`/home/timo/quellen.md\``,
     image: undefined,
-    involvedCharacters: ['chef'],
+    involvedCharacters: ['bert'],
     mentorNote:
       'Ein Vertrag ist kein Ablageobjekt. Er ist eine Liste von Dingen, die jemand regelmäßig tun muss. Die Wörter, an denen man sie findet, sind immer dieselben: monatlich, jährlich, unverzüglich, binnen, nachzuweisen. `grep -rn muster verzeichnis` durchsucht einen ganzen Ordnerbaum und zeigt Datei und Zeilennummer.',
     choices: [
@@ -274,7 +274,6 @@ Es ist nicht viel. Genau das ist der Befund.
         resultText:
           'Eine Zeile. Vier Spalten. Zwei davon leer — und die Tabelle macht daraus keine Leerstelle, sondern eine Warnung.\n\n„Sieht schlimm aus", sagt Jens. „Ist aber besser als vorher. Vorher sah es nach gar nichts aus."',
         guiCommand: true,
-        setsFlags: ['kat_first_entry'],
       },
     ],
     guiContext: {
@@ -357,7 +356,7 @@ Kurze Stille. Bjorg zuckt mit den Schultern: „Dann macht's halt keiner. Hat ja
 
 Er hat recht. Genau das ist das Problem.`,
     image: undefined,
-    involvedCharacters: ['kollege', 'jens'],
+    involvedCharacters: ['bjorg', 'jens'],
     mentorNote:
       'Der häufigste Fehler in einem Pflichtenkataster ist die Verwechslung von Leistung und Aufsicht. Der Dienstleister erbringt die Leistung — die Pflicht, sie zu prüfen, bleibt beim Betreiber und lässt sich nicht wegvergeben. Für jede Zeile gilt: Wer liefert? Und wer schaut hin?',
     choices: [
@@ -404,7 +403,7 @@ Der Lizenzserver führt Buch darüber, was tatsächlich belegt ist. Der Rahmenve
 - Lies den Rahmenvertrag — was verlangt er von **euch**, nicht vom Anbieter?
 - Halte beides in \`/home/timo/quellen.md\` fest`,
     image: undefined,
-    involvedCharacters: ['chef'],
+    involvedCharacters: ['bert'],
     mentorNote:
       "Lizenzverträge erzeugen nicht nur Kosten, sondern Nachweispflichten: fast jeder enthält eine Audit-Klausel, nach der der Kunde die Belegung jährlich nachweisen muss. `awk -F';' '$3 == 0'` gibt alle Zeilen aus, in denen das dritte semikolongetrennte Feld null ist — der schnellste Weg von einer Tabelle zu einer Auffälligkeit.",
     choices: [
@@ -491,7 +490,7 @@ Trotzdem landet die Frage bei dir — so wie alles landet, was nach Computer aus
 
 Im Kataster braucht die Zeile „Lizenzbelegung jährlich nachweisen" einen Aufpasser. Du kannst die Zahlen liefern. Aber schuldest **du** den Nachweis?`,
     image: undefined,
-    involvedCharacters: ['chef'],
+    involvedCharacters: ['bert'],
     mentorNote:
       'Aufpasserschaft ist nicht dasselbe wie technische Zuständigkeit. Wer den Vertrag geschlossen hat, schuldet den Nachweis; die IT liefert die Zahlen dafür. Wer beides bei sich einsammelt, weil er es kann, sammelt Pflichten ein, die ihm niemand gegeben hat — und die niemand vermisst, wenn er ausfällt.',
     choices: [
@@ -540,7 +539,7 @@ Das Ticketsystem führt eine eigene Statistik: wann in welcher Queue zuletzt etw
 - Vergleich es mit der Queue-Statistik (\`cut\`, \`sort\`)
 - Schreib den Befund nach \`/home/timo/befund_aufpasser.txt\` — mit Queue und Datum`,
     image: undefined,
-    involvedCharacters: ['kollege'],
+    involvedCharacters: ['bjorg'],
     mentorNote:
       "Ein Name im Kataster ist kein Nachweis. Die Prüffrage lautet nie „steht da jemand?\", sondern „wann hat diese Person zuletzt etwas getan, das man sehen kann?\". `cut -d';' -f1,3` schneidet zwei Spalten heraus, `sort -t';' -k2` sortiert nach der zweiten — so findet man die älteste Spur in Sekunden.",
     choices: [
@@ -624,7 +623,7 @@ Wenn du sie grün lässt, sieht alles gut aus. Bis jemand nach dem letzten Prüf
 
 Bjorg kommt vorbei, Kaffee in der Hand: „Waagen? Läuft. Da ruft die Herold schon an, wenn was ist."`,
     image: undefined,
-    involvedCharacters: ['kollege', 'jens'],
+    involvedCharacters: ['bjorg', 'jens'],
     mentorNote:
       'Ein Kataster darf schlechter aussehen, wenn es dadurch wahrer wird. Der Zustand „Aufpasser eingetragen, aber kein Nachweis" ist eine eigene Kategorie — nicht erledigt, nicht offen, sondern behauptet. Wer diese Kategorie nicht führt, hat am Ende nur zwei Farben und keine Information.',
     choices: [
@@ -783,7 +782,7 @@ Michael kommt in zwei Wochen wieder. Er wird nach der Dokumentation fragen.
 
 Bjorg, als du es erwähnst: „Lass mal. Wenn du das aufmachst, sitzen wir sechs Monate in Arbeitskreisen."`,
     image: undefined,
-    involvedCharacters: ['isb', 'chef', 'kollege'],
+    involvedCharacters: ['isb', 'bert', 'bjorg'],
     mentorNote:
       'Eine Lücke, die man selbst meldet, ist ein Befund. Dieselbe Lücke, die ein Auditor findet, ist ein Versäumnis — und die Frage, seit wann sie bekannt war, stellt er dann auch. Wer eine bekannte Lücke verschweigt, tauscht ein kleines Problem heute gegen zwei große später: die Lücke und das Verschweigen.',
     choices: [
@@ -1149,7 +1148,7 @@ Der Brief ist höflich. Er teilt lediglich mit, dass für diese Monate keine Anz
 
 Der Bericht lag jeden Monat im Postfach. Geprüft hat ihn niemand — die Zeile hatte keinen Aufpasser.`,
     image: undefined,
-    involvedCharacters: ['chef', 'kaemmerer'],
+    involvedCharacters: ['bert', 'petersen'],
     mentorNote:
       'Eine nicht geprüfte Service-Level-Zusage ist eine geschenkte Vertragsstrafe. Der Schaden entsteht nicht durch den Ausfall — für den gäbe es eine Minderung — sondern durch die verstrichene Frist, sie geltend zu machen. Genau deshalb hat die Spalte „Aufpasser" einen eigenen Platz neben der Spalte „Pflicht".',
     choices: [
@@ -1193,7 +1192,7 @@ Diesmal kommt Henry damit zu dir, bevor du ihn aufmachst — er hat den Vorgang 
 
 Der Brief ist die Bestätigung. Die Minderung wird gutgeschrieben.`,
     image: undefined,
-    involvedCharacters: ['chef'],
+    involvedCharacters: ['bert'],
     mentorNote:
       'Derselbe Ausfall, dasselbe Geld — einmal verloren, einmal geholt. Der ganze Unterschied ist ein Name in einer Spalte und die Frist, die dadurch jemandem aufgefallen ist.',
     choices: [
@@ -1230,7 +1229,7 @@ Die Teilkündigung nach § 10 wäre zum Vertragsjahresende möglich gewesen, mit
 
 Die Zeile im Kataster hat bis heute keinen Aufpasser. Es hat also niemand daran gedacht, und es war auch niemand dafür da.`,
     image: undefined,
-    involvedCharacters: ['kaemmerer', 'chef'],
+    involvedCharacters: ['petersen', 'bert'],
     mentorNote:
       'Eine Kündigungsfrist ist eine Pflicht wie jede andere: Sie steht im Vertrag, sie wiederholt sich, und sie verfällt. Der Unterschied zu einer Meldepflicht ist nur, dass niemand mahnt, wenn man sie verpasst — man zahlt einfach weiter.',
     choices: [
@@ -1272,7 +1271,7 @@ Frau Petersen hat im Juli fristgerecht teilgekündigt — drei Monate vor Vertra
 
 In der Mail steht ein Satz, der dir bleiben wird: „Ich hätte das nie gefunden. Es stand ja nirgends."`,
     image: undefined,
-    involvedCharacters: ['kaemmerer'],
+    involvedCharacters: ['petersen'],
     mentorNote:
       'Eine Pflicht bei der Stelle, die sie erfüllen kann, ist mehr wert als dieselbe Pflicht bei der Stelle, die sie bemerkt hat. Die IT bemerkt Lizenzlücken — kündigen kann nur der Einkauf.',
     choices: [
@@ -1309,7 +1308,7 @@ Es gibt keins. Du weißt das seit Wochen. Auf deinem Laufwerk liegt ein Suchprot
 
 Bjorg sieht dich nicht an.`,
     image: undefined,
-    involvedCharacters: ['gf', 'chef', 'kollege'],
+    involvedCharacters: ['gf', 'bert', 'bjorg'],
     mentorNote:
       'Verschwiegenes Wissen wird mit der Zeit teurer, nicht billiger. Aus „uns fehlt ein Dokument" wird „uns fehlt ein Dokument, und die IT wusste es seit sechs Wochen" — und die zweite Aussage beantwortet eine Frage, die niemand gestellt hätte.',
     choices: [
@@ -1353,7 +1352,7 @@ Es ist keine Anklage. Es ist eine Feststellung — sie hat euren Vermerk vor sec
 
 „Dann reden wir jetzt darüber, was es kostet, das zu schreiben."`,
     image: undefined,
-    involvedCharacters: ['gf', 'chef'],
+    involvedCharacters: ['gf', 'bert'],
     mentorNote:
       'Eine selbst gemeldete Lücke verändert die Frage: nicht mehr „warum wusste das niemand", sondern „was kostet die Behebung". Das ist derselbe Mangel in einem Gespräch, das man gewinnen kann.',
     choices: [
@@ -1390,7 +1389,7 @@ Er meint es nicht böse. Er meint es sogar ernst, in dem Moment, in dem er es sa
 
 Bei der Technikwartung steht er seit drei Jahren drin. Die letzte sichtbare Aktivität ist vom 14. Januar.`,
     image: undefined,
-    involvedCharacters: ['kollege', 'jens'],
+    involvedCharacters: ['bjorg', 'jens'],
     mentorNote:
       'Mündliche Zusagen sind keine Zuweisungen. Nicht weil Kollegen unehrlich wären, sondern weil niemand sich an vier Zeilen erinnert, die er im Türrahmen übernommen hat. Eine Zuweisung wird erst durch die Rückmeldung verbindlich — und die Rückmeldung ist zugleich der erste Nachweis der Zeile.',
     choices: [
@@ -1438,7 +1437,7 @@ Die Frage ist nicht mehr, ob du sie schließt. Die Frage ist, wer außer dir dav
       cc: 'mueller@warm-rhein-main.de',
       subject: 'Pflichtenkataster — offene Punkte, Stand 09/2026',
     },
-    involvedCharacters: ['chef', 'gf'],
+    involvedCharacters: ['bert', 'gf'],
     mentorNote:
       'Eskalation ist keine Beschwerde, sondern eine Übergabe. Wer eine offene Pflicht schriftlich, mit Datum und an die entscheidungsbefugte Stelle meldet, dreht die Bringschuld: Ab diesem Zeitpunkt ist die Lücke ein Thema der Leitung. Ohne diesen Schritt bleibt sie ein Thema dessen, der sie gefunden hat.',
     choices: [
@@ -1565,5 +1564,374 @@ Heute ist der 11.09.2026. Interessant ist, was bis zum 11.10.2026 fällig wird.
       ],
     },
     tags: ['kataster', 'act3', 'terminal', 'optional'],
+  },
+
+  // ═════════════════════════ AKT 4 — Der Audit-Tag ═════════════════════════
+  //
+  // Fünf Fragen, fünf Domänen (Rückwärts-Design, §4). Jeder Beat branched auf
+  // das Domänen-Objekt aus domains.ts — dieselbe Bedingung, aus der auch das
+  // Ende abgeleitet wird. Die "_offen"-Variante ist nie eine Strafszene,
+  // sondern die Frage, auf die es keine belastbare Antwort gibt.
+
+  // ── Q1 / K3 Nachweisfähigkeit ────────────────────────────────────────────
+  {
+    id: 'kt_audit_q1',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 1: Der letzte Prüfnachweis',
+    description: `Michael hat sich drei Zeilen angestrichen, bevor er kam. Er fängt mit der an, die er für die einfachste hält.
+
+„Verfügbarkeitsbericht, monatlich. Zeigen Sie mir den letzten Prüfnachweis."
+
+Du hast ihn. Henry hat im August geprüft, der Vermerk hängt an der Zeile, mit Datum.
+
+Michael liest ihn, nickt und blättert weiter zur Waagenwartung. „Und hier?"
+
+Hier steht ein Name und kein Nachweis — aber das steht auch genau so da: gelb, mit dem Befund vom 14. Januar daneben.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'bert'],
+    mentorNote:
+      'Ein Auditor erwartet keine perfekte Liste. Er prüft, ob die Liste die Wirklichkeit beschreibt. Eine gelbe Zeile mit Befund ist eine korrekte Angabe; eine grüne Zeile ohne Nachweis ist eine falsche.',
+    choices: [
+      {
+        id: 'kt_audit_q1_zeigen',
+        text: 'Beides zeigen: den Nachweis für den Bericht, den Befund für die Waagen.',
+        effects: { skills: { security: 3, softSkills: 2 }, relationships: { chef: 2 }, stress: -3 },
+        resultText:
+          '„Gut", sagt Michael und notiert etwas. „Sie unterscheiden zwischen belegt und behauptet. Das machen die wenigsten."\n\nEr streicht die Zeile von seiner Liste. Eine von dreien.',
+      },
+      {
+        id: 'kt_audit_q1_relativieren',
+        text: 'Den Nachweis zeigen und die gelbe Zeile kleinreden — die Waagen laufen ja.',
+        effects: { stress: 4, relationships: { chef: -1 } },
+        resultText:
+          '„Dass sie laufen, glaube ich Ihnen", sagt Michael. „Ich frage nicht, ob sie laufen. Ich frage, wer es merkt, wenn sie es nicht mehr tun."\n\nEr notiert etwas mehr als vorher. Der Nachweis für den Bericht zählt trotzdem — aber du hast gerade eine Frage beantwortet, die er nicht gestellt hat.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+  {
+    id: 'kt_audit_q1_offen',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 1: Der letzte Prüfnachweis',
+    description: `Michael hat sich drei Zeilen angestrichen, bevor er kam. Er fängt mit der an, die er für die einfachste hält.
+
+„Verfügbarkeitsbericht, monatlich. Zeigen Sie mir den letzten Prüfnachweis."
+
+Die Zeile existiert. Sie hat einen Turnus. Was sie nicht hat, ist irgendetwas, das man vorlegen könnte.
+
+„Irgendetwas", sagt Michael geduldig. „Eine Mail, ein Vermerk, ein Haken mit Datum. Es muss kein Gutachten sein."`,
+    image: undefined,
+    involvedCharacters: ['isb', 'bert'],
+    mentorNote:
+      'Ein Nachweis muss nichts Aufwendiges sein — eine Mail mit Datum reicht. Entscheidend ist nur, dass er entsteht, wenn die Pflicht erfüllt wird, und nicht, wenn jemand danach fragt. Rückwirkend erzeugte Nachweise sind im Audit wertlos und im Zweifel schädlich.',
+    choices: [
+      {
+        id: 'kt_audit_q1_offen_zugeben',
+        text: '„Gibt es nicht. Die Zeile steht seit September, geprüft wurde noch nicht."',
+        effects: { skills: { softSkills: 3, security: 2 }, stress: 5 },
+        resultText:
+          '„Danke." Michael schreibt es auf, ohne den Ton zu ändern. „Dann ist das ein offener Punkt, kein Streitfall. Wann kommt der erste Nachweis?"\n\nDu nennst ein Datum. Er notiert auch das. Es ist unangenehm und es ist erledigt.',
+      },
+      {
+        id: 'kt_audit_q1_offen_nachreichen',
+        text: '„Das reiche ich nach." — und den Vermerk heute Abend rückdatieren.',
+        effects: { stress: 12, relationships: { chef: -3 } },
+        resultText:
+          'Der Vermerk ist am nächsten Morgen da, datiert auf den 4. September.\n\nMichael vergleicht ihn mit dem Änderungsdatum der Datei. Er sagt nichts dazu — er schreibt es nur auf, und ab hier prüft er jede Zeile einzeln statt stichprobenartig.',
+        setsFlags: ['kat_owner_fabricated'],
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+
+  // ── Q2 / K4 Ehrlichkeit ──────────────────────────────────────────────────
+  {
+    id: 'kt_audit_q2',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 2: Das Notfallhandbuch',
+    description: `„Ihre Dienstvereinbarung von 2019 verweist in § 7 auf ein IT-Notfallhandbuch. Wo ist es?"
+
+Du legst zwei Blätter hin: den Katastereintrag, markiert als Lücke, mit Datum — und das Suchprotokoll.
+
+Michael liest das Protokoll zuerst. Dann sieht er hoch.
+
+„Sie haben gesucht und dokumentiert, dass Sie nichts gefunden haben."`,
+    image: undefined,
+    involvedCharacters: ['isb', 'gf'],
+    mentorNote:
+      'Der Unterschied zwischen einem Mangel und einem Befund ist, wer ihn zuerst benennt. Beide stehen am Ende im Bericht — aber nur bei einem steht daneben, dass die Organisation ihn selbst gefunden hat.',
+    choices: [
+      {
+        id: 'kt_audit_q2_bestaetigen',
+        text: '„Ja. Und es ist gemeldet, seit dem 14. Die Geschäftsführung hat es."',
+        effects: { skills: { security: 3, softSkills: 3 }, relationships: { gf: 2, chef: 2 }, stress: -4 },
+        resultText:
+          '„Dann ist das kein Befund gegen Sie, sondern einer von Ihnen", sagt Michael. „Ich übernehme Ihre Formulierung, wenn Sie erlauben. Sie ist präziser als meine."\n\nEr streicht die zweite Zeile von seiner Liste.',
+      },
+      {
+        id: 'kt_audit_q2_angebot',
+        text: '„Ja — und wir haben einen Vorschlag, was es kostet, das zu schreiben."',
+        effects: { skills: { softSkills: 4, security: 2 }, relationships: { gf: 3 }, stress: -2 },
+        resultText:
+          'Michael sieht kurz zu Dr. Müller. „Das ist die Antwort, die ich sonst nie bekomme."\n\nAus einer Prüffrage ist ein Tagesordnungspunkt geworden. Der Mangel steht trotzdem im Bericht — aber er steht dort mit einem Datum, an dem er behoben sein soll.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+  {
+    id: 'kt_audit_q2_offen',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 2: Das Notfallhandbuch',
+    description: `„Ihre Dienstvereinbarung von 2019 verweist in § 7 auf ein IT-Notfallhandbuch. Wo ist es?"
+
+Dr. Müller sieht zu dir. Bert sieht zu dir. Bjorg sieht auf den Tisch.
+
+Es gibt keins. Es gab nie eins. Du weißt das seit Wochen, und im Kataster steht davon nichts.
+
+Michael wartet. Er macht das oft, und er ist gut darin.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'gf', 'bert'],
+    mentorNote:
+      'Die Frage „seit wann wissen Sie das?" ist im Audit gefährlicher als die Lücke selbst. Eine Lücke ist ein Zustand; verschwiegenes Wissen ist eine Entscheidung — und Entscheidungen werden Personen zugerechnet.',
+    choices: [
+      {
+        id: 'kt_audit_q2_offen_ehrlich',
+        text: 'Jetzt sagen, dass es keins gibt — und wie lange du das schon weißt.',
+        effects: { stress: 14, skills: { softSkills: 3 }, relationships: { gf: -3, chef: -1 } },
+        resultText:
+          '„Seit wann?", fragt Michael, und Dr. Müller sieht nicht mehr zu dir, sondern zu Bert.\n\nDu sagst das Datum. Es ist Wochen her. Michael schreibt beides auf: dass die Lücke besteht, und dass sie bekannt war.\n\nIm Bericht werden daraus zwei Sätze, wo einer gereicht hätte.',
+      },
+      {
+        id: 'kt_audit_q2_offen_suchen',
+        text: '„Das muss abgelegt sein, ich schaue nach." — und Zeit gewinnen.',
+        effects: { stress: 16, relationships: { gf: -4, chef: -3 } },
+        resultText:
+          'Du suchst zwei Tage lang etwas, von dem du weißt, dass es nicht existiert. Am Ende musst du dasselbe sagen wie am ersten Tag, nur später.\n\nMichael hat in der Zwischenzeit den Personalrat gefragt. Der wusste es auch nicht — und weiß jetzt zusätzlich, dass die IT zwei Tage gebraucht hat, um es zuzugeben.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+
+  // ── Q3 / K2 Zurechenbarkeit ──────────────────────────────────────────────
+  {
+    id: 'kt_audit_q3',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 3: Weiß er das?',
+    description: `Michael blättert zu den Zeilen, in denen Bjorg steht.
+
+„Ihr Kollege ist hier bei zwei Einträgen Aufpasser. Weiß er das?"
+
+Er fragt es beiläufig, aber es ist die Frage, auf die er den halben Vormittag hingearbeitet hat.
+
+Du legst die Mail daneben. Vier Zeilen angefragt, zwei bestätigt, zwei zurückgegeben — mit Datum und Bjorgs Antwort darunter.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg'],
+    mentorNote:
+      'Zurechenbarkeit heißt nicht, dass jemand eingetragen ist, sondern dass er zugestimmt hat. Die Bestätigung ist zugleich der erste Nachweis der Zeile — deshalb kostet dieser Schritt nichts extra und erspart im Audit die unangenehmste Frage.',
+    choices: [
+      {
+        id: 'kt_audit_q3_mail',
+        text: 'Die Bestätigungsmail vorlegen — inklusive der beiden Zeilen, die er abgelehnt hat.',
+        effects: { skills: { security: 3, softSkills: 3 }, relationships: { kollegen: 1 }, stress: -3 },
+        resultText:
+          '„Und die beiden, die er nicht wollte, stehen jetzt als Lücke drin." Michael sieht fast zufrieden aus. „Das ist der Teil, den fast niemand macht. Die meisten tragen einfach ein und hoffen."\n\nBjorg, der danebensitzt, ist überrascht, dass seine Ablehnung im Dokument steht — und offensichtlich erleichtert.',
+      },
+      {
+        id: 'kt_audit_q3_bjorg_fragen',
+        text: 'Michael direkt an Bjorg verweisen: „Fragen Sie ihn."',
+        effects: { skills: { softSkills: 2 }, relationships: { kollegen: 2 }, stress: 2 },
+        resultText:
+          'Michael dreht sich um. Bjorg nickt: „Ja, die zwei sind meine. Steht in der Mail."\n\nDass er es aus dem Stand sagen kann, ist der eigentliche Nachweis. Michael notiert es und fragt nicht weiter.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+  {
+    id: 'kt_audit_q3_offen',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 3: Weiß er das?',
+    description: `Michael blättert zu den Zeilen, in denen ein Aufpasser steht.
+
+„Weiß derjenige das?"
+
+Es ist die Frage, auf die er den halben Vormittag hingearbeitet hat. Und es gibt nichts, was du hinlegen könntest — keine Mail, keine Antwort, kein Datum.
+
+Bjorg, falls es um seine Zeilen geht, sieht auf. Er hat diesen Gesichtsausdruck, den Leute haben, wenn sie ihren Namen in einem Dokument hören, das sie nie gesehen haben.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'bjorg', 'bert'],
+    mentorNote:
+      'Ein Name in einer Zeile, von dem der Namensträger nichts weiß, ist keine Zuweisung — es ist eine Behauptung über eine andere Person. Im Audit fällt sie auf den zurück, der sie eingetragen hat, nicht auf den, der darin steht.',
+    choices: [
+      {
+        id: 'kt_audit_q3_offen_einraeumen',
+        text: 'Einräumen, dass es keine Bestätigung gibt — und sie noch heute einholen.',
+        effects: { stress: 10, skills: { softSkills: 2, security: 2 }, relationships: { kollegen: -1 } },
+        resultText:
+          '„Dann sind das bis dahin keine besetzten Zeilen", sagt Michael und stuft sie in seinem Exemplar selbst zurück. „Holen Sie es nach. Aber holen Sie es nach, bevor jemand danach handelt."\n\nDie Bestätigung kommt am selben Abend. Zwei Wochen zu spät für dieses Gespräch.',
+      },
+      {
+        id: 'kt_audit_q3_offen_behaupten',
+        text: '„Natürlich weiß er das." — auch wenn ihr nie darüber gesprochen habt.',
+        effects: { stress: 14, relationships: { kollegen: -6, chef: -2 } },
+        resultText:
+          'Michael dreht sich um und fragt ihn direkt.\n\nDie Antwort dauert zwei Sekunden zu lang. Danach ist es nicht mehr nur eine offene Zeile, sondern eine Aussage im Raum, die eine anwesende Person gerade widerlegt hat.',
+        setsFlags: ['kat_owner_fabricated'],
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+
+  // ── Q4 / K1 Vollständigkeit ──────────────────────────────────────────────
+  {
+    id: 'kt_audit_q4',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 4: Woher wissen Sie das?',
+    description: `„Letzte strukturelle Frage." Michael legt den Stift hin. „Woher wissen Sie, dass Sie nichts übersehen haben?"
+
+Das ist die Frage, auf die es keine Zahl gibt. Man kann nicht belegen, dass etwas vollständig ist.
+
+Was man belegen kann, ist die Systematik: Verträge, Aufsicht, Dienstvereinbarungen, Lizenzen und Policen — vier Orte, an denen Pflichten entstehen, alle vier durchgesehen, jeder mit Datum.`,
+    image: undefined,
+    involvedCharacters: ['isb'],
+    mentorNote:
+      'Vollständigkeit lässt sich nicht beweisen, Systematik schon. Die belastbare Antwort auf „haben Sie alles?" ist nie „ja", sondern „wir haben diese vier Quellen durchsucht, hier ist wann". Alles andere ist Glück, das man als Sorgfalt ausgibt.',
+    choices: [
+      {
+        id: 'kt_audit_q4_systematik',
+        text: 'Die vier Quellen zeigen — und dazusagen, dass Vollständigkeit nicht beweisbar ist.',
+        effects: { skills: { security: 4, softSkills: 3 }, relationships: { chef: 2 }, stress: -3 },
+        resultText:
+          'Michael hört bis zum Ende zu. „Sie sind der erste in diesem Haus, der mir nicht ‚ja, alles‘ sagt."\n\nEr macht einen Haken. „Das ist die richtige Antwort. Nicht, weil sie bescheiden ist, sondern weil sie stimmt."',
+      },
+      {
+        id: 'kt_audit_q4_erweitern',
+        text: 'Die vier Quellen zeigen und fragen, welche fünfte er üblicherweise noch sieht.',
+        effects: { skills: { security: 3, softSkills: 4 }, relationships: { chef: 1 }, stress: -1 },
+        resultText:
+          '„Förderbescheide", sagt Michael sofort. „Und Betriebsgenehmigungen. Bei Entsorgern fast immer."\n\nDu schreibst mit. Es sind zwei Quellen mehr, als du hattest — und du hast sie bekommen, weil du gefragt hast, statt zu behaupten, es gäbe keine.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+  {
+    id: 'kt_audit_q4_offen',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 4: Woher wissen Sie das?',
+    description: `„Letzte strukturelle Frage." Michael legt den Stift hin. „Woher wissen Sie, dass Sie nichts übersehen haben?"
+
+Das Kataster hat Zeilen. Es hat sogar gute Zeilen. Was es nicht hat, ist eine Systematik dahinter — es steht drin, was zufällig aufgefallen ist.
+
+Michael formuliert es freundlicher: „Anders gefragt: Wo haben Sie überall nachgesehen?"`,
+    image: undefined,
+    involvedCharacters: ['isb'],
+    mentorNote:
+      'Ein Kataster ohne Quellensystematik ist eine Fundliste. Sie enthält, was jemandem begegnet ist — nicht, was gilt. Der Unterschied fällt erst auf, wenn etwas fehlt, das niemandem begegnet ist.',
+    choices: [
+      {
+        id: 'kt_audit_q4_offen_ehrlich',
+        text: '„Nicht überall. Ich kann Ihnen sagen, wo — und wo noch nicht."',
+        effects: { skills: { softSkills: 3, security: 2 }, stress: 6 },
+        resultText:
+          '„Das ist brauchbar", sagt Michael. „Eine halbe Systematik, die weiß, dass sie halb ist, kann man fortsetzen."\n\nEr notiert die offenen Quellen als Empfehlung, nicht als Mangel. Es ist der bestmögliche Ausgang einer Frage, die du nicht gewinnen konntest.',
+      },
+      {
+        id: 'kt_audit_q4_offen_behaupten',
+        text: '„Wir haben alles durchgesehen."',
+        effects: { stress: 10, relationships: { chef: -2 } },
+        resultText:
+          '„Gut", sagt Michael. „Dann zeigen Sie mir die Versicherungspolice."\n\nDie Police liegt in der Verwaltung, Anlage 2 fehlt seit Jahren, und im Kataster steht dazu nichts. Es dauert vier Minuten, bis das klar ist.\n\nAus einer Lücke ist eine widerlegte Behauptung geworden — und Michael prüft ab jetzt anders.',
+        setsFlags: ['kat_owner_fabricated'],
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+
+  // ── Q5 / K5 Eskalation ───────────────────────────────────────────────────
+  {
+    id: 'kt_audit_q5',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 5: Wer weiß davon?',
+    description: `Michael klappt den Block zu und stellt die letzte Frage ohne mitzuschreiben.
+
+„Was in diesem Kataster ist heute nicht erfüllt — und wer weiß davon?"
+
+Du hast die Liste. Sie ist eine Woche alt, hat vier Punkte, ein Datum und einen CC an die Geschäftsführung.
+
+Dr. Müller, die daneben sitzt, nickt, bevor du etwas sagen kannst.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'gf', 'bert'],
+    mentorNote:
+      'Die letzte Frage jedes Audits ist eine Frage nach der Organisation, nicht nach der Technik: Erreicht schlechte Nachricht die Stelle, die darüber entscheiden kann? Wenn ja, ist die Lücke ein Betriebsrisiko. Wenn nein, ist sie ein persönliches.',
+    choices: [
+      {
+        id: 'kt_audit_q5_liste',
+        text: 'Die Liste vorlegen — vier offene Punkte, gemeldet, mit Datum.',
+        effects: { skills: { security: 4, softSkills: 3 }, relationships: { gf: 3, chef: 3 }, stress: -5 },
+        resultText:
+          '„Vier offene Punkte, alle bekannt, alle oben." Michael steht auf. „Damit kann ich arbeiten."\n\nAn der Tür dreht er sich noch einmal um. „Wissen Sie, was der Unterschied zu den meisten Terminen ist? Ich erzähle Ihnen heute nichts Neues."',
+      },
+      {
+        id: 'kt_audit_q5_prioritaet',
+        text: 'Die Liste vorlegen — und sagen, welcher der vier Punkte zuerst gehört.',
+        effects: { skills: { security: 3, softSkills: 4 }, relationships: { gf: 4, chef: 2 }, stress: -3 },
+        resultText:
+          '„Das Notfallhandbuch", sagst du, „weil daran eine Dienstvereinbarung hängt und damit jede Log-Auswertung im Haus."\n\nMichael sieht Dr. Müller an. „Dem würde ich mich anschließen." Aus vier gleich großen Problemen ist eine Reihenfolge geworden, und die stammt nicht vom Prüfer.',
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
+  },
+  {
+    id: 'kt_audit_q5_offen',
+    weekRange: [11, 12],
+    probability: 1,
+    category: 'story',
+    title: 'Frage 5: Wer weiß davon?',
+    description: `Michael klappt den Block zu und stellt die letzte Frage ohne mitzuschreiben.
+
+„Was in diesem Kataster ist heute nicht erfüllt — und wer weiß davon?"
+
+Den ersten Teil kannst du beantworten. Du kennst jede offene Zeile.
+
+Der zweite Teil ist das Problem. Es gibt keine Mail, kein Datum, keinen Verteiler. Es gibt dich.`,
+    image: undefined,
+    involvedCharacters: ['isb', 'gf', 'bert'],
+    mentorNote:
+      'Wer eine Lücke kennt und nicht weitergibt, hat sie übernommen. Das ist selten eine bewusste Entscheidung — meistens ist es nur ein Vorgang, der nie schriftlich wurde. Der Unterschied zeigt sich erst, wenn jemand fragt, wer davon wusste.',
+    choices: [
+      {
+        id: 'kt_audit_q5_offen_sagen',
+        text: '„Die Punkte kenne ich alle. Weitergegeben habe ich sie nicht."',
+        effects: { stress: 12, skills: { softSkills: 3 }, relationships: { chef: -2 } },
+        resultText:
+          'Michael sieht Dr. Müller an. Dr. Müller sieht Bert an. Bert sieht niemanden an.\n\n„Dann fangen wir damit an", sagt Michael. „Nicht mit dem Kataster — mit dem Weg, auf dem so etwas hier nach oben kommt. Den gibt es nämlich nicht."\n\nEs ist der richtige Befund. Er steht nur an einer unangenehmen Stelle: nicht bei der Technik, sondern bei euch.',
+      },
+      {
+        id: 'kt_audit_q5_offen_ausweichen',
+        text: '„Das ist intern alles bekannt."',
+        effects: { stress: 14, relationships: { gf: -4, chef: -3 } },
+        resultText:
+          '„Bei wem?", fragt Michael, und wartet.\n\nDr. Müller sagt, sie höre von den vier Punkten zum ersten Mal. Bert sagt nichts, was noch schlechter ist.\n\nAus einer offenen Liste ist eine unzutreffende Angabe geworden — und zwar in Anwesenheit der Personen, die sie widerlegen.',
+        setsFlags: ['kat_owner_fabricated'],
+      },
+    ],
+    tags: ['kataster', 'act4', 'audit'],
   },
 ];

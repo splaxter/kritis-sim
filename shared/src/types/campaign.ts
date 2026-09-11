@@ -8,9 +8,10 @@
  * in the client campaigns module (`client/src/content/campaigns/`), so shared
  * stays free of content-shaped types.
  */
-export type CampaignId = 'probation' | 'audit-trail';
+export type CampaignId = 'probation' | 'audit-trail' | 'kataster';
 
 /** Per-campaign ending identifier. Probation keeps 'good' | 'neutral' | 'bad'
- *  (see EndingType); AUDIT TRAIL uses 'profi' | 'raecher' | 'stille'. Kept as a
- *  widened string so telemetry and cross-campaign code need not enumerate. */
+ *  (see EndingType); AUDIT TRAIL uses 'profi' | 'raecher' | 'stille'; DAS
+ *  KATASTER uses 'gruene_liste' | 'ordner' | 'aufpasser'. Kept as a widened
+ *  string so telemetry and cross-campaign code need not enumerate. */
 export type CampaignEndingId = string;
