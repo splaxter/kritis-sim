@@ -100,3 +100,76 @@ describe('LearningHub', () => {
     expect(onPick.mock.calls.some((c) => c[0]?.id === 'learn_05_pipe_filter')).toBe(true);
   });
 });
+
+describe('LearningHub — mit Enter durch die Lektionen', () => {
+  /**
+   * Der Hub ist die Station zwischen zwei Lektionen. Nach einem
+   * abgeschlossenen Level landet man hier und will fast immer die nächste
+   * Lektion — deshalb liegt der Fokus auf der Empfehlung.
+   */
+  it('fokussiert die Empfehlung beim Betreten, sodass Enter sie startet', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    const state = mkState([]);
+    const empfohlen = getRecommendedNext(state, allEvents)!;
+
+    render(<LearningHub state={state} onPick={onPick} />);
+
+    // Der Titel steht auch in der Track-Liste — die CTA ist die mit dem Label.
+    const cta = screen.getByRole('button', { name: /Nächste empfohlene Lektion/ });
+    expect(cta).toHaveTextContent(empfohlen.title);
+    expect(cta).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(onPick).toHaveBeenCalledWith(expect.objectContaining({ id: empfohlen.id }));
+  });
+
+  it('zeigt die Tastenbelegung an, damit man sie überhaupt findet', () => {
+    render(<LearningHub state={mkState([])} onPick={vi.fn()} />);
+    expect(screen.getByText('[Enter]')).toBeInTheDocument();
+  });
+
+  it('Enter wirkt auch, wenn der Fokus im Nichts liegt', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<LearningHub state={mkState([])} onPick={onPick} />);
+
+    (document.activeElement as HTMLElement | null)?.blur();
+    await user.keyboard('{Enter}');
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
+  /** Wer bewusst einen anderen Track wählt, darf nicht überstimmt werden. */
+  it('überstimmt keine bewusste Auswahl: Enter auf einem anderen Knopf wählt DIESEN', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    const state = mkState([]);
+    const empfohlen = getRecommendedNext(state, allEvents)!;
+
+    render(<LearningHub state={state} onPick={onPick} />);
+
+    // Auf einen anderen, spielbaren Level-Knopf tabben …
+    const andere = screen
+      .getAllByRole('button')
+      .filter((b) => !/Nächste empfohlene Lektion/.test(b.textContent ?? ''))
+      .filter((b) => !new RegExp(empfohlen.title).test(b.textContent ?? ''));
+    const ziel = andere.find((b) => !b.hasAttribute('disabled'));
+    if (!ziel) return; // kein zweiter spielbarer Eintrag im Startzustand
+    ziel.focus();
+    await user.keyboard('{Enter}');
+
+    // … es darf höchstens EIN Pick passieren, und nicht die Empfehlung.
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).not.toHaveBeenCalledWith(expect.objectContaining({ id: empfohlen.id }));
+  });
+
+  it('ohne Empfehlung (alles abgeschlossen) greift kein Enter-Handler', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    const alleIds = allEvents.map((e) => e.id);
+
+    render(<LearningHub state={mkState(alleIds)} onPick={onPick} />);
+    await user.keyboard('{Enter}');
+    expect(onPick).not.toHaveBeenCalled();
+  });
+});
