@@ -917,4 +917,212 @@ Michael hat beim Kick-off gefragt, wann WARM zuletzt gegenüber der Aufsicht nac
     },
     tags: ['kataster', 'act2', 'terminal'],
   },
+
+  // ═══════════════════════ AKT 2 — Das Register ════════════════════════════
+
+  // ── Dialog: Jens' einzige Warnung ────────────────────────────────────────
+  {
+    id: 'kt_jens_warnung',
+    weekRange: [6, 7],
+    probability: 1,
+    category: 'story',
+    title: 'Ein Name ist eine Zusage',
+    description: `Du sitzt vor dem Kataster mit allem, was du in den letzten Wochen gefunden hast. Vier Zeilen sind offen.
+
+Jens stellt sich dazu, liest kurz mit und sagt genau einen Satz:
+
+„Wenn du einen Namen einträgst, sag der Person Bescheid. Sonst ist es deiner."
+
+Dann geht er wieder. Er wird das nicht wiederholen.`,
+    image: undefined,
+    involvedCharacters: ['jens'],
+    mentorNote:
+      'Eine Zuweisung ohne Rückmeldung ist keine Zuweisung, sondern eine Hoffnung. Und eine Abteilung ist kein Aufpasser: Wenn die Zeile „IT-Abteilung" sagt, kann im Audit niemand die Frage beantworten, wann er zuletzt hingesehen hat — weil es kein „er" gibt. Aufpasser sind Personen. Immer.',
+    choices: [
+      {
+        id: 'kt_jens_warnung_verstanden',
+        text: 'Nicken. Und dir vornehmen, jede Zuweisung kurz schriftlich zu bestätigen.',
+        effects: { skills: { softSkills: 2 } },
+        resultText:
+          'Zwei Minuten Mehraufwand pro Zeile. Dafür steht am Ende in jeder Zeile ein Mensch, der weiß, dass er drinsteht.',
+      },
+      {
+        id: 'kt_jens_warnung_pragmatisch',
+        text: '„Und wenn ich niemanden habe? Dann bleibt die Zeile eben leer."',
+        effects: { skills: { security: 2 } },
+        resultText:
+          '„Dann bleibt sie leer", sagt Jens. „Aber markier sie als Lücke, nicht als vergessen. Eine leere Zelle sieht aus wie ein Versehen. Eine markierte Lücke sieht aus wie eine Entscheidung."\n\nEr hat recht, und es ist ein Unterschied, den man nur einmal erklärt bekommen muss.',
+      },
+      {
+        id: 'kt_jens_warnung_egal',
+        text: '„Hauptsache, da steht was drin. Sonst fragt der ISB wieder."',
+        effects: { stress: -2 },
+        resultText:
+          'Jens sagt nichts mehr dazu. Er hat seinen Satz gesagt.\n\nDas Kataster lässt sich schnell grün bekommen. Die Frage ist nur, wer es nachher auseinandernimmt — und ob du dabei danebensitzt.',
+      },
+    ],
+    tags: ['kataster', 'act2', 'dialog'],
+  },
+
+  // ── L7 [GUI Kataster] „Das Register" — Herzstück ─────────────────────────
+  {
+    id: 'kt_l7_kataster',
+    weekRange: [6, 7],
+    probability: 1,
+    category: 'story',
+    title: 'Das Register',
+    description: `Alles aus vier Wochen, in einer Tabelle. Vier Zeilen sind offen, und für zwei davon gibt es niemanden im Haus.
+
+**Deine Aufgabe:**
+- Gib den Zeilen einen Aufpasser, für die es einen gibt — **namentlich**
+- Häng die Nachweise an, die tatsächlich vorliegen
+- Und markier als Lücke, was keinen Aufpasser haben kann. Nicht leer lassen: **markieren**.`,
+    image: undefined,
+    involvedCharacters: ['jens', 'isb'],
+    mentorNote:
+      'Eine unbesetzte Zeile und eine als Lücke markierte Zeile sehen im Betrieb gleich aus — im Audit nicht. Die eine heisst „übersehen", die andere „bekannt, benannt, offen". Der Unterschied kostet einen Klick und entscheidet, ob aus einem Mangel ein Befund wird, den man selbst erhoben hat.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Das Kataster durchgehen...',
+        effects: {},
+        resultText:
+          'Vierzehn Pflichten. Zwei davon haben keinen Aufpasser und werden auch keinen bekommen — aber sie stehen jetzt als Lücke drin, mit Datum.\n\nDas ist kein schönes Kataster. Es ist ein wahres.',
+        guiCommand: true,
+      },
+    ],
+    guiContext: {
+      app: 'kataster',
+      title: 'Pflichtenkataster',
+      hostname: 'warm-adm-01',
+      briefing:
+        'Aufpasser sind Personen, keine Abteilungen. Was keinen bekommen kann, wird als Lücke markiert — nicht leer gelassen.',
+      state: {
+        kataster: {
+          title: 'Pflichtenkataster WARM — Stand 09/2026',
+          entries: [
+            {
+              id: 'sla_bericht',
+              source: 'SLA Komm.ONE § 4',
+              duty: 'Monatlichen Verfügbarkeitsbericht prüfen',
+              cycle: 'monatlich',
+              sourceExcerpt:
+                'Der Auftragnehmer stellt monatlich einen Verfügbarkeitsbericht bereit. Die Minderung ist binnen 30 Tagen nach Zugang anzuzeigen; danach ist sie ausgeschlossen.',
+            },
+            {
+              id: 'lizenznachweis',
+              source: 'Rahmenvertrag Lizenzen § 9',
+              duty: 'Lizenzbelegung jährlich nachweisen',
+              cycle: 'jaehrlich',
+              note: 'Vertrag vom Einkauf geschlossen (Frau Petersen)',
+              sourceExcerpt:
+                'Der Kunde weist dem Auftragnehmer jährlich, jeweils zum 30. Juni, die tatsächliche Belegung der erworbenen Lizenzen nach.',
+            },
+            {
+              id: 'notfallhandbuch',
+              source: 'Dienstvereinbarung Protokollierung § 7',
+              duty: 'IT-Notfallhandbuch erstellen und fortschreiben',
+              cycle: 'anlassbezogen',
+              note: 'Dokument existiert nicht — Suche protokolliert',
+              sourceExcerpt:
+                'Das Nähere regelt das IT-Notfallhandbuch in seiner jeweils gültigen Fassung.',
+            },
+            {
+              id: 'info_postfach',
+              source: 'Eigenfeststellung (Postfachexport)',
+              duty: 'Sammelpostfach info@ arbeitstäglich sichten',
+              note: 'Gehört allen — im Organigramm niemandem',
+              sourceExcerpt:
+                'Eingang der Aufsicht vom 24.06.2026, elf Wochen ungelesen.',
+            },
+            {
+              id: 'technikwartung',
+              source: 'Wartungsvertrag Herold § 3',
+              duty: 'Fahrzeugwaagen warten lassen, Protokoll ablegen',
+              cycle: 'halbjaehrlich',
+              owner: 'bjorg',
+              note: 'Letzte sichtbare Aktivität 14.01.2026 — Nachweis fehlt',
+            },
+            {
+              id: 'bsi_nachweis',
+              source: '§ 39 BSIG',
+              duty: 'Nachweis gegenüber dem Bundesamt erbringen',
+              cycle: 'dreijaehrlich',
+              owner: 'chef',
+              evidenceId: 'nachweis_2024',
+              locked: true,
+              note: 'Zuletzt 13.05.2024, nächste Fälligkeit 2027',
+            },
+          ],
+          people: [
+            { id: 'henry', name: 'Henry Bartels', role: 'Systemtechnik' },
+            { id: 'jens', name: 'Jens Adam', role: 'IT-Betrieb' },
+            { id: 'petersen', name: 'Frau Petersen', role: 'Zentraler Einkauf' },
+            { id: 'chef', name: 'Bert', role: 'IT-Leitung' },
+            { id: 'bjorg', name: 'Bjorg Jörgensen', role: 'IT-Betrieb', unconfirmed: true },
+            { id: 'it_abteilung', name: 'IT-Abteilung', role: 'Sammelzuweisung', isGroup: true },
+          ],
+          evidence: [
+            {
+              id: 'bericht_08',
+              label: 'Verfügbarkeitsbericht 08/2026',
+              date: '04.09.2026',
+              forEntry: 'sla_bericht',
+            },
+            {
+              id: 'nachweis_2024',
+              label: 'Nachweis Aufsicht (TÜV Hessen)',
+              date: '13.05.2024',
+              forEntry: 'bsi_nachweis',
+            },
+          ],
+        },
+      },
+      // REIHENFOLGE IST TEIL DES DESIGNS: Risiko vor Lob. Wer eine Abteilung
+      // als Aufpasser einträgt, hat das Kataster zum Lügen gebracht — das
+      // schlägt jede spätere Sorgfalt, genau wie im Ending (§5.3).
+      solutions: [
+        {
+          interactions: ['owner:sla_bericht:it_abteilung'],
+          allRequired: false,
+          setsFlags: ['kat_owner_fabricated', 'kat_orphan_sla'],
+          resultText:
+            'Die Zeile ist grün. „IT-Abteilung" steht drin, und niemand hat widersprochen — es war ja auch niemand gefragt worden.\n\nDu klappst das Kataster zu. Es sieht gut aus.',
+          skillGain: {},
+        },
+        {
+          interactions: ['owner:info_postfach:it_abteilung'],
+          allRequired: false,
+          setsFlags: ['kat_owner_fabricated'],
+          resultText:
+            'Das Sammelpostfach hat jetzt einen Aufpasser: die IT-Abteilung. Also alle. Also weiterhin niemand — nur steht es jetzt anders da.\n\nDu klappst das Kataster zu. Es sieht gut aus.',
+          skillGain: {},
+        },
+        {
+          // Der ehrliche Weg: zwei echte Aufpasser, ein echter Nachweis, zwei
+          // ausdrücklich markierte Lücken. Fünf Klicks, und das Grid sieht
+          // schlechter aus als vorher.
+          interactions: [
+            'owner:sla_bericht:henry',
+            'evidence:sla_bericht:bericht_08',
+            'owner:lizenznachweis:petersen',
+            'gap:notfallhandbuch',
+            'gap:info_postfach',
+          ],
+          allRequired: true,
+          setsFlags: ['kat_no_silent_orphan', 'kat_evidence_linked'],
+          resultText:
+            'Zwei Zeilen haben einen Menschen, der davon weiß. Eine hat einen Nachweis. Zwei sind als Lücke markiert — mit Datum, sichtbar, nicht wegerklärt.\n\nDas Kataster ist damit zum ersten Mal ein Dokument, das eine Frage beantworten kann statt sie zu beenden.',
+          skillGain: { security: 6, softSkills: 3 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Geh die offenen Zeilen einzeln durch und frag dich bei jeder dasselbe: Gibt es hier im Haus jemanden, der das wirklich tut?',
+        '🤖 Jens: Bei zwei Zeilen lautet die Antwort ehrlich „niemand". Dafür gibt es einen eigenen Zustand — und der ist besser als ein Name, der nicht stimmt.',
+        '🤖 Jens: Der Monatsbericht gehört zu uns: Henry macht das ohnehin, und für August liegt der Bericht schon vor — häng ihn an. Die Lizenzbelegung gehört dem Einkauf, also Frau Petersen.',
+        '🤖 Jens: Notfallhandbuch und Sammelpostfach kann heute niemand übernehmen. Markier beide als Lücke. Was du nicht besetzen kannst, benennst du.',
+      ],
+    },
+    tags: ['kataster', 'act2', 'gui'],
+  },
 ];

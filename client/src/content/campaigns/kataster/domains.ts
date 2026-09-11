@@ -26,7 +26,7 @@ export const GRUENE_LISTE_FLAGS = ['kat_owner_fabricated', 'kat_gap_concealed'] 
  * Act 2 without an owner and without being flagged), not an achievement. Act 3
  * branches its consequence beats on them.
  */
-export const ORPHAN_FLAGS = ['kat_orphan_sla', 'kat_orphan_license', 'kat_orphan_mailbox'] as const;
+export const ORPHAN_FLAGS = ['kat_orphan_sla', 'kat_orphan_license'] as const;
 
 /** Bonus flag: read only by the epilogue, never by a domain (see endings.ts). */
 export const BONUS_FLAGS = ['kat_reminder_live'] as const;

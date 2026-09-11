@@ -27,6 +27,7 @@ const CYCLE_LABELS: Record<KatasterCycle, string> = {
   halbjaehrlich: 'halbjährlich',
   jaehrlich: 'jährlich',
   zweijaehrlich: 'zweijährlich',
+  dreijaehrlich: 'dreijährlich',
   anlassbezogen: 'anlassbezogen',
 };
 
@@ -36,6 +37,7 @@ const CYCLE_ORDER: KatasterCycle[] = [
   'halbjaehrlich',
   'jaehrlich',
   'zweijaehrlich',
+  'dreijaehrlich',
   'anlassbezogen',
 ];
 

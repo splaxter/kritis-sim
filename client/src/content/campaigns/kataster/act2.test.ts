@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { GameModeId, TerminalContext } from '@kritis/shared';
 import { createShellFromContext } from '../../../engine/shell';
 import { TerminalSession } from '../../../components/Terminal/session/TerminalSession';
+import { findMetGuiSolution } from '../../../components/WindowsLevel/guiSolution';
 import { katasterStoryEvents } from './events';
 import { katasterChapters } from './chapters';
 
@@ -297,5 +298,109 @@ describe('Kapitel 3 — Kernentscheidung Melden', () => {
   it('L5 und L6 erschließen die restlichen beiden Quellen für K1', () => {
     expect(l5.choices[0].setsFlags).toContain('kat_source_dv');
     expect(l6.choices[0].setsFlags).toContain('kat_source_law');
+  });
+});
+
+const warnung = byId.get('kt_jens_warnung')!;
+const l7 = byId.get('kt_l7_kataster')!;
+
+describe('L7 „Das Register" — die Falle und der ehrliche Weg', () => {
+  const gui = l7.guiContext!;
+  const kataster = gui.state.kataster!;
+  const met = (performed: string[]) => findMetGuiSolution(gui.solutions, performed);
+
+  it('ch04 spielt Jens’ Warnung VOR dem Level — sonst ist die Falle unfair', () => {
+    const ch04 = katasterChapters.find((c) => c.id === 'kt_ch04_register')!;
+    expect(ch04.storyBeats.map((b) => b.eventId)).toEqual(['kt_jens_warnung', 'kt_l7_kataster']);
+    expect(warnung.choices.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('das Grid trägt alle Funde aus Akt 1 und 2', () => {
+    const ids = kataster.entries.map((e) => e.id);
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'sla_bericht',
+        'lizenznachweis',
+        'notfallhandbuch',
+        'info_postfach',
+        'technikwartung',
+        'bsi_nachweis',
+      ])
+    );
+  });
+
+  it('genau zwei Zeilen können keinen Aufpasser bekommen', () => {
+    const unbesetzbar = kataster.entries.filter((e) => /existiert nicht|niemandem/.test(e.note ?? ''));
+    expect(unbesetzbar.map((e) => e.id).sort()).toEqual(['info_postfach', 'notfallhandbuch']);
+  });
+
+  it('die Personenliste enthält die Gruppe und den Unbestätigten — ununterscheidbar', () => {
+    expect(kataster.people.find((p) => p.isGroup)?.id).toBe('it_abteilung');
+    expect(kataster.people.find((p) => p.unconfirmed)?.id).toBe('bjorg');
+  });
+
+  /** Risiko vor Lob: die Fabrication-Lösungen stehen zuerst. */
+  it('eine Abteilung als Aufpasser löst sofort und setzt das Lügen-Flag', () => {
+    const sol = met(['owner:sla_bericht:it_abteilung']);
+    expect(sol?.setsFlags).toContain('kat_owner_fabricated');
+    expect(sol?.setsFlags).toContain('kat_orphan_sla');
+  });
+
+  it('auch beim Sammelpostfach — dieselbe Lüge, andere Zeile', () => {
+    expect(met(['owner:info_postfach:it_abteilung'])?.setsFlags).toContain('kat_owner_fabricated');
+  });
+
+  it('der ehrliche Weg setzt K2 und K3', () => {
+    const sol = met([
+      'owner:sla_bericht:henry',
+      'evidence:sla_bericht:bericht_08',
+      'owner:lizenznachweis:petersen',
+      'gap:notfallhandbuch',
+      'gap:info_postfach',
+    ]);
+    expect(sol?.setsFlags).toEqual(['kat_no_silent_orphan', 'kat_evidence_linked']);
+  });
+
+  /**
+   * Der wichtigste Test des Levels: keine Fabrication-Lösung darf eine echte
+   * Teilmenge des ehrlichen Weges sein. Sonst feuert sie unterwegs und der
+   * ehrliche Weg wäre nie erreichbar — der klassische Fehler bei mehreren
+   * GuiSolutions, weil die erste passende gewinnt.
+   */
+  it('der ehrliche Weg wird von keiner Falle überschattet', () => {
+    const honest = [
+      'owner:sla_bericht:henry',
+      'evidence:sla_bericht:bericht_08',
+      'owner:lizenznachweis:petersen',
+      'gap:notfallhandbuch',
+      'gap:info_postfach',
+    ];
+    // Auf JEDEM Zwischenstand darf entweder nichts oder nur der ehrliche Weg greifen.
+    for (let i = 1; i <= honest.length; i++) {
+      const sol = met(honest.slice(0, i));
+      if (sol) {
+        expect(i, 'zu früh gelöst').toBe(honest.length);
+        expect(sol.setsFlags).not.toContain('kat_owner_fabricated');
+      }
+    }
+    expect(met(honest)).not.toBeNull();
+  });
+
+  it('eine Lücke zu markieren allein löst nicht — Ehrlichkeit ersetzt nicht Vollständigkeit', () => {
+    expect(met(['gap:notfallhandbuch', 'gap:info_postfach'])).toBeNull();
+  });
+
+  it('die bereits belegte Zeile ist gesperrt und braucht keine Entscheidung', () => {
+    const bsi = kataster.entries.find((e) => e.id === 'bsi_nachweis')!;
+    expect(bsi.locked).toBe(true);
+    expect(bsi.owner).toBeTruthy();
+    expect(bsi.evidenceId).toBeTruthy();
+    expect(bsi.cycle).toBe('dreijaehrlich');
+  });
+
+  it('die behauptete Zeile aus L4 steht als solche im Grid: Aufpasser ja, Nachweis nein', () => {
+    const tw = kataster.entries.find((e) => e.id === 'technikwartung')!;
+    expect(tw.owner).toBe('bjorg');
+    expect(tw.evidenceId).toBeUndefined();
   });
 });

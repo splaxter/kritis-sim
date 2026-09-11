@@ -230,6 +230,7 @@ export type KatasterCycle =
   | 'halbjaehrlich'
   | 'jaehrlich'
   | 'zweijaehrlich'
+  | 'dreijaehrlich'
   | 'anlassbezogen';
 
 /** Someone a duty can be assigned to. */
