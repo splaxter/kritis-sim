@@ -98,7 +98,7 @@ const APP_ICONS: Record<string, string> = {
 export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: WindowsLevelProps) {
   const styles = useStyles();
   const briefing = briefingOverride ?? context.briefing;
-  const { emit, solved, resultText, hintsRemaining, visibleHints, showHint } = useGuiLevel({
+  const { emit, retract, solved, resultText, hintsRemaining, visibleHints, showHint } = useGuiLevel({
     context,
     onSolved,
   });
@@ -165,6 +165,7 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             findings={context.state.kataster?.findings}
             evidence={context.state.kataster?.evidence}
             emit={emit}
+            retract={retract}
             locked={solved}
           />
         );

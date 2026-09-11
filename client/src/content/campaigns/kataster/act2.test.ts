@@ -178,7 +178,10 @@ describe('Akt 2 — die Flag-Wirkung der Entscheidungen', () => {
     const flagsOf = (id: string) => befund.choices.find((c) => c.id === id)!.setsFlags ?? [];
     expect(flagsOf('kt_l4_befund_zurueckstufen')).toEqual(['kat_stale_owner_found']);
     expect(flagsOf('kt_l4_befund_nachfragen')).toEqual(['kat_stale_owner_found']);
-    expect(flagsOf('kt_l4_befund_gruen')).toEqual(['kat_gap_concealed']);
+    // Eigenes Flag, NICHT kat_gap_concealed: das gehört dem Notfallhandbuch
+    // aus L5. Mit dem gemeinsamen Flag warf die Vorstandsfrage jemandem vor,
+    // das Handbuch verschwiegen zu haben, der es gemeldet hatte (Review #13).
+    expect(flagsOf('kt_l4_befund_gruen')).toEqual(['kat_stale_concealed']);
   });
 
   it('L3 setzt die Lizenz-Quelle für K1', () => {

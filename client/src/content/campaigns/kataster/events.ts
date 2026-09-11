@@ -649,7 +649,7 @@ Bjorg kommt vorbei, Kaffee in der Hand: „Waagen? Läuft. Da ruft die Herold sc
         effects: { stress: -3, relationships: { kollegen: 1 } },
         resultText:
           'Du schließt die Datei. Bjorg merkt nichts, und es gibt heute keinen Konflikt.\n\nDas Kataster sagt jetzt: Fahrzeugwaagen, halbjährlich, Aufpasser Bjorg Jörgensen. Es sagt nicht, dass die letzte sichtbare Spur aus dem Januar ist.\n\nDu weißt es. Aufgeschrieben hat es niemand.',
-        setsFlags: ['kat_gap_concealed'],
+        setsFlags: ['kat_stale_concealed'],
       },
     ],
     tags: ['kataster', 'act2', 'dialog'],
@@ -1090,11 +1090,26 @@ Dann geht er wieder. Er wird das nicht wiederholen.`,
           skillGain: {},
         },
         {
-          interactions: ['owner:info_postfach:it_abteilung'],
-          allRequired: false,
+          // Fabriziert, ABER der Monatsbericht hat vorher einen echten
+          // Aufpasser bekommen: dann ist die SLA-Zeile nicht verwaist und Akt 3
+          // darf die Mahnung zu Recht abwenden. Muss VOR der Variante ohne
+          // Henry stehen, sonst gewinnt dort das pauschale kat_orphan_sla.
+          interactions: ['owner:sla_bericht:henry', 'owner:info_postfach:it_abteilung'],
+          allRequired: true,
+          ordered: true,
           setsFlags: ['kat_owner_fabricated'],
           resultText:
-            'Das Sammelpostfach hat jetzt einen Aufpasser: die IT-Abteilung. Also alle. Also weiterhin niemand — nur steht es jetzt anders da.\n\nDu klappst das Kataster zu. Es sieht gut aus.',
+            'Der Monatsbericht hat einen Menschen. Das Sammelpostfach hat eine Abteilung — also alle, also weiterhin niemand, nur steht es jetzt anders da.\n\nDu klappst das Kataster zu. Eine Zeile hält, eine sieht nur so aus.',
+          skillGain: {},
+        },
+        {
+          // Dieselbe Fälschung ohne echten Aufpasser für den Monatsbericht:
+          // die SLA-Zeile bleibt verwaist, und die Uhr in Akt 3 läuft weiter.
+          interactions: ['owner:info_postfach:it_abteilung'],
+          allRequired: false,
+          setsFlags: ['kat_owner_fabricated', 'kat_orphan_sla'],
+          resultText:
+            'Das Sammelpostfach hat jetzt einen Aufpasser: die IT-Abteilung. Also alle. Also weiterhin niemand — nur steht es jetzt anders da.\n\nDen Monatsbericht hast du dabei nicht angefasst. Du klappst das Kataster zu. Es sieht gut aus.',
           skillGain: {},
         },
         {
@@ -1546,12 +1561,15 @@ Heute ist der 11.09.2026. Interessant ist, was bis zum 11.10.2026 fällig wird.
             // … und beide fälligen Zeilen müssen drinstehen …
             { file: '/srv/monitoring/inbox/kataster_faellig.txt', matches: '2026-10-05' },
             { file: '/srv/monitoring/inbox/kataster_faellig.txt', matches: '2026-10-09' },
-            // … und keine der späteren. Ein "cat > datei" der ganzen CSV
-            // erfüllt die Aufgabe damit nicht: Filtern ist der Punkt.
+            // … und KEINE der späteren. 2027 allein genügt hier nicht: der
+            // Sammelpostfach-Termin ist der 2026-12-01 und liegt ebenfalls
+            // hinter dem Stichtag. Wer bis Jahresende filtert statt bis zum
+            // 11.10., zieht ihn mit — und bestand vorher trotzdem.
+            { file: '/srv/monitoring/inbox/kataster_faellig.txt', absentMatches: '2026-12-01' },
             { file: '/srv/monitoring/inbox/kataster_faellig.txt', absentMatches: '2027-' },
           ],
           resultText:
-            'Zwei Zeilen: der Verfügbarkeitsbericht am 05.10. und die Waagenwartung am 09.10. Alles aus 2027 ist draußen geblieben.\n\nAb Montag geht die Liste automatisch raus. Wer dann nichts tut, tut es wenigstens nicht aus Unwissenheit.\n\nMerke: Fristen gehören nicht in Köpfe, sondern dorthin, wo ohnehin jemand hinsieht.',
+            'Zwei Zeilen: der Verfügbarkeitsbericht am 05.10. und die Waagenwartung am 09.10. Alles, was später fällig wird, ist draußen geblieben — auch das Sammelpostfach im Dezember.\n\nAb Montag geht die Liste automatisch raus. Wer dann nichts tut, tut es wenigstens nicht aus Unwissenheit.\n\nMerke: Fristen gehören nicht in Köpfe, sondern dorthin, wo ohnehin jemand hinsieht.',
           skillGain: { linux: 5, security: 3, troubleshooting: 3 },
           effects: { stress: -4 },
         },
@@ -1910,7 +1928,7 @@ Dr. Müller, die daneben sitzt, nickt, bevor du etwas sagen kannst.`,
 
 Den ersten Teil kannst du beantworten. Du kennst jede offene Zeile.
 
-Der zweite Teil ist das Problem. Es gibt keine Mail, kein Datum, keinen Verteiler. Es gibt dich.`,
+Der zweite Teil ist dünner. Irgendwo liegt vielleicht eine Mail, irgendwo hat jemand genickt — aber es gibt keine Stelle, an der der ganze Stand steht, und mindestens eine Zeile hat nie jemanden außerhalb dieses Raums erreicht.`,
     image: undefined,
     involvedCharacters: ['isb', 'gf', 'bert'],
     mentorNote:
@@ -1918,17 +1936,21 @@ Der zweite Teil ist das Problem. Es gibt keine Mail, kein Datum, keinen Verteile
     choices: [
       {
         id: 'kt_audit_q5_offen_sagen',
-        text: '„Die Punkte kenne ich alle. Weitergegeben habe ich sie nicht."',
+        // Muss in JEDER Teil-Eskalation wahr bleiben: wer schriftlich an die
+        // GF gegangen ist, aber den Einkauf nie eingebunden hat, darf hier
+        // nicht behaupten, er habe nichts weitergegeben. Die Antwort benennt
+        // deshalb die Naht, nicht das Nichts.
+        text: '„Einen Teil habe ich weitergegeben, einen Teil nicht — ich sage Ihnen genau, welchen."',
         effects: { stress: 12, skills: { softSkills: 3 }, relationships: { chef: -2 } },
         resultText:
-          'Michael sieht Dr. Müller an. Dr. Müller sieht Bert an. Bert sieht niemanden an.\n\n„Dann fangen wir damit an", sagt Michael. „Nicht mit dem Kataster — mit dem Weg, auf dem so etwas hier nach oben kommt. Den gibt es nämlich nicht."\n\nEs ist der richtige Befund. Er steht nur an einer unangenehmen Stelle: nicht bei der Technik, sondern bei euch.',
+          'Du gehst die Zeilen durch und sagst zu jeder, wer davon weiss und woher. Es sind weniger, als du gehofft hattest.\n\nMichael sieht Dr. Müller an. Dr. Müller sieht Bert an. Bert sieht niemanden an.\n\n„Dann fangen wir damit an", sagt Michael. „Nicht mit dem Kataster — mit dem Weg, auf dem so etwas hier nach oben kommt. Den gibt es nämlich nicht als Weg, nur als Einzelfall."\n\nEs ist der richtige Befund. Er steht nur an einer unangenehmen Stelle: nicht bei der Technik, sondern bei euch.',
       },
       {
         id: 'kt_audit_q5_offen_ausweichen',
         text: '„Das ist intern alles bekannt."',
         effects: { stress: 14, relationships: { gf: -4, chef: -3 } },
         resultText:
-          '„Bei wem?", fragt Michael, und wartet.\n\nDr. Müller sagt, sie höre von den vier Punkten zum ersten Mal. Bert sagt nichts, was noch schlechter ist.\n\nAus einer offenen Liste ist eine unzutreffende Angabe geworden — und zwar in Anwesenheit der Personen, die sie widerlegen.',
+          '„Bei wem?", fragt Michael, und wartet.\n\nDr. Müller geht die Punkte durch. Bei einem nickt sie. Bei den übrigen nicht — die hört sie zum ersten Mal. Bert sagt nichts, was noch schlechter ist.\n\nAus einer offenen Liste ist eine unzutreffende Angabe geworden — und zwar in Anwesenheit der Personen, die sie widerlegen. „Alles" war ein Wort zu viel.',
         setsFlags: ['kat_owner_fabricated'],
       },
     ],

@@ -10,6 +10,21 @@ interface UseGuiLevelArgs {
 interface UseGuiLevelResult {
   /** Record a player interaction (e.g. 'select:x', 'endtask:x'). */
   emit: (interaction: string) => void;
+  /**
+   * Take back an interaction that is no longer true.
+   *
+   * `performed` is a HISTORY, and every matcher in guiSolution.ts is positive
+   * (`includes`), so a token that was once emitted counts forever. For an app
+   * whose interactions are assignments rather than events — the Pflichten-
+   * kataster assigns an owner, a cycle, a piece of evidence — that is wrong:
+   * assigning Henry, removing him again and then finishing would still satisfy
+   * a solution that requires Henry. The app calls this with the SUPERSEDED
+   * token so `performed` keeps describing the register's current state.
+   *
+   * Removing a token can never newly satisfy a solution (all matchers are
+   * positive), so this deliberately does not re-check for a win.
+   */
+  retract: (interaction: string) => void;
   /** Interactions performed so far, in order. */
   performed: string[];
   /** True once a solution has been met (level locked / animating out). */
@@ -66,6 +81,12 @@ export function useGuiLevel({ context, onSolved }: UseGuiLevelArgs): UseGuiLevel
     [context.solutions, onSolved]
   );
 
+  const retract = useCallback((interaction: string) => {
+    // Nach dem Sieg ist das Level eingefroren — dasselbe Wachthaus wie in emit.
+    if (solvedRef.current) return;
+    setPerformed((prev) => prev.filter((i) => i !== interaction));
+  }, []);
+
   const showHint = useCallback(() => {
     setVisibleHints((prev) => {
       if (prev.length >= context.hints.length) return prev;
@@ -75,6 +96,7 @@ export function useGuiLevel({ context, onSolved }: UseGuiLevelArgs): UseGuiLevel
 
   return {
     emit,
+    retract,
     performed,
     solved,
     resultText,

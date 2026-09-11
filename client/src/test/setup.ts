@@ -1,4 +1,17 @@
 import '@testing-library/jest-dom';
+import { configure } from '@testing-library/react';
+
+/**
+ * `findBy...` und `waitFor` haben ein EIGENES Limit von 1000 ms, unabhängig vom
+ * testTimeout in vitest.config.ts. Unter Last reichte das nicht: ein
+ * `findByRole` direkt nach einem Modalwechsel schlug dann als „Unable to find
+ * role=…" fehl — was wie eine echte Regression aussieht, aber keine ist.
+ *
+ * 5 s ist immer noch kurz genug, dass ein wirklich fehlendes Element den Test
+ * zügig rot macht, und lang genug, dass ein beschäftigter Rechner ihn nicht
+ * erfindet. Zusammen mit testTimeout: 15000 deckt das beide Uhren ab.
+ */
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom doesn't implement these browser APIs that some UI libraries (e.g.
 // Fluent UI) rely on. Provide minimal no-op polyfills for the test environment.

@@ -108,6 +108,108 @@ describe('deriveRowState — die Ampel wird abgeleitet, nie geseedet', () => {
   });
 });
 
+/**
+ * Aus dem Review zu PR #13: die Zeile ist ein Verbundelement mit echten Buttons
+ * darin. Ihr Keydown-Handler fing Enter/Leertaste per preventDefault ab —
+ * auch dann, wenn die Taste einen dieser Buttons getroffen hatte. Mit der Maus
+ * fiel das nie auf, per Tastatur war die halbe App unbedienbar.
+ */
+describe('Pflichtenkataster — Tastaturbedienung der Zeilenbuttons', () => {
+  it('„Lücke melden" löst mit Enter aus, nicht nur mit der Maus', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={makeContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    const ziel = row(/Notfallhandbuch fortschreiben/);
+    await user.click(ziel);
+    const melden = within(ziel).getByRole('button', { name: /Lücke melden/ });
+    melden.focus();
+    await user.keyboard('{Enter}');
+
+    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
+
+  it('das Aufpasser-Menü öffnet mit Enter', async () => {
+    const user = userEvent.setup();
+    render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    const ziel = row(/Monatlichen Verfügbarkeitsbericht/);
+    const trigger = within(ziel).getByRole('button', { name: /Aufpasser/ });
+    trigger.focus();
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('menuitem', { name: /Henry Bartels/ })).toBeInTheDocument();
+  });
+
+  it('die Zeile selbst reagiert weiterhin auf Enter und die Pfeiltasten', async () => {
+    const user = userEvent.setup();
+    render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    const erste = row(/Monatlichen Verfügbarkeitsbericht/);
+    erste.focus();
+    await user.keyboard('{Enter}');
+    expect(erste).toHaveAttribute('aria-selected', 'true');
+
+    await user.keyboard('{ArrowDown}');
+    expect(row(/Lizenzbelegung/)).toHaveFocus();
+  });
+});
+
+/**
+ * Aus dem Review zu PR #13: Aufpasser/Turnus/Nachweis sind ZUSTÄNDE. Eine
+ * zurückgenommene Zuweisung darf eine Lösung nicht mehr erfüllen — sonst
+ * belohnt das Level einen Registerstand, den es nicht mehr gibt.
+ */
+describe('Pflichtenkataster — zurückgenommene Zuweisungen zählen nicht mehr', () => {
+  const ownerContext = () =>
+    makeContext({
+      solutions: [
+        {
+          interactions: ['owner:sla_bericht:henry', 'gap:notfallhandbuch'],
+          allRequired: true,
+          resultText: 'Ehrlich.',
+          skillGain: { security: 4 },
+        },
+      ],
+    });
+
+  it('Aufpasser setzen, wieder entfernen und Lücke melden löst NICHT aus', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={ownerContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    const sla = row(/Monatlichen Verfügbarkeitsbericht/);
+    await user.click(within(sla).getByRole('button', { name: /Aufpasser/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Henry Bartels/ }));
+
+    await user.click(within(row(/Monatlichen Verfügbarkeitsbericht/)).getByRole('button', { name: /Aufpasser/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Aufpasser entfernen/ }));
+
+    const handbuch = row(/Notfallhandbuch fortschreiben/);
+    await user.click(handbuch);
+    await user.click(within(handbuch).getByRole('button', { name: /Lücke melden/ }));
+
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(onSolved).not.toHaveBeenCalled();
+  });
+
+  it('mit bestehender Zuweisung löst dieselbe Folge aus', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={ownerContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    const sla = row(/Monatlichen Verfügbarkeitsbericht/);
+    await user.click(within(sla).getByRole('button', { name: /Aufpasser/ }));
+    await user.click(await screen.findByRole('menuitem', { name: /Henry Bartels/ }));
+
+    const handbuch = row(/Notfallhandbuch fortschreiben/);
+    await user.click(handbuch);
+    await user.click(within(handbuch).getByRole('button', { name: /Lücke melden/ }));
+
+    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
+});
+
 describe('WindowsLevel — Pflichtenkataster', () => {
   it('rendert die Kopfzeile mit den Zählern', () => {
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);

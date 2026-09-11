@@ -15,11 +15,22 @@ import { FlagCondition, checkFlagCondition } from '@kritis/shared';
 export type KatasterDomain = 'K1' | 'K2' | 'K3' | 'K4' | 'K5';
 
 /**
- * The flags that, on their own, collapse the whole case. Both are lies rather
- * than gaps: an owner nobody agreed to, and a gap that was smoothed over.
- * A gap is a finding; a false statement is a different category.
+ * The flags that, on their own, collapse the whole case. All three are lies
+ * rather than gaps: an owner nobody agreed to, and two gaps that were smoothed
+ * over. A gap is a finding; a false statement is a different category.
+ *
+ * Die beiden Verschweige-Flags sind GETRENNT, weil sie verschiedene Dinge
+ * betreffen: `kat_gap_concealed` ist das fehlende Notfallhandbuch (L5),
+ * `kat_stale_concealed` die still grün gelassene Waagenwartung (L4). Fürs Ende
+ * zählen beide gleich — aber nur das Handbuch darf die Vorstandsfrage
+ * auslösen, die wörtlich nach dem Handbuch fragt. Ein gemeinsames Flag warf
+ * jemandem vor, das Handbuch verschwiegen zu haben, der es gemeldet hatte.
  */
-export const GRUENE_LISTE_FLAGS = ['kat_owner_fabricated', 'kat_gap_concealed'] as const;
+export const GRUENE_LISTE_FLAGS = [
+  'kat_owner_fabricated',
+  'kat_gap_concealed',
+  'kat_stale_concealed',
+] as const;
 
 /**
  * Orphan markers. NOT part of any domain — they record a STATE (this duty left
@@ -55,7 +66,7 @@ export const KATASTER_DOMAINS: Record<KatasterDomain, KatasterDomainDef> = {
     label: 'Ehrlichkeit',
     condition: {
       all: ['kat_gap_reported'],
-      none: ['kat_owner_fabricated', 'kat_gap_concealed'],
+      none: ['kat_owner_fabricated', 'kat_gap_concealed', 'kat_stale_concealed'],
     },
   },
   K5: {

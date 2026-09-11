@@ -172,6 +172,13 @@ interface KatasterProps {
   evidence?: KatasterEvidence[];
   /** Emit an interaction token to the level engine. */
   emit: (interaction: string) => void;
+  /**
+   * Take back a token that a newer assignment has superseded. Aufpasser,
+   * Turnus und Nachweis sind ZUSTÄNDE, keine Ereignisse — ohne dies würde
+   * „Henry eintragen, Henry wieder entfernen" weiterhin als „Henry eingetragen"
+   * zählen, weil `performed` ein Verlauf ist (siehe useGuiLevel.retract).
+   */
+  retract: (interaction: string) => void;
   /** Locks the UI once the level is solved. */
   locked: boolean;
 }
@@ -195,6 +202,7 @@ export function Kataster({
   findings = [],
   evidence = [],
   emit,
+  retract,
   locked,
 }: KatasterProps) {
   const styles = useStyles();
@@ -216,13 +224,30 @@ export function Kataster({
     };
   }, [rows]);
 
+  /**
+   * Welchen Token macht dieser Patch ungültig? Aufpasser, Turnus und Nachweis
+   * sind pro Zeile einwertig: ein neuer Wert ersetzt den alten, „entfernen"
+   * löscht ihn. Der alte Token muss deshalb aus `performed` verschwinden,
+   * sonst belegt das Level einen Zustand, den es nicht mehr gibt.
+   */
+  const supersededToken = (row: KatasterEntry, patch: Partial<KatasterEntry>): string | null => {
+    if ('owner' in patch && row.owner) return `owner:${row.id}:${row.owner}`;
+    if ('cycle' in patch && row.cycle) return `cycle:${row.id}:${row.cycle}`;
+    if ('evidenceId' in patch && row.evidenceId) return `evidence:${row.id}:${row.evidenceId}`;
+    return null;
+  };
+
   /** Mutate one row and emit its token. Locked rows and a locked level are inert. */
   const update = (id: string, patch: Partial<KatasterEntry>, token: string) => {
     if (locked) return;
     const row = rows.find((r) => r.id === id);
     if (!row || row.locked) return;
+    const stale = supersededToken(row, patch);
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
     setWarning(null);
+    // Erst zurücknehmen, dann setzen: sonst könnte der neue Token eine
+    // Loesung erfüllen, während der alte noch mitzaehlt.
+    if (stale && stale !== token) retract(stale);
     emit(token);
   };
 
@@ -259,6 +284,13 @@ export function Kataster({
 
   const onRowKeyDown = (e: React.KeyboardEvent, entry: KatasterEntry, index: number) => {
     if (locked) return;
+    // Die Zeile ist ein Verbundelement: in ihr liegen echte Buttons (Aufpasser,
+    // Turnus, Nachweis, „Lücke melden", „Eskalieren"). React-Events blubbern,
+    // und das stopPropagation der Zellen gilt nur fuer Klicks — ein Enter auf
+    // einem dieser Buttons landete hier und wurde von preventDefault()
+    // geschluckt, sodass der Button nie auslöste. Nur Tasten behandeln, die
+    // wirklich die Zeile getroffen haben.
+    if (e.target !== e.currentTarget) return;
     switch (e.key) {
       case 'Enter':
       case ' ':
