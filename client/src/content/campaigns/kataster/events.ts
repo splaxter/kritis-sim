@@ -1125,4 +1125,445 @@ Dann geht er wieder. Er wird das nicht wiederholen.`,
     },
     tags: ['kataster', 'act2', 'gui'],
   },
+
+  // ═══════════════════════════ AKT 3 — Die Uhr ═════════════════════════════
+  //
+  // Jeder Payoff hat zwei Varianten: branchCondition (verwaist) vs.
+  // alternateEventId (besetzt). Garantierter Payoff statt Chain-Engine —
+  // Story-Mode serviert pendingChainEvents nicht.
+
+  // ── Payoff 1a: SLA verwaist → Mahnschreiben ──────────────────────────────
+  {
+    id: 'kt_mahnung',
+    weekRange: [7, 9],
+    probability: 1,
+    category: 'story',
+    title: 'Ein Brief mit Aktenzeichen',
+    description: `Die Hauspost bringt einen Umschlag, den sonst niemand aufmacht, weil er an die IT adressiert ist.
+
+Komm.ONE, Vertragsmanagement. Es geht um § 4 des Rahmenvertrags.
+
+Die Verfügbarkeit lag im Mai, Juni und Juli unter 99,5 %. Drei Monate, drei Berichte, jeder pünktlich zugestellt. Die Minderung hätte binnen 30 Tagen nach Zugang angezeigt werden müssen.
+
+Der Brief ist höflich. Er teilt lediglich mit, dass für diese Monate keine Anzeige eingegangen ist und die Ansprüche damit ausgeschlossen sind.
+
+Der Bericht lag jeden Monat im Postfach. Geprüft hat ihn niemand — die Zeile hatte keinen Aufpasser.`,
+    image: undefined,
+    involvedCharacters: ['chef', 'kaemmerer'],
+    mentorNote:
+      'Eine nicht geprüfte Service-Level-Zusage ist eine geschenkte Vertragsstrafe. Der Schaden entsteht nicht durch den Ausfall — für den gäbe es eine Minderung — sondern durch die verstrichene Frist, sie geltend zu machen. Genau deshalb hat die Spalte „Aufpasser" einen eigenen Platz neben der Spalte „Pflicht".',
+    choices: [
+      {
+        id: 'kt_mahnung_annehmen',
+        text: 'Den Vorgang aufnehmen: Schaden beziffern, Ursache benennen, ins Kataster eintragen.',
+        effects: { budget: -4200, skills: { security: 3 }, stress: 6, relationships: { chef: 1 } },
+        resultText:
+          'Du rechnest es aus: rund 4.200 Euro, die nicht mehr zu holen sind. Dann schreibst du dazu, warum — nicht „technisches Versäumnis", sondern „Zeile ohne Aufpasser, Bericht ging an ein Postfach, das niemand liest".\n\nBert liest es und sagt: „Das ist teuer. Aber es ist das erste Mal, dass mir jemand sagen kann, WARUM." Er trägt es selbst im Kataster nach.',
+      },
+      {
+        id: 'kt_mahnung_kaempfen',
+        text: 'Widersprechen: Die Berichte kamen an eine Sammeladresse, das sei keine wirksame Zustellung.',
+        effects: { budget: -4200, stress: 10, relationships: { kaemmerer: -2 } },
+        resultText:
+          'Die Rechtsabteilung der Komm.ONE antwortet in vier Sätzen: Die Adresse sei im Vertrag als Kontaktadresse benannt, und zwar von WARM.\n\nDamit ist es nicht nur teuer, sondern auch noch aktenkundig, dass ihr eine Adresse benannt habt, die ihr nicht lest.',
+      },
+      {
+        id: 'kt_mahnung_weiterreichen',
+        text: 'An die Kämmerei weitergeben. Vertragsstrafen sind kein IT-Thema.',
+        effects: { budget: -4200, relationships: { kaemmerer: -4 }, stress: 3 },
+        resultText:
+          'Die Kämmerei gibt es zurück, mit einem Post-it: „Wer hätte den Bericht prüfen müssen?"\n\nDarauf gibt es keine Antwort, die nicht auf euch zeigt. Der Betrag bleibt.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Payoff 1b: SLA besetzt → die Minderung wird geholt ───────────────────
+  {
+    id: 'kt_mahnung_abgewendet',
+    weekRange: [7, 9],
+    probability: 1,
+    category: 'story',
+    title: 'Ein Brief mit Aktenzeichen',
+    description: `Die Hauspost bringt einen Umschlag von der Komm.ONE, Vertragsmanagement, § 4 des Rahmenvertrags.
+
+Diesmal kommt Henry damit zu dir, bevor du ihn aufmachst — er hat den Vorgang schon.
+
+„Mai, Juni, Juli unter 99,5 %. Ich hab's jeden Monat geprüft, weil es seit August in meiner Zeile steht. Anzeige ist jeweils in der zweiten Woche raus."
+
+Der Brief ist die Bestätigung. Die Minderung wird gutgeschrieben.`,
+    image: undefined,
+    involvedCharacters: ['chef'],
+    mentorNote:
+      'Derselbe Ausfall, dasselbe Geld — einmal verloren, einmal geholt. Der ganze Unterschied ist ein Name in einer Spalte und die Frist, die dadurch jemandem aufgefallen ist.',
+    choices: [
+      {
+        id: 'kt_mahnung_abgewendet_gutschrift',
+        text: 'Gutschrift entgegennehmen und den Vorgang im Kataster als Nachweis ablegen.',
+        effects: { budget: 4200, skills: { security: 2 }, relationships: { chef: 3 }, stress: -4 },
+        resultText:
+          'Rund 4.200 Euro Gutschrift. Was aber mehr wiegt: die Zeile hat jetzt drei echte Nachweise hintereinander, mit Datum.\n\nBert nimmt den Vorgang mit in die Leitungsrunde. Es ist das erste Mal seit Jahren, dass die IT dort mit einer Zahl auftaucht, die positiv ist.',
+      },
+      {
+        id: 'kt_mahnung_abgewendet_ausbauen',
+        text: 'Gutschrift nehmen — und Henry fragen, welche Zeile als Nächstes einen Aufpasser braucht.',
+        effects: { budget: 4200, skills: { security: 3, softSkills: 2 }, relationships: { kollegen: 2 }, stress: -2 },
+        resultText:
+          '„Die Waagen", sagt Henry ohne zu überlegen. „Da steht zwar jemand drin, aber es kommt nichts zurück."\n\nEr hat recht, und er weiß es, weil er jetzt selbst in einer Zeile steht und gemerkt hat, was das bedeutet. So verbreitet sich ein Kataster: nicht über Schulungen, sondern über Leute, die einmal erlebt haben, dass es funktioniert.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Payoff 2a: Lizenz verwaist → die Rechnung ────────────────────────────
+  {
+    id: 'kt_rechnung',
+    weekRange: [8, 10],
+    probability: 1,
+    category: 'story',
+    title: 'Die Rechnung für 280',
+    description: `Die Jahresrechnung des Systemhauses liegt der Kämmerei vor. Eine Position sticht heraus: Wartung Archiv-Suite, 280 CAL, volles Jahr.
+
+Belegung im gesamten Zeitraum: null.
+
+Die Teilkündigung nach § 10 wäre zum Vertragsjahresende möglich gewesen, mit drei Monaten Frist. Das Vertragsjahr endete vor sechs Wochen.
+
+Die Zeile im Kataster hat bis heute keinen Aufpasser. Es hat also niemand daran gedacht, und es war auch niemand dafür da.`,
+    image: undefined,
+    involvedCharacters: ['kaemmerer', 'chef'],
+    mentorNote:
+      'Eine Kündigungsfrist ist eine Pflicht wie jede andere: Sie steht im Vertrag, sie wiederholt sich, und sie verfällt. Der Unterschied zu einer Meldepflicht ist nur, dass niemand mahnt, wenn man sie verpasst — man zahlt einfach weiter.',
+    choices: [
+      {
+        id: 'kt_rechnung_eintragen',
+        text: 'Bezahlen, eintragen, Frist fürs nächste Jahr setzen — mit Aufpasser.',
+        effects: { budget: -6800, skills: { security: 3 }, stress: 5 },
+        resultText:
+          'Ein Jahr für nichts, rund 6.800 Euro. Du trägst die Kündigungsfrist als eigene Zeile ein: Quelle § 10, Turnus jährlich, Aufpasser Einkauf, nächste Prüfung drei Monate vor Vertragsjahresende.\n\nDamit passiert es genau einmal. Das ist nicht nichts.',
+      },
+      {
+        id: 'kt_rechnung_verhandeln',
+        text: 'Beim Systemhaus anrufen und versuchen, das Kontingent doch noch zu reduzieren.',
+        effects: { budget: -5100, stress: 8, skills: { softSkills: 2 } },
+        resultText:
+          'Der Vertrieb ist freundlich und unnachgiebig: Die Frist steht im Vertrag. Als Geste gibt es eine Reduzierung ab dem nächsten Vertragsjahr und einen kleinen Nachlass auf die laufende Rechnung.\n\nEs bleibt teuer. Aber du weißt jetzt, dass Fristen verhandelbar klingen und es nicht sind.',
+      },
+      {
+        id: 'kt_rechnung_stillhalten',
+        text: 'Durchwinken. Die Position steht seit Jahren so drin, das fällt niemandem auf.',
+        effects: { budget: -6800, stress: -2, relationships: { kaemmerer: -3 } },
+        resultText:
+          'Die Rechnung geht durch. Es fällt tatsächlich niemandem auf — bis die Kämmerei im Herbst die Positionen mit der Lizenzliste abgleicht, die du selbst geliefert hast.\n\n„Sie wussten das?", fragt sie. Die Frage ist nicht böse gemeint. Sie ist nur schwer zu beantworten.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Payoff 2b: Lizenz übergeben → der Einkauf hat gekündigt ──────────────
+  {
+    id: 'kt_rechnung_abgewendet',
+    weekRange: [8, 10],
+    probability: 1,
+    category: 'story',
+    title: 'Die Rechnung für 40',
+    description: `Die Jahresrechnung des Systemhauses liegt vor. Position Archiv-Suite: 40 CAL statt 280.
+
+Frau Petersen hat im Juli fristgerecht teilgekündigt — drei Monate vor Vertragsjahresende, nach § 10. Sie hat es getan, weil die Zeile in ihrem Kataster stand, mit Datum, seit dem Tag, an dem du ihr den Auszug geschickt hast.
+
+In der Mail steht ein Satz, der dir bleiben wird: „Ich hätte das nie gefunden. Es stand ja nirgends."`,
+    image: undefined,
+    involvedCharacters: ['kaemmerer'],
+    mentorNote:
+      'Eine Pflicht bei der Stelle, die sie erfüllen kann, ist mehr wert als dieselbe Pflicht bei der Stelle, die sie bemerkt hat. Die IT bemerkt Lizenzlücken — kündigen kann nur der Einkauf.',
+    choices: [
+      {
+        id: 'kt_rechnung_abgewendet_bestaetigen',
+        text: 'Die Ersparnis dokumentieren und im Kataster als Nachweis hinterlegen.',
+        effects: { budget: 5600, skills: { security: 2 }, relationships: { kaemmerer: 4 }, stress: -3 },
+        resultText:
+          'Rund 5.600 Euro im Jahr, dauerhaft. Du legst die Kündigungsbestätigung als Nachweis an die Zeile.\n\nDie Kämmerei fragt nach, wo das herkommt. Als sie hört, dass es aus einem Kataster kommt, will sie wissen, was da sonst noch drinsteht. Das ist der Moment, in dem aus einer Liste ein Instrument wird.',
+      },
+      {
+        id: 'kt_rechnung_abgewendet_ausweiten',
+        text: 'Anbieten, die restlichen Lizenzpositionen genauso durchzugehen.',
+        effects: { budget: 5600, skills: { softSkills: 3, security: 2 }, relationships: { kaemmerer: 5 }, stress: 4 },
+        resultText:
+          'Ihr geht die Liste gemeinsam durch. Zwei weitere Positionen sind überdimensioniert, eine ist seit 2022 für ein abgeschaltetes System.\n\nEs kostet dich drei Nachmittage. Es bringt dir eine Verbündete in der Kämmerei — und das ist in diesem Haus mehr wert als drei Nachmittage.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Payoff 3a: Lücke kaschiert → die Vorstandsfrage ──────────────────────
+  {
+    id: 'kt_vorstandsfrage',
+    weekRange: [9, 11],
+    probability: 1,
+    category: 'story',
+    title: 'Zeigen Sie es mir',
+    description: `Leitungsrunde, Dr. Müller hat Michaels Zwischenstand vor sich liegen.
+
+„Herr Michael schreibt, unsere Dienstvereinbarung stütze sich auf ein IT-Notfallhandbuch." Sie blättert. „Ich hätte das gern gesehen. Nicht heute — aber diese Woche."
+
+Es gibt keins. Du weißt das seit Wochen. Auf deinem Laufwerk liegt ein Suchprotokoll mit Datum, das genau das belegt, und du hast es nie weitergegeben.
+
+Bjorg sieht dich nicht an.`,
+    image: undefined,
+    involvedCharacters: ['gf', 'chef', 'kollege'],
+    mentorNote:
+      'Verschwiegenes Wissen wird mit der Zeit teurer, nicht billiger. Aus „uns fehlt ein Dokument" wird „uns fehlt ein Dokument, und die IT wusste es seit sechs Wochen" — und die zweite Aussage beantwortet eine Frage, die niemand gestellt hätte.',
+    choices: [
+      {
+        id: 'kt_vorstandsfrage_sofort',
+        text: 'Sofort sagen, dass es das Handbuch nicht gibt — und dass du es seit dem 14. weißt.',
+        effects: { stress: 12, skills: { softSkills: 3, security: 2 }, relationships: { gf: -1, chef: 1 } },
+        resultText:
+          'Es wird still. Dr. Müller fragt genau das, was du befürchtet hast: „Seit wann?"\n\nDu sagst das Datum. Sie notiert es. „Danke für die Ehrlichkeit. Beim nächsten Mal am selben Tag." Kein Donnerwetter — aber ein Satz, den du nicht noch einmal hören willst.\n\nDie Lücke ist jetzt offen. Der Umweg über sechs Wochen war umsonst und teuer zugleich.',
+      },
+      {
+        id: 'kt_vorstandsfrage_ausweichen',
+        text: '„Ich schau nach, wo das abgelegt ist." — und danach ein Handbuch improvisieren.',
+        effects: { stress: 16, relationships: { gf: -4, chef: -3 } },
+        resultText:
+          'Zwei Abende später liegt ein achtseitiges Dokument vor, das aussieht wie ein Notfallhandbuch und keins ist. Es hat kein Datum, keine Freigabe und keine Abstimmung mit dem Personalrat — den eine Dienstvereinbarung zwingend voraussetzt.\n\nMichael findet das beim nächsten Termin in vier Minuten. Aus einer fehlenden Unterlage ist eine erfundene geworden, und das ist eine andere Kategorie.',
+      },
+      {
+        id: 'kt_vorstandsfrage_bjorg',
+        text: 'Auf Bjorg zeigen: Er hat gesagt, man solle das nicht aufmachen.',
+        effects: { stress: 8, relationships: { kollegen: -6, gf: -2 } },
+        resultText:
+          'Bjorg widerspricht nicht. Er sagt nur: „Ich bin nicht für die Dokumentation zuständig."\n\nEr hat recht — es steht in keiner Zeile, dass er es ist. Genau das ist das Problem, das du hättest lösen sollen, und genau davon redet jetzt niemand mehr.\n\nDie Runde endet ohne Ergebnis. Was bleibt, ist eine IT, die sich vor der Geschäftsführung gestritten hat.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Payoff 3b: Lücke gemeldet → dieselbe Frage, andere Tonlage ───────────
+  {
+    id: 'kt_vorstandsfrage_gemeldet',
+    weekRange: [9, 11],
+    probability: 1,
+    category: 'story',
+    title: 'Sie wussten das',
+    description: `Leitungsrunde, Dr. Müller hat Michaels Zwischenstand vor sich liegen.
+
+„Herr Michael schreibt, unsere Dienstvereinbarung stütze sich auf ein Notfallhandbuch, das es nicht gibt." Sie sieht auf. „Sie wussten das."
+
+Es ist keine Anklage. Es ist eine Feststellung — sie hat euren Vermerk vor sechs Wochen selbst gelesen.
+
+„Dann reden wir jetzt darüber, was es kostet, das zu schreiben."`,
+    image: undefined,
+    involvedCharacters: ['gf', 'chef'],
+    mentorNote:
+      'Eine selbst gemeldete Lücke verändert die Frage: nicht mehr „warum wusste das niemand", sondern „was kostet die Behebung". Das ist derselbe Mangel in einem Gespräch, das man gewinnen kann.',
+    choices: [
+      {
+        id: 'kt_vorstandsfrage_gemeldet_budget',
+        text: 'Aufwand beziffern: extern begleitet, mit Personalrat, realistisch im ersten Quartal.',
+        effects: { budget: 9000, skills: { softSkills: 4, security: 2 }, relationships: { gf: 4, chef: 3 }, stress: 3 },
+        resultText:
+          'Du hast die Zahl vorbereitet, weil du seit sechs Wochen weißt, dass die Frage kommt. Dr. Müller genehmigt das Budget in derselben Sitzung.\n\n„Sehen Sie", sagt sie zu Bert, „so möchte ich das immer haben. Nicht die Überraschung, sondern den Preis."',
+      },
+      {
+        id: 'kt_vorstandsfrage_gemeldet_intern',
+        text: 'Anbieten, es intern zu schreiben — günstiger, aber es dauert.',
+        effects: { skills: { security: 3 }, relationships: { gf: 2 }, stress: 10 },
+        resultText:
+          '„Wenn Sie das schaffen, gern", sagt Dr. Müller. „Aber ich will einen Termin, keinen Vorsatz."\n\nDu nennst einen. Er ist knapp, und du wirst ihn halten müssen — neben allem anderen. Die Lücke schließt sich dadurch, aber sie schließt sich auf deine Kosten.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'payoff'],
+  },
+
+  // ── Bjorg beansprucht vier Zeilen ────────────────────────────────────────
+  {
+    id: 'kt_bjorg_vier',
+    weekRange: [9, 11],
+    probability: 1,
+    category: 'story',
+    title: 'Mach ich alles',
+    description: `Bjorg hat das Kataster gesehen. Jetzt steht er in der Tür, gut gelaunt.
+
+„Du, die vier Zeilen da — Waagen, Archiv, Firewall-Sichtung, das Postfach. Mach ich alles. Trag mich ein."
+
+Er meint es nicht böse. Er meint es sogar ernst, in dem Moment, in dem er es sagt.
+
+Bei der Technikwartung steht er seit drei Jahren drin. Die letzte sichtbare Aktivität ist vom 14. Januar.`,
+    image: undefined,
+    involvedCharacters: ['kollege', 'jens'],
+    mentorNote:
+      'Mündliche Zusagen sind keine Zuweisungen. Nicht weil Kollegen unehrlich wären, sondern weil niemand sich an vier Zeilen erinnert, die er im Türrahmen übernommen hat. Eine Zuweisung wird erst durch die Rückmeldung verbindlich — und die Rückmeldung ist zugleich der erste Nachweis der Zeile.',
+    choices: [
+      {
+        id: 'kt_bjorg_vier_bestaetigen',
+        text: '„Mach ich. Ich schick dir die vier Zeilen per Mail — antworte kurz mit ok."',
+        effects: { skills: { softSkills: 4, security: 3 }, relationships: { kollegen: 1 }, stress: 2 },
+        resultText:
+          'Die Mail geht raus: vier Zeilen, je ein Satz, je ein Turnus. Bjorg antwortet nach zwei Tagen mit „ok" und streicht zwei davon: „Firewall macht Henry. Postfach will ich nicht."\n\nDas ist mehr wert als vier Zusagen: zwei Zeilen sind jetzt verbindlich besetzt, und zwei sind ehrlich offen. Die Mail liegt im Kataster als Nachweis.',
+        setsFlags: ['kat_ownership_confirmed'],
+      },
+      {
+        id: 'kt_bjorg_vier_eintragen',
+        text: 'Eintragen, wie er es gesagt hat. Er hat es ja angeboten.',
+        effects: { stress: -3 },
+        resultText:
+          'Vier Zeilen, ein Name, dreißig Sekunden. Das Kataster sieht deutlich besser aus als heute Morgen.\n\nBjorg hat inzwischen ein anderes Thema. Ob er sich an die vier Zeilen erinnert, wird sich zeigen — zum ersten Mal vermutlich dann, wenn jemand danach fragt.',
+        setsFlags: ['kat_owner_fabricated'],
+      },
+      {
+        id: 'kt_bjorg_vier_ablehnen',
+        text: '„Danke — aber ich trag niemanden ein, der nicht schriftlich zugesagt hat."',
+        effects: { skills: { security: 2 }, relationships: { kollegen: -2 } },
+        resultText:
+          '„Auch gut", sagt Bjorg, leicht pikiert, und geht.\n\nDie vier Zeilen bleiben offen. Das ist korrekt und fühlt sich trotzdem falsch an — du hattest gerade jemanden, der wollte, und hast ihn weggeschickt, statt es festzuhalten.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'dialog'],
+  },
+
+  // ── Die Eskalation: offene Lücken schriftlich nach oben ──────────────────
+  {
+    id: 'kt_eskalation',
+    weekRange: [10, 11],
+    probability: 1,
+    category: 'story',
+    title: 'Was offen bleibt',
+    description: `Michael kommt in einer Woche. Im Kataster stehen vier Zeilen, die heute niemand übernehmen kann — und die auch nächste Woche niemand übernehmen wird.
+
+Die Frage ist nicht mehr, ob du sie schließt. Die Frage ist, wer außer dir davon weiß.`,
+    image: undefined,
+    mailCompose: {
+      from: 'timo@warm-rhein-main.de',
+      to: 'bert@warm-rhein-main.de',
+      cc: 'mueller@warm-rhein-main.de',
+      subject: 'Pflichtenkataster — offene Punkte, Stand 09/2026',
+    },
+    involvedCharacters: ['chef', 'gf'],
+    mentorNote:
+      'Eskalation ist keine Beschwerde, sondern eine Übergabe. Wer eine offene Pflicht schriftlich, mit Datum und an die entscheidungsbefugte Stelle meldet, dreht die Bringschuld: Ab diesem Zeitpunkt ist die Lücke ein Thema der Leitung. Ohne diesen Schritt bleibt sie ein Thema dessen, der sie gefunden hat.',
+    choices: [
+      {
+        id: 'kt_eskalation_schriftlich',
+        text: 'Schriftlich, mit Datum, an Bert — CC Geschäftsführung. Vier Zeilen, je zwei Sätze.',
+        effects: { skills: { softSkills: 4, security: 3 }, relationships: { chef: 2, gf: 2 }, stress: -2 },
+        resultText:
+          'Kein Vorwurf, keine Forderung. Nur: Diese vier Pflichten bestehen, für diese vier gibt es heute keinen Aufpasser, hier ist jeweils die Fundstelle.\n\nBert antwortet mit einem Satz: „Verstanden, ich nehm es in die Leitungsrunde." Damit liegt es dort — nicht geschlossen, aber auch nicht mehr allein deins.',
+        setsFlags: ['kat_gaps_escalated'],
+      },
+      {
+        id: 'kt_eskalation_muendlich',
+        text: 'Bert beim Kaffee davon erzählen. Er weiß ja im Grunde Bescheid.',
+        effects: { relationships: { chef: 1 }, stress: 2 },
+        resultText:
+          '„Ja, das müssen wir angehen", sagt Bert, und er meint es.\n\nEs gibt keine Mail, kein Datum und nichts, worauf man sich später berufen kann. Wenn Michael fragt, wer von den offenen Punkten weiß, lautet die ehrliche Antwort: zwei Leute, ungefähr, seit ungefähr.',
+      },
+      {
+        id: 'kt_eskalation_selbst',
+        text: 'Nichts melden. Du arbeitest sie bis zum Termin selbst so weit wie möglich ab.',
+        effects: { stress: 14, skills: { security: 2 } },
+        resultText:
+          'Du schaffst eineinhalb von vier. Der Rest bleibt, wie er war, und steht im Kataster als das, was er ist.\n\nNur weiß es weiterhin niemand außer dir. Im Audit wird die Frage nicht lauten, wie viel du geschafft hast, sondern wer von den Lücken wusste — und dann stehst du allein da, mit einer sehr ehrlichen Liste.',
+      },
+    ],
+    tags: ['kataster', 'act3', 'dialog'],
+  },
+
+  // ── L8 [CLI Linux, optional ★] „Was in dreißig Tagen fällig wird" ────────
+  {
+    id: 'kt_l8_fristen',
+    weekRange: [10, 11],
+    probability: 1,
+    category: 'story',
+    title: 'Was in dreißig Tagen fällig wird ★',
+    description: `Das Kataster liegt jetzt auch als Export vor, eine Zeile pro Pflicht, mit der nächsten Prüfung als Datum.
+
+Henry hat einen Vorschlag: „Das Monitoring liest alles, was in \`/srv/monitoring/inbox\` liegt, und schickt es montags an den Bereitschaftsverteiler. Wenn deine Fristenliste da reinfällt, muss niemand mehr dran denken."
+
+Heute ist der 11.09.2026. Interessant ist, was bis zum 11.10.2026 fällig wird.
+
+**Deine Aufgabe:**
+- Sieh dir den Kataster-Export an
+- Zieh die Zeilen heraus, deren nächste Prüfung **bis zum 11.10.2026** fällig ist (\`awk\`)
+- Schreib das Ergebnis nach \`/srv/monitoring/inbox/kataster_faellig.txt\``,
+    image: undefined,
+    involvedCharacters: ['henry'],
+    mentorNote:
+      'ISO-Daten (JJJJ-MM-TT) lassen sich als Zeichenketten vergleichen — „2026-10-10" ist kleiner als „2026-10-11", ganz ohne Datumsrechnung. Deshalb ist `awk -F\';\' \'$4 <= "2026-10-11"\'` eine vollständige Fristenprüfung. Und deshalb schreibt man Datumsangaben in einem Kataster nie als 10.10.2026: in diesem Format sortiert und vergleicht sich nichts mehr.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Den Export durchgehen...',
+        effects: {},
+        resultText:
+          'Zwei Pflichten werden in den nächsten dreißig Tagen fällig. Die Liste liegt jetzt dort, wo das Monitoring hinsieht — sie kommt am Montag von selbst, ohne dass jemand daran denkt.\n\nDas ist der Unterschied zwischen einem Kataster und einem Kalender: Das eine weiß es, das andere sagt es.',
+        terminalCommand: true,
+        setsFlags: ['kat_reminder_live'],
+      },
+      {
+        // Ein optionales Level muss ablehnbar sein, sonst ist es keins.
+        id: 'kt_l8_spaeter',
+        text: 'Später. Bis zum Audit ist noch anderes wichtiger.',
+        effects: { stress: -2 },
+        resultText:
+          'Die Fristen stehen im Kataster. Dass sie dort stehen, heißt nur, dass jemand nachsehen muss — und dieser Jemand bist bis auf Weiteres du.\n\nHenry zuckt mit den Schultern: „Das Postfach ist ja da. Meld dich, wenn du magst."',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Kataster-Export lesen; mit awk die Zeilen herausziehen, deren nächste Prüfung bis 2026-10-11 fällig ist; Ergebnis nach /srv/monitoring/inbox/kataster_faellig.txt schreiben.',
+      vfsOverlay: {
+        directories: ['/srv/kataster', '/srv/monitoring/inbox'],
+        files: [
+          {
+            path: '/srv/kataster/pflichten.csv',
+            content:
+              'quelle;pflicht;aufpasser;naechste_pruefung\nSLA Komm.ONE 4;Verfügbarkeitsbericht prüfen;Henry Bartels;2026-10-05\nRahmenvertrag Lizenzen 9;Lizenzbelegung nachweisen;Frau Petersen;2027-06-30\n39 BSIG;Nachweis gegenüber dem Bundesamt;Bert;2027-05-13\nWartungsvertrag Herold 3;Waagen warten lassen;Bjorg Jörgensen;2026-10-09\nDV Protokollierung 7;Notfallhandbuch fortschreiben;(Lücke);2027-01-31\nEigenfeststellung;Sammelpostfach sichten;(Lücke);2026-12-01\n',
+          },
+          {
+            path: '/srv/monitoring/inbox/README.txt',
+            content:
+              'Alles, was hier liegt, geht montags 07:00 an den Bereitschaftsverteiler.\nEine Datei pro Thema. Wird nicht gelöscht, nur überschrieben.\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        awk: { linux: 3, troubleshooting: 2 },
+        cat: { linux: 1 },
+        sort: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/kataster/pflichten.csv' },
+            // Wirklich gefiltert, nicht abgetippt: awk muss gelaufen sein …
+            { commandRan: { pattern: '^\\s*awk\\b', outcome: 'succeeded' } },
+            // … und beide fälligen Zeilen müssen drinstehen …
+            { file: '/srv/monitoring/inbox/kataster_faellig.txt', matches: '2026-10-05' },
+            { file: '/srv/monitoring/inbox/kataster_faellig.txt', matches: '2026-10-09' },
+            // … und keine der späteren. Ein "cat > datei" der ganzen CSV
+            // erfüllt die Aufgabe damit nicht: Filtern ist der Punkt.
+            { file: '/srv/monitoring/inbox/kataster_faellig.txt', absentMatches: '2027-' },
+          ],
+          resultText:
+            'Zwei Zeilen: der Verfügbarkeitsbericht am 05.10. und die Waagenwartung am 09.10. Alles aus 2027 ist draußen geblieben.\n\nAb Montag geht die Liste automatisch raus. Wer dann nichts tut, tut es wenigstens nicht aus Unwissenheit.\n\nMerke: Fristen gehören nicht in Köpfe, sondern dorthin, wo ohnehin jemand hinsieht.',
+          skillGain: { linux: 5, security: 3, troubleshooting: 3 },
+          effects: { stress: -4 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Der Export hat eine Spalte mit dem nächsten Prüfdatum. Du brauchst nur die Zeilen, die vor einem Stichtag liegen.',
+        '🤖 Henry: Die Daten stehen als JJJJ-MM-TT drin. In dem Format kannst du sie direkt als Text vergleichen — kleiner heißt früher, ganz ohne Datumsrechnung.',
+        '🤖 Henry: `awk -F\';\' \'$4 <= "2026-10-11"\' /srv/kataster/pflichten.csv` gibt dir die fälligen Zeilen.',
+        '🤖 Henry: Und das Ergebnis umleiten, damit das Monitoring es findet: `... > /srv/monitoring/inbox/kataster_faellig.txt`',
+      ],
+    },
+    tags: ['kataster', 'act3', 'terminal', 'optional'],
+  },
 ];
