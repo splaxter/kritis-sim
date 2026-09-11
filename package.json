@@ -15,6 +15,7 @@
     "test:watch": "npm run build -w shared && vitest",
     "test:coverage": "npm run build -w shared && vitest run --coverage",
     "test:e2e": "npm run build && playwright test",
+    "test:e2e:chrome": "PW_CHANNEL=chrome npm run test:e2e",
     "test:all": "npm run test && npm run test:e2e"
   },
   "devDependencies": {

@@ -16,6 +16,7 @@ npm workspaces monorepo: `client`, `server`, `shared`. Run everything from the r
 - `npm run test:client` — jsdom browser tests (`client/vitest.config.ts`, includes `*.browser.test.tsx`)
 - Single test: `npm test -- client/src/engine/gameState.test.ts` or `npm run test:client -- src/hooks/useAutosave.browser.test.tsx` (path relative to `client/`)
 - `npm run test:e2e` — full build, then Playwright (`e2e/game.spec.ts`); its webServer starts prod on :3000 and probes `/api/health`
+- `npm run test:e2e:chrome` — same suite against the **installed** Google Chrome (`PW_CHANNEL=chrome`), for when Playwright's own browser download is missing or blocked. A missing browser shows up as *skipped* tests and exit code 0, not as an error — if the run reports far fewer than 72 tests, that is why. CI always uses the pinned bundled Chromium; keep it that way, since the mobile specs assert pixel widths.
 - `npm run test:coverage`, `test:watch`, `test:all`
 
 There is no lint script. Typechecking happens via `tsc` inside `npm run build`. Root vitest resolves `@kritis/shared` through `shared/dist` — after changing shared types, rebuild shared (`npm run build -w shared`) before running root tests directly with `npx vitest`.
