@@ -137,7 +137,9 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
       const label =
         cardKind === 'hands-on'
           ? isGui
-            ? '🗔 Aufgabe starten'
+            // 🖥️, nicht 🗔 (U+1F5D4): das Fenster-Zeichen fehlt in Apple Color Emoji
+            // und erscheint dort als leeres Kästchen — beim Durchspielen gefunden.
+            ? '🖥️ Aufgabe starten'
             : '▶ Aufgabe starten'
           : 'Weiter ▶';
       const cta =
@@ -180,7 +182,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
                 {index + 1}.
               </span>
               {choice.terminalCommand && <span className="text-terminal-info mr-1">&gt;</span>}
-              {choice.guiCommand && <span className="text-terminal-info mr-1">🗔</span>}
+              {choice.guiCommand && <span className="text-terminal-info mr-1">🖥️</span>}
               {formatNarrativeText(choice.text, characters)}
             </span>
             {isRecommended && (
@@ -205,7 +207,7 @@ export function EventCard({ event, state, onChoice, characters = {} }: EventCard
           <span>
             <span className={isSelected ? 'text-terminal-green' : 'text-terminal-green-dim'}>[{index + 1}]</span>{' '}
             {choice.terminalCommand && <span className="text-terminal-info">&gt; </span>}
-            {choice.guiCommand && <span className="text-terminal-info">🗔 </span>}
+            {choice.guiCommand && <span className="text-terminal-info">🖥️ </span>}
             {formatNarrativeText(choice.text, characters)}
           </span>
           {isRecommended && (

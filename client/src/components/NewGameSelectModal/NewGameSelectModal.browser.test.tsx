@@ -39,6 +39,37 @@ describe('NewGameSelectModal', () => {
     expect(onSelectSimulation).toHaveBeenCalledOnce();
   });
 
+  /**
+   * Die Karten stehen nebeneinander, also muss Links/Rechts sie auch wechseln —
+   * genau wie im Kampagnen-Picker mit demselben Layout. Hoch/Runter bleibt,
+   * weil das Layout auf dem Handy umbricht.
+   */
+  it.each(['{ArrowRight}', '{ArrowLeft}', '{ArrowDown}', '{ArrowUp}'])(
+    'wechselt mit %s auf die Story-Karte und startet sie',
+    async (key) => {
+      const user = userEvent.setup();
+      const onSelectStory = vi.fn();
+      const onSelectSimulation = vi.fn();
+      render(
+        <NewGameSelectModal
+          onSelectSimulation={onSelectSimulation}
+          onSelectStory={onSelectStory}
+          onClose={vi.fn()}
+        />
+      );
+
+      await user.keyboard(key);
+
+      const story = screen.getByRole('button', { name: /Story-Kampagne/ });
+      expect(story).toHaveAttribute('aria-pressed', 'true');
+      expect(story).toHaveFocus();
+
+      await user.keyboard('{Enter}');
+      expect(onSelectStory).toHaveBeenCalledOnce();
+      expect(onSelectSimulation).not.toHaveBeenCalled();
+    }
+  );
+
   it('activates the button that received focus through Tab', async () => {
     const user = userEvent.setup();
     const onSelectStory = vi.fn();

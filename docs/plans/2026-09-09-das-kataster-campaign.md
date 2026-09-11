@@ -16,6 +16,15 @@ TRAIL dürfen sich in keiner Phase verhalten ändern.
 
 **Tech Stack:** React 18, TypeScript, Fluent UI (GUI-Apps), Vitest (node `*.test.ts` + jsdom `*.browser.test.tsx`), xterm.js-Shell-Engine.
 
+> **STATUS 11.09.2026 — Tasks 1–15 erledigt, Kampagne registriert und spielbar.**
+> 6 Kapitel · 24 Beats · 8 Level · 3 Enden · ~180 eigene Tests.
+> Gesamtlauf grün: `npm run build`, `npm test` (1705), `npm run test:client` (1884).
+> Abweichungen vom Plan, alle absichtlich und im Text unten begründet:
+> Task 6 ans Ende von Phase C verschoben (Registry erzwingt `campaignBudget`-Grün);
+> L8 von „Report-Skript + cron" auf `awk`+Monitoring-Inbox umgebaut, weil die Shell
+> weder `date -d` noch selbstgeschriebene Skripte noch `/etc/cron.d` kennt — ein
+> nachgebauter Cron hätte die Regel „keine fiktiven Kommandos" gebrochen.
+
 **Design doc:** `docs/plans/2026-09-09-das-kataster-campaign-design.md` — hält die fünf Auditfragen (§4), Flag-/Domänen-Landkarte (§5), Level-Specs mit Lern-/Tun-Hälfte (§6), die App-Spezifikation (§7.1), Testpflichten (§8). **Bei Widerspruch gewinnt das Design-Doc.**
 
 **Acceptance bar:** Jeder Task endet grün (`npm run build` typecheckt via `tsc`; Task-Tests laufen) und committet. Probezeit und AUDIT TRAIL verhalten sich identisch (bestehende Tests bleiben grün, alte Saves laden). Content-Tasks respektieren die Audit-Tests (Pacing, Orthographie, Hint-Eskalation, Choice-Design).
@@ -60,7 +69,7 @@ TRAIL dürfen sich in keiner Phase verhalten ändern.
 
 # PHASE A — Die GUI-App `kataster` (isoliert, ohne Content)
 
-## Task 1: Typen für die Kataster-App (shared)
+## Task 1: Typen für die Kataster-App (shared) ✅ **erledigt**
 
 **Files:** Edit `shared/src/types/gui.ts`.
 
@@ -75,7 +84,7 @@ den Regressionstest in Task 3.
 
 **Verify:** `npm run build -w shared` typecheckt. Kein bestehender Test ändert sich.
 
-## Task 2: `Kataster`-Komponente
+## Task 2: `Kataster`-Komponente ✅ **erledigt**
 
 **Files:** Create `client/src/components/WindowsLevel/apps/Kataster.tsx`.
 
@@ -99,7 +108,7 @@ Token-Vokabular exakt aus Design §7.1.
 
 **Verify:** typecheckt; noch nicht gerendert.
 
-## Task 3: Dispatch + Browser-Tests
+## Task 3: Dispatch + Browser-Tests ✅ **erledigt**
 
 **Files:** Edit `client/src/components/WindowsLevel/index.tsx`; create `client/src/components/WindowsLevel/Kataster.browser.test.tsx`.
 
@@ -122,7 +131,7 @@ Tests (Design §8.4/§8.5):
 
 **Verify:** `npm run test:client -- src/components/WindowsLevel/Kataster.browser.test.tsx` grün; `npm run test:client` insgesamt grün.
 
-## Task 4: Dev-Preview
+## Task 4: Dev-Preview ✅ **erledigt**
 
 **Files:** Edit `client/src/components/WindowsLevel/DevGuiPreview.tsx`.
 
@@ -171,7 +180,7 @@ alles; < 2 Domänen → `ordner`; ≥ 4 Domänen ohne K2 **oder** ohne K4 → **
 `aufpasser`; 2–3 Domänen → `ordner`; pro Domäne ein Epilog-Fall „Flag fehlt →
 Satz fehlt".
 
-## Task 6: Registrierung + Menü — **verschoben ans Ende von Phase C** (siehe Kasten oben)
+## Task 6: Registrierung + Menü ✅ **erledigt** — **war ans Ende von Phase C verschoben** (siehe Kasten oben)
 
 **Files:** Edit `client/src/content/campaigns/index.ts:11,18`; edit `client/src/engine/campaignInitialState.test.ts`; edit `client/src/content/campaigns/campaignMenu.test.ts`.
 
@@ -217,7 +226,7 @@ Kein Code. Ergebnis, das der Content-Autor kennen muss:
 - Keine erfundenen Behörden-Aktenzeichen; Aktenzeichen sind WARM-interne
   Vorgangsnummern.
 
-## Task 8: Akt 1 — Der Ordner
+## Task 8: Akt 1 — Der Ordner ✅ **erledigt**
 
 **Files:** Edit `client/src/content/campaigns/kataster/events.ts`, `chapters.ts`; create `client/src/content/campaigns/kataster/act1.test.ts`.
 
@@ -229,7 +238,7 @@ Fundstapel ist Pflicht, nicht Deko.
 
 **Verify:** `npm test -- client/src/content/campaigns/kataster/act1.test.ts`; `npm test` (Orthographie, Choice-Design).
 
-## Task 9: Akt 2 — Die Spuren (L3/L4)
+## Task 9: Akt 2 — Die Spuren (L3/L4) ✅ **erledigt**
 
 **Files:** Edit `events.ts`, `chapters.ts`; create `act2.test.ts`.
 
@@ -237,7 +246,7 @@ Fundstapel ist Pflicht, nicht Deko.
 **L4 `kt_l4_acht_monate`** + `kat_gap_concealed`-Falle (K4).
 Kapitel `kt_ch02_vertraege`.
 
-## Task 10: Akt 2 — Die Spuren (L5/L6)
+## Task 10: Akt 2 — Die Spuren (L5/L6) ✅ **erledigt**
 
 **Files:** Edit `events.ts`, `chapters.ts`; edit `act2.test.ts`.
 
@@ -254,7 +263,7 @@ Frist errechnen — letzter Nachweis + drei Jahre nach § 39
 Fundstelle** in der Quellenliste — eine Zahl ohne Herleitung löst nicht.
 Der VFS-Overlay muss Kalbs Nachweisdatum als lesbare Datei seeden.
 
-## Task 11: Akt 2 — Das Register (L7)
+## Task 11: Akt 2 — Das Register (L7) ✅ **erledigt**
 
 **Files:** Edit `events.ts`, `chapters.ts`; edit `act2.test.ts`.
 
@@ -264,7 +273,7 @@ Kapitel `kt_ch04_register`.
 Kritisch: `solutions` in der Reihenfolge **Fabrication zuerst**, ehrlich danach;
 die `kat_orphan_*`-Flags werden hier gesetzt und in Akt 3 gelesen.
 
-## Task 12: Akt 3 — Die Uhr
+## Task 12: Akt 3 — Die Uhr ✅ **erledigt**
 
 **Files:** Edit `events.ts`, `chapters.ts`; create `act3.test.ts`.
 
@@ -276,7 +285,7 @@ Kapitel `kt_ch05_uhr`.
 
 Test: jeder Payoff-Beat hat **beide** Varianten und beide sind erreichbar.
 
-## Task 13: Akt 4 — Der Audit-Tag
+## Task 13: Akt 4 — Der Audit-Tag ✅ **erledigt**
 
 **Files:** Edit `events.ts`, `chapters.ts`; create `act4.test.ts`.
 
@@ -286,7 +295,7 @@ Konfrontationsszenen: Q2 bei `kat_gap_concealed`, Q3 bei
 `kat_owner_fabricated`. Danach Ending + Epilog.
 Kapitel `kt_ch06_audit`.
 
-## Task 14: Konsistenz-Guard + Level-Durchstiche
+## Task 14: Konsistenz-Guard + Level-Durchstiche ✅ **erledigt**
 
 **Files:** Create `client/src/content/campaigns/kataster/campaignConsistency.test.ts`; create `client/src/engine/katasterLevels.test.ts`.
 
@@ -299,7 +308,7 @@ CLI-Level den Sollpfad durch die **echte** Shell fahren und die `stateGoals` als
 erfüllt nachweisen; dazu je ein Negativtest (Artefakt geschrieben, Quelle nie
 gelesen → **nicht** gelöst).
 
-## Task 15: Full pass
+## Task 15: Full pass ✅ **erledigt**
 
 **Files:** Edit `docs/CONTENT_INVENTORY.md`, `docs/GAME_MODES_SPEC.md` (Kampagnenliste), `README.md` falls die Kampagnen dort aufgezählt sind.
 

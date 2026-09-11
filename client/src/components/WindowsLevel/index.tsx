@@ -84,7 +84,9 @@ const useStyles = makeStyles({
 });
 
 const APP_ICONS: Record<string, string> = {
-  taskmanager: '🗔',
+  // U+1F5D4 (Fenster) fehlt in Apple Color Emoji und wird dort zum leeren
+  // Kästchen — deshalb hier das Diagramm, das der Task-Manager ohnehin zeigt.
+  taskmanager: '📊',
   eventviewer: '📋',
   uac: '🛡️',
   explorer: '🗂️',
@@ -198,7 +200,7 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
           ) : (
             <WindowFrame
               title={context.title}
-              icon={<span aria-hidden>{APP_ICONS[context.app] ?? '🗔'}</span>}
+              icon={<span aria-hidden>{APP_ICONS[context.app] ?? '🖥️'}</span>}
               onClose={onCancel}
             >
               {renderApp()}

@@ -77,7 +77,15 @@ export function NewGameSelectModal({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onCloseRef.current();
-      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      } else if (
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown' ||
+        // Die beiden Karten stehen auf dem Desktop NEBENeinander — Links/Rechts
+        // ist dort die naheliegende Taste und tat vorher nichts. Gleiche
+        // Belegung wie im Kampagnen-Picker, der dasselbe Layout hat.
+        event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight'
+      ) {
         event.preventDefault();
         const next = selectedIndexRef.current === 0 ? 1 : 0;
         selectOption(next, true);

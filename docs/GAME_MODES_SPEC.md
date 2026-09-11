@@ -37,7 +37,7 @@ A campaign can declare `hidden: true` plus an `unlockCode` (`content/campaigns/t
 These four modes remain defined and playable. They are now reached through the menu flow above rather than a single flat selection screen:
 1. **Beginner** (📚 Einsteiger) — for newcomers · via Freie Simulation
 2. **Learning** (🎓 Lernmodus) — for IT training · via Lernbereich
-3. **Story** (📖) — narrative adventure · via Story-Kampagne → campaign picker (Die Probezeit; Audit Trail after unlock)
+3. **Story** (📖) — narrative adventure · via Story-Kampagne → campaign picker (Die Probezeit, Das Kataster; Audit Trail after unlock)
 4. **KRITIS** (🏛️ KRITIS) — realistic simulation · via Freie Simulation
 
 ---
@@ -183,7 +183,7 @@ Each advanced track ships 4 levels (16 total, in `client/src/content/events/lear
 
 ---
 
-## 3. Story Mode (Die Probezeit)
+## 3. Story Mode (drei Kampagnen)
 
 **Target Audience:** Players who enjoy narrative-driven games, want immersive experience
 
@@ -191,7 +191,9 @@ Each advanced track ships 4 levels (16 total, in `client/src/content/events/lear
 
 **Philosophy:** Story-first experience. NPCs have memory. Decisions shape the narrative. Comedy-drama tone mixing The Office with Mr. Robot.
 
-**Framing:** This is the **CASUAL** experience — "vorwiegend Text & Entscheidungen, wenig Hands-on". Chapters 1–4 are essentially text/choice. From chapter 5 the story adds THREE optional hands-on **GUI** beats — `adv_gui_eventviewer_probe`, `adv_gui_settings_preharden`, `adv_gui_taskmanager_attack` (all `guiCommand`, `isOptional: true`, in `client/src/content/adventure/story-events.ts`). There are **no** `terminalCommand` beats in the adventure story; CLI/terminal tasks live in the Lernbereich and the simulation scenarios.
+**Framing (Die Probezeit):** The mode config below is shared by all three campaigns; the *framing* is not. Die Probezeit is the **CASUAL** experience — "vorwiegend Text & Entscheidungen, wenig Hands-on". Chapters 1–4 are essentially text/choice. From chapter 5 the story adds THREE optional hands-on **GUI** beats — `adv_gui_eventviewer_probe`, `adv_gui_settings_preharden`, `adv_gui_taskmanager_attack` (all `guiCommand`, `isOptional: true`, in `client/src/content/adventure/story-events.ts`). There are **no** `terminalCommand` beats in the adventure story; CLI/terminal tasks live in the Lernbereich and the simulation scenarios.
+
+**Framing (AUDIT TRAIL, Das Kataster):** both are **hands-on** and say so in their menu copy — authored `terminalCommand` and `guiCommand` beats carry the plot rather than decorating it. Das Kataster adds the `kataster` GUI app (register rows, owners, evidence) alongside the terminal levels.
 
 ### Configuration
 
@@ -226,6 +228,7 @@ than by a 30% roll). Measured end-to-end in
 | probation | calmest | 60 | 51 + 9 | ending, 12/12 |
 | probation | hardest | 65 | 51 + 14 | ending, 12/12 |
 | audit-trail | any | 20 | 20 + 0 | ending, 6/6 (week 5) |
+| kataster | any | 24 | 24 + 0 | ending, 6/6 (week 5) |
 
 Before this, two of three play styles hit week 13 with 10–11 of 12 chapters done
 and got the "Probezeit bestanden" run summary instead of the authored ending —
@@ -394,7 +397,10 @@ Step 2a — campaign picker (`CampaignSelectModal`), first entry preselected:
 ```
 01. Die Probezeit — EMPFOHLEN — 12 Kapitel · 3 Enden · Casual
 02. Audit Trail  — GEHEIM    — 6 Kapitel · 3 Enden · Hands-on  (only after 'trick17')
+03. Das Kataster —           — 6 Kapitel · 3 Enden · Hands-on (Terminal & Kataster)
 ```
+Registry order is fixed; a locked AUDIT TRAIL is simply absent, so Das Kataster
+sits at 02 until the code is typed and at 03 afterwards.
 Step 2b — simulation picker (`GameModeSelectModal`, simulation-only), Einsteiger preselected:
 ```
 1. 📚 Einsteiger (Beginner) — recommended for new players

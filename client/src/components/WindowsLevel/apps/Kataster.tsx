@@ -294,7 +294,7 @@ export function Kataster({
       <div className={styles.header}>
         <div className={styles.heading}>{title}</div>
         <div className={styles.counters}>
-          {counts.total} Pflichten ·{' '}
+          {counts.total} {counts.total === 1 ? 'Pflicht' : 'Pflichten'} ·{' '}
           <span className={counts.orphan > 0 ? styles.countWarn : undefined}>
             {counts.orphan} ohne Aufpasser
           </span>{' '}

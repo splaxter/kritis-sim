@@ -1,6 +1,6 @@
 # Content Inventory
 
-_Verified against the codebase on 2026-07-09. Counts are top-level content
+_Verified against the codebase on 2026-09-11. Counts are top-level content
 objects, not choice ids. When in doubt, the **content tests are the source of
 truth**, not this file — see "Guards" below._
 
@@ -18,7 +18,7 @@ hidden.
 |------|----|-------|--------------------|----------|-------|
 | Einsteiger | `beginner` | 12 | 2 | 0.7 | Hints on, forgiving, week-1 terminal tutorials |
 | Lernmodus | `learning` | 12 | 4 | 0.8 | Hub-driven training, no free-play pool |
-| Story: Die Probezeit | `story` | 12 | 4 | 1.0 | 12-chapter campaign, 3 endings |
+| Story-Kampagne | `story` | — | 4 | 1.0 | One mode, three campaigns (see below); the run ends with the campaign, not the calendar |
 | Standard | `intermediate` | 12 | 5 | 1.0 | Baseline |
 | KRITIS | `kritis` | 24 | 5 | 1.1 | Double length, NIS2 arc |
 | _Schwer (hidden)_ | `hard` | 12 | 5 | 1.2 | Stricter thresholds |
@@ -47,7 +47,18 @@ audit-prep, backup, change, colleague, documentation, hardware, monitoring,
 offboarding, patch, security, supply-chain, trust. Per-week throttled; delayed
 consequences scheduled via `pendingChainEvents`.
 
-## Story campaign "Die Probezeit"
+## Story campaigns (3)
+
+Registered in `content/campaigns/index.ts`; all three run in mode `story`.
+Day budgets are measured end-to-end in `engine/campaignBudget.test.ts`.
+
+| Campaign | id | Chapters | Beats | Endings | Days to ending | Hands-on |
+|---|---|---|---|---|---|---|
+| Die Probezeit | `probation` | 12 | 51 | 3 (score-derived) | 60–65 | 3 optional GUI beats |
+| Audit Trail _(hidden, `trick17`)_ | `audit-trail` | 6 | 20 | 3 (flag-derived) | 20 | 7 terminal + 1 GUI |
+| Das Kataster | `kataster` | 6 | 24 | 3 (domain-derived) | 24 | 6 terminal + 2 GUI |
+
+### Die Probezeit
 
 - **12 chapters** (`adventure/chapters.ts`), fully authored ch01–ch12.
 - **3 endings** (`adventure/endings.ts`): good / neutral / bad, chosen by a
@@ -57,6 +68,31 @@ consequences scheduled via `pendingChainEvents`.
   sq_predecessor_trail, sq_external_contact. Each unlocks a hidden payoff
   dialogue in the main story. Six more premises remain parked in
   `docs/sidequest-backlog.md`.
+
+### Audit Trail (hidden)
+
+- **6 chapters**, 20 beats, no sidequests. Unlocked by typing `trick17` into the
+  campaign picker; hiding is a menu concern only (see GAME_MODES_SPEC).
+- **3 endings** (`campaigns/audit-trail/`): `profi` / `raecher` / `stille`,
+  derived from flags, not a score.
+
+### Das Kataster
+
+- **6 chapters**, 24 beats, no sidequests. Visible; the least prior knowledge of
+  the three.
+- **8 levels**: 6 terminal (grep/awk/cut/sort/find over a Pflichten-Aktenlage)
+  and 2 GUI on the `kataster` register app (`WindowsLevel/apps/Kataster.tsx`).
+  L8 (`kt_l8_fristen`) is optional and declinable.
+- **3 endings** (`campaigns/kataster/endings.ts`): `gruene_liste` / `ordner` /
+  `aufpasser`, derived from five domains in `campaigns/kataster/domains.ts`
+  (K1 Vollständigkeit, K2 Zurechenbarkeit, K3 Nachweisfähigkeit, K4 Ehrlichkeit,
+  K5 Eskalation). The epilogue is composed per satisfied domain.
+- Act 4 is an audit: five questions, one per domain, each authored in a
+  *satisfied* and an *open* variant.
+- **Design rule, do not "fix":** a fabricated owner (a group, an unconfirmed
+  colleague) must render **identically** to a real one in the register UI. The
+  judgement lives in the level's `GuiSolution`, never in the component —
+  contract-tested in `Kataster.browser.test.tsx`.
 
 ## Event illustrations (33 noir)
 
@@ -94,6 +130,15 @@ These tests fail loudly if content drifts — trust them over this document:
 
 - `content/content.test.ts` — id uniqueness, prerequisites, `{placeholder}` audit.
 - `engine/campaignConsistency.test.ts` — every chapter beat + sidequest event resolves.
+- `engine/campaignBudget.test.ts` — every REGISTERED campaign reaches its ending
+  within the day budget, all chapters completed (`BUDGET_TRACE=1` prints the numbers).
+- `content/campaigns/campaignMenu.test.ts` — hidden ⇒ unlock code declared, visible ⇒ none;
+  the picker list is derived from the registry, never hand-maintained.
+- `content/campaigns/kataster/*.test.ts` (180) — per-act guards plus the campaign-wide
+  flag-cycle check (nothing set that nobody reads, nothing read that nobody sets) and
+  `levels.test.ts`: **the name of a file the player must WRITE may never contain what its
+  content goal checks for** — `seedVfsFromScenario` pre-materialises every path named in
+  `taskText`/`hints` and fills it with the filename, which otherwise solves the level itself.
 - `engine/campaignPacing.test.ts` — the full ch01–ch12 walk is winnable, no degenerate beats.
 - `content/events/chains/chainIntegrity.test.ts` — chain wiring.
 - `content/packs/packs.test.ts` — scenario pack integrity.
