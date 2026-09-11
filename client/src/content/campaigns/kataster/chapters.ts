@@ -54,6 +54,9 @@ export const katasterChapters: AdventureChapter[] = [
       { id: 'kt_b0201', eventId: 'kt_l3_null_von_280', isOptional: false },
       { id: 'kt_b0202', eventId: 'kt_l3_einkauf', isOptional: false },
       { id: 'kt_b0203', eventId: 'kt_l4_acht_monate', isOptional: false },
+      // Der Befund-Dialog steht NACH dem Level: erst der Fund, dann die Wahl,
+      // was man damit macht (dieselbe Ordnung wie kt_l5_melden).
+      { id: 'kt_b0204', eventId: 'kt_l4_befund', isOptional: false },
     ],
     sidequests: [],
     unlockConditions: { previousChapter: 'kt_ch01_ordner' },

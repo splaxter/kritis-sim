@@ -191,9 +191,11 @@ disjunkt von Probezeit und AUDIT TRAIL (guarded, §8).
 | `kat_reminder_live` | Akt 3, L8 ★ (Fristenreport läuft als Cronjob) | Bonus, nur Epilog |
 
 **Verwaisungs-Flags** — die Uhr in Akt 3 liest sie, sie gehören keiner Domäne
-an (sie sind der *Zustand*, nicht die Leistung); jedes wird in L7 gesetzt, wenn
-die zugehörige Zeile das Level ohne Aufpasser **und** ohne Lückenmarkierung
-verlässt: `kat_orphan_sla`, `kat_orphan_license`, `kat_orphan_mailbox`.
+an (sie sind der *Zustand*, nicht die Leistung). Gesetzt werden sie **dort, wo
+die Entscheidung fällt**: `kat_orphan_license` im Einkauf-Dialog nach L3 (der
+Spieler lässt die Zeile bewusst offen, ohne sie jemandem zu geben),
+`kat_orphan_sla` und `kat_orphan_mailbox` in L7, wenn die Zeile das Level ohne
+Aufpasser **und** ohne Lückenmarkierung verlässt.
 
 ### 5.2 Fünf Kataster-Domänen
 

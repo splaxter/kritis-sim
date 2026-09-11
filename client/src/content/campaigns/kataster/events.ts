@@ -385,4 +385,274 @@ Er hat recht. Genau das ist das Problem.`,
     ],
     tags: ['kataster', 'act1', 'dialog'],
   },
+
+  // ═══════════════════ AKT 2 — Was in den Verträgen steht ═══════════════════
+
+  // ── L3 [CLI Linux] „Null von 280" ────────────────────────────────────────
+  {
+    id: 'kt_l3_null_von_280',
+    weekRange: [2, 3],
+    probability: 1,
+    category: 'story',
+    title: 'Null von 280',
+    description: `Die Kämmerei schickt die Jahresrechnung zur Durchsicht. Eine Position fällt auf: Wartung für 280 Lizenzen einer „Archiv-Suite", von der du noch nie gehört hast.
+
+Der Lizenzserver führt Buch darüber, was tatsächlich belegt ist. Der Rahmenvertrag führt Buch darüber, was ihr dafür schuldet.
+
+**Deine Aufgabe:**
+- Wert den Lizenzserver-Export aus: welches Produkt ist beschafft, aber **nicht belegt**? (\`awk -F';'\`)
+- Lies den Rahmenvertrag — was verlangt er von **euch**, nicht vom Anbieter?
+- Halte beides in \`/home/timo/quellen.md\` fest`,
+    image: undefined,
+    involvedCharacters: ['chef'],
+    mentorNote:
+      "Lizenzverträge erzeugen nicht nur Kosten, sondern Nachweispflichten: fast jeder enthält eine Audit-Klausel, nach der der Kunde die Belegung jährlich nachweisen muss. `awk -F';' '$3 == 0'` gibt alle Zeilen aus, in denen das dritte semikolongetrennte Feld null ist — der schnellste Weg von einer Tabelle zu einer Auffälligkeit.",
+    choices: [
+      {
+        id: 'start',
+        text: 'Den Lizenzserver befragen...',
+        effects: {},
+        resultText:
+          '280 beschafft. 0 belegt. Seit der Beschaffung im Mai 2024 hat sie nie jemand ausgerollt — bezahlt wird sie trotzdem, jedes Jahr.\n\nUnd § 9 des Rahmenvertrags dreht die Sache um: Nicht der Anbieter schuldet euch etwas, ihr schuldet ihm einen jährlichen Nachweis der Belegung. Den hat noch nie jemand geführt.',
+        terminalCommand: true,
+        setsFlags: ['kat_source_license'],
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        "Lizenzserver-Export auswerten (awk -F';'): welches Produkt hat Belegung 0? Rahmenvertrag Lizenzen lesen (§ 9). Beides in /home/timo/quellen.md festhalten.",
+      vfsOverlay: {
+        directories: ['/srv/verwaltung/lizenzen', '/srv/verwaltung/vertragsakten'],
+        files: [
+          {
+            path: '/home/timo/quellen.md',
+            content:
+              '# Pflichtenquellen WARM\n\n## Vertrag\n- SLA Komm.ONE § 4: Verfügbarkeitsbericht monatlich prüfen (Minderung verfällt 30 Tage nach Zugang)\n',
+          },
+          {
+            path: '/srv/verwaltung/lizenzen/lizenzserver_export_2026-09.csv',
+            content:
+              'produkt;beschafft;belegt;stand\nATHOS Leitstand;12;12;2026-09-01\nOffice-Paket;140;138;2026-09-01\nBackup-Agent;30;28;2026-09-01\nArchiv-Suite CAL;280;0;2026-09-01\nMonitoring-Agent;45;41;2026-09-01\nPDF-Editor;60;12;2026-09-01\nCAD-Viewer;8;7;2026-09-01\n',
+          },
+          {
+            path: '/srv/verwaltung/vertragsakten/rahmenvertrag_lizenzen.txt',
+            content:
+              'RAHMENVERTRAG Softwarelizenzen\nBeschafft durch: Zentraler Einkauf der WARM (Frau Petersen)\nVertragspartner: Systemhaus Nordwest GmbH\nBeschaffung Archiv-Suite: 280 CAL, Mai 2024\n\n§ 9 Nachweis der Lizenzbelegung\n\n(1) Der Kunde weist dem Auftragnehmer jährlich, jeweils zum\n    30. Juni, die tatsächliche Belegung der erworbenen Lizenzen\n    nach.\n\n(2) Kommt der Kunde dem Nachweis nicht nach, ist der Auftragnehmer\n    berechtigt, eine Prüfung beim Kunden durchzuführen; die Kosten\n    trägt der Kunde.\n\n§ 10 Kündigung\n    Teilkündigung einzelner Lizenzkontingente ist zum Ende eines\n    Vertragsjahres mit einer Frist von drei Monaten möglich.\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        awk: { linux: 2, troubleshooting: 1 },
+        grep: { linux: 1 },
+        sort: { linux: 1 },
+        cat: { linux: 1 },
+        echo: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/verwaltung/lizenzen/lizenzserver_export_2026-09.csv' },
+            { fileRead: '/srv/verwaltung/vertragsakten/rahmenvertrag_lizenzen.txt' },
+            { file: '/home/timo/quellen.md', matches: '280' },
+          ],
+          resultText:
+            'Zwei Pflichten aus einem Vertrag: die Belegung jährlich zum 30. Juni nachweisen — und die Entscheidung, was mit 280 ungenutzten Lizenzen passiert (§ 10 erlaubt die Teilkündigung zum Vertragsjahresende, drei Monate Frist).\n\nMerke: Wer den Nachweis schuldet, steht im Vertrag. Meistens ist es der Kunde, nicht der Anbieter.',
+          skillGain: { linux: 4, security: 2, troubleshooting: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Der Export hat eine Zeile pro Produkt und eine Spalte für das, was tatsächlich in Benutzung ist. Such die Zeile, bei der da eine Null steht.',
+        '🤖 Jens: Die Datei ist semikolongetrennt. awk kann das Trennzeichen setzen und dann auf ein einzelnes Feld prüfen.',
+        "🤖 Jens: `awk -F';' '$3 == 0' /srv/verwaltung/lizenzen/lizenzserver_export_2026-09.csv` zeigt dir die Zeile. Danach den Rahmenvertrag lesen — § 9 ist der interessante.",
+        '🤖 Jens: Und dazuschreiben: `echo "Rahmenvertrag Lizenzen 9 - Belegung jaehrlich nachweisen, 280 CAL ungenutzt" >> /home/timo/quellen.md`',
+      ],
+    },
+    tags: ['kataster', 'act2', 'terminal'],
+  },
+
+  // ── Dialog: wem gehört die Lizenzpflicht? ────────────────────────────────
+  {
+    id: 'kt_l3_einkauf',
+    weekRange: [2, 3],
+    probability: 1,
+    category: 'story',
+    title: 'Wem gehört das?',
+    description: `Der Rahmenvertrag ist nicht von der IT geschlossen worden. Unten steht der zentrale Einkauf, Frau Petersen.
+
+Trotzdem landet die Frage bei dir — so wie alles landet, was nach Computer aussieht.
+
+Im Kataster braucht die Zeile „Lizenzbelegung jährlich nachweisen" einen Aufpasser. Du kannst die Zahlen liefern. Aber schuldest **du** den Nachweis?`,
+    image: undefined,
+    involvedCharacters: ['chef'],
+    mentorNote:
+      'Aufpasserschaft ist nicht dasselbe wie technische Zuständigkeit. Wer den Vertrag geschlossen hat, schuldet den Nachweis; die IT liefert die Zahlen dafür. Wer beides bei sich einsammelt, weil er es kann, sammelt Pflichten ein, die ihm niemand gegeben hat — und die niemand vermisst, wenn er ausfällt.',
+    choices: [
+      {
+        id: 'kt_l3_einkauf_uebergeben',
+        text: 'Frau Petersen eintragen — und ihr den Auszug schriftlich schicken, mit Fristdatum.',
+        effects: { skills: { softSkills: 3, security: 2 }, relationships: { kaemmerer: 2 } },
+        resultText:
+          'Du schickst dem Einkauf den Lizenzauszug, den Verweis auf § 9 und das Datum: 30. Juni. Antwort nach zwanzig Minuten: „Wusste ich nicht. Danke. Ich setz mir eine Wiedervorlage."\n\nDie Zahlen kommen weiter von dir. Die Pflicht liegt jetzt da, wo sie hingehört — und, was mehr zählt, sie liegt dort nachweislich.',
+        setsFlags: ['kat_purchasing_informed'],
+      },
+      {
+        id: 'kt_l3_einkauf_selbst',
+        text: 'Dich selbst eintragen. Geht schneller, als es zu erklären.',
+        effects: { stress: 5 },
+        resultText:
+          'Erledigt in zehn Sekunden. Es ist ja auch nicht viel.\n\nDass der Einkauf bis heute nicht weiß, dass es diese Pflicht gibt, ändert sich dadurch nicht. Und im nächsten Jahr, wenn du im Urlaub bist, weiß es weiterhin niemand.',
+      },
+      {
+        id: 'kt_l3_einkauf_offen',
+        text: 'Leer lassen. Das muss die Leitung entscheiden, nicht du.',
+        effects: {},
+        resultText:
+          'Die Zeile bleibt rot. Formal ist das korrekt: du bist nicht befugt, jemandem eine Pflicht zuzuweisen.\n\nAber du hast auch niemandem gesagt, dass sie offen ist. Eine rote Zeile, die niemand sieht, ist genau so viel wert wie eine leere.',
+        setsFlags: ['kat_orphan_license'],
+      },
+    ],
+    tags: ['kataster', 'act2', 'dialog'],
+  },
+
+  // ── L4 [CLI Linux] „Acht Monate" ─────────────────────────────────────────
+  {
+    id: 'kt_l4_acht_monate',
+    weekRange: [3, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Acht Monate',
+    description: `Kalb hatte doch ein Kataster. Es lag auf einem Netzlaufwerk, heißt \`kataster_kalb.csv\` und ist von 2023.
+
+In der Spalte „aufpasser" steht überall ein Name. Alles grün, auf den ersten Blick.
+
+Das Ticketsystem führt eine eigene Statistik: wann in welcher Queue zuletzt etwas passiert ist. Die beiden Dateien behaupten nicht dasselbe.
+
+**Deine Aufgabe:**
+- Sieh dir Kalbs Kataster an — wer steht bei der Technikwartung?
+- Vergleich es mit der Queue-Statistik (\`cut\`, \`sort\`)
+- Schreib den Befund nach \`/home/timo/befund_aufpasser.txt\` — mit Queue und Datum`,
+    image: undefined,
+    involvedCharacters: ['kollege'],
+    mentorNote:
+      "Ein Name im Kataster ist kein Nachweis. Die Prüffrage lautet nie „steht da jemand?\", sondern „wann hat diese Person zuletzt etwas getan, das man sehen kann?\". `cut -d';' -f1,3` schneidet zwei Spalten heraus, `sort -t';' -k2` sortiert nach der zweiten — so findet man die älteste Spur in Sekunden.",
+    choices: [
+      {
+        id: 'start',
+        text: 'Die beiden Dateien nebeneinanderlegen...',
+        effects: {},
+        resultText:
+          'Technikwartung: Aufpasser laut Kataster ist Bjorg. Letzte Aktivität in der Queue: 14. Januar. Das sind acht Monate.\n\nDie Zeile war grün. Sie war es seit drei Jahren.',
+        terminalCommand: true,
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Kalbs Kataster und die Queue-Statistik vergleichen (cut, sort): Wer steht bei der Technikwartung, und wann ist dort zuletzt etwas passiert? Befund nach /home/timo/befund_aufpasser.txt schreiben (Queue + Datum).',
+      vfsOverlay: {
+        directories: ['/srv/verwaltung/kataster_alt', '/srv/verwaltung/ticket-export'],
+        files: [
+          {
+            path: '/srv/verwaltung/kataster_alt/kataster_kalb.csv',
+            content:
+              'queue;pflicht;aufpasser;turnus\nTechnikwartung;Fahrzeugwaagen warten lassen, Protokoll ablegen;Bjorg Jörgensen;halbjährlich\nNetzbetrieb;Firewall-Regelwerk sichten;Henry Bartels;quartalsweise\nBenutzerverwaltung;Konten ausgeschiedener Beschäftigter sperren;Jens Adam;monatlich\nArchivierung;Aufbewahrungsfristen prüfen;Bjorg Jörgensen;jährlich\n',
+          },
+          {
+            path: '/srv/verwaltung/ticket-export/queues_2026-09.csv',
+            content:
+              'queue;tickets_gesamt;zuletzt\nNetzbetrieb;214;2026-09-08\nBenutzerverwaltung;96;2026-09-05\nArchivierung;4;2025-11-20\nTechnikwartung;7;2026-01-14\nSonstiges;51;2026-09-09\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        cut: { linux: 2 },
+        sort: { linux: 2, troubleshooting: 1 },
+        awk: { linux: 2 },
+        cat: { linux: 1 },
+        echo: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/verwaltung/kataster_alt/kataster_kalb.csv' },
+            { fileRead: '/srv/verwaltung/ticket-export/queues_2026-09.csv' },
+            { file: '/home/timo/befund_aufpasser.txt', matches: 'Technikwartung' },
+            { file: '/home/timo/befund_aufpasser.txt', matches: '2026-01|Januar' },
+          ],
+          resultText:
+            'Der Befund steht schriftlich: Queue Technikwartung, Aufpasser laut Kataster eingetragen, letzte sichtbare Aktivität am 14.01.2026.\n\nDas ist kein Vorwurf an eine Person — es ist ein Befund über eine Zeile. Der Unterschied ist wichtig, und du wirst ihn gleich brauchen.\n\nMerke: Ein Kataster, das nur behauptet, ist gefährlicher als keins — weil es die Suche beendet.',
+          skillGain: { linux: 4, security: 3, troubleshooting: 2 },
+          effects: { stress: -1 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Beide Dateien reden über dieselben Queues. Die eine sagt, wer zuständig ist, die andere, wann dort zuletzt wirklich etwas passiert ist.',
+        '🤖 Jens: Du brauchst aus jeder Datei nur zwei Spalten. cut schneidet Spalten heraus, wenn du ihm das Trennzeichen sagst.',
+        "🤖 Jens: `cut -d';' -f1,3 /srv/verwaltung/ticket-export/queues_2026-09.csv | sort -t';' -k2` sortiert nach Datum — die älteste Zeile steht dann oben.",
+        '🤖 Jens: Und festhalten: `echo "Technikwartung - Aufpasser eingetragen, letzte Aktion 2026-01-14" >> /home/timo/befund_aufpasser.txt`',
+      ],
+    },
+    tags: ['kataster', 'act2', 'terminal'],
+  },
+
+  // ── Dialog: was macht man mit dem Befund? ────────────────────────────────
+  {
+    id: 'kt_l4_befund',
+    weekRange: [3, 4],
+    probability: 1,
+    category: 'story',
+    title: 'Die grüne Zeile',
+    description: `Du hast den Befund. Jetzt hast du ein Problem, das keine technische Lösung hat.
+
+Wenn du die Zeile zurückstufst, sieht das Kataster schlechter aus als vorher — und Bjorg wird fragen, warum du an seinem Namen rumschraubst.
+
+Wenn du sie grün lässt, sieht alles gut aus. Bis jemand nach dem letzten Prüfprotokoll fragt.
+
+Bjorg kommt vorbei, Kaffee in der Hand: „Waagen? Läuft. Da ruft die Herold schon an, wenn was ist."`,
+    image: undefined,
+    involvedCharacters: ['kollege', 'jens'],
+    mentorNote:
+      'Ein Kataster darf schlechter aussehen, wenn es dadurch wahrer wird. Der Zustand „Aufpasser eingetragen, aber kein Nachweis" ist eine eigene Kategorie — nicht erledigt, nicht offen, sondern behauptet. Wer diese Kategorie nicht führt, hat am Ende nur zwei Farben und keine Information.',
+    choices: [
+      {
+        id: 'kt_l4_befund_zurueckstufen',
+        text: 'Die Zeile zurückstufen: Aufpasser bleibt, Nachweis fehlt — und das steht jetzt da.',
+        effects: { skills: { security: 3 }, relationships: { kollegen: -1 } },
+        resultText:
+          'Du nimmst das Häkchen raus und schreibst den Befund dazu, mit Datum.\n\nBjorg findet das „ein bisschen übertrieben". Jens findet es richtig: „Die Herold ruft an, wenn eine Waage steht. Nicht, wenn eine Wartung ausfällt. Das ist nicht dasselbe, und genau dafür gibt es die Spalte."\n\nDas Kataster hat jetzt eine gelbe Zeile mehr. Und eine Lüge weniger.',
+        setsFlags: ['kat_stale_owner_found'],
+      },
+      {
+        id: 'kt_l4_befund_nachfragen',
+        text: 'Erst Bjorg fragen, ob es Protokolle gibt — vielleicht liegen sie nur woanders.',
+        effects: { skills: { softSkills: 2, security: 2 } },
+        resultText:
+          '„Protokolle? Die kriegt die Herold. Wir haben die nicht."\n\nDamit ist es geklärt: Es gibt keinen Nachweis im Haus. Du stufst die Zeile zurück und schreibst dazu, woher du das weißt — inklusive dem Satz, dass die Protokolle beim Dienstleister liegen und angefordert werden müssen.\n\nDas ist die bessere Version desselben Befunds: nicht nur, was fehlt, sondern auch, wo es zu holen wäre.',
+        setsFlags: ['kat_stale_owner_found'],
+      },
+      {
+        id: 'kt_l4_befund_gruen',
+        text: 'Grün lassen. Es läuft ja, und einen Kollegen anzuzählen bringt hier nichts.',
+        effects: { stress: -3, relationships: { kollegen: 1 } },
+        resultText:
+          'Du schließt die Datei. Bjorg merkt nichts, und es gibt heute keinen Konflikt.\n\nDas Kataster sagt jetzt: Fahrzeugwaagen, halbjährlich, Aufpasser Bjorg Jörgensen. Es sagt nicht, dass die letzte sichtbare Spur aus dem Januar ist.\n\nDu weißt es. Aufgeschrieben hat es niemand.',
+        setsFlags: ['kat_gap_concealed'],
+      },
+    ],
+    tags: ['kataster', 'act2', 'dialog'],
+  },
 ];
