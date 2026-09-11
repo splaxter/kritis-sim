@@ -655,4 +655,266 @@ Bjorg kommt vorbei, Kaffee in der Hand: „Waagen? Läuft. Da ruft die Herold sc
     ],
     tags: ['kataster', 'act2', 'dialog'],
   },
+
+  // ═══════════════════ AKT 2 — Was auf dem Papier steht ════════════════════
+
+  // ── L5 [CLI Linux] „Der Verweis ins Leere" ───────────────────────────────
+  {
+    id: 'kt_l5_verweis_ins_leere',
+    weekRange: [4, 5],
+    probability: 1,
+    category: 'story',
+    title: 'Der Verweis ins Leere',
+    description: `Der Personalrat hat die Dienstvereinbarung zur Protokollierung geschickt — die, auf die sich jede Log-Auswertung im Haus stützt.
+
+In § 7 steht ein Satz, der alles Weitere regelt. Er verweist auf ein anderes Dokument.
+
+**Deine Aufgabe:**
+- Lies die Dienstvereinbarung und finde den Verweis in § 7
+- Such das Dokument, auf das verwiesen wird (\`find / -iname\`)
+- Halte fest, **wie** du gesucht hast — in \`/home/timo/suchprotokoll.txt\``,
+    image: undefined,
+    involvedCharacters: ['jens'],
+    mentorNote:
+      'Ein Negativbefund muss dokumentiert werden wie ein Positivbefund — mit Suchraum, Suchbegriff und Ergebnis. „Wir haben nichts gefunden" ist keine Aussage; „wir haben über den ganzen Baum nach *notfall* gesucht und nichts gefunden" ist eine. Im Audit zählt nur die zweite, weil nur bei ihr nachvollziehbar ist, ob überhaupt gesucht wurde.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Die Dienstvereinbarung aufschlagen...',
+        effects: {},
+        resultText:
+          'Der Verweis geht ins Leere. § 7 der gültigen Dienstvereinbarung stützt sich auf ein IT-Notfallhandbuch „in seiner jeweils gültigen Fassung" — und es gibt keine Fassung. Es hat nie eine gegeben.\n\nDu hast die Suche protokolliert. Das ist der Unterschied zwischen „ist mir nicht aufgefallen" und „ich habe nachgesehen".',
+        terminalCommand: true,
+        setsFlags: ['kat_source_dv'],
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Dienstvereinbarung lesen und den Verweis in § 7 finden; das verwiesene Dokument suchen (find / -iname "*notfall*"); die Suche in /home/timo/suchprotokoll.txt protokollieren (Suchbegriff + Ergebnis).',
+      vfsOverlay: {
+        directories: [
+          '/srv/verwaltung/dienstvereinbarungen',
+          '/srv/verwaltung/handbuecher',
+          '/srv/it-doku',
+        ],
+        files: [
+          {
+            path: '/srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt',
+            content:
+              'DIENSTVEREINBARUNG über die Protokollierung in IT-Systemen\nzwischen der Geschäftsführung und dem Personalrat der WARM\n\nIn Kraft seit: 01.02.2019\n\n§ 5 Zweckbindung\n    Protokolldaten werden ausschließlich zur Störungsanalyse und zur\n    Gewährleistung der Systemsicherheit ausgewertet.\n\n§ 6 Auswertung im Einzelfall\n    Eine personenbezogene Auswertung bedarf der vorherigen\n    Zustimmung des Personalrats.\n\n§ 7 Verfahren im Notfall\n    Abweichungen von §§ 5 und 6 sind im Notfall zulässig. Das\n    Nähere regelt das IT-Notfallhandbuch in seiner jeweils\n    gültigen Fassung.\n\n§ 8 Inkrafttreten\n    Diese Vereinbarung tritt mit Unterzeichnung in Kraft.\n',
+          },
+          {
+            path: '/srv/verwaltung/handbuecher/betriebshandbuch_waage.txt',
+            content: 'Betriebshandbuch Fahrzeugwaage Typ H-40. Stand 2021.\n',
+          },
+          {
+            path: '/srv/it-doku/netzplan_2024.txt',
+            content: 'Netzplan Betriebshof, Stand 2024. (Skizze, nicht gepflegt.)\n',
+          },
+          {
+            path: '/srv/it-doku/passwortrichtlinie.txt',
+            content: 'Passwortrichtlinie WARM, Stand 2020.\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        grep: { linux: 1 },
+        find: { linux: 2, troubleshooting: 1 },
+        echo: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt' },
+            // Der Negativbefund zählt nur, wenn wirklich gesucht wurde. find
+            // mit -iname endet auch ohne Treffer mit Exit 0 — genau das ist
+            // hier der Beweis: die Suche lief, sie war nur ergebnislos.
+            //
+            // ANKER `^`, nicht verhandelbar: commandRan matcht die Kommando-
+            // ZEILE als Text. Ohne Anker erfüllt schon ein
+            // `echo "... (find -iname)" >> protokoll` das Ziel — das Behaupten
+            // der Suche würde die Suche ersetzen, also genau der Fehler, den
+            // dieses Level lehrt. Getestet in act2.test.ts.
+            { commandRan: { pattern: '^\\s*find\\s.*-iname', outcome: 'succeeded' } },
+            // Der Dateiname MUSS außerhalb des Suchmusters liegen: seedVfs-
+            // FromScenario materialisiert jeden in taskText/hints genannten
+            // Pfad vorab und füllt ihn mit dem Dateinamen. Hiesse das Protokoll
+            // "suche_notfallhandbuch.txt", würde es (a) von der eigenen Suche
+            // gefunden und (b) dieses Inhaltsziel schon vor dem ersten Kommando
+            // erfüllen. Guard in act2.test.ts.
+            { file: '/home/timo/suchprotokoll.txt', matches: '[Nn]otfall' },
+            { file: '/home/timo/suchprotokoll.txt', matches: 'find|gesucht|kein Treffer' },
+          ],
+          resultText:
+            'Protokolliert: gesucht wurde nach *notfall* über den gesamten Baum, gefunden wurde nichts.\n\nDas ist jetzt ein Befund mit Beleg. Die Dienstvereinbarung verweist seit 2019 auf ein Dokument, das es nicht gibt — ausgerechnet für den Fall, in dem von den Datenschutzregeln abgewichen werden darf.\n\nMerke: Ein Verweis auf ein Dokument, das nicht existiert, ist eine Pflichtverletzung mit Papierform.',
+          skillGain: { linux: 3, security: 4, troubleshooting: 2 },
+          effects: { stress: 2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Lies die Dienstvereinbarung ganz. Der interessante Paragraf ist der, in dem steht, was im Notfall gilt — er regelt es nämlich nicht selbst.',
+        '🤖 Jens: § 7 verweist auf ein anderes Dokument. Such danach, bevor du weitermachst — im ganzen Dateibaum, nicht nur in einem Ordner.',
+        '🤖 Jens: `find / -iname "*notfall*"` sucht ab der Wurzel und ignoriert Groß- und Kleinschreibung. Kein Treffer ist hier das Ergebnis, nicht der Fehler.',
+        '🤖 Jens: Und das Ergebnis festhalten: `echo "Suche nach *notfall* im gesamten Baum: kein Treffer (find -iname)" >> /home/timo/suchprotokoll.txt`',
+      ],
+    },
+    tags: ['kataster', 'act2', 'terminal'],
+  },
+
+  // ── Dialog: melden oder liegen lassen? (Kernentscheidung) ────────────────
+  {
+    id: 'kt_l5_melden',
+    weekRange: [4, 5],
+    probability: 1,
+    category: 'story',
+    title: 'Sagt man das?',
+    description: `Die Dienstvereinbarung ist von 2019 und vom Personalrat mitgezeichnet. Sie verweist auf ein Handbuch, das niemand je geschrieben hat.
+
+Das ist kein IT-Problem. Das ist ein Problem der Geschäftsführung, die unterschrieben hat, und des Personalrats, der mitgezeichnet hat.
+
+Michael kommt in zwei Wochen wieder. Er wird nach der Dokumentation fragen.
+
+Bjorg, als du es erwähnst: „Lass mal. Wenn du das aufmachst, sitzen wir sechs Monate in Arbeitskreisen."`,
+    image: undefined,
+    involvedCharacters: ['isb', 'chef', 'kollege'],
+    mentorNote:
+      'Eine Lücke, die man selbst meldet, ist ein Befund. Dieselbe Lücke, die ein Auditor findet, ist ein Versäumnis — und die Frage, seit wann sie bekannt war, stellt er dann auch. Wer eine bekannte Lücke verschweigt, tauscht ein kleines Problem heute gegen zwei große später: die Lücke und das Verschweigen.',
+    choices: [
+      {
+        id: 'kt_l5_melden_offen',
+        text: 'In den Bericht schreiben: Verweis läuft ins Leere, Handbuch fehlt, seit 2019.',
+        effects: { skills: { security: 3, softSkills: 2 }, relationships: { chef: 2 } },
+        resultText:
+          'Du schreibst drei Sätze: was die Dienstvereinbarung verlangt, was es dazu gibt, seit wann. Dazu das Suchprotokoll.\n\nBert liest es zweimal. „Das ist unangenehm." Pause. „Aber besser von uns als von ihm." Er leitet es an die Geschäftsführung weiter, mit Datum.\n\nDie Lücke ist jetzt aktenkundig — und zwar als etwas, das ihr gefunden habt.',
+        setsFlags: ['kat_gap_reported'],
+      },
+      {
+        id: 'kt_l5_melden_intern',
+        text: 'Erst intern klären: Bert fragen, wie man so etwas hier normalerweise meldet.',
+        effects: { skills: { softSkills: 3, security: 2 }, relationships: { chef: 3 } },
+        resultText:
+          '„Gar nicht", sagt Bert trocken. „So etwas ist hier noch nie jemandem aufgefallen." Dann denkt er nach. „Schreib es auf. Ich geb es weiter, und ich setz mich drunter."\n\nEr tut es noch am selben Tag. Der Weg war länger als nötig — aber er hat aus deinem Befund einen Vorgang des Hauses gemacht, und das ist mehr wert als ein Befund, der dir allein gehört.',
+        setsFlags: ['kat_gap_reported'],
+      },
+      {
+        id: 'kt_l5_melden_spaeter',
+        text: 'Liegen lassen. Das Handbuch schreibt sich nicht in zwei Wochen, und Ärger gibt es dafür sofort.',
+        effects: { stress: -4 },
+        resultText:
+          'Du legst das Suchprotokoll in deinen eigenen Ordner. Nicht gelöscht — nur nicht weitergegeben.\n\nBjorg ist zufrieden. Die Dienstvereinbarung verweist weiter auf ein Handbuch, das es nicht gibt, und jetzt weißt du es als Einziger.\n\nDas ist die unangenehmste Sorte Wissen: die, für die man ab jetzt zuständig ist, ohne es jemandem gesagt zu haben.',
+        setsFlags: ['kat_gap_concealed'],
+      },
+    ],
+    tags: ['kataster', 'act2', 'dialog'],
+  },
+
+  // ── L6 [CLI Linux] „Die Erinnerung, die niemand liest" ───────────────────
+  {
+    id: 'kt_l6_erinnerung',
+    weekRange: [5, 6],
+    probability: 1,
+    category: 'story',
+    title: 'Die Erinnerung, die niemand liest',
+    description: `\`info@\` ist das Postfach, das allen gehört. Also niemandem.
+
+Es wird archiviert, nicht gelesen. Der Export liegt unter \`/srv/mailexport/info\`.
+
+Michael hat beim Kick-off gefragt, wann WARM zuletzt gegenüber der Aufsicht nachgewiesen hat. Niemand wusste es. Kalbs Ablage weiß es.
+
+**Deine Aufgabe:**
+- Durchsuch den Postfach-Export nach Post von der Aufsicht (\`grep -ril\`)
+- Lies das Anschreiben — welche Pflicht, welcher Turnus?
+- Sieh in Kalbs Nachweisablage nach, wann zuletzt nachgewiesen wurde
+- **Rechne die nächste Fälligkeit aus** und schreib sie mit Fundstelle in \`/home/timo/quellen.md\``,
+    image: undefined,
+    involvedCharacters: ['isb'],
+    mentorNote:
+      'Eine Frist ist kein Datum, sondern ein Datum plus die Regel, aus der es folgt. Wer nur „Mai 2027" notiert, kann im Audit nicht begründen, warum. Wer „letzter Nachweis 13.05.2024 plus drei Jahre nach § 39 BSIG" notiert, kann es — und merkt außerdem sofort, wenn sich die Regel ändert.',
+    choices: [
+      {
+        id: 'start',
+        text: 'Das Sammelpostfach durchsuchen...',
+        effects: {},
+        resultText:
+          'Seit elf Wochen ungelesen: ein Anschreiben der Aufsicht zur Nachweispflicht nach § 39 BSIG. Alle drei Jahre, gegenüber dem Bundesamt, einschließlich der dabei aufgedeckten Sicherheitsmängel.\n\nKalbs letzter Nachweis ist vom 13.05.2024. Damit steht die nächste Fälligkeit fest — und sie steht jetzt im Kataster, mit der Regel daneben.\n\nZweiter Fund, unfreiwillig: Das Postfach selbst ist eine verwaiste Pflicht. Es gehört allen.',
+        terminalCommand: true,
+        setsFlags: ['kat_source_law'],
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Postfach-Export /srv/mailexport/info nach Post der Aufsicht durchsuchen (grep -ril), Anschreiben lesen, Kalbs Nachweisablage prüfen und die nächste Fälligkeit MIT Fundstelle (§ 39) in /home/timo/quellen.md schreiben.',
+      vfsOverlay: {
+        directories: ['/srv/mailexport/info', '/srv/verwaltung/nachweise'],
+        files: [
+          {
+            path: '/home/timo/quellen.md',
+            content:
+              '# Pflichtenquellen WARM\n\n## Vertrag\n- SLA Komm.ONE § 4: Verfügbarkeitsbericht monatlich prüfen\n- Rahmenvertrag Lizenzen § 9: Belegung jährlich zum 30.06. nachweisen\n\n## Dienstvereinbarung\n- DV Protokollierung § 7: verweist auf IT-Notfallhandbuch — existiert nicht\n',
+          },
+          {
+            path: '/srv/mailexport/info/2026-06-24_bundesamt.eml',
+            content:
+              'Von: poststelle@bsi.bund.de\nAn: info@warm-rhein-main.de\nDatum: 24.06.2026\nBetreff: Nachweispflicht nach § 39 BSIG - Hinweis\n\nSehr geehrte Damen und Herren,\n\nwir weisen darauf hin, dass Betreiber kritischer Anlagen dem\nBundesamt alle drei Jahre nachzuweisen haben, dass die\nAnforderungen nach §§ 30 und 31 BSIG erfüllt werden.\n\nDer Nachweis erfolgt durch Sicherheitsaudits, Prüfungen oder\nZertifizierungen. Zu übermitteln sind die Ergebnisse\neinschließlich der dabei aufgedeckten Sicherheitsmängel.\n\nMit freundlichen Grüßen\n',
+          },
+          {
+            path: '/srv/mailexport/info/2026-07-02_toner.eml',
+            content:
+              'Von: vertrieb@toner-express24.de\nAn: info@warm-rhein-main.de\nBetreff: Ihr Sonderangebot wartet!\n\nNur diese Woche: 30 % auf alle Tonerkartuschen.\n',
+          },
+          {
+            path: '/srv/mailexport/info/2026-08-11_bewerbung.eml',
+            content:
+              'Von: m.schneider@example.org\nAn: info@warm-rhein-main.de\nBetreff: Initiativbewerbung\n\nSehr geehrte Damen und Herren,\nhiermit bewerbe ich mich initiativ...\n',
+          },
+          {
+            path: '/srv/verwaltung/nachweise/ablage_kalb.txt',
+            content:
+              'Nachweise gegenüber der Aufsicht\n\n2018-04-19  Nachweis erbracht (Prüfstelle TÜV Hessen)\n2021-04-27  Nachweis erbracht (Prüfstelle TÜV Hessen)\n2024-05-13  Nachweis erbracht (Prüfstelle TÜV Hessen)\n\n(Danach nichts mehr. R. K.)\n',
+          },
+        ],
+      },
+      commands: [],
+      commandSkillGain: {
+        grep: { linux: 2, security: 1 },
+        cat: { linux: 1 },
+        echo: { linux: 1 },
+      },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/mailexport/info/2026-06-24_bundesamt.eml' },
+            { fileRead: '/srv/verwaltung/nachweise/ablage_kalb.txt' },
+            // Datum UND Fundstelle: eine Zahl ohne Herleitung ist keine Frist.
+            { file: '/home/timo/quellen.md', matches: '2027' },
+            { file: '/home/timo/quellen.md', matches: '39' },
+          ],
+          resultText:
+            'Im Kataster steht jetzt: Nachweis gegenüber dem Bundesamt, alle drei Jahre nach § 39 BSIG, zuletzt am 13.05.2024, nächste Fälligkeit 2027.\n\nDas Datum allein wäre wertlos gewesen. Mit der Regel daneben kann jeder im Haus nachrechnen — und merkt es, wenn sich die Regel ändert.\n\nMerke: Ein Postfach, das allen gehört, liest niemand. Eine Frist, die dort ankommt, läuft trotzdem.',
+          skillGain: { linux: 3, security: 5, troubleshooting: 1 },
+          effects: { stress: 2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: In dem Postfach liegt viel Werbung. Du suchst das eine Anschreiben, das von einer Behörde kommt — nach Inhalt zu suchen ist hier schneller als nach Dateinamen.',
+        '🤖 Jens: grep kann rekursiv suchen und dir nur die Dateinamen zeigen, in denen etwas vorkommt. Groß- und Kleinschreibung solltest du dabei ignorieren.',
+        '🤖 Jens: `grep -ril bundesamt /srv/mailexport/info` listet die Treffer. Danach: das Anschreiben lesen und in /srv/verwaltung/nachweise nachsehen, wann zuletzt nachgewiesen wurde.',
+        '🤖 Jens: Drei Jahre auf den letzten Nachweis, und beides aufschreiben — Datum und Fundstelle: `echo "Nachweis 2027 (13.05.2024 + 3 Jahre, 39 BSIG)" >> /home/timo/quellen.md`',
+      ],
+    },
+    tags: ['kataster', 'act2', 'terminal'],
+  },
 ];

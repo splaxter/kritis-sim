@@ -184,3 +184,118 @@ describe('Akt 2 — die Flag-Wirkung der Entscheidungen', () => {
     expect(l3.choices[0].setsFlags).toContain('kat_source_license');
   });
 });
+
+const l5 = byId.get('kt_l5_verweis_ins_leere')!;
+const melden = byId.get('kt_l5_melden')!;
+const l6 = byId.get('kt_l6_erinnerung')!;
+
+describe('L5 „Der Verweis ins Leere" — der Negativbefund', () => {
+  it('der Verweis in § 7 geht wirklich ins Leere', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    const dv = outputOf(session, 'cat /srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt');
+    expect(dv).toMatch(/IT-Notfallhandbuch/);
+    // … und im ganzen Baum liegt nichts, was so heisst.
+    const treffer = outputOf(session, 'find / -iname "*notfall*"');
+    expect(treffer.trim()).toBe('');
+  });
+
+  it('find ohne Treffer endet erfolgreich — das ist der Beweis, nicht der Fehler', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'find / -iname "*notfall*"');
+    expect(outputOf(session, 'echo $?')).toMatch(/\b0\b/);
+  });
+
+  it('der Sollpfad löst: lesen, suchen, protokollieren', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'cat /srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt');
+    run(session, 'find / -iname "*notfall*"');
+    run(session, 'echo "Suche nach *notfall* im gesamten Baum: kein Treffer (find -iname)" >> /home/timo/suchprotokoll.txt');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
+  /** Das Protokoll ohne Suche ist eine Behauptung — genau das lehrt das Level. */
+  it('das Protokoll behaupten, ohne gesucht zu haben, löst NICHT', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'cat /srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt');
+    run(session, 'echo "Suche nach notfall: kein Treffer" >> /home/timo/suchprotokoll.txt');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('suchen ohne zu protokollieren löst auch NICHT', () => {
+    const { session } = makeSession(l5.terminalContext!);
+    run(session, 'cat /srv/verwaltung/dienstvereinbarungen/dv_protokollierung.txt');
+    run(session, 'find / -iname "*notfall*"');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+});
+
+describe('L6 „Die Erinnerung, die niemand liest" — Frist aus Regel', () => {
+  it('grep -ril findet genau das Behördenanschreiben, nicht die Werbung', () => {
+    const { session } = makeSession(l6.terminalContext!);
+    const out = outputOf(session, 'grep -ril bundesamt /srv/mailexport/info');
+    expect(out).toMatch(/2026-06-24_bundesamt\.eml/);
+    expect(out).not.toMatch(/toner|bewerbung/);
+  });
+
+  it('das Anschreiben zitiert ausschließlich geltendes Recht', () => {
+    const mail = l6.terminalContext!.vfsOverlay!.files!.find((f) =>
+      f.path.endsWith('bundesamt.eml')
+    )!.content;
+    expect(mail).toMatch(/§ 39 BSIG/);
+    expect(mail).toMatch(/alle drei Jahre/);
+    expect(mail).toMatch(/aufgedeckten Sicherheitsmängel/);
+    expect(mail).not.toMatch(/§ ?8a|§ ?8b/);
+  });
+
+  it('der Sollpfad löst: Datum UND Fundstelle', () => {
+    const { session } = makeSession(l6.terminalContext!);
+    run(session, 'grep -ril bundesamt /srv/mailexport/info');
+    run(session, 'cat /srv/mailexport/info/2026-06-24_bundesamt.eml');
+    run(session, 'cat /srv/verwaltung/nachweise/ablage_kalb.txt');
+    run(session, 'echo "Nachweis 2027 (13.05.2024 + 3 Jahre, 39 BSIG)" >> /home/timo/quellen.md');
+    expect(session.getSnapshot().solved).toBe(true);
+  });
+
+  /** Eine Zahl ohne Herleitung ist keine Frist — das ist der Merksatz des Levels. */
+  it('nur das Datum, ohne die Regel, löst NICHT', () => {
+    const { session } = makeSession(l6.terminalContext!);
+    run(session, 'cat /srv/mailexport/info/2026-06-24_bundesamt.eml');
+    run(session, 'cat /srv/verwaltung/nachweise/ablage_kalb.txt');
+    run(session, 'echo "Nachweis faellig 2027" >> /home/timo/quellen.md');
+    expect(session.getSnapshot().solved).toBe(false);
+  });
+
+  it('die Rechnung geht auf: letzter Nachweis 2024 plus drei Jahre', () => {
+    const ablage = l6.terminalContext!.vfsOverlay!.files!.find((f) =>
+      f.path.endsWith('ablage_kalb.txt')
+    )!.content;
+    expect(ablage).toMatch(/2024-05-13/);
+    expect(l6.choices[0].resultText).toMatch(/13\.05\.2024/);
+    // Der Dreijahresrhythmus ist auch in Kalbs Historie sichtbar (2018/2021/2024).
+    expect(ablage).toMatch(/2018-04-19/);
+    expect(ablage).toMatch(/2021-04-27/);
+  });
+});
+
+describe('Kapitel 3 — Kernentscheidung Melden', () => {
+  it('ch03 spielt L5 → Melden-Dialog → L6', () => {
+    const ch03 = katasterChapters.find((c) => c.id === 'kt_ch03_papier')!;
+    expect(ch03.storyBeats.map((b) => b.eventId)).toEqual([
+      'kt_l5_verweis_ins_leere',
+      'kt_l5_melden',
+      'kt_l6_erinnerung',
+    ]);
+  });
+
+  it('zwei Wege melden, einer verschweigt — und das kostet später doppelt', () => {
+    const flagsOf = (id: string) => melden.choices.find((c) => c.id === id)!.setsFlags ?? [];
+    expect(flagsOf('kt_l5_melden_offen')).toEqual(['kat_gap_reported']);
+    expect(flagsOf('kt_l5_melden_intern')).toEqual(['kat_gap_reported']);
+    expect(flagsOf('kt_l5_melden_spaeter')).toEqual(['kat_gap_concealed']);
+  });
+
+  it('L5 und L6 erschließen die restlichen beiden Quellen für K1', () => {
+    expect(l5.choices[0].setsFlags).toContain('kat_source_dv');
+    expect(l6.choices[0].setsFlags).toContain('kat_source_law');
+  });
+});
