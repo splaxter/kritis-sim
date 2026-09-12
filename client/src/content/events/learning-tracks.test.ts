@@ -14,6 +14,14 @@ const learningEvents: GameEvent[] = allEvents.filter(
 const learningIds = new Set(learningEvents.map((e) => e.id));
 const trackLevelIds = LEARNING_TRACKS.flatMap((t) => t.levels.map((l) => l.eventId));
 
+/**
+ * Der Einstufungstest gehoert BEWUSST zu keinem Track: er ersetzt die
+ * Grundlagen, statt Teil von ihnen zu sein. Waere er ein Track-Level, muesste
+ * man ihn abschliessen, um die Grundlagen zu erfuellen — und der Skip haette
+ * sich selbst als Voraussetzung. Er haengt allein am LearningHub.
+ */
+const TRACKLOSE_LERNEVENTS = new Set(['learn_00_einstufung']);
+
 describe('LEARNING_TRACKS registry', () => {
   it('every track level id resolves to a real learning event', () => {
     const dangling = trackLevelIds.filter((id) => !learningIds.has(id));
@@ -23,7 +31,7 @@ describe('LEARNING_TRACKS registry', () => {
   it('every learning event is mapped to exactly one track (no orphans, no dupes)', () => {
     const counts = new Map<string, number>();
     for (const id of trackLevelIds) counts.set(id, (counts.get(id) ?? 0) + 1);
-    const orphans = [...learningIds].filter((id) => !counts.has(id));
+    const orphans = [...learningIds].filter((id) => !counts.has(id) && !TRACKLOSE_LERNEVENTS.has(id));
     const dupes = [...counts].filter(([, n]) => n > 1).map(([id]) => id);
     expect(orphans, `learning events missing from every track:\n${orphans.join('\n')}`).toEqual([]);
     expect(dupes, `learning events in more than one track:\n${dupes.join('\n')}`).toEqual([]);
