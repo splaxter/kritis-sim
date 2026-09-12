@@ -241,7 +241,7 @@ export function Meldung({ state, emit, retract, locked }: MeldungProps) {
     <div className={styles.root}>
       <div className={styles.header}>
         <div className={styles.heading}>{state.rechtsgrundlage}</div>
-        <div className={styles.meta}>Empfänger: {state.empfaenger}</div>
+        <div className={styles.meta}>Meldestelle: {state.meldestelle}</div>
         <div className={styles.clock}>Kenntnis seit {state.kenntnisSeit}</div>
       </div>
 

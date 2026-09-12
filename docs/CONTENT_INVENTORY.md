@@ -109,15 +109,29 @@ not yet wired.
 A full mapping (original filename → content-named file → in-game path →
 description) lives at `docs/event-bilder-zuordnung.csv`.
 
-## Learning content (31 lessons across 8 tracks)
+## Learning content (36 lessons across 9 tracks)
 
 - **16 CLI lessons** (`events/learning-path.ts`) on the shell engine.
-- **10 GUI levels** (`events/gui-levels.ts`) across the six fake-Windows apps
+- **10 GUI levels** (`events/gui-levels.ts`) across the fake-Windows apps
   (taskmanager, eventviewer, uac, settings, explorer, corefirewall).
 - **5 Blackout levels** (`events/blackout.ts`, "Operation Dunkelkammer").
-- **8 tracks** (`events/learning-tracks.ts`): foundations (gate), linux_services,
-  network_dns, windows_security, access_hardening, incident_response, blackout,
-  finale.
+- **5 NIS-2 lessons** (`events/learning-path-nis2.ts`, track `nis2_duty`):
+  3 CLI + 2 on the `meldung` form app. Covers what the rest of the path does not —
+  reporting duty and the § 32 deadline cascade, attribution with shared accounts,
+  documentation as a control, § 39 evidence.
+- **9 tracks** (`events/learning-tracks.ts`): foundations (gate), linux_services,
+  network_dns, windows_security, access_hardening, incident_response, **nis2_duty**,
+  blackout, finale (plus the four advanced tracks).
+
+### Skipping Foundations
+
+`learn_00_einstufung` (`events/learning-path-einstufung.ts`) is a standalone
+level — deliberately in **no** track — that demands all four Foundations skills in
+one task. Passing it sets `learn_foundations_proven`, which
+`isFoundationsComplete` **and** `reqsMet` accept in place of the four lessons
+(`engine/learningPath.ts`). The lessons are **not** written into
+`completedEvents`: the save must not claim something that did not happen. The hub
+labels the track "Übersprungen — Einstufungstest bestanden".
 
 ## Scenario packs (5 packs, 42 scenarios)
 
@@ -134,6 +148,14 @@ These tests fail loudly if content drifts — trust them over this document:
   within the day budget, all chapters completed (`BUDGET_TRACE=1` prints the numbers).
 - `content/campaigns/campaignMenu.test.ts` — hidden ⇒ unlock code declared, visible ⇒ none;
   the picker list is derived from the registry, never hand-maintained.
+- `engine/nis2TrackLessons.test.ts` — drives every NIS-2 CLI level's solution path
+  through the real ShellEngine, plus a negative test each (guessing a name, skipping
+  the evidence, reporting everything). The two GUI levels run end-to-end in
+  `e2e/levels.spec.ts`; the three stateGoals levels are listed in
+  `HARNESS_INCOMPATIBLE_LEVELS` there because `deriveCliSolution` cannot derive a
+  script from declarative goals.
+- `engine/learningPath.skip.test.ts` — the Foundations skip opens exactly what the
+  four lessons open, and nothing more.
 - `content/campaigns/kataster/*.test.ts` (180) — per-act guards plus the campaign-wide
   flag-cycle check (nothing set that nobody reads, nothing read that nobody sets) and
   `levels.test.ts`: **the name of a file the player must WRITE may never contain what its

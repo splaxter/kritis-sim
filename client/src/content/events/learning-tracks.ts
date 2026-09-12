@@ -82,11 +82,26 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     ],
   },
   {
+    id: 'nis2_duty',
+    title: 'Pflicht & Nachweis',
+    description:
+      'Was KRITIS-Admins von Admins unterscheidet: melden, zurechnen, belegen.',
+    icon: '⚖️',
+    order: 6,
+    levels: [
+      { eventId: 'learn_nis2_01_schwelle' },
+      { eventId: 'learn_nis2_02_erstmeldung' },
+      { eventId: 'learn_nis2_03_folgemeldung' },
+      { eventId: 'learn_nis2_04_wer_war_das' },
+      { eventId: 'learn_nis2_05_belastbar', optional: true },
+    ],
+  },
+  {
     id: 'blackout',
     title: 'Blackout: Operation Dunkelkammer',
     description: 'Ein Incident am Leitstand — vom EDR-Alert bis zur Firewall-Panik. Linearer Slice.',
     icon: '🌑',
-    order: 6,
+    order: 7,
     levels: [
       { eventId: 'blk_c1_logread' },
       { eventId: 'blk_c1_hunt_gui' },
@@ -100,7 +115,7 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     title: 'SSH & Remote-Zugriff',
     description: 'Schlüssel statt Passwörter: sichere Fernzugriffe über Zonen hinweg.',
     icon: '🗝️',
-    order: 7,
+    order: 8,
     levels: [
       { eventId: 'learn_ssh_01_first_key' },
       { eventId: 'learn_ssh_02_open_door' },
@@ -113,7 +128,7 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     title: 'systemd & Journal',
     description: 'Dienste verstehen, Logs lesen, Ursachen statt Symptome.',
     icon: '⚙️',
-    order: 8,
+    order: 9,
     levels: [
       { eventId: 'learn_sysd_01_silent_service' },
       { eventId: 'learn_sysd_02_time_travel' },
@@ -126,7 +141,7 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     title: 'Netz-Forensik',
     description: 'Offene Ports, fremde Verbindungen, saubere Firewalls.',
     icon: '🕸️',
-    order: 9,
+    order: 10,
     levels: [
       { eventId: 'learn_net_01_open_doors' },
       { eventId: 'learn_net_02_backchannel' },
@@ -139,7 +154,7 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     title: 'Ansible & Konfigurationsmanagement',
     description: 'Eine Wahrheit für alle Hosts: Playbooks, Drift, Idempotenz.',
     icon: '📜',
-    order: 10,
+    order: 11,
     levels: [
       { eventId: 'learn_ans_01_inventory' },
       { eventId: 'learn_ans_02_drift' },
@@ -152,7 +167,7 @@ export const LEARNING_TRACKS: LearningTrack[] = [
     title: 'Finale: Root Awakening',
     description: 'Die Abschlussprüfung. Schalte 3 Tracks frei.',
     icon: '🎓',
-    order: 11,
+    order: 12,
     isFinale: true,
     unlockAfterTracksCompleted: 3,
     levels: [{ eventId: 'learn_11_final_boss' }],

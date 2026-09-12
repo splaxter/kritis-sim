@@ -165,7 +165,7 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
               context.state.meldung ?? {
                 stufe: 'erst',
                 kenntnisSeit: '—',
-                empfaenger: 'Gemeinsame Meldestelle des BSI und des BBK',
+                meldestelle: 'Gemeinsame Meldestelle des BSI und des BBK',
                 rechtsgrundlage: '§ 32 Abs. 1 BSIG',
                 felder: [],
               }

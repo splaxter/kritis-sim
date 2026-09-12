@@ -8,7 +8,7 @@ import { missingRequired } from './apps/Meldung';
 const baseState: MeldungState = {
   stufe: 'erst',
   kenntnisSeit: '03:14 h',
-  empfaenger: 'Gemeinsame Meldestelle des BSI und des BBK',
+  meldestelle: 'Gemeinsame Meldestelle des BSI und des BBK',
   rechtsgrundlage: '§ 32 Abs. 1 BSIG — Erstmeldung',
   felder: [
     {

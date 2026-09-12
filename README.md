@@ -13,7 +13,9 @@ The main menu has three primary entries — **Neues Spiel**, **Lernbereich** and
 | **Freie Simulation** | Hands-on: dynamic IT weeks with Terminal & GUI scenarios and event chains, free choice of challenge — sub-levels **Einsteiger** (beginner hints, forgiving values), **Standard** (balanced baseline, 1.0x effects) and **KRITIS** (realistic, 24 weeks with NIS2 audits) |
 | **Story-Kampagne** | Narrative campaigns with chapters, character memory and several endings — **Die Probezeit** (Casual: mostly text & choices, with sidequests) and **Das Kataster** (Hands-on: terminal levels plus the Pflichtenkataster app). More are hidden. |
 
-The **Lernbereich** (learning mode) is its own primary menu entry: security training with 31 lessons across 8 tracks — Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings) and the 5-level "Blackout" incident.
+The **Lernbereich** (learning mode) is its own primary menu entry: security training with 36 lessons across 9 tracks — Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings), the 5-level "Blackout" incident, and **Pflicht & Nachweis**: the NIS-2 track on reporting duty (§ 32 BSIG, 24 h / 72 h / 1 month), attribution with shared accounts, documentation as a control and § 39 evidence.
+
+Experienced admins can skip the mandatory Foundations track by passing a single **Einstufungstest** — one task that demands all four basics at once. Proof, not a self-declaration: the game asks the same of its players as it does of its characters.
 
 Additionally, a `Schwer` (hard) mode still exists in code as a hidden configuration. An unused Arcade mode (timer + combo scoring) was removed in 2026-07; recover it from git history if ever needed.
 

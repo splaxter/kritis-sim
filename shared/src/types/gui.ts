@@ -366,7 +366,7 @@ export interface MeldungState {
    */
   kenntnisSeit: string;
   /** „Gemeinsame Meldestelle des BSI und des BBK" — nicht „das BSI". */
-  empfaenger: string;
+  meldestelle: string;
   /** „§ 32 Abs. 1 BSIG — Erstmeldung" */
   rechtsgrundlage: string;
   felder: MeldungFeld[];
