@@ -125,10 +125,25 @@ export function Meldung({ state, emit, retract, locked }: MeldungProps) {
 
   const tokenFor = (feldId: string, wert: string) => `set:${feldId}:${wert}`;
 
+  /**
+   * Jede Änderung am Formular macht ein früheres Absenden ungültig.
+   *
+   * `submit` ist ein EREIGNIS, kein Zustand — und `performed` ist ein Verlauf.
+   * Ohne diese Rücknahme blieb ein einmal abgeschicktes `submit` für immer
+   * stehen: eine spätere Feldänderung konnte das Level dann ohne erneutes
+   * Absenden lösen, im schlimmsten Fall mit einem inzwischen LEEREN
+   * Pflichtfeld. Man wurde also für etwas bewertet, das man nie abgeschickt hat.
+   *
+   * Fachlich ist das genau richtig: wer nach dem Absenden noch etwas ändert,
+   * hat eine andere Meldung — und die muss er abschicken.
+   */
+  const invalidateSubmit = () => retract('submit');
+
   /** Einwertiges Feld: neuer Wert ersetzt den alten, der alte Token fällt weg. */
   const setSingle = (feld: MeldungFeld, wert: string) => {
     if (locked) return;
     const alt = values[feld.id];
+    invalidateSubmit();
     if (typeof alt === 'string' && alt && alt !== wert) retract(tokenFor(feld.id, alt));
     setValues((prev) => ({ ...prev, [feld.id]: wert }));
     setWarning(null);
@@ -138,6 +153,7 @@ export function Meldung({ state, emit, retract, locked }: MeldungProps) {
   /** Mehrfachauswahl: jede Option ist ihr eigener Token, Abwahl nimmt ihn zurück. */
   const toggleMulti = (feld: MeldungFeld, optionId: string, checked: boolean) => {
     if (locked) return;
+    invalidateSubmit();
     setValues((prev) => {
       const cur = Array.isArray(prev[feld.id]) ? (prev[feld.id] as string[]) : [];
       return { ...prev, [feld.id]: checked ? [...cur, optionId] : cur.filter((o) => o !== optionId) };

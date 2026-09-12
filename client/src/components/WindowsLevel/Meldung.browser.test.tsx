@@ -186,3 +186,110 @@ describe('WindowsLevel — Meldeformular', () => {
     expect(screen.getByText(/Grenzüberschreitende Auswirkungen: nein/)).toBeInTheDocument();
   });
 });
+
+/**
+ * Aus dem Review zu PR #14: ein einmal abgeschicktes `submit` blieb in
+ * `performed` stehen (der Verlauf ist append-only). Eine spaetere Feldaenderung
+ * konnte das Level danach ohne erneutes Absenden loesen — sogar mit einem
+ * inzwischen leeren Pflichtfeld. `submit` ist ein EREIGNIS, kein Zustand.
+ */
+describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
+  /** Loesung, die erst durch eine SPAETERE Feldaenderung vollstaendig wird. */
+  const fallenContext = () =>
+    makeContext({
+      solutions: [
+        {
+          interactions: ['set:grenz:nein', 'submit'],
+          allRequired: true,
+          resultText: 'Behauptet.',
+          skillGain: {},
+        },
+      ],
+    });
+
+  const pflichtfelderFuellen = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.type(screen.getByLabelText(/Zeitpunkt der Kenntnisnahme/), '17:40');
+    await user.selectOptions(screen.getByLabelText(/Art des Vorfalls/), 'ransomware');
+  };
+
+  it('eine Feldaenderung nach dem Absenden loest NICHT ohne erneutes Absenden', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    await pflichtfelderFuellen(user);
+    // Abschicken mit einer Angabe, die KEINE Loesung trifft.
+    const gruppe = () => screen.getByRole('radiogroup', { name: /Grenz/ });
+    await user.click(within(gruppe()).getByRole('radio', { name: 'ja' }));
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+
+    // Jetzt die Angabe auf den Fallenwert aendern — ohne erneut abzuschicken.
+    await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
+
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(onSolved, 'geloest ohne abzuschicken').not.toHaveBeenCalled();
+  });
+
+  it('… erst das erneute Absenden loest aus', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    await pflichtfelderFuellen(user);
+    const gruppe = () => screen.getByRole('radiogroup', { name: /Grenz/ });
+    await user.click(within(gruppe()).getByRole('radio', { name: 'ja' }));
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+
+    await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+
+    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+  });
+
+  /** Der schlimmere Fall: Pflichtfeld inzwischen leer. */
+  it('mit geleertem Pflichtfeld loest gar nichts mehr', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
+
+    await pflichtfelderFuellen(user);
+    const gruppe = () => screen.getByRole('radiogroup', { name: /Grenz/ });
+    await user.click(within(gruppe()).getByRole('radio', { name: 'ja' }));
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+
+    // Pflichtfeld leeren, dann den Fallenwert setzen.
+    await user.clear(screen.getByLabelText(/Zeitpunkt der Kenntnisnahme/));
+    await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
+
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(onSolved).not.toHaveBeenCalled();
+
+    // … und ein Absendeversuch wird jetzt zu Recht zurueckgewiesen.
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+    expect(screen.getByText(/nimmt das so nicht an/)).toBeInTheDocument();
+    expect(onSolved).not.toHaveBeenCalled();
+  });
+
+  it('auch eine Mehrfachauswahl macht ein frueheres Absenden ungueltig', async () => {
+    const user = userEvent.setup();
+    const onSolved = vi.fn();
+    const ctx = makeContext({
+      solutions: [
+        {
+          interactions: ['set:systeme:mail', 'submit'],
+          allRequired: true,
+          resultText: 'Behauptet.',
+          skillGain: {},
+        },
+      ],
+    });
+    render(<WindowsLevel context={ctx} onSolved={onSolved} onCancel={() => {}} />);
+
+    await pflichtfelderFuellen(user);
+    await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
+    await user.click(screen.getByRole('checkbox', { name: /Mailserver/ }));
+
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(onSolved).not.toHaveBeenCalled();
+  });
+});
