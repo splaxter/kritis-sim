@@ -11,7 +11,7 @@ The main menu has three primary entries — **Neues Spiel**, **Lernbereich** and
 | Experience | Description |
 |------------|-------------|
 | **Freie Simulation** | Hands-on: dynamic IT weeks with Terminal & GUI scenarios and event chains, free choice of challenge — sub-levels **Einsteiger** (beginner hints, forgiving values), **Standard** (balanced baseline, 1.0x effects) and **KRITIS** (realistic, 24 weeks with NIS2 audits) |
-| **Story: Die Probezeit** (Casual) | Narrative campaign — mostly text & choices, with sidequests and multiple endings |
+| **Story-Kampagne** | Narrative campaigns with chapters, character memory and several endings — **Die Probezeit** (Casual: mostly text & choices, with sidequests) and **Das Kataster** (Hands-on: terminal levels plus the Pflichtenkataster app). More are hidden. |
 
 The **Lernbereich** (learning mode) is its own primary menu entry: security training with 31 lessons across 8 tracks — Linux terminal (16 CLI lessons), Windows GUI apps (Task Manager, Event Viewer, UAC, Explorer, Settings) and the 5-level "Blackout" incident.
 
@@ -36,6 +36,36 @@ A 12-chapter IT thriller in 3 acts. *The Office* meets *Mr. Robot*.
 | **Der Held** (Good) | High relationships, sidequests completed, proper preparation |
 | **Gerade so** (Neutral) | Middle path - some mistakes but core problem solved |
 | **Pech gehabt** (Bad) | Poor relationships, no preparation, trust lost |
+
+## Campaign: "Das Kataster"
+
+Six chapters, 24 beats, ~24 in-game days. The new ISB asks a question nobody in
+the house can answer: **which regulations apply to you?** Your predecessor is
+retired and his folder is half empty.
+
+**Mechanic:** the Kataster is an empty register you fill from traces you find in
+the terminal — contracts, licence lists, a Dienstvereinbarung, an unread letter
+from the Bundesamt. Every duty without an owner is a clock that is already
+running: after a few beats it *happens*, and you find out through the
+consequence — a Mahnschreiben, an invoice, a question from the Vorstand.
+
+**Scoring is not rows filled.** It is orphaned duties found before they strike.
+Assigning "die IT-Abteilung" as the owner turns a row green and looks exactly
+like a real assignment — until Act 4, where the auditor picks three entries and
+asks for owner, last proof and next date. Whoever invented owners to green the
+grid loses there. The no-fabrication rule, as a game rule.
+
+### Endings
+| Ending | How to Achieve |
+|--------|----------------|
+| **Der Aufpasser** | At least four of five domains, including Zurechenbarkeit and Ehrlichkeit |
+| **Der halb leere Ordner** | Honest, but too much stayed unknown |
+| **Die grüne Liste** | You invented an owner or concealed a gap — the register is green and worthless |
+
+Legal grounding is the current BSIG (as reformed by the NIS2UmsuCG, in force
+since 06.12.2025): § 32 reporting deadlines (24 h / 72 h / 1 month), § 39
+evidence every three years, §§ 30/31 risk management, § 10 BSI-KritisV for
+Siedlungsabfallentsorgung.
 
 ## Tech Stack
 

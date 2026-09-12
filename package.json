@@ -15,10 +15,11 @@
     "test:watch": "npm run build -w shared && vitest",
     "test:coverage": "npm run build -w shared && vitest run --coverage",
     "test:e2e": "npm run build && playwright test",
+    "test:e2e:chrome": "PW_CHANNEL=chrome npm run test:e2e",
     "test:all": "npm run test && npm run test:e2e"
   },
   "devDependencies": {
-    "@playwright/test": "^1.58.2",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

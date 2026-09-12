@@ -98,6 +98,14 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
     return items;
   };
 
+  /**
+   * Ein GUI- oder Terminal-Level trägt seine Belohnung im skillGain der Lösung,
+   * nicht in den Effekten der Start-Auswahl — dessen `effects` sind dann leer.
+   * Ohne diese Prüfung stand über dem leeren Raster trotzdem „AUSWIRKUNGEN".
+   * Beim Durchspielen von „Der erste Eintrag" gefunden.
+   */
+  const effectItems = renderEffects(choice.effects);
+
   // Learning-mode next-step CTAs: exactly one primary action + secondary hub.
   // Primary is "Nächste Lektion" if the track continues, else "Zurück zum
   // Lernpfad". "Finale starten" is offered additionally when unlocked.
@@ -173,12 +181,12 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
           <MentorNote note={mentorNote} isEnabled={mentorModeEnabled} />
         )}
 
-        <div className="bg-black/30 rounded p-4 mb-5">
-          <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Auswirkungen</div>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            {renderEffects(choice.effects)}
+        {effectItems.length > 0 && (
+          <div className="bg-black/30 rounded p-4 mb-5">
+            <div className="text-gray-400 text-xs uppercase tracking-wider mb-2">Auswirkungen</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">{effectItems}</div>
           </div>
-        </div>
+        )}
 
         {learningCtas ? (
           renderLearningCtas(learningCtas)
@@ -223,12 +231,12 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
         <MentorNote note={mentorNote} isEnabled={mentorModeEnabled} />
       )}
 
-      <div className="border border-terminal-border p-4 mb-6">
-        <div className="text-terminal-green-dim mb-2">- AUSWIRKUNGEN -</div>
-        <div className="grid grid-cols-2 gap-2">
-          {renderEffects(choice.effects)}
+      {effectItems.length > 0 && (
+        <div className="border border-terminal-border p-4 mb-6">
+          <div className="text-terminal-green-dim mb-2">- AUSWIRKUNGEN -</div>
+          <div className="grid grid-cols-2 gap-2">{effectItems}</div>
         </div>
-      </div>
+      )}
 
       {learningNudge && (
         <div className="border border-terminal-info/50 p-4 mb-6 text-sm">

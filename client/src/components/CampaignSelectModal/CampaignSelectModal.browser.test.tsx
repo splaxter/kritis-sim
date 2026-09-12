@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CampaignSelectModal } from './index';
-import { listVisibleCampaigns } from '../../content/campaigns';
+import { listCampaigns, listVisibleCampaigns } from '../../content/campaigns';
 import { trackCampaignUnlocked } from '../../engine/telemetry';
 
 // The unlock is the one moment worth measuring — mocked here so the test asserts
@@ -10,8 +10,11 @@ import { trackCampaignUnlocked } from '../../engine/telemetry';
 vi.mock('../../engine/telemetry', () => ({ trackCampaignUnlocked: vi.fn() }));
 
 const PLAYER = 'picker-player';
-/** What the modal shows before anything is unlocked — just the open campaign. */
+/** What the modal shows before anything is unlocked — the open campaigns. */
 const visible = listVisibleCampaigns();
+/** … and after the secret is entered, in picker order. Abgeleitet statt
+ *  hartkodiert, damit eine vierte Kampagne diese Tests nicht umwirft. */
+const unlocked = listVisibleCampaigns(['audit-trail']);
 
 /** Types the secret code into the window, the way a player would. */
 async function enterCode(user: ReturnType<typeof userEvent.setup>, code = 'trick17') {
@@ -50,11 +53,13 @@ describe('CampaignSelectModal', () => {
     expect(first).toHaveFocus();
   });
 
-  it('offers only Die Probezeit to a normal player — AUDIT TRAIL is not in the DOM', () => {
+  it('offers only the open campaigns — AUDIT TRAIL is not in the DOM', () => {
     renderModal();
 
-    expect(visible.map((c) => c.id)).toEqual(['probation']);
-    expect(screen.getByRole('button', { name: /Die Probezeit/ })).toBeInTheDocument();
+    expect(visible.map((c) => c.id)).toEqual(['probation', 'kataster']);
+    for (const c of visible) {
+      expect(screen.getByRole('button', { name: new RegExp(c.title) })).toBeInTheDocument();
+    }
     expect(screen.queryByRole('button', { name: /Audit Trail/ })).not.toBeInTheDocument();
     // Nothing may hint at the secret: no code, no "geheim", no teaser card.
     const dialog = screen.getByRole('dialog', { name: 'Kampagne wählen' });
@@ -168,27 +173,36 @@ describe('CampaignSelectModal', () => {
     renderModal({ onSelect });
     await enterCode(user); // two cards to move between
 
+    // Die Enthuellung laesst die Auswahl auf AUDIT TRAIL stehen; ein Schritt
+    // nach unten landet auf der naechsten Karte in Picker-Reihenfolge.
+    const atIndex = unlocked.findIndex((c) => c.id === 'audit-trail');
+    const next = unlocked[(atIndex + 1) % unlocked.length];
+
     await user.keyboard('{ArrowDown}');
-    const probation = screen.getByRole('button', { name: /Die Probezeit/ });
-    expect(probation).toHaveFocus();
-    expect(probation).toHaveAttribute('aria-pressed', 'true');
+    const card = screen.getByRole('button', { name: new RegExp(next.title) });
+    expect(card).toHaveFocus();
+    expect(card).toHaveAttribute('aria-pressed', 'true');
 
     await user.keyboard('{Enter}');
-    expect(onSelect).toHaveBeenCalledWith('probation');
+    expect(onSelect).toHaveBeenCalledWith(next.id);
   });
 
   it('arrow selection wraps around the list', async () => {
     const user = userEvent.setup();
     renderModal();
     await enterCode(user);
-    const campaigns = ['Die Probezeit', 'Audit Trail'];
+    const first = unlocked[0];
+    const last = unlocked[unlocked.length - 1];
 
-    // Start from the top of the list, wherever the reveal left the focus.
+    // Von der letzten Karte aus nach unten: Umbruch auf die erste.
+    const toLast = unlocked.length - 1 - unlocked.findIndex((c) => c.id === 'audit-trail');
+    for (let i = 0; i < toLast; i++) await user.keyboard('{ArrowDown}');
+    expect(screen.getByRole('button', { name: new RegExp(last.title) })).toHaveFocus();
     await user.keyboard('{ArrowDown}');
-    expect(screen.getByRole('button', { name: new RegExp(campaigns[0]) })).toHaveFocus();
-    // Up from the first entry lands on the last one.
+    expect(screen.getByRole('button', { name: new RegExp(first.title) })).toHaveFocus();
+    // Und nach oben von der ersten zurueck auf die letzte.
     await user.keyboard('{ArrowUp}');
-    expect(screen.getByRole('button', { name: new RegExp(campaigns[campaigns.length - 1]) })).toHaveFocus();
+    expect(screen.getByRole('button', { name: new RegExp(last.title) })).toHaveFocus();
   });
 
   it('traps focus inside the modal', async () => {

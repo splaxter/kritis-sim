@@ -7,6 +7,7 @@ import { UacPrompt } from './apps/UacPrompt';
 import { Settings } from './apps/Settings';
 import { Explorer } from './apps/Explorer';
 import { CoreFirewall } from './apps/CoreFirewall';
+import { Kataster } from './apps/Kataster';
 import { useGuiLevel } from './useGuiLevel';
 
 interface WindowsLevelProps {
@@ -83,18 +84,21 @@ const useStyles = makeStyles({
 });
 
 const APP_ICONS: Record<string, string> = {
-  taskmanager: '🗔',
+  // U+1F5D4 (Fenster) fehlt in Apple Color Emoji und wird dort zum leeren
+  // Kästchen — deshalb hier das Diagramm, das der Task-Manager ohnehin zeigt.
+  taskmanager: '📊',
   eventviewer: '📋',
   uac: '🛡️',
   explorer: '🗂️',
   settings: '⚙️',
   corefirewall: '🧱',
+  kataster: '📋',
 };
 
 export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: WindowsLevelProps) {
   const styles = useStyles();
   const briefing = briefingOverride ?? context.briefing;
-  const { emit, solved, resultText, hintsRemaining, visibleHints, showHint } = useGuiLevel({
+  const { emit, retract, solved, resultText, hintsRemaining, visibleHints, showHint } = useGuiLevel({
     context,
     onSolved,
   });
@@ -152,6 +156,19 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             locked={solved}
           />
         );
+      case 'kataster':
+        return (
+          <Kataster
+            title={context.state.kataster?.title ?? 'Pflichtenkataster'}
+            entries={context.state.kataster?.entries ?? []}
+            people={context.state.kataster?.people ?? []}
+            findings={context.state.kataster?.findings}
+            evidence={context.state.kataster?.evidence}
+            emit={emit}
+            retract={retract}
+            locked={solved}
+          />
+        );
       default:
         return (
           <div style={{ padding: 24, color: tokens.colorNeutralForeground2 }}>
@@ -184,7 +201,7 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
           ) : (
             <WindowFrame
               title={context.title}
-              icon={<span aria-hidden>{APP_ICONS[context.app] ?? '🗔'}</span>}
+              icon={<span aria-hidden>{APP_ICONS[context.app] ?? '🖥️'}</span>}
               onClose={onCancel}
             >
               {renderApp()}

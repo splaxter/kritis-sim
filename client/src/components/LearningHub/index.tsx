@@ -4,6 +4,7 @@
  * per-level progress.
  */
 
+import { useCallback, useEffect, useRef } from 'react';
 import { GameState, GameEvent } from '@kritis/shared';
 import { allEvents } from '../../content/events';
 import { LEARNING_TRACKS } from '../../content/events/learning-tracks';
@@ -39,6 +40,36 @@ const levelTitle = (id: string): string => eventById(id)?.title ?? id;
 export function LearningHub({ state, onPick }: LearningHubProps) {
   const recommended = getRecommendedNext(state, allEvents);
   const tracks = [...LEARNING_TRACKS].sort((a, b) => a.order - b.order);
+  const ctaRef = useRef<HTMLButtonElement>(null);
+
+  // Der Hub ist die Station ZWISCHEN zwei Lektionen. Wer eine Lektion
+  // abgeschlossen hat, will meistens die nächste — deshalb liegt der Fokus
+  // beim Betreten auf der Empfehlung, und Enter startet sie. Wer stattdessen
+  // ein anderes Thema will, tabbt weg; dann gilt wieder, was fokussiert ist.
+  useEffect(() => {
+    ctaRef.current?.focus();
+  }, [recommended?.id]);
+
+  const startRecommended = useCallback(() => {
+    if (recommended) onPick(recommended);
+  }, [recommended, onPick]);
+
+  // Fallback für den Fall, dass der Fokus nicht auf der CTA liegt (z. B. nach
+  // einem Klick ins Leere): Enter startet die Empfehlung trotzdem — aber nur,
+  // solange kein anderes Bedienelement fokussiert ist, sonst würde der Hub die
+  // bewusste Auswahl eines Tracks überstimmen.
+  useEffect(() => {
+    if (!recommended) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter') return;
+      const active = document.activeElement;
+      if (active instanceof HTMLButtonElement || active instanceof HTMLInputElement) return;
+      e.preventDefault();
+      startRecommended();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [recommended, startRecommended]);
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-4">
@@ -46,10 +77,14 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
 
       {recommended && (
         <button
-          onClick={() => onPick(recommended)}
-          className="w-full border border-terminal-info bg-terminal-info/10 hover:border-terminal-green p-3 text-left transition-colors"
+          ref={ctaRef}
+          onClick={startRecommended}
+          className="w-full border border-terminal-info bg-terminal-info/10 hover:border-terminal-green focus:border-terminal-green focus:outline-none p-3 text-left transition-colors"
         >
-          <div className="text-xs text-terminal-info tracking-wide">Nächste empfohlene Lektion</div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-terminal-info tracking-wide">Nächste empfohlene Lektion</div>
+            <div className="text-xs text-terminal-green-muted shrink-0">[Enter]</div>
+          </div>
           <div className="font-bold">{recommended.title}</div>
         </button>
       )}
