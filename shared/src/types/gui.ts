@@ -15,7 +15,8 @@ export type GuiAppId =
   | 'explorer'
   | 'settings'
   | 'corefirewall'
-  | 'kataster';
+  | 'kataster'
+  | 'meldung';
 
 /** Windows Event Viewer severity levels (German labels rendered in the UI). */
 export type EventLevel =
@@ -317,6 +318,65 @@ export interface KatasterState {
 }
 
 /** App-specific seed state. The relevant field is keyed by the context's `app`. */
+/* ── Meldung: das Meldeformular nach § 32 BSIG ───────────────────────────── */
+
+/** Welche Stufe der Meldekaskade dieses Formular abbildet (§ 32 Abs. 1). */
+export type MeldungStufe = 'erst' | 'folge' | 'abschluss';
+
+/**
+ * Drei Werte, nicht zwei.
+ *
+ * VERTRAG, NICHT „REPARIEREN": „nein" und „unbekannt" müssen im Formular
+ * gleichwertig aussehen — keine Warnfarbe, kein Hinweis, keine Sortierung, die
+ * das eine als die bessere Antwort ausweist. Die ganze Lektion des Tracks hängt
+ * daran, dass der Spieler den Unterschied selbst treffen muss: nach vier Stunden
+ * ist „noch unbekannt" fast immer richtig, und „nein" ist dann eine Aussage
+ * ohne Grundlage. Das Urteil darüber liegt in der `GuiSolution` des Levels,
+ * niemals in der Komponente.
+ */
+export type Tristate = 'ja' | 'nein' | 'unbekannt';
+
+export interface MeldungFeldOption {
+  id: string;
+  label: string;
+}
+
+export interface MeldungFeld {
+  id: string;
+  label: string;
+  kind: 'text' | 'datetime' | 'select' | 'multiselect' | 'tristate' | 'longtext';
+  /** Für 'select' und 'multiselect'. */
+  options?: MeldungFeldOption[];
+  /**
+   * Pflichtangabe nach § 32. Absenden ohne Wert wird vom Formular
+   * zurückgewiesen und gilt NICHT als Lösungsversuch — eine unvollständige
+   * Meldung ist keine Meldung.
+   */
+  required?: boolean;
+  /** Kurzer Hinweis unter dem Feld (z. B. „Zeitpunkt EURER Kenntnis"). */
+  hint?: string;
+}
+
+export interface MeldungState {
+  stufe: MeldungStufe;
+  /**
+   * Kopfzeile der Lage, z. B. „Kenntnis seit 03:14 h". Bewusst ein TEXT und
+   * kein laufender Timer: ein echter Countdown bestraft langsames Lesen statt
+   * falschen Denkens.
+   */
+  kenntnisSeit: string;
+  /** „Gemeinsame Meldestelle des BSI und des BBK" — nicht „das BSI". */
+  empfaenger: string;
+  /** „§ 32 Abs. 1 BSIG — Erstmeldung" */
+  rechtsgrundlage: string;
+  felder: MeldungFeld[];
+  /**
+   * Read-only Rückschau auf eine frühere Stufe (die Erstmeldung in der
+   * Folgemeldung). Macht den Widerspruch sichtbar, statt ihn zu behaupten.
+   */
+  vorbefund?: Array<{ label: string; value: string }>;
+}
+
 export interface GuiAppState {
   taskManager?: TaskManagerState;
   eventViewer?: EventViewerState;
@@ -325,6 +385,7 @@ export interface GuiAppState {
   explorer?: ExplorerState;
   coreFirewall?: CoreFirewallState;
   kataster?: KatasterState;
+  meldung?: MeldungState;
 }
 
 /**

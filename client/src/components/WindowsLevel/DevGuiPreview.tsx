@@ -109,6 +109,85 @@ const katasterSample: GuiContext = {
 };
 
 // Map preview ids → a GuiContext. Pulls from real level content where possible.
+/** Vorschau der Meldung: die Erstmeldung aus L2, mit der echten Feldliste. */
+const meldungSample: GuiContext = {
+  app: 'meldung',
+  title: 'Meldung an die Meldestelle',
+  hostname: 'warm-adm-01',
+  briefing:
+    'Erstmeldung nach § 32 Abs. 1 BSIG. Sie ist absichtlich niedrigschwellig — „noch unbekannt" ist eine zulässige Antwort.',
+  state: {
+    meldung: {
+      stufe: 'erst',
+      kenntnisSeit: '03:14 h',
+      empfaenger: 'Gemeinsame Meldestelle des BSI und des BBK',
+      rechtsgrundlage: '§ 32 Abs. 1 BSIG — Erstmeldung',
+      felder: [
+        {
+          id: 'kenntnis',
+          label: 'Zeitpunkt der Kenntnisnahme',
+          kind: 'text',
+          required: true,
+          hint: 'Der Moment, in dem IHR es wusstet — nicht der Beginn des Vorfalls.',
+        },
+        {
+          id: 'art',
+          label: 'Art des Vorfalls',
+          kind: 'select',
+          required: true,
+          options: [
+            { id: 'ransomware', label: 'Verschlüsselung / Ransomware' },
+            { id: 'ausfall', label: 'Ausfall ohne erkennbare Fremdeinwirkung' },
+            { id: 'unbefugt', label: 'Unbefugter Zugriff' },
+          ],
+        },
+        {
+          id: 'systeme',
+          label: 'Betroffene Dienste und Systeme',
+          kind: 'multiselect',
+          required: true,
+          options: [
+            { id: 'fs_dispo', label: 'Dateiserver Disposition' },
+            { id: 'waage', label: 'Waagensteuerung' },
+            { id: 'mail', label: 'Mailserver' },
+          ],
+        },
+        {
+          id: 'boeswillig',
+          label: 'Verdacht auf rechtswidrige oder böswillige Handlung',
+          kind: 'tristate',
+          required: true,
+        },
+        {
+          id: 'grenz',
+          label: 'Grenzüberschreitende Auswirkungen',
+          kind: 'tristate',
+          required: true,
+        },
+        {
+          id: 'dienstleistung',
+          label: 'Betroffene kritische Dienstleistung (§ 32 Abs. 3)',
+          kind: 'select',
+          options: [
+            { id: 'entsorgung', label: 'Abfallentsorgung — Disposition' },
+            { id: 'keine', label: 'keine kritische Dienstleistung betroffen' },
+          ],
+        },
+        { id: 'bewertung', label: 'Erstbewertung', kind: 'longtext' },
+      ],
+    },
+  },
+  solutions: [
+    {
+      interactions: ['submit'],
+      allRequired: true,
+      resultText: 'Vorschau: abgesendet.',
+      skillGain: { security: 5 },
+    },
+  ],
+  hints: ['Was weißt du nach drei Stunden wirklich — und was nimmst du nur an?'],
+};
+
 const PREVIEWS: Record<string, GuiContext | undefined> = {
   taskmanager: guiLevelEvents.find((e) => e.guiContext?.app === 'taskmanager')?.guiContext,
   eventviewer: guiLevelEvents.find((e) => e.guiContext?.app === 'eventviewer')?.guiContext,
@@ -120,6 +199,7 @@ const PREVIEWS: Record<string, GuiContext | undefined> = {
   blk_hunt_gui: blk('blk_c1_hunt_gui'),
   corefirewall: blk('blk_c3_firewall'),
   kataster: katasterSample,
+  meldung: meldungSample,
 };
 
 export function DevGuiPreview({ previewId }: { previewId: string }) {
