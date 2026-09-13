@@ -21,8 +21,10 @@ npm workspaces monorepo: `client`, `server`, `shared`. Run everything from the r
   `reuseExistingServer: !process.env.CI`, so a server still running from an earlier
   run is reused — serving the OLD bundle. Style or component changes then appear to
   have no effect, and a probe ("does this test still fail without the fix?") passes
-  for the wrong reason. Before trusting an e2e result after a code change:
-  `pkill -f "NODE_ENV=production"` and `npm run build`.
+  for the wrong reason. Before trusting an e2e result after a code change, rebuild and
+  stop only the listener on that port — never a broad `pkill` pattern, which can hit
+  unrelated projects and still miss the actual node process:
+  `lsof -ti tcp:3000 | xargs -r kill` then `npm run build`.
 - **`boundingBox()` does not detect clipping.** It returns geometry regardless of an
   ancestor's `overflow: hidden`, so an element cut out of view still has a box. To
   assert something is actually visible, compare its rect against the nearest clipping

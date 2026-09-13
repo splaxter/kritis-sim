@@ -44,13 +44,21 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
   },
   /**
-   * Die Liste scrollt NICHT mehr selbst: seit das Berechtigungsraster darunter
-   * steht, muessen beide zusammen scrollen, sonst waechst das Raster aus dem
-   * maxHeight der Wurzel heraus und schiebt den Footer mit „Entfernen" hinaus.
-   * Im Review zu PR #16 bei 375x667 reproduziert — der Knopf war komplett
-   * abgeschnitten und per Seitenscroll nicht erreichbar.
+   * Die scrollende Liste des DATEI-Modus — unveraendert seit jeher.
+   *
+   * ACHTUNG: diese Klasse hatten beide Modi gemeinsam. Als ich sie fuer das
+   * Berechtigungsraster umgebaut habe, verlor der Datei-Explorer sein Scrollen
+   * (Regression, im Review zu PR #16 mit den echten L7-Daten gefunden). Zwei
+   * verschiedene Layouts, zwei Klassen — `list` gehoert jetzt allein dem
+   * Datei-Modus.
    */
-  list: { minHeight: '80px' },
+  list: { flex: 1, overflowY: 'auto', minHeight: '80px' },
+  /**
+   * Der ACL-Modus scrollt Liste UND Raster gemeinsam: sonst waechst das Raster
+   * aus dem maxHeight der Wurzel heraus und schiebt den Footer mit „Entfernen"
+   * hinaus (bei 375x667 reproduziert, e2e/mobile-gui-layout.spec.ts).
+   */
+  aclList: { minHeight: '80px' },
   scrollArea: { flex: 1, minHeight: 0, overflowY: 'auto' },
   row: {
     display: 'grid',
@@ -246,7 +254,7 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
       </div>
 
       <div className={styles.scrollArea}>
-      <div className={styles.list} role="listbox" aria-label="Berechtigungen">
+      <div className={styles.aclList} role="listbox" aria-label="Berechtigungen">
         {rows.map((entry) => (
           <div
             key={entry.id}

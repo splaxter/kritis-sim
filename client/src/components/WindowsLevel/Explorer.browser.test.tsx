@@ -362,3 +362,53 @@ describe('Explorer ACL — Berechtigungsraster der Auswahl', () => {
     expect(screen.getByRole('option', { name: /Jeder/ })).toBeInTheDocument();
   });
 });
+
+/**
+ * Regression aus dem Review zu b244ab1: `styles.list` gehoerte BEIDEN
+ * Explorer-Modi. Beim Umbau fuer das Berechtigungsraster verlor der
+ * Datei-Explorer sein Scrollen — die Dateien liefen hinter den Footer.
+ *
+ * jsdom loest die Fluent-Klassen auf, also laesst sich das hier direkt pruefen:
+ * jeder Modus braucht einen scrollfaehigen Bereich, und die beiden duerfen sich
+ * dafuer nicht dieselbe Klasse teilen.
+ */
+describe('Explorer — beide Modi behalten ihren Scrollbereich', () => {
+  /** Naechster Vorfahr (oder das Element selbst), der vertikal scrollen kann. */
+  const scrollTraeger = (el: HTMLElement): HTMLElement | null => {
+    let n: HTMLElement | null = el;
+    while (n) {
+      const o = getComputedStyle(n).overflowY;
+      if (o === 'auto' || o === 'scroll') return n;
+      n = n.parentElement;
+    }
+    return null;
+  };
+
+  it('Datei-Modus: die Liste scrollt selbst und waechst mit', () => {
+    render(<WindowsLevel context={filesContext} onSolved={vi.fn()} onCancel={() => {}} />);
+    const liste = screen.getByRole('listbox', { name: 'Dateien' });
+    const cs = getComputedStyle(liste);
+    expect(cs.overflowY, 'Datei-Liste scrollt nicht mehr').toBe('auto');
+    expect(cs.flexGrow, 'Datei-Liste fuellt die Hoehe nicht mehr').toBe('1');
+  });
+
+  it('ACL-Modus: Liste und Raster scrollen gemeinsam in einem Vorfahren', () => {
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    const liste = screen.getByRole('listbox', { name: 'Berechtigungen' });
+    const traeger = scrollTraeger(liste);
+    expect(traeger, 'kein scrollfaehiger Bereich').not.toBeNull();
+    // Der Traeger ist NICHT die Liste selbst — sonst bliebe das Raster aussen vor.
+    expect(traeger).not.toBe(liste);
+  });
+
+  it('die beiden Modi teilen sich die Klasse nicht mehr', () => {
+    const { unmount } = render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    const aclKlasse = screen.getByRole('listbox', { name: 'Berechtigungen' }).className;
+    unmount();
+
+    render(<WindowsLevel context={filesContext} onSolved={vi.fn()} onCancel={() => {}} />);
+    const dateiKlasse = screen.getByRole('listbox', { name: 'Dateien' }).className;
+
+    expect(dateiKlasse, 'gemeinsame Klasse — genau das war die Regression').not.toBe(aclKlasse);
+  });
+});
