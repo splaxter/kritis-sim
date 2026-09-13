@@ -19,10 +19,15 @@ export function installFakeTimers(): void {
   });
   afterEach(() => {
     // Reihenfolge zaehlt: erst ausstehende Timer verwerfen, dann die echten
-    // zurueckholen, dann den jest-Stub entfernen. Bleibt ein gefaketer Timer
-    // stehen, feuert er spaeter in einem fremden Test; bleibt der Stub stehen,
-    // halten Testing-Librarys Helfer in JEDER weiteren Datei faelschlich Fake
-    // Timers fuer aktiv und warten auf ein Vorspulen, das nie kommt.
+    // zurueckholen, dann den Stub entfernen. Ein gefaketer Timer, der die Datei
+    // ueberlebt, feuert spaeter in einem fremden Test.
+    //
+    // Der jest-Stub allein ist danach harmlos: RTL prueft BEIDES — den globalen
+    // `jest` UND ob `setTimeout` tatsaechlich gefaelscht ist (_isMockFunction
+    // bzw. die `clock`-Eigenschaft). Nach useRealTimers trifft das zweite nicht
+    // mehr zu. Wir raeumen ihn trotzdem weg, weil ein vorgetaeuschter
+    // jest-Global alles in die Irre fuehrt, was per Feature-Erkennung nach ihm
+    // sucht — nicht nur RTL.
     vi.clearAllTimers();
     vi.useRealTimers();
     vi.unstubAllGlobals();

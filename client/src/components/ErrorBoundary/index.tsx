@@ -12,9 +12,20 @@ interface ErrorBoundaryState {
 
 /**
  * Top-level error boundary: a render/lifecycle throw anywhere below shows a
- * terminal-styled German fallback instead of a blank page. Reloading is safe:
- * useAutosave persists the run to localStorage (kritis_autosave_<playerId>)
- * on every transition, and the menu offers [ WEITER SPIELEN ].
+ * terminal-styled German fallback instead of a blank page.
+ *
+ * WAS DER TEXT VERSPRECHEN DARF — und was nicht. `useAutosave` schreibt erst
+ * NACH einem erfolgreichen Rendern. Daraus folgen zwei Faelle, die der
+ * Fallback nicht wegreden darf:
+ *
+ *   1. Der Fehler trifft den ersten Spielbildschirm → es gibt ueberhaupt
+ *      keinen Spielstand, und „du kannst weiterspielen" waere gelogen.
+ *   2. Der Fehler trifft einen spaeteren Uebergang → gespeichert ist der
+ *      Zustand DAVOR; genau der fehlgeschlagene Schritt fehlt.
+ *
+ * Der Text sagt deshalb konjunktivisch, was der Fall sein KANN, und warnt vor
+ * moeglichem Verlust. Im Review zu PR #15 mit zwei Repros belegt — vorher
+ * behauptete er rundheraus, der Stand sei gesichert.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null };
@@ -37,9 +48,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="border border-terminal-border max-w-xl w-full p-6 space-y-4">
           <h1 className="text-xl text-terminal-danger">✗ Etwas ist schiefgelaufen</h1>
           <p className="text-terminal-green-dim">
-            Ein unerwarteter Fehler hat das Spiel unterbrochen. Keine Sorge:
-            Dein Spielstand wird automatisch gesichert — nach dem Neuladen
-            kannst du im Menü einfach weiterspielen.
+            Ein unerwarteter Fehler hat das Spiel unterbrochen. Lade die Seite
+            neu. Falls ein gespeicherter Spielstand vorhanden ist, kannst du ihn
+            im Menü fortsetzen. Nicht gespeicherte Änderungen können verloren
+            sein.
           </p>
           <pre className="text-terminal-green-dim text-xs whitespace-pre-wrap overflow-x-auto border border-terminal-border p-2">
             {this.state.error.message}
