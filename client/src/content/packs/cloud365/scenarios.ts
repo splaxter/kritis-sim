@@ -1,6 +1,96 @@
 // Cloud365 GmbH - Microsoft Partner - Scenarios
 import { Scenario } from '@kritis/shared';
 
+/* ── Exporte für CLOUD365-SC-002 (Migrationstag) ────────────────────────────
+ *
+ * Die Lektion ist, dass zwei Dinge gleichzeitig wahr sein können: Der
+ * Postfachtransfer IST abgeschlossen, und die Clients kommen trotzdem nicht
+ * ran. Wer nur die Statusliste liest, meldet Erfolg; wer nur die Beschwerden
+ * hört, meldet eine gescheiterte Migration. Beides ist falsch.
+ */
+
+const migrationStatus = `postfach;groesse_gb;status;abgeschlossen
+k.berger;4.2;Completed;15.06.2026 06:12
+m.dahlke;7.8;Completed;15.06.2026 06:41
+s.eren;2.1;Completed;15.06.2026 06:55
+t.fuhrmann;11.4;Completed;15.06.2026 07:33
+a.gerste;3.7;Completed;15.06.2026 07:48
+p.hoffmann;9.2;Completed;15.06.2026 08:20
+j.kessler;5.5;Completed;15.06.2026 08:39
+b.olsen;6.1;Completed;15.06.2026 08:58
+h.bartels;8.3;Completed;15.06.2026 09:24
+c.wendt;3.0;Completed;15.06.2026 09:37
+
+10 von 10 Postfächern übertragen, 0 Fehler, 0 übersprungene Elemente.
+`;
+
+const clientTest = `Abnahmetest Pilotgruppe — 15.06.2026, 10:00 Uhr
+Durchgeführt von: K. Ahrens (Cloud365)
+
+Fall 1  Anmeldung am Webzugang (OWA)          bestanden  (10 von 10)
+Fall 2  Mail senden und empfangen über OWA   bestanden  (10 von 10)
+Fall 3  Kalender im Webzugang                  bestanden  (10 von 10)
+Fall 4  Outlook-Profil neu einrichten          FEHLER     (0 von 10)
+Fall 5  Bestehendes Outlook-Profil verbinden   FEHLER     (0 von 10)
+Fall 6  Freigegebenes Postfach in Outlook      nicht geprüft (hängt an Fall 4)
+
+Meldung aus Fall 4: "Die Verbindung zu Microsoft Exchange ist nicht verfügbar.
+Outlook muss im Onlinemodus oder verbunden sein."
+`;
+
+const autodiscoverCheck = `Namensauflösung autodiscover.warm-entsorgung.de
+Geprüft am 15.06.2026, 10:20
+
+  autodiscover.warm-entsorgung.de  CNAME  exch01.warm-entsorgung.local
+
+Erwartet bei Exchange Online:
+  autodiscover.warm-entsorgung.de  CNAME  autodiscover.outlook.com
+
+Der Eintrag zeigt weiterhin auf den lokalen Server. Outlook fragt beim Einrichten
+zuerst hier nach und bekommt die alte Adresse. Der Webzugang ist davon nicht
+betroffen, weil er ohne diesen Eintrag auskommt.
+`;
+
+/* ── Exporte für CLOUD365-SC-006 (Copilot) ──────────────────────────────────
+ *
+ * Der Befund ist die vorhandene Berechtigung, NICHT eine erfundene Umgehung
+ * der Zugriffskontrolle. Copilot zeigt, was jemand ohnehin sehen darf — das
+ * ist genau das Unangenehme daran.
+ */
+
+const berechtigungen = `standort;bibliothek;berechtigt;recht
+Personal;Gehaltsabrechnungen;HR-Team;Bearbeiten
+Personal;Gehaltsabrechnungen;Alle Mitarbeitenden;Lesen
+Personal;Bewerbungen;HR-Team;Bearbeiten
+Personal;Bewerbungen;Geschäftsführung;Lesen
+Betrieb;Tourenpläne;Disposition;Bearbeiten
+Betrieb;Tourenpläne;Alle Mitarbeitenden;Lesen
+Projekte;Archiv2019;Alle Mitarbeitenden;Lesen
+Projekte;Laufend;Projektleitung;Bearbeiten
+`;
+
+const gruppen = `gruppe;mitglieder;enthält
+Alle Mitarbeitenden;151;Stammbelegschaft, Auszubildende, Aushilfen, 4 externe Dienstleister
+HR-Team;3;S. Krauss, N. Ilic, P. Hoffmann
+Disposition;11;Schichtleitung und Planung
+Projektleitung;5;
+Geschäftsführung;2;
+`;
+
+const copilotHinweis = `Funktionsweise Microsoft 365 Copilot — Kurzfassung für die Akte
+
+Copilot beantwortet Fragen ausschließlich aus Inhalten, auf die das
+FRAGENDE Konto bereits Zugriff hat. Es hebt keine Berechtigungen auf und
+umgeht keine Zugriffskontrolle.
+
+Der Unterschied zu vorher ist nicht der Zugriff, sondern die Auffindbarkeit:
+Was bisher in einem Ordner lag, den niemand geöffnet hat, wird jetzt auf
+eine Frage hin aktiv vorgeschlagen.
+
+Folge: Eine zu weite Berechtigung, die jahrelang folgenlos blieb, wird mit
+Copilot am ersten Tag sichtbar.
+`;
+
 export const cloud365Scenarios: Scenario[] = [
   {
     id: 'CLOUD365-SC-001',
@@ -62,12 +152,15 @@ export const cloud365Scenarios: Scenario[] = [
       },
       {
         id: 'B',
-        text: 'Pilotgruppe checken: Wurde die wirklich erfolgreich migriert?',
+        text: 'Die Pilot-Protokolle selbst auswerten, bevor irgendwer zurückrollt',
         outcome: 'PERFECT',
-        consequence: 'Du checkst die 10-User-Pilotgruppe: "Kevin, bei denen funktioniert Outlook auch nicht." Kevin: "...ähm." Es stellt sich heraus: Die Pilotmigration lief, aber Kevin hat nie getestet ob Outlook danach noch funktioniert. Ihr rollt auf den On-Prem-Exchange zurück, fixt das Autodiscover, macht einen echten Pilottest mit 5 Usern. Zweiter Anlauf am Samstag: läuft.',
+        // Der Ergebnistext bleibt bei dem, was der Spieler belegt hat: eine
+        // Diagnose. Den DNS-Eintrag aendert Kevin, und das steht auch so da.
+        consequence: 'Du legst Kevin zwei Zeilen hin: Transfer vollständig, Clients hängen am Autodiscover-Eintrag, der noch auf den lokalen Server zeigt. Kevin: "...das hab ich nie angefasst." Er ändert den Eintrag, ihr wartet die Verteilung ab, um 15:20 richten sich die ersten Profile wieder ein. Zurückgerollt wurde nichts — es gab nichts zurückzurollen.',
         scoreChange: 200,
         reputationChange: 20,
-        lesson: 'Pilotmigrationen müssen vollständig getestet werden, nicht nur "Migration erfolgreich". End-to-End-Test: Kann der User wirklich arbeiten? Outlook öffnen, Mail senden, Kalender prüfen.',
+        lesson: 'Zwei Dinge können gleichzeitig wahr sein: Die Migration ist abgeschlossen UND die Leute können nicht arbeiten. Wer nur die Statusliste liest, meldet Erfolg; wer nur die Beschwerden zählt, rollt eine funktionierende Migration zurück. Erst beides zusammen ergibt eine Diagnose.',
+        terminalCommand: true,
       },
       {
         id: 'C',
@@ -79,6 +172,51 @@ export const cloud365Scenarios: Scenario[] = [
         lesson: 'Webmail ist ein valider Fallback während Client-Problemen. User können arbeiten während das Problem gefixt wird. Kommunikation und Workaround-Anweisungen sind bei Migrationen essenziell.',
       },
     ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/srv/export',
+      taskText:
+        'Die Protokolle in /srv/export auswerten und in /home/timo/befund.md festhalten, wie der Stand WIRKLICH ist: Transfer und Clientzugang getrennt bewerten.',
+      vfsOverlay: {
+        directories: ['/srv/export'],
+        files: [
+          { path: '/srv/export/migration_status.csv', content: migrationStatus },
+          { path: '/srv/export/abnahmetest.txt', content: clientTest },
+          { path: '/srv/export/dns_autodiscover.txt', content: autodiscoverCheck },
+        ],
+      },
+      commands: [],
+      commandSkillGain: { cat: { linux: 1 }, grep: { linux: 2 }, awk: { linux: 2 } },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Beide Seiten müssen wirklich gelesen sein — die Statusliste
+            // allein sagt Erfolg, der Abnahmetest allein sagt Katastrophe.
+            { fileRead: '/srv/export/migration_status.csv' },
+            { fileRead: '/srv/export/abnahmetest.txt' },
+            { fileRead: '/srv/export/dns_autodiscover.txt' },
+            // Der Befund muss BEIDES benennen: Transfer fertig ...
+            { file: '/home/timo/befund.md', matches: 'abgeschlossen|vollständig|fertig|Completed' },
+            // ... und die tatsächliche Ursache des Ausfalls.
+            { file: '/home/timo/befund.md', matches: '[Aa]utodiscover' },
+          ],
+          resultText:
+            'Beides stimmt gleichzeitig: 10 von 10 Postfächern sind übertragen, 0 Fehler — und kein einziges Outlook-Profil lässt sich einrichten. Der Webzugang läuft in allen drei Testfällen.\n\nDas ist genau das Muster, das auf den Autodiscover-Eintrag zeigt: Outlook fragt beim Einrichten dort nach, der Webzugang kommt ohne ihn aus. Und der Eintrag zeigt weiterhin auf exch01.warm-entsorgung.local.\n\nEin Rückbau hätte hier eine funktionierende Migration zerstört, um einen DNS-Eintrag nicht ändern zu müssen.',
+          skillGain: { netzwerk: 4, troubleshooting: 6, softSkills: 2 },
+          effects: {},
+        },
+      ],
+      hints: [
+        'Drei Protokolle liegen da. Zwei davon widersprechen sich scheinbar — such das dritte, das erklärt, warum beide recht haben.',
+        'Der Webzugang funktioniert, Outlook nicht. Was braucht Outlook beim Einrichten, das der Webzugang nicht braucht?',
+        '`cat dns_autodiscover.txt` — vergleiche den vorhandenen Eintrag mit dem erwarteten.',
+        'Befund festhalten: `echo "Transfer abgeschlossen (10/10), Clients scheitern am Autodiscover-Eintrag" > /home/timo/befund.md`',
+      ],
+    },
     realWorldReference: 'Exchange-zu-M365-Migrationen scheitern häufig an Autodiscover-Konfiguration. Microsoft empfiehlt Hybrid-Deployment mit Extended-Koexistenz, aber das ist aufwändig.',
     bsiReference: 'BSI IT-Grundschutz: OPS.1.1.3 Patch- und Änderungsmanagement',
     involvedNpcs: ['CLOUD365-KEVIN'],
@@ -219,12 +357,16 @@ export const cloud365Scenarios: Scenario[] = [
     choices: [
       {
         id: 'A',
-        text: 'Datenschutz-Folgenabschätzung fordern: Was sieht Copilot?',
+        text: 'Die Berechtigungsexporte anfordern und selbst durchsehen',
         outcome: 'PERFECT',
-        consequence: 'Du forderst eine DSFA. Kevin liefert nach 2 Wochen: Copilot indexiert alle SharePoint-Dateien, E-Mails, Teams-Chats. Auch die Personaldaten. Auch die Gehaltslisten. Auch die Beschwerden über den GF. Du: "Das geht so nicht." Ihr implementiert Sensitivity Labels und Zugriffssteuerung BEVOR Copilot aktiv wird.',
+        // Der Befund ist die BESTEHENDE Berechtigung. Der Ergebnistext darf
+        // Copilot nicht zum Täter machen — das wäre bequem und falsch, und
+        // es würde die eigentliche Lektion genau verfehlen.
+        consequence: 'Du legst eine Zeile aus dem Export vor, und danach diskutiert niemand mehr über Künstliche Intelligenz. Der Rollout wird verschoben, bis das Berechtigungskonzept steht — nicht wegen Copilot, sondern wegen des Befunds, den es sichtbar gemacht hätte.',
         scoreChange: 250,
         reputationChange: 30,
-        lesson: 'KI-Tools wie Copilot sehen ALLES worauf der User Zugriff hat — auch wenn er es nie öffnet. Berechtigungskonzept und Datenklassifizierung müssen VOR dem KI-Rollout stehen. Sonst findet jeder plötzlich sensible Daten.',
+        lesson: 'Copilot hebt keine Berechtigungen auf; es beantwortet Fragen aus dem, was das fragende Konto ohnehin sehen darf. Was sich ändert, ist die Auffindbarkeit. Eine zu weite Freigabe, die jahrelang folgenlos blieb, wird damit am ersten Tag zum Vorfall — das Problem ist die Freigabe, nicht das Werkzeug.',
+        terminalCommand: true,
         followupEvent: 'DATA_CLASSIFICATION_PROJECT',
       },
       {
@@ -247,6 +389,51 @@ export const cloud365Scenarios: Scenario[] = [
         triggersEvent: 'DSGVO_INCIDENT',
       },
     ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/srv/export',
+      taskText:
+        'Berechtigungs- und Gruppenexport in /srv/export durchsehen und in /home/timo/dsfa_befund.md die Bibliothek benennen, deren Freigabe zu weit geht.',
+      vfsOverlay: {
+        directories: ['/srv/export'],
+        files: [
+          { path: '/srv/export/berechtigungen.csv', content: berechtigungen },
+          { path: '/srv/export/gruppen.csv', content: gruppen },
+          { path: '/srv/export/copilot_funktionsweise.txt', content: copilotHinweis },
+        ],
+      },
+      commands: [],
+      commandSkillGain: { cat: { linux: 1 }, grep: { linux: 2, security: 1 }, awk: { linux: 2 } },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/export/berechtigungen.csv' },
+            // Ohne die Gruppenliste ist „Alle Mitarbeitenden" eine Floskel.
+            // Erst die 151 machen daraus einen Befund.
+            { fileRead: '/srv/export/gruppen.csv' },
+            { file: '/home/timo/dsfa_befund.md', matches: 'Gehaltsabrechnungen' },
+            // Der Koeder: eine zweite Bibliothek mit derselben weiten Freigabe,
+            // bei der das aber genau richtig ist. Wer beide meldet, hat nach
+            // dem Muster gesucht statt nach dem Inhalt.
+            { file: '/home/timo/dsfa_befund.md', absentMatches: 'Archiv2019' },
+          ],
+          resultText:
+            'Personal / Gehaltsabrechnungen, Leserecht für „Alle Mitarbeitenden" — und diese Gruppe hat 151 Mitglieder, darunter Auszubildende, Aushilfen und vier externe Dienstleister.\n\nDieselbe weite Freigabe steht auf Projekte / Archiv2019, und dort ist sie richtig: abgeschlossene Projektunterlagen sollen im Haus lesbar sein. Der Unterschied liegt nicht im Berechtigungsmuster, sondern im Inhalt.\n\nUnd Copilot? Umgeht nichts. Es macht nur auffindbar, was seit Jahren offenstand.',
+          skillGain: { security: 7, softSkills: 3 },
+          effects: {},
+        },
+      ],
+      hints: [
+        'Zwei Bibliotheken sind für alle lesbar. Bei einer ist das gewollt — entscheide über den Inhalt, nicht über das Muster.',
+        'Wie viele Menschen sind „Alle Mitarbeitenden" eigentlich? Die Antwort steht im zweiten Export und macht aus einer Zeile einen Befund.',
+        '`grep "Alle Mitarbeitenden" berechtigungen.csv` und danach `cat gruppen.csv`.',
+        'Befund festhalten: `echo "zu weit: Personal/Gehaltsabrechnungen lesbar für 151 Personen" > /home/timo/dsfa_befund.md`',
+      ],
+    },
     realWorldReference: 'Microsoft Copilot-Rollouts haben 2024 mehrere Datenschutz-Vorfälle verursacht. Unternehmen entdeckten, dass ihre SharePoint-Berechtigungen seit Jahren falsch waren — Copilot machte es sichtbar.',
     bsiReference: 'BSI IT-Grundschutz: APP.6.1 Office-Produkte, CON.2 Datenschutz',
     involvedNpcs: ['CLOUD365-MARTIN', 'CLOUD365-KEVIN'],

@@ -19,7 +19,7 @@ import { findMetGuiSolution } from '../../components/WindowsLevel/guiSolution';
 const EINSTIEG = ['INTERN-SC-011', 'CLOUD365-SC-007', 'TELEKOM-SC-007'];
 
 /** Alle Szenarien mit praktischer GUI-Aufgabe — Einstieg plus Ausbauten. */
-const GUI_SZENARIEN = [...EINSTIEG];
+const GUI_SZENARIEN = [...EINSTIEG, 'INTERN-SC-004'];
 
 const szenario = (id: string): Scenario => {
   const s = getScenarioById(id);
@@ -251,5 +251,57 @@ describe('TELEKOM-SC-007 — die richtige Vertragsfassung', () => {
   it('der Abschluss behauptet kein eroeffnetes Provider-Ticket', () => {
     const choice = szenario('TELEKOM-SC-007').choices.find((c) => c.guiCommand)!;
     expect(choice.consequence).toMatch(/noch nicht|nächste/i);
+  });
+});
+
+describe('INTERN-SC-004 — die Disposition steht', () => {
+  const sols = () => gui('INTERN-SC-004').solutions;
+
+  it('den richtigen Fehlereintrag zu melden loest', () => {
+    const met = findMetGuiSolution(sols(), ['select:ev_db_verbindung', 'report:ev_db_verbindung']);
+    expect(met).not.toBeNull();
+    expect(met!.resultText).toMatch(/4103/);
+  });
+
+  it('bloss auszuwaehlen loest nicht', () => {
+    expect(findMetGuiSolution(sols(), ['select:ev_db_verbindung'])).toBeNull();
+  });
+
+  /**
+   * Der Kern: eine Warnung ist keine Ursache. Die Nacht ist voll davon, und
+   * zwei davon liegen zeitlich sogar naeher an Sabines Anruf.
+   */
+  it.each(['ev_zertifikat', 'ev_druckwarteschlange', 'ev_lizenz'])(
+    'die unabhaengige Meldung %s zu melden loest nicht',
+    (eintrag) => {
+      expect(findMetGuiSolution(sols(), [`select:${eintrag}`, `report:${eintrag}`])).toBeNull();
+    }
+  );
+
+  it('der erfolgreiche Sicherungslauf ist kein Befund', () => {
+    expect(findMetGuiSolution(sols(), ['report:ev_backup_ok'])).toBeNull();
+  });
+
+  /**
+   * Die Wiederholung um 05:34 ist dieselbe Stoerung, aber der falsche Beleg:
+   * sie nennt weder den Beginn noch die letzte funktionierende Verbindung.
+   */
+  it('die Wiederholungsmeldung statt der ersten loest nicht', () => {
+    expect(findMetGuiSolution(sols(), ['report:ev_db_wiederholung'])).toBeNull();
+  });
+
+  it('der Ergebnistext behauptet keine Reparatur', () => {
+    const choice = szenario('INTERN-SC-004').choices.find((c) => c.guiCommand)!;
+    expect(choice.consequence).not.toMatch(/neu ?gestartet|repariert|behoben/i);
+    // Der Neustart passiert, aber ausdruecklich durch jemand anderen.
+    expect(choice.consequence).toMatch(/Rufbereitschaft/);
+  });
+
+  it('der entscheidende Eintrag traegt den Beleg in den Details', () => {
+    const eintraege = gui('INTERN-SC-004').state.eventViewer!.entries;
+    const treffer = eintraege.find((e) => e.id === 'ev_db_verbindung')!;
+    expect(treffer.level).toBe('Fehler');
+    expect(treffer.message, 'ohne letzte erfolgreiche Verbindung ist es keine Eingrenzung')
+      .toMatch(/[Ll]etzte erfolgreiche Verbindung/);
   });
 });

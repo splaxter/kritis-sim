@@ -1,6 +1,113 @@
 // Deutsche Telekom Business - Scenarios
 import { Scenario } from '@kritis/shared';
 
+/* ── Messreihen für TELEKOM-SC-001 (sporadische Ausfälle) ───────────────────
+ *
+ * Die Messung belegt ein MUSTER und einen Ort — sie belegt keine kaputte
+ * Komponente. „Defekter Verstärker am Verteiler" ist die Erzählung, die der
+ * Techniker später daraus macht; wer sie vorwegnimmt, behauptet etwas, das
+ * seine eigene Messung nicht hergibt.
+ */
+
+const pingExtern = `zeit;ziel;ergebnis
+2026-04-13 09:30;9.9.9.9;ok
+2026-04-13 10:04;9.9.9.9;ausfall
+2026-04-13 10:04;1.1.1.1;ausfall
+2026-04-13 10:04;8.8.8.8;ausfall
+2026-04-13 11:47;9.9.9.9;ausfall
+2026-04-13 11:47;1.1.1.1;ausfall
+2026-04-13 13:12;8.8.8.8;ausfall
+2026-04-13 15:00;9.9.9.9;ok
+2026-04-13 18:30;9.9.9.9;ok
+2026-04-14 08:00;9.9.9.9;ok
+2026-04-14 10:31;9.9.9.9;ausfall
+2026-04-14 10:31;1.1.1.1;ausfall
+2026-04-14 12:05;8.8.8.8;ausfall
+2026-04-14 13:58;9.9.9.9;ausfall
+2026-04-14 16:20;9.9.9.9;ok
+2026-04-14 21:10;9.9.9.9;ok
+2026-04-15 07:15;9.9.9.9;ok
+2026-04-15 10:12;9.9.9.9;ausfall
+2026-04-15 11:03;1.1.1.1;ausfall
+2026-04-15 13:40;8.8.8.8;ausfall
+2026-04-15 17:45;9.9.9.9;ok
+2026-04-15 23:30;9.9.9.9;ok
+`;
+
+const pingGateway = `zeit;ziel;ergebnis
+2026-04-13 10:04;192.168.1.1;ok
+2026-04-13 11:47;192.168.1.1;ok
+2026-04-13 13:12;192.168.1.1;ok
+2026-04-14 10:31;192.168.1.1;ok
+2026-04-14 12:05;192.168.1.1;ok
+2026-04-14 13:58;192.168.1.1;ok
+2026-04-15 10:12;192.168.1.1;ok
+2026-04-15 11:03;192.168.1.1;ok
+2026-04-15 13:40;192.168.1.1;ok
+
+Der Router war zu JEDEM Zeitpunkt erreichbar, an dem die externen Ziele
+ausfielen. Das eigene Netz und das Gerät scheiden damit aus.
+`;
+
+const messHinweis = `Messaufbau — Kurzbeschreibung
+
+Alle 30 Sekunden ein Ping auf drei voneinander unabhängige externe Ziele
+(9.9.9.9, 1.1.1.1, 8.8.8.8) sowie auf das lokale Gateway (192.168.1.1).
+Protokolliert wird nur, was von der Vorgabe abweicht, plus stündliche
+Kontrollzeilen.
+
+Ein Ausfall gilt als solcher, wenn drei aufeinanderfolgende Pings an
+dasselbe Ziel unbeantwortet bleiben.
+`;
+
+/* ── Unterlagen für TELEKOM-SC-006 (Bandbreiteneinbruch) ────────────────────
+ *
+ * Drei Zahlen, die auseinanderlaufen: was bestellt ist, was das Gerät
+ * ausgehandelt hat, und was ankommt. Die WLAN-Messung ist der Köder — sie
+ * schwankt so stark, dass sie jede These stützt und keine belegt.
+ */
+
+const vertragsauszug = `Auszug Leistungsschein — Standort Betriebshof
+Produkt: Company Connect 500
+Gebuchte Bandbreite: 200 Mbit/s symmetrisch
+Gültig ab: 14.01.2026
+Leitungskennung: DTAG-41-882-7194
+`;
+
+const routerSync = `Statusseite Router — abgerufen 21.04.2026, 09:12
+
+  Verbindung:        aktiv seit 08.04.2026, 02:41
+  Profil:            Business 50
+  Downstream sync:   52.4 Mbit/s
+  Upstream sync:     51.8 Mbit/s
+  Leitungsfehler:    0 CRC, 0 FEC in 13 Tagen
+
+Die Leitung ist fehlerfrei. Sie synchronisiert nur auf einem anderen Profil,
+als der Leistungsschein ausweist.
+`;
+
+const messungLan = `zeit;art;down_mbit;up_mbit
+2026-04-21 09:20;kabel;47.1;46.9
+2026-04-21 09:25;kabel;47.4;46.8
+2026-04-21 09:31;kabel;46.9;47.0
+2026-04-21 14:02;kabel;47.2;46.7
+2026-04-21 19:45;kabel;47.3;47.1
+
+Kabelgebunden, direkt am Router, sonst nichts im Netz. Fünf Messungen,
+Streuung unter einem Mbit.
+`;
+
+const messungWlan = `zeit;art;down_mbit;up_mbit
+2026-04-21 09:22;wlan;18.4;12.1
+2026-04-21 09:27;wlan;44.9;41.2
+2026-04-21 09:33;wlan;27.6;22.8
+2026-04-21 14:05;wlan;9.2;7.4
+2026-04-21 19:48;wlan;41.7;38.0
+
+Aus dem Besprechungsraum, zwei Wände entfernt. Die Streuung ist größer als
+der gesuchte Effekt — als Beleg gegenüber dem Anbieter unbrauchbar.
+`;
+
 export const telekomScenarios: Scenario[] = [
   {
     id: 'TELEKOM-SC-001',
@@ -12,12 +119,16 @@ export const telekomScenarios: Scenario[] = [
     choices: [
       {
         id: 'A',
-        text: 'Eigenes Monitoring aufsetzen und Ausfälle mit Timestamps dokumentieren',
+        text: 'Drei Tage messen lassen und die Protokolle selbst auswerten',
         outcome: 'PERFECT',
-        consequence: 'Du installierst ein einfaches Monitoring (Ping zu 3 externen IPs alle 30 Sekunden). Nach 2 Tagen hast du: 47 Micro-Outages, immer zwischen 10-14 Uhr, nie länger als 90 Sekunden. Du schickst Thomas die Logs. Er: "Ah, das ist ein Pattern. Das sieht nach einem überlasteten Verteiler aus. Ich lass das prüfen." Techniker findet einen defekten Verstärker am Outdoor-DSLAM.',
+        // Der Ergebnistext bleibt bei dem, was die Messung hergibt: Muster und
+        // Ort. Welches Bauteil defekt ist, findet der Techniker heraus — das
+        // darf der Spieler nicht aus einer Ping-Statistik erfinden.
+        consequence: 'Du schickst Thomas drei Tage Messprotokoll statt einer Beschwerde. Er wird zum ersten Mal konkret: "Das ist ein Muster, kein Gefühl. Ich gebe das an die Technik weiter." Zwei Tage später kommt ein Techniker an den Verteiler — mit einer Vorstellung davon, wonach er sucht.',
         scoreChange: 200,
         reputationChange: 20,
-        lesson: 'Provider können nur Probleme lösen die sie sehen. Dein eigenes Monitoring liefert Beweise. "Manchmal geht das Internet nicht" ist keine brauchbare Störungsmeldung — Timestamps und Patterns schon.',
+        lesson: 'Eine Messung belegt ein Muster und grenzt einen Ort ein. Sie benennt kein defektes Bauteil — das ist Sache dessen, der hinfährt. Wer die Diagnose vorwegnimmt, gibt dem Anbieter die Gelegenheit, sie zu widerlegen und damit die ganze Meldung.',
+        terminalCommand: true,
       },
       {
         id: 'B',
@@ -38,6 +149,52 @@ export const telekomScenarios: Scenario[] = [
         lesson: 'Eigene Hardware zu verwenden hilft beim Ausschlussverfahren. Wenn das Problem auch mit eigener Hardware auftritt, ist der Provider-Router nicht schuld — und das nimmt dem Provider das Standard-Argument.',
       },
     ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-mon-01',
+      username: 'timo',
+      currentPath: '/srv/messung',
+      taskText:
+        'Die Messreihen in /srv/messung auswerten und in /home/timo/meldung.md festhalten, in welchem Zeitfenster die Ausfälle liegen und ob das eigene Netz betroffen war.',
+      vfsOverlay: {
+        directories: ['/srv/messung'],
+        files: [
+          { path: '/srv/messung/ping_extern.csv', content: pingExtern },
+          { path: '/srv/messung/ping_gateway.csv', content: pingGateway },
+          { path: '/srv/messung/messaufbau.txt', content: messHinweis },
+        ],
+      },
+      commands: [],
+      commandSkillGain: { cat: { linux: 1 }, grep: { linux: 2, netzwerk: 1 }, awk: { linux: 2, netzwerk: 2 }, sort: { linux: 1 }, wc: { linux: 1 } },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/messung/ping_extern.csv' },
+            // Ohne die Gegenmessung am eigenen Gateway ist die Meldung
+            // angreifbar: „liegt bestimmt an Ihrem Router" ist das erste, was
+            // die Hotline sagt.
+            { fileRead: '/srv/messung/ping_gateway.csv' },
+            // Das Zeitfenster — alle Ausfälle liegen zwischen 10 und 14 Uhr.
+            { file: '/home/timo/meldung.md', matches: '10' },
+            { file: '/home/timo/meldung.md', matches: '14' },
+            // Keine erfundene Komponente. Die Messung gibt das nicht her.
+            { file: '/home/timo/meldung.md', absentMatches: 'DSLAM|Verstärker|Verteiler' },
+          ],
+          resultText:
+            'Elf Ausfälle an drei Tagen, alle zwischen 10:04 und 13:58, alle drei externen Ziele gleichzeitig betroffen — und das Gateway zu jedem dieser Zeitpunkte erreichbar.\n\nDamit ist beides gesagt, was eine Störungsmeldung braucht: ein reproduzierbares Zeitfenster und der Nachweis, dass das eigene Netz und das eigene Gerät ausscheiden. Mehr gibt die Messung nicht her — welches Bauteil klemmt, steht in keinem Ping.',
+          skillGain: { netzwerk: 6, troubleshooting: 4, softSkills: 2 },
+          effects: {},
+        },
+      ],
+      hints: [
+        'Zwei Messreihen liegen vor. Die eine zeigt, wann es klemmt — die andere beantwortet die Frage, die die Hotline als Erstes stellen wird.',
+        'Schau dir bei den Ausfällen nur die Uhrzeiten an. Liegen sie verstreut oder in einem Fenster?',
+        '`grep ausfall ping_extern.csv` und danach `cat ping_gateway.csv`.',
+        'Meldung festhalten: `echo "Zeitfenster 10 bis 14 Uhr, Gateway durchgehend erreichbar" > /home/timo/meldung.md`',
+      ],
+    },
     realWorldReference: 'Intermittierende Verbindungsprobleme sind die schwierigsten zu diagnostizieren. Automatisiertes Monitoring ist der einzige zuverlässige Weg, sie zu dokumentieren.',
     bsiReference: 'BSI IT-Grundschutz: NET.1.2 Netzmanagement',
     involvedNpcs: ['TELEKOM-THOMAS'],
@@ -227,12 +384,13 @@ export const telekomScenarios: Scenario[] = [
       },
       {
         id: 'B',
-        text: 'Speedtest direkt am Router durchführen und Provider-seitige Messung fordern',
+        text: 'Leistungsschein, Routerstatus und eigene Messung nebeneinanderlegen',
         outcome: 'PERFECT',
-        consequence: 'Du machst einen Speedtest direkt am Router (per Kabel, ohne WLAN): 47 Mbit. Dann forderst du von Thomas eine Messung am DSLAM: "Die Synchronisation zeigt nur 52 Mbit — ihre Leitung ist auf 200 Mbit gebucht." Es stellt sich heraus: Nach einer Wartung wurde euer Profil versehentlich auf "Business 50" gesetzt statt "Business 200".',
+        consequence: 'Drei Zahlen auf einer Seite, und die Diskussion ist vorbei, bevor sie anfängt. Thomas liest, schweigt kurz und sagt: "Das Profil ist falsch gesetzt. Das kommt von der Wartung im April." Die Umstellung läuft am selben Tag.',
         scoreChange: 200,
         reputationChange: 20,
-        lesson: 'Provider-seitige Fehler passieren oft nach Wartungen oder Umkonfigurationen. Die Kombination aus eigener Messung und Provider-Messung findet solche Probleme schnell. Fordern Sie immer DSLAM-Sync-Werte, nicht nur "Leitung ist ok".',
+        lesson: 'Ein Widerspruch zwischen drei Zahlen ist ein Prüfauftrag, den niemand wegdiskutieren kann: was gebucht ist, was das Gerät aushandelt, was ankommt. Und gemessen wird am Kabel — eine WLAN-Messung streut stärker als der gesuchte Effekt und belegt deshalb gar nichts.',
+        terminalCommand: true,
       },
       {
         id: 'C',
@@ -244,6 +402,53 @@ export const telekomScenarios: Scenario[] = [
         lesson: 'Telekommunikationsprobleme "verschwinden" selten von selbst. Jeder Tag Warten ist ein Tag verlorener Produktivität. Frühzeitig und hartnäckig nachfragen.',
       },
     ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-mon-01',
+      username: 'timo',
+      currentPath: '/srv/netz',
+      taskText:
+        'Leistungsschein, Routerstatus und Messprotokolle in /srv/netz vergleichen und in /home/timo/befund_bandbreite.md den Widerspruch mit Zahlen festhalten.',
+      vfsOverlay: {
+        directories: ['/srv/netz'],
+        files: [
+          { path: '/srv/netz/leistungsschein.txt', content: vertragsauszug },
+          { path: '/srv/netz/router_status.txt', content: routerSync },
+          { path: '/srv/netz/messung_kabel.csv', content: messungLan },
+          { path: '/srv/netz/messung_wlan.csv', content: messungWlan },
+        ],
+      },
+      commands: [],
+      commandSkillGain: { cat: { linux: 1 }, grep: { linux: 2, netzwerk: 1 }, awk: { linux: 2, netzwerk: 2 } },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            { fileRead: '/srv/netz/leistungsschein.txt' },
+            { fileRead: '/srv/netz/router_status.txt' },
+            // Die kabelgebundene Messung ist der belastbare Teil. Wer nur die
+            // WLAN-Werte liest, hat eine Zahl zwischen 9 und 45 und keine
+            // Aussage.
+            { fileRead: '/srv/netz/messung_kabel.csv' },
+            // Gebucht ...
+            { file: '/home/timo/befund_bandbreite.md', matches: '200' },
+            // ... und was das Gerät tatsächlich ausgehandelt hat.
+            { file: '/home/timo/befund_bandbreite.md', matches: '5[02]' },
+          ],
+          resultText:
+            'Drei Zahlen, die nicht zueinander passen: 200 Mbit/s gebucht, Profil „Business 50" am Router, 47 Mbit/s am Kabel gemessen. Die Leitung selbst ist fehlerfrei — 0 CRC, 0 FEC in dreizehn Tagen.\n\nDamit ist es kein Leitungsproblem, sondern ein Konfigurationsfehler auf der Anbieterseite, und die Meldung lautet entsprechend nicht „langsam", sondern „falsches Profil".\n\nDie WLAN-Messung daneben schwankt zwischen 9 und 45 Mbit/s. Sie hätte jede These gestützt und keine belegt.',
+          skillGain: { netzwerk: 7, troubleshooting: 3 },
+          effects: {},
+        },
+      ],
+      hints: [
+        'Vier Dateien, drei Zahlen, die zusammengehören: was bestellt ist, was das Gerät aushandelt, was ankommt.',
+        'Zwei Messreihen liegen vor. Eine davon streut so stark, dass sie als Beleg nichts taugt — nimm die andere.',
+        '`cat leistungsschein.txt`, `cat router_status.txt`, `cat messung_kabel.csv`.',
+        'Festhalten: `echo "gebucht 200 Mbit, Profil Business 50, gemessen 47 Mbit am Kabel" > /home/timo/befund_bandbreite.md`',
+      ],
+    },
     realWorldReference: 'Falsche Provisioning-Profile nach Wartungen sind ein häufiger Provider-Fehler. Kunden zahlen für 200 Mbit, bekommen 50 — oft monatelang unbemerkt, wenn kein eigenes Monitoring läuft.',
     bsiReference: 'BSI IT-Grundschutz: NET.1.2 Netzmanagement',
     involvedNpcs: ['TELEKOM-THOMAS'],
