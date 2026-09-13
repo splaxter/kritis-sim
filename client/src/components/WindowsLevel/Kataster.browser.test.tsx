@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 import { GuiContext, KatasterState } from '@kritis/shared';
 import { WindowsLevel } from './index';
 import { deriveRowState } from './apps/Kataster';
@@ -83,6 +84,8 @@ function makeContext(overrides: Partial<GuiContext> = {}): GuiContext {
 
 const row = (name: RegExp) => screen.getByRole('option', { name });
 
+installFakeTimers();
+
 describe('deriveRowState — die Ampel wird abgeleitet, nie geseedet', () => {
   it('kennt alle vier Zustände', () => {
     expect(deriveRowState({ id: 'a', source: 's', duty: 'd' })).toBe('orphan');
@@ -116,7 +119,7 @@ describe('deriveRowState — die Ampel wird abgeleitet, nie geseedet', () => {
  */
 describe('Pflichtenkataster — Tastaturbedienung der Zeilenbuttons', () => {
   it('„Lücke melden" löst mit Enter aus, nicht nur mit der Maus', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={makeContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -126,11 +129,15 @@ describe('Pflichtenkataster — Tastaturbedienung der Zeilenbuttons', () => {
     melden.focus();
     await user.keyboard('{Enter}');
 
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
   });
 
   it('das Aufpasser-Menü öffnet mit Enter', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     const ziel = row(/Monatlichen Verfügbarkeitsbericht/);
@@ -142,7 +149,7 @@ describe('Pflichtenkataster — Tastaturbedienung der Zeilenbuttons', () => {
   });
 
   it('die Zeile selbst reagiert weiterhin auf Enter und die Pfeiltasten', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     const erste = row(/Monatlichen Verfügbarkeitsbericht/);
@@ -174,7 +181,7 @@ describe('Pflichtenkataster — zurückgenommene Zuweisungen zählen nicht mehr'
     });
 
   it('Aufpasser setzen, wieder entfernen und Lücke melden löst NICHT aus', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={ownerContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -189,12 +196,16 @@ describe('Pflichtenkataster — zurückgenommene Zuweisungen zählen nicht mehr'
     await user.click(handbuch);
     await user.click(within(handbuch).getByRole('button', { name: /Lücke melden/ }));
 
-    await new Promise((r) => setTimeout(r, 2200));
+    // Ueber die Verweildauer hinaus vorspulen: was jetzt nicht gefeuert hat,
+    // feuert nie. Vorher wurde das mit 2,2 s echter Wartezeit "belegt".
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
     expect(onSolved).not.toHaveBeenCalled();
   });
 
   it('mit bestehender Zuweisung löst dieselbe Folge aus', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={ownerContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -206,7 +217,11 @@ describe('Pflichtenkataster — zurückgenommene Zuweisungen zählen nicht mehr'
     await user.click(handbuch);
     await user.click(within(handbuch).getByRole('button', { name: /Lücke melden/ }));
 
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -220,7 +235,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('aktualisiert die Zähler, wenn ein Aufpasser gesetzt wird', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     await user.click(within(row(/Monatlichen Verfügbarkeitsbericht/)).getByRole('button', { name: /Aufpasser/ }));
@@ -237,7 +252,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
    * the audit sample exposes it (via the level's GuiSolution).
    */
   it('eine Gruppe als Aufpasser sieht exakt aus wie eine echte Person', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     const target = row(/Lizenzbelegung/);
@@ -255,7 +270,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('dasselbe gilt für eine Person, die nie zugesagt hat', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     await user.click(within(row(/Lizenzbelegung/)).getByRole('button', { name: /Aufpasser/ }));
@@ -266,7 +281,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('emittiert je Interaktion genau ein Token und löst über die Lücke', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={makeContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -281,7 +296,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('zeigt den Quellentext, wenn eine Zeile gewählt wird', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     expect(screen.queryByRole('region', { name: 'Quellentext' })).not.toBeInTheDocument();
@@ -290,7 +305,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('nimmt einen Fund als neue Zeile auf', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     expect(screen.getByText(/4 Pflichten/)).toBeInTheDocument();
@@ -301,7 +316,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('weist einen Köder ab: eine Empfehlung ist keine Pflicht', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     await user.click(screen.getByRole('button', { name: /Ins Kataster aufnehmen: Quartalsweise/ }));
@@ -319,7 +334,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
   });
 
   it('navigiert die Zeilen per Pfeiltasten (Roving Tabindex)', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     const first = row(/Monatlichen Verfügbarkeitsbericht/);
@@ -336,7 +351,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
 
   /** Risiko vor Lob: bei gemischtem Spiel gewinnt die zuerst gelistete Lösung. */
   it('die zuerst gelistete (Fabrication-)Lösung gewinnt bei gemischtem Spiel', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     const context = makeContext({
       solutions: [

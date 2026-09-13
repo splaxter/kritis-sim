@@ -16,7 +16,6 @@ Last updated: 2026-07-09
 | Item | Location | Description |
 |------|----------|-------------|
 | Magic numbers | Various event/scenario files | Scores (100, 15, …) could be extracted to named constants. |
-| Error boundaries | React components | No error boundaries for graceful failure handling. |
 
 ### Architecture (Nice-to-Have)
 
@@ -28,6 +27,16 @@ Last updated: 2026-07-09
 ---
 
 ## Completed
+
+### 2026-09-13 — Hardening (Ersatz fuer den liegengebliebenen PR #8)
+
+| Item | Wie |
+|------|-----|
+| Error boundaries | `components/ErrorBoundary` faengt Render-/Lifecycle-Fehler ab und zeigt statt einer weissen Seite einen Hinweis mit Neuladen-Knopf. Der Hinweis sichert den Spielstand bewusst NICHT zu: `useAutosave` schreibt erst nach erfolgreichem Rendern, also gibt es beim ersten Bildschirm gar keinen Stand und bei einem spaeteren Uebergang nur den davor. Der Text stellt ihn unter Vorbehalt und warnt vor Verlust. |
+| Kein Linter | `eslint.config.mjs` (flach, nicht typgewahrt) plus `npm run lint` und ein CI-Schritt. Die 25 Altfehler sind behoben, nicht heruntergestuft: unnoetige Escapes, Regex-Leerzeichen, `let` statt `const`. Verbleibende 41 Altbefunde stehen auf "warn". |
+| Betreiberangaben im JSX | nach `config/legal.ts` ausgelagert — Daten getrennt von Darstellung, mit eigenem Guard (`config/legal.test.ts`), der ohne Rendering prueft. |
+| GUI-Tests haengen an echter Zeit | `src/test/fakeTimers.ts`: die 1,6 s Verweildauer wird vorgespult statt abgesessen. Beseitigt den Last-Flake an der Wurzel und macht die Zusicherungen exakt. |
+
 
 ### 2026-07-09
 - [x] Story campaign completed (all 12 chapters + 3 endings; guarded by `campaignConsistency`/`campaignPacing`).

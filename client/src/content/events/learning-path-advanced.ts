@@ -930,7 +930,7 @@ bis man ihm ausdrücklich sagt, die Unit-Dateien neu einzulesen.
             { file: '/etc/systemd/system/pumpmon.service', absentMatches: '--confg' },
           ],
           resultText:
-            'Die Pumpenüberwachung läuft. Der eigentliche Lerneffekt steckt in der Falle dazwischen: Wer nach dem sed-Fix sofort neu startet, scheitert trotzdem — systemd hält an der alten, gespeicherten Unit fest, bis \`daemon-reload\` die korrigierte Datei einliest.\n\nMerke: Nach jeder Änderung an einer Unit-Datei gilt: erst \`systemctl daemon-reload\`, dann starten. Sonst startet der Wiedergänger — die alte Fassung mit dem alten Fehler.',
+            'Die Pumpenüberwachung läuft. Der eigentliche Lerneffekt steckt in der Falle dazwischen: Wer nach dem sed-Fix sofort neu startet, scheitert trotzdem — systemd hält an der alten, gespeicherten Unit fest, bis `daemon-reload` die korrigierte Datei einliest.\n\nMerke: Nach jeder Änderung an einer Unit-Datei gilt: erst `systemctl daemon-reload`, dann starten. Sonst startet der Wiedergänger — die alte Fassung mit dem alten Fehler.',
           skillGain: { linux: 4, troubleshooting: 4 },
           effects: { stress: -3 },
         },
@@ -1510,7 +1510,7 @@ und riegle den Port ab.
             { host: 'db01', file: '/var/spool/cron/crontabs/root', matches: '^0 3 \\* \\* \\* /usr/local/bin/db-backup\\.sh$' },
           ],
           resultText:
-            'Die Spinne sitzt fest: Die Beweiskopie der Crontab liegt sicher auf web01 (gezogen, bevor du db01 angefasst hast), die Backdoor-Zeile ist raus, und Port 31337 ist per Firewall dicht. Der Cron-Job hätte im Minutentakt \`/tmp/.hidden/beacon.sh\` nachgeladen — ein klassischer Persistenz-Mechanismus, versteckt in einem Punkt-Verzeichnis.\n\nDrei Tracks in einem Fall: Journal-Forensik hat die Querbewegung von db01 aufgedeckt, SSH hat dich sauber auf den Nachbarhost gebracht, und die Netz-Werkzeuge (ss, ufw) haben den Port geschlossen. Genau so arbeitet man einen Incident ab — der Reihe nach, mit Beweissicherung zuerst.\n\nHenry, leise: „Ein Beacon auf db01, eine Querbewegung nach web01… das war kein Skript-Kiddie. Das gehört in die FENRIS-Akte."',
+            'Die Spinne sitzt fest: Die Beweiskopie der Crontab liegt sicher auf web01 (gezogen, bevor du db01 angefasst hast), die Backdoor-Zeile ist raus, und Port 31337 ist per Firewall dicht. Der Cron-Job hätte im Minutentakt `/tmp/.hidden/beacon.sh` nachgeladen — ein klassischer Persistenz-Mechanismus, versteckt in einem Punkt-Verzeichnis.\n\nDrei Tracks in einem Fall: Journal-Forensik hat die Querbewegung von db01 aufgedeckt, SSH hat dich sauber auf den Nachbarhost gebracht, und die Netz-Werkzeuge (ss, ufw) haben den Port geschlossen. Genau so arbeitet man einen Incident ab — der Reihe nach, mit Beweissicherung zuerst.\n\nHenry, leise: „Ein Beacon auf db01, eine Querbewegung nach web01… das war kein Skript-Kiddie. Das gehört in die FENRIS-Akte."',
           skillGain: { security: 6, linux: 3, troubleshooting: 3 },
           effects: { stress: -4 },
         },
@@ -1617,7 +1617,7 @@ dann roll es aus."
             { host: 'web02', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
           ],
           resultText:
-            'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nMerke dir die Reihenfolge für die Produktion: erst \`--check\` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. Dort ist das kein Luxus, sondern Pflicht.',
+            'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nMerke dir die Reihenfolge für die Produktion: erst `--check` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. Dort ist das kein Luxus, sondern Pflicht.',
           skillGain: { linux: 3, security: 2, netzwerk: 1 },
           effects: { stress: -2 },
         },
@@ -1726,7 +1726,7 @@ zurückgezogen. Und danach beweist du die Idempotenz.
             { host: 'web02', file: '/etc/ssh/sshd_config', absentMatches: '^PermitRootLogin yes' },
           ],
           resultText:
-            'web02 steht wieder auf \`PermitRootLogin no\` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer Beweis dafür ist immer der zweite Lauf: Steht dort \`changed=0\` auf allen Hosts, ist der Soll-Zustand erreicht. Ändert ein Playbook beim zweiten Mal noch etwas, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
+            'web02 steht wieder auf `PermitRootLogin no` — und web01/web03 hat das Playbook nicht angefasst, weil dort schon alles stimmte. Das ist der Kern von Idempotenz: Das Playbook beschreibt den Soll-Zustand, nicht eine Abfolge von Befehlen.\n\nDer Beweis dafür ist immer der zweite Lauf: Steht dort `changed=0` auf allen Hosts, ist der Soll-Zustand erreicht. Ändert ein Playbook beim zweiten Mal noch etwas, ist es NICHT idempotent — dann stimmt etwas nicht. Bjorgs „kurzer Test" ist Geschichte, sauber und nachvollziehbar zurückgedreht.',
           skillGain: { linux: 3, security: 3, troubleshooting: 2 },
           effects: { stress: -3 },
           feedback: [
@@ -1853,7 +1853,7 @@ korrigier den Tippfehler in der Datei, lauf es sauber durch.
             { host: 'web03', file: '/etc/banner.txt', matches: 'KRITIS-Zone' },
           ],
           resultText:
-            'Ein Buchstabe zu viel — \`pathh\` statt \`path\` — und das ganze Playbook stand. So arbeitet Ansible: Es rät nicht, es meldet präzise, welche Aufgabe an welchem Pflichtparameter scheitert. Wer die Meldung liest, statt blind neu zu starten, ist in Sekunden fertig.\n\nNach der Korrektur lief es sauber durch: Das Banner steht jetzt auf allen drei Webservern. Und weil lineinfile idempotent ist, kannst du es beliebig oft wiederholen, ohne Schaden anzurichten.',
+            'Ein Buchstabe zu viel — `pathh` statt `path` — und das ganze Playbook stand. So arbeitet Ansible: Es rät nicht, es meldet präzise, welche Aufgabe an welchem Pflichtparameter scheitert. Wer die Meldung liest, statt blind neu zu starten, ist in Sekunden fertig.\n\nNach der Korrektur lief es sauber durch: Das Banner steht jetzt auf allen drei Webservern. Und weil lineinfile idempotent ist, kannst du es beliebig oft wiederholen, ohne Schaden anzurichten.',
           skillGain: { linux: 3, troubleshooting: 4, security: 2 },
           effects: { stress: -2 },
         },

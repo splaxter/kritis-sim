@@ -140,7 +140,7 @@ describe('journalctl filters', () => {
     const r = shell.execute('journalctl -u sshd | grep Failed');
     expect(r.exitCode).toBe(0);
     // grep colorizes its TTY output — strip ANSI before asserting.
-    // eslint-disable-next-line no-control-regex
+     
     const lines = r.output.replace(/\x1b\[[0-9;]*m/g, '').split('\n');
     expect(lines).toHaveLength(2);
     for (const line of lines) expect(line).toContain('Failed password');

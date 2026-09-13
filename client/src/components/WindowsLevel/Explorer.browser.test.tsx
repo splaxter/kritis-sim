@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+// waitFor bleibt: main hat seit Juli Tastatur-Tests, die auf DOM-Zustaende
+// warten (Fokus, Ordnerwechsel) — das hat mit der Verweildauer nichts zu tun.
+import { render, screen, act, waitFor } from '@testing-library/react';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
 import { auditTrailStoryEvents } from '../../content/campaigns/audit-trail/events';
@@ -26,9 +29,11 @@ const context: GuiContext = {
   hints: ['Welcher Eintrag gibt allen Vollzugriff?'],
 };
 
+installFakeTimers();
+
 describe('WindowsLevel — Explorer (share ACL)', () => {
   it('solves when the over-broad "Jeder" entry is removed', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -36,11 +41,15 @@ describe('WindowsLevel — Explorer (share ACL)', () => {
     await user.click(screen.getByRole('button', { name: /Entfernen/i }));
 
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
-    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 4 }, undefined), { timeout: 2500 });
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 4 }, undefined);
   });
 
   it('blocks removal of a critical entry and does not solve', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -107,7 +116,7 @@ const filesContext: GuiContext = {
 
 describe('WindowsLevel — Explorer (file browser)', () => {
   it('navigates into a folder, opens the target file and solves WITH its setsFlags', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={filesContext} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -122,14 +131,15 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     // The preview renders the document — the actual FIND.
     expect(screen.getByTestId('explorer-preview')).toHaveTextContent('MFA-Modul — ENTHALTEN');
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
-    await waitFor(
-      () => expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found']),
-      { timeout: 2500 }
-    );
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found']);
   });
 
   it('opening the WRONG document does not solve (decoy Angebot)', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={filesContext} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -141,7 +151,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
   });
 
   it('the Öffnen button and Zurück navigation work (keyboard-first parity)', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={filesContext} onSolved={() => {}} onCancel={() => {}} />);
 
     await user.click(screen.getByText(/02_BASTION-01/));
@@ -154,7 +164,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
   });
 
   it('is fully keyboard-drivable: arrows select, Enter enters/opens, focus follows into folders', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={filesContext} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -192,7 +202,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
   });
 
   it('Backspace navigates up a folder (keyboard-only)', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={filesContext} onSolved={() => {}} onCancel={() => {}} />);
 
     const firstRow = screen.getByText(/02_BASTION-01/).closest('[role="option"]') as HTMLElement;
@@ -206,7 +216,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
   });
 
   it('an EMPTY folder is not a keyboard dead end (focus lands on the empty state, Backspace exits)', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={filesContext} onSolved={() => {}} onCancel={() => {}} />);
 
     // Navigate to the empty decoy folder and open it by keyboard.
@@ -226,7 +236,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
   });
 
   it('the REAL L7 dataset: an empty decoy folder (Fuhrpark) is keyboard-recoverable', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const l7Context = auditTrailStoryEvents.find((e) => e.id === 'at_l7_delivery_note')!.guiContext!;
     render(<WindowsLevel context={l7Context} onSolved={() => {}} onCancel={() => {}} />);
 

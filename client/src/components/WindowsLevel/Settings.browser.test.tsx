@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act } from '@testing-library/react';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 
 const context: GuiContext = {
   app: 'settings',
@@ -33,9 +34,11 @@ const context: GuiContext = {
   hints: ['Drei Sachen sind aus.'],
 };
 
+installFakeTimers();
+
 describe('WindowsLevel — Windows-Sicherheit (Settings)', () => {
   it('solves once the three insecure protections are enabled', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -44,9 +47,10 @@ describe('WindowsLevel — Windows-Sicherheit (Settings)', () => {
     await user.click(screen.getByRole('switch', { name: 'Manipulationsschutz' }));
 
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
-    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 8 }, undefined), {
-      timeout: 2500,
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 8 }, undefined);
   });
 
   it('renders status from enabled === recommended, not enabled alone', () => {
@@ -68,7 +72,7 @@ describe('WindowsLevel — Windows-Sicherheit (Settings)', () => {
   });
 
   it('warns and does not solve when a setting is driven into an insecure state', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -76,6 +80,9 @@ describe('WindowsLevel — Windows-Sicherheit (Settings)', () => {
 
     expect(screen.getByText(/Telemetrie sollte aus bleiben/i)).toBeInTheDocument();
     expect(screen.queryByText(/Aufgabe abgeschlossen/i)).not.toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
     expect(onSolved).not.toHaveBeenCalled();
   });
 });

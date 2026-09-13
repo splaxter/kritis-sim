@@ -99,7 +99,7 @@ describe(`learning lesson: ${ID}`, () => {
   });
 
   it('the first hint never hands over a full solution command', () => {
-    expect(/\|\s*grep\s+["\']?malware/i.test(ctx.hints[0])).toBe(false);
+    expect(/\|\s*grep\s+["']?malware/i.test(ctx.hints[0])).toBe(false);
   });
 
   it.each([
