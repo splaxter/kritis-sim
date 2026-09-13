@@ -214,7 +214,10 @@ async function seedShellAufgabe(page: Page, ausser: string) {
   }, [pid, JSON.stringify(env)] as const);
 }
 
-for (const vp of [VIEWPORTS[1], { name: 'desktop', width: 1280, height: 800 }]) {
+// 320 px ist die schmalste echte Geraetebreite — und genau dort wickelt der
+// Auftrag am staerksten um. Ein Schema, dessen letzte Regel dort hinter der
+// Scrollkante liegt, ist kein angesagtes Schema.
+for (const vp of [...VIEWPORTS, { name: 'desktop', width: 1280, height: 800 }]) {
   test(`Aufgabenleiste zeigt das ganze Berichtsschema auf ${vp.name}`, async ({ page }) => {
     await page.setViewportSize(vp);
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -240,3 +243,46 @@ for (const vp of [VIEWPORTS[1], { name: 'desktop', width: 1280, height: 800 }]) 
     expect(mass.verborgen, `${mass.verborgen}px des Auftrags liegen hinter der Scrollkante`).toBe(0);
   });
 }
+
+/**
+ * Der geloeste Zweig muss den Ergebnisbildschirm auch bei TERMINAL-Aufgaben
+ * erreichen — und zwar durch die ganze Kette, nicht nur bis zum Adapter.
+ *
+ * Review-Befund: `TerminalSession` reichte den Befund als viertes Argument
+ * heraus, `useTerminal` gab nur drei weiter. Im Terminal stand der Befund, nach
+ * Enter fehlte er. Bei GUI-Leveln kam er an — genau deshalb faellt so etwas nur
+ * auf, wenn man beide Wege wirklich spielt.
+ */
+test('Terminal-Aufgabe: der Befund steht danach auf dem Ergebnisbildschirm', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await seedShellAufgabe(page, 'TELEKOM-SC-001');
+  await page.goto('/');
+  await page.getByText(/WEITER SPIELEN/).click();
+  await page.getByRole('button', { name: /Drei Tage messen lassen/ }).click();
+
+  const term = page.locator('.xterm');
+  await expect(term).toBeVisible({ timeout: 5000 });
+  await term.click();
+  const befehle = [
+    'grep ausfall ping_extern.csv',
+    'cat ping_gateway.csv',
+    'echo "anzahl: 9" > /home/timo/meldung.md',
+    'echo "zeitfenster: 10:04-13:58" >> /home/timo/meldung.md',
+    'echo "lokal: erreichbar" >> /home/timo/meldung.md',
+    'echo "ursache: unbekannt" >> /home/timo/meldung.md',
+  ];
+  for (const cmd of befehle) {
+    await page.keyboard.type(cmd);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(150);
+  }
+
+  // Im Terminal steht der Befund bereits.
+  await expect(page.getByText(/AUFGABE ABGESCHLOSSEN/)).toBeVisible({ timeout: 5000 });
+
+  // Und nach dem bestaetigenden Enter muss er stehen BLEIBEN.
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('─ BEFUND ─')).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText(/Neun Ausfälle an drei Tagen/)).toBeVisible();
+});

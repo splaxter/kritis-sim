@@ -8,14 +8,19 @@
 import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
-import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId, EventEffects, SolvedBranch } from '@kritis/shared';
 import { createShellFromContext, ShellEngine, resolveTemplateIds } from '../../engine/shell';
 import { TerminalSession } from './session/TerminalSession';
 import { applyEffects, EffectContext } from './session/applyEffects';
 
 interface UseTerminalOptions {
   context: TerminalContext;
-  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
+  onSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
   onPartialSolution: (feedback: string) => void;
   onFlagsSet: (flags: string[]) => void;
   gameMode?: GameModeId;
@@ -107,7 +112,12 @@ export function useTerminal({ context, onSolved, onPartialSolution, onFlagsSet, 
       shell,
       context,
       gameMode,
-      onSolved: (skillGain, setsFlags, effects) => onSolvedRef.current(skillGain, setsFlags, effects),
+      // Das vierte Argument ist der erreichte Loesungszweig. Es hier fallen zu
+      // lassen hiess: Der Befund stand im Terminal und fehlte nach Enter auf
+      // dem Ergebnisbildschirm — bei GUI-Leveln kam er an, bei Terminal-Leveln
+      // nicht.
+      onSolved: (skillGain, setsFlags, effects, branch) =>
+        onSolvedRef.current(skillGain, setsFlags, effects, branch),
       onFlagsSet: (flags) => onFlagsSetRef.current(flags),
     });
 

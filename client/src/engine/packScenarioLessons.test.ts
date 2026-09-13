@@ -71,17 +71,47 @@ describe('Gemeinsame Vertraege aller praktischen Shell-Aufgaben', () => {
    * scheiterte die erste Fassung: sie wies richtige Befunde ab und nahm falsche
    * an, weil sie Woerter im Fliesstext suchte.
    */
-  it.each(SHELL_SZENARIEN)('%s: jede geprüfte Berichtszeile ist im Auftrag angesagt', (id) => {
+  it.each(SHELL_SZENARIEN)('%s: jedes geprüfte Berichtsfeld ist im Auftrag angesagt', (id) => {
     const auftrag = ctxOf(id).taskText ?? '';
+    let geprueft = 0;
     for (const goal of goalsOf(id)) {
-      const g = goal as { file?: string; matches?: string; absentMatches?: string };
-      const muster = g.matches ?? g.absentMatches;
-      if (!g.file || !muster) continue;
-      const schluessel = muster.match(/^\^([a-z]+):/)?.[1];
-      if (!schluessel) continue;
-      expect(auftrag, `Schluessel "${schluessel}" wird geprueft, steht aber nicht im Auftrag`)
-        .toContain(`${schluessel}:`);
+      for (const feld of (goal as { reportFields?: { key: string }[] }).reportFields ?? []) {
+        geprueft++;
+        expect(auftrag, `Feld "${feld.key}" wird geprueft, steht aber nicht im Auftrag`)
+          .toContain(`${feld.key}:`);
+      }
     }
+    expect(geprueft, 'kein einziges Berichtsfeld — prueft dieses Level ueberhaupt etwas?')
+      .toBeGreaterThan(0);
+  });
+
+  /**
+   * Ein Bericht ist erst einer, wenn jede Angabe GENAU EINMAL dasteht. Die
+   * Regex-Fassung konnte das nicht ausdruecken, also bestand ein Bericht, der
+   * „clients: fehlgeschlagen" sagte und zwei Zeilen spaeter „clients: ok".
+   */
+  it.each(SHELL_SZENARIEN)('%s: ein widersprüchlicher Bericht löst nicht', (id) => {
+    const felder = goalsOf(id).flatMap(
+      (g) => (g as { file?: string; reportFields?: { key: string }[] }).reportFields
+        ?.map((f) => ({ key: f.key, file: (g as { file: string }).file })) ?? []
+    );
+    expect(felder.length).toBeGreaterThan(0);
+
+    const sh = shellOf(id);
+    for (const befehl of ctxOf(id).hints.flatMap((h) =>
+      [...h.matchAll(/`([^`]+)`/g)].map((m) => m[1])
+    ).filter((c) => /\s/.test(c.trim()))) {
+      run(sh, befehl);
+    }
+    expect(checkStateGoals(sh, goalsOf(id)), 'Vorbedingung: der Sollweg loest').toBe(true);
+
+    // Eine zweite, widersprechende Angabe zum ERSTEN Feld anhaengen.
+    const f = felder[0];
+    run(sh, `echo "${f.key}: nachtraeglich-etwas-anderes" >> ${f.file}`);
+    expect(
+      checkStateGoals(sh, goalsOf(id)),
+      `zwei Angaben zu "${f.key}" gelten weiterhin als eine`
+    ).toBe(false);
   });
 
   it.each(SHELL_SZENARIEN)('%s: Hinweise eskalieren, der erste nennt keinen Befehl', (id) => {
@@ -130,18 +160,31 @@ describe('Gemeinsame Vertraege aller praktischen Shell-Aufgaben', () => {
 describe('INTERN-SC-003 — Statusbericht fuer den Aufsichtsrat', () => {
   const id = 'INTERN-SC-003';
   const bericht = '/home/timo/statusbericht.md';
-  const offen = 'offen: Wiederherstellungstest seit 11/2024, Nachweis nach § 39 BSIG';
+  const offen = 'offen: wiederherstellungstest, nachweis-39';
 
-  const sollpfad = () => {
-    const sh = shellOf(id);
+  const lesen = (sh: ShellEngine) => {
     run(sh, 'cat wiederherstellung.txt');
     run(sh, 'cat nis2.txt');
-    run(sh, `echo "${offen}" > ${bericht}`);
-    return sh;
   };
 
   it('der Sollpfad loest', () => {
-    expect(checkStateGoals(sollpfad(), goalsOf(id))).toBe(true);
+    const sh = shellOf(id);
+    lesen(sh);
+    run(sh, `echo "${offen}" > ${bericht}`);
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  /**
+   * DER Befund aus dem Review: „offen: Nachweis des Wiederherstellungstests"
+   * enthaelt beide Suchwoerter und galt damit als ZWEI Befunde — obwohl der
+   * § 39-Nachweis gar nicht vorkam. Als Liste gelesen ist das ein einziger
+   * Eintrag, der auf keinen der beiden geforderten passt.
+   */
+  it('ein Befund zaehlt nicht als zwei', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    run(sh, `echo "offen: Nachweis des Wiederherstellungstests" > ${bericht}`);
+    expect(checkStateGoals(sh, goalsOf(id)), 'ein Eintrag, zwei Bedingungen').toBe(false);
   });
 
   /** Der Kern der Aufgabe: 30 von 30 erfolgreichen Laeufen belegen gar nichts. */
@@ -161,35 +204,32 @@ describe('INTERN-SC-003 — Statusbericht fuer den Aufsichtsrat', () => {
 
   it('den Nachweis nach § 39 zu vergessen loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat wiederherstellung.txt');
-    run(sh, 'cat nis2.txt');
-    run(sh, `echo "offen: Wiederherstellungstest seit 11/2024" > ${bericht}`);
+    lesen(sh);
+    run(sh, `echo "offen: wiederherstellungstest" > ${bericht}`);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   /** Alles aufzuzaehlen ist kein Bericht, sondern ein Abschreiben des Ordners. */
   it('den ganzen Ordner als offen zu melden loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat wiederherstellung.txt');
-    run(sh, 'cat nis2.txt');
+    lesen(sh);
     run(
       sh,
-      `echo "offen: Wiederherstellung, Nachweis § 39, Endpunktschutz, Perimeter" > ${bericht}`
+      `echo "offen: wiederherstellungstest, nachweis-39, endpunktschutz, perimeter" > ${bericht}`
     );
     expect(checkStateGoals(sh, goalsOf(id)), 'belegt Funktionierendes als offen').toBe(false);
   });
 
   /**
    * Gegenprobe zur Gegenprobe: Belegtes zu ERWAEHNEN ist richtig und darf den
-   * Abschluss nicht verhindern. Die Sperre haengt an der offen-Zeile, nicht an
-   * der Datei — das war einer der Review-Befunde.
+   * Abschluss nicht verhindern. Die Sperre gilt fuer EINTRAEGE der offen-Liste,
+   * nicht fuer die Datei.
    */
-  it('Funktionierendes ausserhalb der offen-Zeile zu nennen ist erlaubt', () => {
+  it('Funktionierendes ausserhalb der offen-Liste zu nennen ist erlaubt', () => {
     const sh = shellOf(id);
-    run(sh, 'cat wiederherstellung.txt');
-    run(sh, 'cat nis2.txt');
+    lesen(sh);
     run(sh, `echo "${offen}" > ${bericht}`);
-    run(sh, `echo "belegt in Ordnung: Endpunktschutz, Perimeter" >> ${bericht}`);
+    run(sh, `echo "belegt: endpunktschutz, perimeter" >> ${bericht}`);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
   });
 
@@ -241,6 +281,34 @@ describe('CLOUD365-SC-002 — Migrationstag', () => {
       `echo "Transfer abgeschlossen, Autodiscover korrekt. Alle Outlook-Tests bestanden; keine offenen Probleme." > ${befund}`
     );
     expect(checkStateGoals(sh, goalsOf(id)), 'Fliesstext mit den richtigen Woertern').toBe(false);
+  });
+
+  /**
+   * Review-Befund: Die Ursache durfte nur buchstabiert, nicht beschrieben
+   * werden — „ursache: DNS-Eintrag autodiscover.… zeigt auf exch01.…" fiel
+   * durch, weil die Pruefung „Autodiscover" als erstes Wort verlangte. Der
+   * Auftrag verlangt das nirgends.
+   */
+  it('eine ausfuehrliche Ursachenbeschreibung loest', () => {
+    const sh = shellOf(id);
+    alleLesen(sh);
+    schreibe(
+      sh,
+      'abgeschlossen',
+      'fehlgeschlagen',
+      'DNS-Eintrag autodiscover.warm-entsorgung.de zeigt weiterhin auf exch01.warm-entsorgung.local'
+    );
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  /** Review-Befund: nachtraeglich widersprochen, trotzdem geloest. */
+  it('ein nachtraeglicher Widerspruch nimmt die Loesung zurueck', () => {
+    const sh = shellOf(id);
+    alleLesen(sh);
+    schreibe(sh, 'abgeschlossen', 'fehlgeschlagen', 'autodiscover');
+    expect(checkStateGoals(sh, goalsOf(id)), 'Vorbedingung').toBe(true);
+    run(sh, `echo "clients: ok" >> ${befund}`);
+    expect(checkStateGoals(sh, goalsOf(id)), 'zwei Angaben zu clients').toBe(false);
   });
 
   it('„clients: ok" loest nicht', () => {
@@ -308,6 +376,13 @@ describe('CLOUD365-SC-006 — Copilot und die zu weite Freigabe', () => {
     expect(checkStateGoals(sh, goalsOf(id)), 'nach Muster statt nach Inhalt gesucht').toBe(false);
   });
 
+  it('die Bibliothek darf beschrieben statt buchstabiert werden', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, 'Standort Personal, Bibliothek Gehaltsabrechnungen', '151 Personen');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
   it('ohne die Zahl der Betroffenen loest es nicht', () => {
     const sh = shellOf(id);
     lesen(sh);
@@ -366,6 +441,23 @@ describe('TELEKOM-SC-001 — sporadische Ausfaelle', () => {
     lesen(sh);
     schreibe(sh, '9', fenster, 'erreichbar', 'unbekannt');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  /**
+   * Review-Befund: zu enge Fenster gingen durch. Die Ausfaelle laufen von
+   * 10:04 bis 13:58 — ein Fenster, das um 13 Uhr endet, deckt den letzten
+   * Ausfall nicht ab, und „10:59-13:00" deckt nicht einmal den ersten.
+   */
+  it.each([
+    ['zu frueh beendet', '10-13'],
+    ['weder Anfang noch Ende', '10:59-13:00'],
+    ['nur eine Stunde', '11-12'],
+    ['rueckwaerts', '14-10'],
+  ])('ein falsches Zeitfenster (%s) loest nicht', (_l, fenster) => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '9', fenster, 'erreichbar', 'unbekannt');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   it('eine falsche Zahl loest nicht', () => {

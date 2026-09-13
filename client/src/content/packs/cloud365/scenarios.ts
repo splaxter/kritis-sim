@@ -178,7 +178,7 @@ export const cloud365Scenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/export',
       taskText:
-        '/srv/export auswerten. Ergebnis nach /home/timo/befund.md:\ntransfer: abgeschlossen | unvollständig\nclients: ok | fehlgeschlagen\nursache: <woran es liegt, sonst: unbekannt>',
+        'Ergebnis nach /home/timo/befund.md:\ntransfer: abgeschlossen | unvollständig\nclients: ok | fehlgeschlagen\nursache: <woran es liegt, sonst: unbekannt>',
       vfsOverlay: {
         directories: ['/srv/export'],
         files: [
@@ -199,14 +199,22 @@ export const cloud365Scenarios: Scenario[] = [
             { fileRead: '/srv/export/migration_status.csv' },
             { fileRead: '/srv/export/abnahmetest.txt' },
             { fileRead: '/srv/export/dns_autodiscover.txt' },
-            // Getrennte Zeilen statt Wortsuche im Fließtext. Vorher genügte ein
-            // Bericht, der irgendwo „abgeschlossen" und irgendwo „Autodiscover"
-            // enthielt — „Transfer abgeschlossen, Autodiscover korrekt, alle
-            // Outlook-Tests bestanden" ging damit durch, also genau die
-            // Fassung, die den ganzen Vorfall verneint.
-            { file: '/home/timo/befund.md', matches: '^transfer:\\s*abgeschlossen\\b' },
-            { file: '/home/timo/befund.md', matches: '^clients:\\s*fehlgeschlagen\\b' },
-            { file: '/home/timo/befund.md', matches: '^ursache:\\s*[Aa]utodiscover' },
+            // Feldweise statt per Regex über die Datei: jeder Schlüssel genau
+            // einmal, geprüft wird der WERT. Das schliesst drei Lücken auf
+            // einmal — ein Bericht mit „clients: fehlgeschlagen" UND darunter
+            // „clients: ok" fällt durch, die Ursache darf beschrieben statt
+            // buchstabiert werden, und ein Fliesstext mit den richtigen
+            // Woertern reicht nicht mehr.
+            {
+              file: '/home/timo/befund.md',
+              reportFields: [
+                { key: 'transfer', matches: '^abgeschlossen$' },
+                { key: 'clients', matches: '^fehlgeschlagen$' },
+                // Irgendwo im Wert genuegt: „autodiscover" allein ebenso wie
+                // „DNS-Eintrag autodiscover.… zeigt auf exch01.…".
+                { key: 'ursache', matches: '[Aa]utodiscover' },
+              ],
+            },
           ],
           resultText:
             'Beides stimmt gleichzeitig: 10 von 10 Postfächern sind übertragen, 0 Fehler — und kein einziges Outlook-Profil lässt sich einrichten. Der Webzugang läuft in allen drei Testfällen.\n\nDas ist genau das Muster, das auf den Autodiscover-Eintrag zeigt: Outlook fragt beim Einrichten dort nach, der Webzugang kommt ohne ihn aus. Und der Eintrag zeigt weiterhin auf exch01.warm-entsorgung.local.\n\nEin Rückbau hätte hier eine funktionierende Migration zerstört, um einen DNS-Eintrag nicht ändern zu müssen.',
@@ -400,7 +408,7 @@ export const cloud365Scenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/export',
       taskText:
-        '/srv/export durchsehen. Ergebnis nach /home/timo/dsfa_befund.md:\nbibliothek: <Standort/Bibliothek mit zu weiter Freigabe>\nbetroffene: <Zahl der Personen, die dadurch lesen können>',
+        'Ergebnis nach /home/timo/dsfa_befund.md:\nbibliothek: <Standort/Bibliothek mit zu weiter Freigabe>\nbetroffene: <Zahl der Personen, die dadurch lesen können>',
       vfsOverlay: {
         directories: ['/srv/export'],
         files: [
@@ -420,17 +428,23 @@ export const cloud365Scenarios: Scenario[] = [
             // Ohne die Gruppenliste ist „Alle Mitarbeitenden" eine Floskel.
             // Erst die 151 machen daraus einen Befund.
             { fileRead: '/srv/export/gruppen.csv' },
-            { file: '/home/timo/dsfa_befund.md', matches: '^bibliothek:.*Gehaltsabrechnungen' },
-            // Erst die Zahl macht aus „Alle Mitarbeitenden" einen Befund.
-            { file: '/home/timo/dsfa_befund.md', matches: '^betroffene:\\s*151\\b' },
-            // Der Köder: eine zweite Bibliothek mit derselben weiten Freigabe,
-            // bei der das aber genau richtig ist. Wer beide meldet, hat nach
-            // dem Muster gesucht statt nach dem Inhalt.
-            //
-            // Die Sperre hängt an der bibliothek-ZEILE, nicht an der ganzen
-            // Datei: „Archiv2019 ist nicht betroffen" ist eine richtige
-            // Feststellung und darf den Abschluss nicht verhindern.
-            { file: '/home/timo/dsfa_befund.md', absentMatches: '^bibliothek:.*Archiv2019' },
+            {
+              file: '/home/timo/dsfa_befund.md',
+              reportFields: [
+                // Der Köder: eine zweite Bibliothek mit derselben weiten
+                // Freigabe, bei der das aber richtig ist. Wer beide meldet,
+                // hat nach dem Muster gesucht statt nach dem Inhalt — die
+                // Sperre sitzt auf dem WERT, also darf „Archiv2019 ist nicht
+                // betroffen" woanders im Bericht stehen.
+                {
+                  key: 'bibliothek',
+                  matches: 'Gehaltsabrechnungen',
+                  absentMatches: 'Archiv2019',
+                },
+                // Erst die Zahl macht aus „Alle Mitarbeitenden" einen Befund.
+                { key: 'betroffene', matches: '^151\\b' },
+              ],
+            },
           ],
           resultText:
             'Personal / Gehaltsabrechnungen, Leserecht für „Alle Mitarbeitenden" — und diese Gruppe hat 151 Mitglieder, darunter Auszubildende, Aushilfen und vier externe Dienstleister.\n\nDieselbe weite Freigabe steht auf Projekte / Archiv2019, und dort ist sie richtig: abgeschlossene Projektunterlagen sollen im Haus lesbar sein. Der Unterschied liegt nicht im Berechtigungsmuster, sondern im Inhalt.\n\nUnd Copilot? Umgeht nichts. Es macht nur auffindbar, was seit Jahren offenstand.',

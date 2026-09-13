@@ -214,7 +214,7 @@ export const internalScenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/nachweise',
       taskText:
-        '/srv/nachweise durchsehen. Ergebnis nach /home/timo/statusbericht.md:\noffen: <die offenen Punkte, per Komma getrennt>\nBelegtes gehört NICHT in die offen-Zeile.',
+        'Ergebnis nach /home/timo/statusbericht.md:\noffen: <Kurznamen der offenen Punkte, per Komma>\nMöglich: wiederherstellungstest, nachweis-39, endpunktschutz, perimeter',
       vfsOverlay: {
         directories: ['/srv/nachweise'],
         files: [
@@ -236,18 +236,24 @@ export const internalScenarios: Scenario[] = [
             // makellose Sicherungsbilanz nichts über Wiederherstellung sagt.
             { fileRead: '/srv/nachweise/wiederherstellung.txt' },
             { fileRead: '/srv/nachweise/nis2.txt' },
-            // Beide offenen Punkte in der offen-ZEILE, nicht irgendwo im Text.
-            { file: '/home/timo/statusbericht.md', matches: '^offen:.*[Ww]iederherstellung' },
-            { file: '/home/timo/statusbericht.md', matches: '^offen:.*([Nn]achweis|39)' },
-            // Alles als offen zu melden ist keine Bewertung, sondern ein
-            // Abschreiben des Ordners.
-            //
-            // Die Sperre hängt an der offen-ZEILE, nicht an der ganzen Datei:
-            // „Endpunktschutz und Perimeter sind belegt" ist eine richtige
-            // Feststellung und darf den Abschluss nicht verhindern.
             {
               file: '/home/timo/statusbericht.md',
-              absentMatches: '^offen:.*([Ee]ndpunktschutz|[Ee]ndpoint|[Pp]erimeter|[Ff]irewall)',
+              reportFields: [
+                {
+                  key: 'offen',
+                  // Als LISTE gelesen, nicht als Text. Sonst erfüllte eine
+                  // einzige Angabe zwei Bedingungen: „Nachweis des
+                  // Wiederherstellungstests" enthält beide Woerter und galt
+                  // damit als zwei Befunde, obwohl der § 39-Nachweis gar nicht
+                  // vorkam. Ein Eintrag muss GANZ passen.
+                  requiredItems: ['wiederherstellungstest', 'nachweis-39'],
+                  // Alles als offen zu melden ist keine Bewertung, sondern ein
+                  // Abschreiben des Ordners. Die Sperre gilt nur für EINTRÄGE
+                  // dieser Liste — „endpunktschutz ist belegt" darf als eigene
+                  // Zeile danebenstehen.
+                  forbiddenItems: ['endpunktschutz', 'perimeter'],
+                },
+              ],
             },
           ],
           resultText:
@@ -260,8 +266,8 @@ export const internalScenarios: Scenario[] = [
         'Fünf Nachweise liegen im Ordner. Drei davon belegen etwas, zwei belegen eine Lücke — und eine der beiden Lücken versteckt sich hinter einer makellosen Statistik.',
         'Ein Sicherungslauf und eine Wiederherstellung sind zwei verschiedene Behauptungen. Für welche der beiden gibt es hier ein Protokoll?',
         '`cat wiederherstellung.txt` und `cat nis2.txt` — die beiden letzten Absätze sind der Bericht.',
-        'Endpunktschutz und Perimeter sind belegt in Ordnung. Sie dürfen erwähnt werden — aber nicht in der offen-Zeile.',
-        'Festhalten: `echo "offen: Wiederherstellungstest seit 11/2024, Nachweis nach § 39 BSIG" > /home/timo/statusbericht.md`',
+        'Endpunktschutz und Perimeter sind belegt in Ordnung — sie gehören nicht in die offen-Liste.',
+        'Festhalten: `echo "offen: wiederherstellungstest, nachweis-39" > /home/timo/statusbericht.md`',
       ],
     },
     realWorldReference: 'C-Level-Reporting ist eine Kernkompetenz für IT-Führungskräfte. Die Fähigkeit, Technik für Manager zu übersetzen, unterscheidet gute von durchschnittlichen IT-Leitern.',

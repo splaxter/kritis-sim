@@ -3,7 +3,7 @@
  * live host state of a ShellEngine. Every set field must hold (AND); the
  * evaluator never throws, bad input just yields false.
  */
-import { StateGoal } from '@kritis/shared';
+import { ReportField, StateGoal } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { HostState, UfwRule, canonicalUnitName } from './hosts';
 import { attemptMatches } from './feedback';
@@ -30,6 +30,7 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.fileAbsent !== undefined
     || goal.sameContentAs !== undefined
     || goal.sha256Of !== undefined
+    || (goal.reportFields !== undefined && goal.reportFields.length > 0)
   );
   // serviceEnabled: false is a legal assertion — check "given", not truthiness.
   const serviceAssertion = goal.service !== undefined && (
@@ -70,6 +71,64 @@ function warnVacuousGoal(goal: StateGoal): void {
   console.warn(`stateGoals: goal has no evaluable assertion, treated as unmet: ${key}`);
 }
 
+/**
+ * Zerlegt einen Bericht in `schluessel -> [wert, ...]`.
+ *
+ * Mehrfach vorkommende Schluessel werden BEWUSST gesammelt statt ueberschrieben:
+ * erst dadurch faellt ein Bericht auf, der sich selbst widerspricht.
+ */
+function parseReport(content: string): Map<string, string[]> {
+  const felder = new Map<string, string[]>();
+  for (const zeile of content.split('\n')) {
+    const m = /^\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(zeile);
+    if (!m) continue;
+    const key = m[1].toLowerCase();
+    const wert = m[2].trim();
+    const bisher = felder.get(key);
+    if (bisher) bisher.push(wert);
+    else felder.set(key, [wert]);
+  }
+  return felder;
+}
+
+/** Wert als kommagetrennte Liste, klein geschrieben und getrimmt. */
+function parseItems(wert: string): string[] {
+  return wert
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length > 0);
+}
+
+export function checkReportFields(content: string, fields: ReportField[]): boolean {
+  const felder = parseReport(content);
+  for (const feld of fields) {
+    const werte = felder.get(feld.key.toLowerCase());
+    // Genau einmal: fehlt die Angabe, oder steht sie zweimal da, ist der
+    // Bericht in beiden Faellen keiner.
+    if (!werte || werte.length !== 1) return false;
+    const wert = werte[0];
+
+    if (feld.matches !== undefined) {
+      const re = safeRegex(feld.matches);
+      if (!re || !re.test(wert)) return false;
+    }
+    if (feld.absentMatches !== undefined) {
+      const re = safeRegex(feld.absentMatches);
+      if (!re || re.test(wert)) return false;
+    }
+    if (feld.requiredItems || feld.forbiddenItems) {
+      const items = parseItems(wert);
+      for (const noetig of feld.requiredItems ?? []) {
+        if (!items.includes(noetig.toLowerCase())) return false;
+      }
+      for (const verboten of feld.forbiddenItems ?? []) {
+        if (items.includes(verboten.toLowerCase())) return false;
+      }
+    }
+  }
+  return true;
+}
+
 function checkFileGoals(host: HostState, goal: StateGoal): boolean {
   if (!goal.file) return true;
   const { vfs } = host;
@@ -95,6 +154,15 @@ function checkFileGoals(host: HostState, goal: StateGoal): boolean {
       const re = safeRegex(goal.absentMatches);
       if (!re || re.test(content)) return false;
     }
+  }
+
+  // Bericht aus `schluessel: wert`-Zeilen. Anders als `matches` wird hier je
+  // Feld geprueft, und ein Schluessel darf nur EINMAL vorkommen — sonst waere
+  // ein Bericht loesbar, der sich selbst widerspricht.
+  if (goal.reportFields !== undefined && goal.reportFields.length > 0) {
+    const st = vfs.stat(goal.file);
+    if (!st.ok || st.value.type === 'directory') return false;
+    if (!checkReportFields(st.value.content ?? '', goal.reportFields)) return false;
   }
 
   // Chain-of-custody: `file` must be byte-equal to this second path. Both

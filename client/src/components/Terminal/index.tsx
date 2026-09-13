@@ -47,15 +47,16 @@ export function Terminal({ context, onSolved, onCancel, onFlagsSet, gameMode = '
       {/*
         Persistent task panel — the quest stays reviewable while playing.
 
-        max-h-40 statt max-h-28: Ein Auftrag mit angesagtem Berichtsschema
-        (Einleitung plus vier Zeilen) braucht auf schmalen Geraeten rund 155 px
-        und lag damit unter der alten Kante von 112 px — die letzte Schemazeile
-        war nur nach Scrollen in einem unscheinbaren Feld zu sehen. Ein Schema,
-        dessen letzte Regel man nicht sieht, ist kein angesagtes Schema. Der
-        Scroll bleibt als Notnagel fuer ungewoehnlich lange Auftraege.
+        max-h-48 statt max-h-28: Ein Auftrag mit angesagtem Berichtsschema
+        braucht auf 320 px rund 190 px und lag damit weit unter der alten Kante
+        von 112 px — die letzte Schemazeile war nur nach Scrollen in einem
+        unscheinbaren Feld zu sehen. Ein Schema, dessen letzte Regel man nicht
+        sieht, ist kein angesagtes Schema. Der Wert ist gemessen, nicht
+        geschaetzt (e2e/einstieg-layout.spec.ts prueft 320, 375, 667 und
+        Desktop); der Scroll bleibt als Notnagel fuer lange Auftraege.
       */}
       {taskText && (
-        <div className="border-b border-terminal-border bg-terminal-bg-secondary px-3 py-2 text-sm max-h-40 overflow-y-auto">
+        <div className="border-b border-terminal-border bg-terminal-bg-secondary px-3 py-2 text-sm max-h-48 overflow-y-auto">
           <span className="text-terminal-warning">📋 Aufgabe:</span>
           <div className="whitespace-pre-line text-terminal-green-muted">{taskText}</div>
         </div>

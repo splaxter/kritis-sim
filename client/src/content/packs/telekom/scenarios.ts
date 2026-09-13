@@ -158,7 +158,7 @@ export const telekomScenarios: Scenario[] = [
       // und nahm falsche an; ein angesagtes Schema ist für den Spieler
       // durchschaubar und für die Prüfung eindeutig.
       taskText:
-        '/srv/messung auswerten. Ergebnis nach /home/timo/meldung.md:\nanzahl: <Ausfälle>\nzeitfenster: <von>-<bis>\nlokal: erreichbar | gestört\nursache: <belegt? sonst: unbekannt>',
+        'Ergebnis nach /home/timo/meldung.md:\nanzahl: <Ausfälle>\nzeitfenster: <von>-<bis>\nlokal: erreichbar | gestört\nursache: <belegt? sonst: unbekannt>',
       vfsOverlay: {
         directories: ['/srv/messung'],
         files: [
@@ -179,20 +179,27 @@ export const telekomScenarios: Scenario[] = [
             // angreifbar: „liegt bestimmt an Ihrem Router" ist das erste, was
             // die Hotline sagt.
             { fileRead: '/srv/messung/ping_gateway.csv' },
-            // Neun Messrunden mit Ausfall — eine Zeile je Runde.
-            { file: '/home/timo/meldung.md', matches: '^anzahl:\\s*9\\b' },
-            // Das Zeitfenster in vollen Stunden ODER als gemessene Spanne:
-            // „10-14", „10 bis 14", „10:04-13:58" sind alle richtig.
             {
               file: '/home/timo/meldung.md',
-              matches: '^zeitfenster:\\s*10(:\\d\\d)?\\s*(-|–|bis)\\s*1[34](:\\d\\d)?',
+              reportFields: [
+                // Neun Messrunden mit Ausfall — eine Zeile je Runde.
+                { key: 'anzahl', matches: '^9\\b' },
+                // Das Fenster muss die Messung WIRKLICH einschliessen. Die
+                // Ausfälle laufen von 10:04 bis 13:58; ein Fenster, das
+                // früher endet, deckt den letzten Ausfall nicht ab.
+                // Angenommen: „10-14", „10 bis 14", „10:00-14:00",
+                // „10:04-13:58". Abgewiesen: „10-13", „10:59-13:00".
+                {
+                  key: 'zeitfenster',
+                  matches: '^10(:0[04])?\\s*(-|–|bis)\\s*(14(:00)?|13:58)$',
+                },
+                { key: 'lokal', matches: '^erreichbar$' },
+                // Der Kern der Lektion: Die Messung belegt ein Muster und einen
+                // Ort. Sie belegt KEIN defektes Bauteil. „unbekannt" ist die
+                // einzige ehrliche Angabe — und der Auftrag sagt das.
+                { key: 'ursache', matches: '^unbekannt$' },
+              ],
             },
-            { file: '/home/timo/meldung.md', matches: '^lokal:\\s*erreichbar\\b' },
-            // Der Kern der Lektion, jetzt als eigene Zeile statt als
-            // Wort-Blacklist: Die Messung belegt ein Muster und einen Ort. Sie
-            // belegt KEIN defektes Bauteil. „unbekannt" ist hier die einzige
-            // ehrliche Angabe — und der Auftrag sagt das ausdrücklich.
-            { file: '/home/timo/meldung.md', matches: '^ursache:\\s*unbekannt\\b' },
           ],
           resultText:
             'Neun Ausfälle an drei Tagen, alle zwischen 10:04 und 13:58, jedes Mal alle drei externen Ziele gleichzeitig — und das Gateway zu jedem dieser Zeitpunkte erreichbar.\n\nDamit ist beides gesagt, was eine Störungsmeldung braucht: ein reproduzierbares Zeitfenster und der Nachweis, dass das eigene Netz und das eigene Gerät ausscheiden.\n\nUnd die vierte Zeile ist die wichtigste. „unbekannt" sieht nach Schwäche aus, ist aber die einzige Angabe, die diese Messung deckt. Wer stattdessen ein Bauteil benennt, liefert dem Anbieter etwas zum Widerlegen — und mit der Ursache fällt dann auch das Zeitfenster.',
@@ -421,7 +428,7 @@ export const telekomScenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/netz',
       taskText:
-        '/srv/netz vergleichen. Ergebnis nach /home/timo/befund_bandbreite.md:\ngebucht: <Mbit laut Vertrag>\nprofil: <was der Router aushandelt>\ngemessen: <Mbit am Kabel>',
+        'Ergebnis nach /home/timo/befund_bandbreite.md:\ngebucht: <Mbit laut Vertrag>\nprofil: <was der Router aushandelt>\ngemessen: <Mbit am Kabel>',
       vfsOverlay: {
         directories: ['/srv/netz'],
         files: [
@@ -444,14 +451,17 @@ export const telekomScenarios: Scenario[] = [
             // WLAN-Werte liest, hat eine Zahl zwischen 9 und 45 und keine
             // Aussage.
             { fileRead: '/srv/netz/messung_kabel.csv' },
-            // Drei Zahlen an drei benannten Stellen. Vorher genuegte ein Text,
-            // der irgendwo „200" und irgendwo „50" enthielt — auch wenn er das
-            // Gegenteil behauptete.
-            { file: '/home/timo/befund_bandbreite.md', matches: '^gebucht:\\s*200\\b' },
-            { file: '/home/timo/befund_bandbreite.md', matches: '^profil:\\s*(Business\\s*)?5[02]\\b' },
-            // Die Kabelmessung liegt zwischen 46,9 und 47,4 — beide Rundungen
-            // sind richtig, die WLAN-Werte (9 bis 45) liegen ausserhalb.
-            { file: '/home/timo/befund_bandbreite.md', matches: '^gemessen:\\s*4[67]([.,]\\d)?\\b' },
+            {
+              file: '/home/timo/befund_bandbreite.md',
+              reportFields: [
+                { key: 'gebucht', matches: '^200\\b' },
+                { key: 'profil', matches: '^(Business\\s*)?5[02]\\b' },
+                // Die Kabelmessung liegt zwischen 46,9 und 47,4 — beide
+                // Rundungen sind richtig, die WLAN-Werte (9 bis 45) liegen
+                // außerhalb.
+                { key: 'gemessen', matches: '^4[67]([.,]\\d)?\\b' },
+              ],
+            },
           ],
           resultText:
             'Drei Zahlen, die nicht zueinander passen: 200 Mbit/s gebucht, Profil „Business 50" am Router, 47 Mbit/s am Kabel gemessen. Die Leitung selbst ist fehlerfrei — 0 CRC, 0 FEC in dreizehn Tagen.\n\nDamit ist es kein Leitungsproblem, sondern ein Konfigurationsfehler auf der Anbieterseite, und die Meldung lautet entsprechend nicht „langsam", sondern „falsches Profil".\n\nDie WLAN-Messung daneben schwankt zwischen 9 und 45 Mbit/s. Sie hätte jede These gestützt und keine belegt.',
