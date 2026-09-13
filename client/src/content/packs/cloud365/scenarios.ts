@@ -252,4 +252,92 @@ export const cloud365Scenarios: Scenario[] = [
     involvedNpcs: ['CLOUD365-MARTIN', 'CLOUD365-KEVIN'],
     tags: ['copilot', 'ai', 'privacy', 'permissions'],
   },
+  {
+    /**
+     * Einstiegsfall 2 von 3 (Schwierigkeit 1) — eine Rechteanforderung prüfen.
+     *
+     * Der Ergebnistext begründet die Ablehnung mit AUFTRAG und HERKUNFT, nicht
+     * mit „unbekannt heißt Schadsoftware". Diese Pauschalregel wäre bequem und
+     * falsch: in jeder Firma laufen legitime unsignierte Werkzeuge, und ein
+     * Spieler, der sie lernt, klickt später entweder alles weg oder nichts.
+     */
+    id: 'CLOUD365-SC-007',
+    title: 'Ein Update, das niemand bestellt hat',
+    category: 'security_incident',
+    difficulty: 1,
+    flavorText: 'Ein Kollege aus der Buchhaltung ruft dich an den Platz. "Da will was installiert werden, und ich soll ein Passwort eingeben. Ist das von euch?" Auf dem Bildschirm steht die Benutzerkontensteuerung und fragt nach Administratorrechten. Im Wartungskalender steht für heute nichts. Kevin hat auch nichts angekündigt.',
+    urgency: 'high',
+    choices: [
+      {
+        id: 'A',
+        text: 'Den Dialog lesen und selbst entscheiden',
+        outcome: 'PERFECT',
+        consequence: 'Du entscheidest am Bildschirm und erklärst dem Kollegen dabei, woran du es festmachst. Er hört zu — und ruft beim nächsten Mal wieder an, bevor er klickt. Das ist mehr wert als die eine Entscheidung.',
+        scoreChange: 130,
+        reputationChange: 10,
+        lesson: 'Eine Rechteanforderung prüft man an drei Dingen: Gibt es einen Auftrag dafür? Woher kommt die Datei? Ist der Herausgeber verifiziert? Erst wenn alle drei zusammenpassen, ist „Ja" die harmlose Antwort.',
+        guiCommand: true,
+      },
+      {
+        id: 'B',
+        text: 'Erst Kevin anrufen und fragen, ob das von Cloud365 kommt',
+        outcome: 'SUCCESS',
+        consequence: 'Kevin geht nach zwölf Minuten ran: "Nee, von uns ist da nichts." In der Zwischenzeit steht der Dialog offen und der Kollege wartet. Die Antwort war richtig — sie stand aber die ganze Zeit im Fenster.',
+        scoreChange: 70,
+        reputationChange: 5,
+        lesson: 'Rückfragen sind nie falsch. Aber sie ersetzen nicht das Lesen: Herkunft und Herausgeber stehen im Dialog selbst, und die Antwort darauf kommt in zehn Sekunden statt in zwölf Minuten.',
+      },
+      {
+        id: 'C',
+        text: 'Dem Kollegen sagen, er soll einfach abbrechen und weiterarbeiten',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence: 'Der Dialog verschwindet, der Kollege arbeitet weiter. Die Datei liegt aber weiter in seinem Download-Ordner, und die Mail, aus der sie kam, ist noch da — samt aller Kollegen im Verteiler.',
+        scoreChange: 40,
+        reputationChange: 0,
+        lesson: 'Wegklicken beendet den Dialog, nicht den Vorfall. Wenn eine Mail so etwas verteilt hat, hat sie es selten nur an einen verteilt — die Meldung an die anderen gehört dazu.',
+      },
+    ],
+    guiContext: {
+      app: 'uac',
+      title: 'Benutzerkontensteuerung',
+      hostname: 'WS-BUCH-04',
+      briefing:
+        'Lies das Fenster, bevor du klickst: Was will da Administratorrechte, woher kommt es, und wer ist der Herausgeber? Deine Entscheidung ist „Ja" oder „Nein".',
+      state: {
+        uac: {
+          program: 'Teams_Update_2026.exe',
+          publisher: 'Kein verifizierter Herausgeber',
+          verifiedPublisher: false,
+          programPath: 'C:\\Users\\buchhaltung\\Downloads\\Teams_Update_2026.exe',
+          fileOrigin: 'Heruntergeladen aus E-Mail-Anhang (Internet)',
+          riskFeedback:
+            'Achtung: Das ist die riskante Wahl. Microsoft-Programme aktualisieren sich nicht über eine Datei aus einem Mail-Anhang, und der Herausgeber ist nicht verifiziert. Mit „Ja" bekäme das Programm Administratorrechte auf diesem Rechner.',
+        },
+      },
+      solutions: [
+        {
+          interactions: ['answer:uac:no'],
+          allRequired: true,
+          resultText:
+            'Richtig abgelehnt — und zwar aus zwei nachprüfbaren Gründen: Für heute gibt es keinen Wartungsauftrag, und die Datei stammt aus einem Mail-Anhang. Echte Microsoft-Updates kommen über Windows Update oder die Verwaltung des Unternehmens, nie als Anhang. Der fehlende verifizierte Herausgeber passt ins Bild, ist aber allein noch kein Beweis: Auch legitime interne Werkzeuge sind oft unsigniert.',
+          skillGain: { windows: 4, security: 6 },
+        },
+      ],
+      hints: [
+        'Die Frage ist nicht, ob das Programm gefährlich aussieht, sondern ob es überhaupt jemand bestellt hat.',
+        'Schau auf „Dateiursprung" und auf den Herausgeber. Microsoft verteilt Updates nicht als Anhang in einer Mail.',
+        'Es gibt keinen Auftrag und die Datei kommt aus einer Mail. Klicke „Nein".',
+      ],
+    },
+    realWorldReference: 'Gefälschte Update-Aufforderungen für bekannte Programme sind eine der verbreitetsten Methoden, um an Administratorrechte zu kommen. Microsoft liefert Teams-Updates über den integrierten Updater oder die zentrale Verwaltung aus, nicht per E-Mail-Anhang.',
+    bsiReference: 'BSI IT-Grundschutz: APP.1.1 Office-Produkte, ORP.3 Sensibilisierung und Schulung',
+    involvedNpcs: ['CLOUD365-KEVIN'],
+    /**
+     * Einsteiger und Standard, NICHT KRITIS: Eine einzelne Rechteanforderung zu prüfen
+     * gehört an den Anfang einer Laufbahn, nicht in Woche 1 eines
+     * 24-wöchigen KRITIS-Laufs. Siehe Scenario.requiredModes.
+     */
+    requiredModes: ['beginner', 'intermediate'],
+    tags: ['einstieg', 'gui', 'windows', 'uac', 'phishing'],
+  },
 ];

@@ -413,4 +413,50 @@ describe('scenarioEngine', () => {
       expect(getUrgencyLabel('unknown')).toBe('unknown');
     });
   });
+
+  describe('requiredModes (Modus-Gate)', () => {
+    /**
+     * Der Grund fuer das Gate: `difficulty` ist keine Zielgruppe. Der
+     * Frueh-Cap liegt in JEDEM Modus bei 2, ein Einstiegsfall auf
+     * Schwierigkeit 1 waere also auch in Woche 1 eines KRITIS-Laufs dabei.
+     */
+    const einstieg = createTestScenario({
+      id: 'SC-EINSTIEG',
+      difficulty: 1,
+      requiredModes: ['beginner', 'intermediate'],
+    });
+
+    it('laesst ein gegatetes Szenario in einem erlaubten Modus durch', () => {
+      const state = createTestState({ gameMode: 'beginner' });
+      expect(getAvailableScenarios([einstieg], state).map((s) => s.id)).toEqual(['SC-EINSTIEG']);
+    });
+
+    it('haelt es aus einem nicht genannten Modus heraus', () => {
+      const state = createTestState({ gameMode: 'kritis' });
+      expect(getAvailableScenarios([einstieg], state)).toEqual([]);
+    });
+
+    it('das Gate wirkt unabhaengig von der Schwierigkeit', () => {
+      // Schwierigkeit 1 laege in KRITIS klar unter jedem Cap — nur das Gate
+      // haelt es fern. Ohne diese Probe koennte der Filter weiter unten
+      // wegfallen, ohne dass ein Test es merkt.
+      const ohneGate = createTestScenario({ id: 'SC-OFFEN', difficulty: 1 });
+      const state = createTestState({ gameMode: 'kritis' });
+      expect(getAvailableScenarios([ohneGate], state).map((s) => s.id)).toEqual(['SC-OFFEN']);
+    });
+
+    it('ein Szenario ohne requiredModes bleibt in jedem Modus verfuegbar', () => {
+      const offen = createTestScenario({ id: 'SC-ALLE', difficulty: 2 });
+      for (const mode of ['beginner', 'intermediate', 'kritis'] as const) {
+        const state = createTestState({ gameMode: mode });
+        expect(getAvailableScenarios([offen], state).map((s) => s.id), mode).toEqual(['SC-ALLE']);
+      }
+    });
+
+    it('eine leere Liste gatet nicht (wie bei GameEvent.requiredModes)', () => {
+      const leer = createTestScenario({ id: 'SC-LEER', difficulty: 2, requiredModes: [] });
+      const state = createTestState({ gameMode: 'kritis' });
+      expect(getAvailableScenarios([leer], state).map((s) => s.id)).toEqual(['SC-LEER']);
+    });
+  });
 });

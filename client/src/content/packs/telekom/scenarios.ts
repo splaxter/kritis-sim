@@ -249,4 +249,129 @@ export const telekomScenarios: Scenario[] = [
     involvedNpcs: ['TELEKOM-THOMAS'],
     tags: ['bandwidth', 'monitoring', 'provisioning', 'troubleshooting'],
   },
+  {
+    /**
+     * Einstiegsfall 3 von 3 (Schwierigkeit 1) — die richtige Unterlage finden.
+     *
+     * Zwei Standorte, zwei Vertragsfassungen. Der Fall prüft Lesen, nicht
+     * Suchen: Im Ticket steht der Standort, auf dem alten Blatt steht groß
+     * „ERSETZT". Beides steht da, beides wird gern überlesen.
+     *
+     * Der Abschluss behauptet ausdrücklich KEIN eröffnetes Provider-Ticket —
+     * der Spieler hat eine Unterlage geöffnet, nicht bei der Telekom angerufen.
+     */
+    id: 'TELEKOM-SC-007',
+    title: 'Welche Leitung gehört zu unserem Standort?',
+    category: 'troubleshooting',
+    difficulty: 1,
+    flavorText: 'Am Betriebshof ist das Netz weg. Du greifst zum Hörer, um die Störung zu melden — und legst wieder auf. Die Hotline will als Erstes die Leitungskennung wissen, und du hast keine. Jens ruft aus dem Nachbarzimmer: "Liegt alles im Vertragsordner auf dem Fileserver. Aber pass auf, da ist auch noch der alte Kram drin."',
+    urgency: 'high',
+    choices: [
+      {
+        id: 'A',
+        text: 'Im Vertragsordner nachsehen',
+        outcome: 'PERFECT',
+        consequence: 'Du hast Leitungskennung und Supportweg vor dir und kannst die Störung melden, ohne dich durchfragen zu lassen. Angerufen hast du noch nicht — das ist der nächste Griff, und diesmal weißt du, was du sagst.',
+        scoreChange: 130,
+        reputationChange: 10,
+        lesson: 'Störungsmeldungen scheitern selten an der Technik und oft an fehlenden Vertragsdaten. Leitungskennung, Standort und die vereinbarte Reaktionszeit gehören griffbereit — im Störungsfall ist keine Zeit für Ablage-Archäologie.',
+        guiCommand: true,
+      },
+      {
+        id: 'B',
+        text: 'Bei der Hotline anrufen und die Adresse durchgeben',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence: 'Über die Adresse findet die Hotline schließlich zwei Anschlüsse auf euren Namen und fragt, welcher gemeint ist. Nach zwanzig Minuten Warteschleife und Rückfragen ist die Störung aufgenommen. Thomas am Ende: "Beim nächsten Mal einfach die Kennung, dann geht das in zwei Minuten."',
+        scoreChange: 40,
+        reputationChange: 0,
+        lesson: 'Ohne Kennung geht es auch — es dauert nur ein Vielfaches und bindet beide Seiten. Bei mehreren Standorten auf einem Kundenkonto ist die Adresse kein eindeutiges Merkmal.',
+      },
+      {
+        id: 'C',
+        text: 'Jens bitten, die Kennung rauszusuchen',
+        outcome: 'SUCCESS',
+        consequence: 'Jens hat sie in einer Minute. "Steht im Vertragsordner, zweiter Unterordner." Du meldest die Störung. Beim nächsten Ausfall ist Jens im Urlaub.',
+        scoreChange: 60,
+        reputationChange: 5,
+        lesson: 'Wissen, das nur in einem Kopf liegt, ist im Notfall nicht verfügbar. Genau deshalb gehören solche Angaben an einen Ort, den alle kennen — und den man im Ernstfall auch findet.',
+      },
+    ],
+    guiContext: {
+      app: 'explorer',
+      title: 'Vertragsordner',
+      hostname: 'FILE01',
+      briefing:
+        'Im Vertragsordner liegen die Anschlussunterlagen. Öffne das Blatt, das zum betroffenen Standort gehört und aktuell gültig ist — dort stehen Leitungskennung und Supportweg.',
+      state: {
+        explorer: {
+          mode: 'files',
+          shareName: 'Vertragsordner',
+          sharePath: '\\\\FILE01\\Vertragsordner',
+          items: [
+            { id: 'ordner_betriebshof', name: '01_Standort_Betriebshof', kind: 'folder', modified: '14.01.2026' },
+            { id: 'ordner_kompostwerk', name: '02_Standort_Kompostwerk', kind: 'folder', modified: '22.11.2025' },
+            {
+              id: 'anschluss_betriebshof_alt',
+              name: 'Anschluss_Betriebshof_2021.pdf',
+              kind: 'file',
+              parent: 'ordner_betriebshof',
+              modified: '03.09.2021',
+              preview:
+                'ANSCHLUSSÜBERSICHT — Betriebshof Ostring 12\n\n*** ERSETZT DURCH FASSUNG VOM 14.01.2026 — NICHT MEHR GÜLTIG ***\n\nProdukt: Company Connect 100\nLeitungskennung: DTAG-41-882-0031\nStörungsannahme: 0800 33 01000\nEntstörfrist: 24 Stunden (Mo–Fr)',
+            },
+            {
+              id: 'anschluss_betriebshof',
+              name: 'Anschluss_Betriebshof_2026.pdf',
+              kind: 'file',
+              parent: 'ordner_betriebshof',
+              modified: '14.01.2026',
+              preview:
+                'ANSCHLUSSÜBERSICHT — Betriebshof Ostring 12\nGültig ab 14.01.2026\n\nProdukt: Company Connect 500\nLeitungskennung: DTAG-41-882-7194\nStörungsannahme Geschäftskunden: 0800 33 06000\nEntstörfrist: 8 Stunden (7x24, KRITIS-Kennzeichnung hinterlegt)\nAnsprechpartner: T. Kellermann, Technischer Service',
+            },
+            {
+              id: 'anschluss_kompostwerk',
+              name: 'Anschluss_Kompostwerk_2026.pdf',
+              kind: 'file',
+              parent: 'ordner_kompostwerk',
+              modified: '22.11.2025',
+              preview:
+                'ANSCHLUSSÜBERSICHT — Kompostwerk Sandkaul\nGültig ab 01.12.2025\n\nProdukt: Company Connect 200\nLeitungskennung: DTAG-41-882-7208\nStörungsannahme Geschäftskunden: 0800 33 06000\nEntstörfrist: 24 Stunden (Mo–Sa)',
+            },
+            {
+              id: 'rahmenvertrag',
+              name: 'Rahmenvertrag_2025.pdf',
+              kind: 'file',
+              modified: '02.01.2025',
+              preview:
+                'RAHMENVERTRAG Geschäftskunden\nRegelt Laufzeiten, Kündigungsfristen und Preisanpassungen für alle Standorte.\nKeine standortbezogenen Leitungsdaten.',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['open:anschluss_betriebshof'],
+          allRequired: true,
+          resultText:
+            'Das ist das richtige Blatt: Betriebshof, gültig ab 14.01.2026. Leitungskennung DTAG-41-882-7194, Entstörfrist 8 Stunden rund um die Uhr. Die Fassung von 2021 im selben Ordner nennt eine andere Kennung und eine Frist von 24 Stunden — wer sie erwischt, meldet unter falscher Nummer und argumentiert am Ende mit einer Frist, die gar nicht mehr gilt.',
+          skillGain: { troubleshooting: 4, softSkills: 4 },
+        },
+      ],
+      hints: [
+        'Der Ausfall betrifft einen bestimmten Standort. Welchen, steht am Anfang der Meldung.',
+        'Im Ordner des Standorts liegen zwei Fassungen. Eine davon trägt oben einen deutlichen Vermerk.',
+        'Öffne „Anschluss_Betriebshof_2026.pdf" im Ordner 01_Standort_Betriebshof — das ist die gültige Fassung.',
+      ],
+    },
+    realWorldReference: 'Geschäftskundenanschlüsse werden über eine Leitungs- oder Vertragskennung identifiziert, nicht über die Adresse. Bei mehreren Standorten auf einem Kundenkonto führt die Adresse regelmäßig zur falschen Leitung.',
+    bsiReference: 'BSI IT-Grundschutz: DER.4 Notfallmanagement, OPS.2.1 Outsourcing',
+    involvedNpcs: ['TELEKOM-THOMAS'],
+    /**
+     * Einsteiger und Standard, NICHT KRITIS: Die richtige Vertragsfassung zu finden
+     * gehört an den Anfang einer Laufbahn, nicht in Woche 1 eines
+     * 24-wöchigen KRITIS-Laufs. Siehe Scenario.requiredModes.
+     */
+    requiredModes: ['beginner', 'intermediate'],
+    tags: ['einstieg', 'gui', 'explorer', 'dokumentation', 'stoerung'],
+  },
 ];

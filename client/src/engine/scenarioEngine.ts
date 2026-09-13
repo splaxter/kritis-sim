@@ -21,6 +21,16 @@ export function getAvailableScenarios(
       return false;
     }
 
+    // Mode gate (same semantics as GameEvent.requiredModes). Difficulty alone
+    // cannot express "this is for newcomers": the early-game cap is 2 in every
+    // mode, so a difficulty-1 onboarding case would otherwise show up in week 1
+    // of a 24-week KRITIS run. See the comment on Scenario.requiredModes.
+    if (scenario.requiredModes && scenario.requiredModes.length > 0) {
+      if (!scenario.requiredModes.includes(state.gameMode)) {
+        return false;
+      }
+    }
+
     // Start with mode's max difficulty cap
     let maxDifficulty = modeMaxDifficulty;
 
