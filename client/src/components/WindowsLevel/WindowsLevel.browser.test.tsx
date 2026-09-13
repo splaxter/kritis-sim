@@ -98,9 +98,8 @@ describe('Task Manager — sortierbare Spalten', () => {
   it('startet in der gelieferten Reihenfolge — der Taeter liegt nicht obenauf', () => {
     render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
     expect(namenInReihenfolge()).toEqual(['svchost.exe', 'explorer.exe', 'rogue-miner.exe']);
-    for (const kopf of screen.getAllByRole('columnheader')) {
-      expect(kopf).toHaveAttribute('aria-sort', 'none');
-    }
+    // Unsortiert laden die Koepfe zum Sortieren ein, statt einen Zustand zu melden.
+    expect(screen.getByRole('button', { name: 'Nach CPU sortieren' })).toBeInTheDocument();
   });
 
   it('CPU-Klick sortiert absteigend und holt den Ausreisser nach oben', async () => {
@@ -110,7 +109,10 @@ describe('Task Manager — sortierbare Spalten', () => {
     await user.click(screen.getByRole('button', { name: /CPU/ }));
 
     expect(namenInReihenfolge()).toEqual(['rogue-miner.exe', 'svchost.exe', 'explorer.exe']);
-    expect(screen.getByRole('columnheader', { name: /CPU/ })).toHaveAttribute('aria-sort', 'descending');
+    // Der Zustand steht im ZUGAENGLICHEN NAMEN, nicht in einer Tabellenrolle
+    // ohne Tabelle — und die Live-Region sagt den Wechsel an.
+    expect(screen.getByRole('button', { name: /CPU — sortiert absteigend/ })).toBeInTheDocument();
+    expect(screen.getByText('Sortiert nach CPU, absteigend')).toBeInTheDocument();
   });
 
   it('ein zweiter Klick dreht die Richtung um', async () => {
@@ -121,7 +123,8 @@ describe('Task Manager — sortierbare Spalten', () => {
     await user.click(screen.getByRole('button', { name: /CPU/ }));
 
     expect(namenInReihenfolge()).toEqual(['explorer.exe', 'svchost.exe', 'rogue-miner.exe']);
-    expect(screen.getByRole('columnheader', { name: /CPU/ })).toHaveAttribute('aria-sort', 'ascending');
+    expect(screen.getByRole('button', { name: /CPU — sortiert aufsteigend/ })).toBeInTheDocument();
+    expect(screen.getByText('Sortiert nach CPU, aufsteigend')).toBeInTheDocument();
   });
 
   it('Namen sortieren zuerst aufsteigend, Zahlen zuerst absteigend', async () => {
@@ -161,5 +164,28 @@ describe('Task Manager — sortierbare Spalten', () => {
     });
     expect(onSolved).toHaveBeenCalledTimes(1);
     expect(namenInReihenfolge()).not.toContain('rogue-miner.exe');
+  });
+});
+
+/**
+ * Aus dem Review zu PR #16: role="row"/"columnheader" verlangen einen Tabellen-
+ * kontext. Die Prozesse sind eine listbox — die Rollen haetten Beziehungen
+ * behauptet, die es nicht gibt.
+ */
+describe('Task Manager — keine vorgetaeuschten Tabellenrollen', () => {
+  it('es gibt weder columnheader noch row noch table', () => {
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    expect(screen.queryAllByRole('columnheader')).toHaveLength(0);
+    expect(screen.queryAllByRole('row')).toHaveLength(0);
+    expect(screen.queryAllByRole('table')).toHaveLength(0);
+    // Die Liste bleibt, was sie ist.
+    expect(screen.getByRole('listbox', { name: 'Prozesse' })).toBeInTheDocument();
+  });
+
+  it('jeder Spaltenkopf ist ein Button mit sprechendem Namen', () => {
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    for (const label of ['Name', 'PID', 'CPU', 'Arbeitsspeicher']) {
+      expect(screen.getByRole('button', { name: `Nach ${label} sortieren` })).toBeInTheDocument();
+    }
   });
 });

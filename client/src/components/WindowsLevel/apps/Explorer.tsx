@@ -43,7 +43,15 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
-  list: { flex: 1, overflowY: 'auto', minHeight: '80px' },
+  /**
+   * Die Liste scrollt NICHT mehr selbst: seit das Berechtigungsraster darunter
+   * steht, muessen beide zusammen scrollen, sonst waechst das Raster aus dem
+   * maxHeight der Wurzel heraus und schiebt den Footer mit „Entfernen" hinaus.
+   * Im Review zu PR #16 bei 375x667 reproduziert — der Knopf war komplett
+   * abgeschnitten und per Seitenscroll nicht erreichbar.
+   */
+  list: { minHeight: '80px' },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: 'auto' },
   row: {
     display: 'grid',
     gridTemplateColumns: '2fr 1.2fr',
@@ -91,6 +99,8 @@ const useStyles = makeStyles({
     gap: '8px',
     padding: '10px 16px',
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    // Muss sichtbar bleiben, egal wie hoch der Inhalt darueber wird.
+    flexShrink: 0,
   },
   crumb: {
     padding: '6px 16px 2px',
@@ -154,6 +164,11 @@ export const PERMISSION_ROWS = [
   'Lesen',
   'Schreiben',
 ] as const;
+
+/** Stabile Id-Bausteine fuer aria-labelledby (Ids bleiben ASCII). */
+const slug = (s: string) =>
+  s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 /** Welche Kaestchen sind bei dieser Stufe gesetzt? */
 export function derivePermissionMatrix(permission: string): Record<string, boolean> {
@@ -230,6 +245,7 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
         <span>Berechtigung</span>
       </div>
 
+      <div className={styles.scrollArea}>
       <div className={styles.list} role="listbox" aria-label="Berechtigungen">
         {rows.map((entry) => (
           <div
@@ -264,25 +280,51 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
           </div>
           <div className={styles.matrixHead}>
             <span />
-            <span className={styles.matrixBox}>Zulassen</span>
-            <span className={styles.matrixBox}>Verweigern</span>
+            <span className={styles.matrixBox} id="perm-spalte-zulassen">
+              Zulassen
+            </span>
+            <span className={styles.matrixBox} id="perm-spalte-verweigern">
+              Verweigern
+            </span>
           </div>
           {PERMISSION_ROWS.map((zeile) => (
             <div key={zeile} className={styles.matrixRow}>
-              <span>{zeile}</span>
-              <span className={styles.matrixBox} aria-label={`${zeile}: Zulassen`}>
-                {matrix[zeile] ? '☑' : '☐'}
+              <span id={`perm-${slug(zeile)}`}>{zeile}</span>
+              {/*
+                ECHTE Checkboxen, nicht ☑/☐ in einem span mit aria-label.
+                aria-label wirkt nur auf Elemente mit passender Rolle — an einem
+                schmucklosen span kommt es im Accessibility-Baum gar nicht an,
+                und getByLabelText prueft dann nur das DOM-Attribut, nicht seine
+                Wirkung. Genau dieser Trugschluss ist im Review zu PR #16
+                aufgefallen. `disabled` bildet den Nur-Lese-Charakter des
+                Dialogs ab (kein „Bearbeiten"-Knopf).
+              */}
+              <span className={styles.matrixBox}>
+                <input
+                  type="checkbox"
+                  checked={matrix[zeile]}
+                  disabled
+                  readOnly
+                  aria-labelledby={`perm-${slug(zeile)} perm-spalte-zulassen`}
+                />
               </span>
               {/* „Verweigern" bleibt leer: keine unserer Freigaben arbeitet mit
                   expliziten Verboten, und ein erfundenes Häkchen wäre eine
                   Aussage über die Freigabe, die es nicht gibt. */}
-              <span className={styles.matrixBox} aria-label={`${zeile}: Verweigern`}>
-                ☐
+              <span className={styles.matrixBox}>
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  readOnly
+                  aria-labelledby={`perm-${slug(zeile)} perm-spalte-verweigern`}
+                />
               </span>
             </div>
           ))}
         </div>
       )}
+      </div>
 
       <div className={styles.footer}>
         <Button appearance="primary" disabled={!selected || locked} onClick={remove}>

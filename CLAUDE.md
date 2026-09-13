@@ -17,6 +17,16 @@ npm workspaces monorepo: `client`, `server`, `shared`. Run everything from the r
 - Single test: `npm test -- client/src/engine/gameState.test.ts` or `npm run test:client -- src/hooks/useAutosave.browser.test.tsx` (path relative to `client/`)
 - `npm run test:e2e` — full build, then Playwright (`e2e/game.spec.ts`); its webServer starts prod on :3000 and probes `/api/health`
 - `npm run test:e2e:chrome` — escape hatch: the same suite against the **installed** Google Chrome (`PW_CHANNEL=chrome`), for when Playwright's own browser binary is missing. Not the default, because the mobile specs assert pixel widths and CI runs the pinned bundled Chromium; a much newer local Chrome would diverge from CI in both directions.
+- **A leftover server on :3000 makes e2e lie.** `playwright.config.ts` sets
+  `reuseExistingServer: !process.env.CI`, so a server still running from an earlier
+  run is reused — serving the OLD bundle. Style or component changes then appear to
+  have no effect, and a probe ("does this test still fail without the fix?") passes
+  for the wrong reason. Before trusting an e2e result after a code change:
+  `pkill -f "NODE_ENV=production"` and `npm run build`.
+- **`boundingBox()` does not detect clipping.** It returns geometry regardless of an
+  ancestor's `overflow: hidden`, so an element cut out of view still has a box. To
+  assert something is actually visible, compare its rect against the nearest clipping
+  ancestor (see `e2e/mobile-gui-layout.spec.ts`).
 - **Never pipe an e2e run through `tail`.** Playwright prints the `N failed` summary *above* a long list of skipped test names, so a short tail shows only the skips and reads like a clean run — and the pipe replaces Playwright's exit code with `tail`'s `0`. Redirect to a file (`npx playwright test > out.txt 2>&1; echo $?`) and grep for `failed`. This is how a fully broken e2e run passed for weeks as "1 passed, 19 skipped".
 - A full run is **72 tests: 53 pass, 19 skip**. The 19 are deliberate — four advanced tracks whose solvability proof lives in the node engine suite (see the comment above `HARNESS_INCOMPATIBLE_TRACKS` in `e2e/levels.spec.ts`). Anything else skipping is a defect.
 - The jsdom `WindowsLevel` specs run on **fake timers** (`client/src/test/fakeTimers.ts`): the 1.6 s success dwell is advanced, not waited out, so they no longer flake under machine load. Call `installFakeTimers()` at module scope, build users with `fakeTimerUser()`, and advance with `act(() => vi.advanceTimersByTime(SOLVE_DELAY_MS))`. A timeout in these specs now means something genuinely hangs.

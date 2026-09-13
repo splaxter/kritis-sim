@@ -306,17 +306,45 @@ describe('Explorer ACL — Berechtigungsraster der Auswahl', () => {
     expect(screen.getByText(/Berechtigungen für/)).toBeInTheDocument();
   });
 
+  /**
+   * Prueft den ACCESSIBILITY-BAUM, nicht ein DOM-Attribut.
+   *
+   * Vorher standen hier ☑/☐ in einem span mit aria-label. getByLabelText fand
+   * das Attribut und der Test war gruen — im Browser kam davon nichts an, weil
+   * aria-label an einem rollenlosen span wirkungslos ist. Genau das hat das
+   * Review zu PR #16 aufgedeckt. Jetzt: echte Checkboxen, echter Zustand.
+   */
   it('zeigt fuer „Jeder: Vollzugriff" alle Haken bei Zulassen', async () => {
     const user = fakeTimerUser();
     render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
 
     await user.click(screen.getByRole('option', { name: /Jeder/ }));
     for (const zeile of PERMISSION_ROWS) {
-      expect(screen.getByLabelText(`${zeile}: Zulassen`), zeile).toHaveTextContent('☑');
+      expect(screen.getByRole('checkbox', { name: `${zeile} Zulassen` }), zeile).toBeChecked();
       // „Verweigern" bleibt durchgaengig leer — unsere Freigaben kennen keine
       // expliziten Verbote.
-      expect(screen.getByLabelText(`${zeile}: Verweigern`), zeile).toHaveTextContent('☐');
+      expect(screen.getByRole('checkbox', { name: `${zeile} Verweigern` }), zeile).not.toBeChecked();
     }
+  });
+
+  it('die Kaestchen sind als Nur-Lese-Darstellung deaktiviert', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    const kaesten = screen.getAllByRole('checkbox');
+    expect(kaesten).toHaveLength(PERMISSION_ROWS.length * 2);
+    for (const k of kaesten) expect(k).toBeDisabled();
+  });
+
+  it('eine niedrigere Stufe zeigt im Baum auch weniger Haken', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Buchhaltung/ }));
+    const gesetzt = screen.getAllByRole('checkbox').filter((k) => (k as HTMLInputElement).checked);
+    expect(gesetzt.length).toBeGreaterThan(0);
+    expect(gesetzt.length).toBeLessThan(PERMISSION_ROWS.length);
   });
 
   /** Reine Darstellung: das Raster darf kein Level loesen und nichts aendern. */
@@ -326,7 +354,7 @@ describe('Explorer ACL — Berechtigungsraster der Auswahl', () => {
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
     await user.click(screen.getByRole('option', { name: /Jeder/ }));
-    await user.click(screen.getByLabelText('Vollzugriff: Zulassen'));
+    await user.click(screen.getByRole('checkbox', { name: 'Vollzugriff Zulassen' }));
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
     });

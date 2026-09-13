@@ -59,6 +59,17 @@ const useStyles = makeStyles({
     ':hover': { color: tokens.colorNeutralForeground1 },
   },
   headButtonRight: { justifyContent: 'flex-end' },
+  srOnly: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0 0 0 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
+  },
   sortMark: { fontSize: tokens.fontSizeBase100 },
   row: {
     display: 'grid',
@@ -218,28 +229,47 @@ export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
         </div>
       )}
 
-      <div className={styles.headRow} role="row">
+      {/*
+        KEINE Tabellenrollen hier. role="row"/"columnheader" verlangen einen
+        Tabellen- oder Grid-Kontext, und die Prozesse darunter sind bewusst eine
+        listbox — die Rollen haetten also Beziehungen behauptet, die es nicht
+        gibt (im Review zu PR #16 beanstandet). Stattdessen tragen die
+        Sortierknoepfe ihren Zustand selbst im zugaenglichen Namen, und eine
+        Live-Region meldet den Wechsel.
+      */}
+      <div className={styles.headRow}>
         {COLUMNS.map((col) => {
           const aktiv = sort?.key === col.key;
+          const richtung = aktiv ? (sort!.dir === 'asc' ? 'aufsteigend' : 'absteigend') : null;
           return (
-            <div
+            <button
               key={col.key}
-              role="columnheader"
-              aria-sort={aktiv ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+              type="button"
+              className={mergeClasses(styles.headButton, col.numeric && styles.headButtonRight)}
+              onClick={() => toggleSort(col.key)}
+              aria-label={
+                richtung
+                  ? `${col.label} — sortiert ${richtung}, klicken zum Umkehren`
+                  : `Nach ${col.label} sortieren`
+              }
             >
-              <button
-                type="button"
-                className={mergeClasses(styles.headButton, col.numeric && styles.headButtonRight)}
-                onClick={() => toggleSort(col.key)}
-              >
-                {col.label}
-                <span className={styles.sortMark} aria-hidden>
-                  {aktiv ? (sort!.dir === 'asc' ? '▲' : '▼') : ''}
-                </span>
-              </button>
-            </div>
+              <span aria-hidden>{col.label}</span>
+              <span className={styles.sortMark} aria-hidden>
+                {aktiv ? (sort!.dir === 'asc' ? '▲' : '▼') : ''}
+              </span>
+            </button>
           );
         })}
+      </div>
+
+      {/* Ohne Ansage bleibt eine Sortierung fuer Screenreader unbemerkt: die
+          Zeilen ordnen sich neu, aber nichts sagt es. */}
+      <div aria-live="polite" className={styles.srOnly}>
+        {sort
+          ? `Sortiert nach ${COLUMNS.find((c) => c.key === sort.key)!.label}, ${
+              sort.dir === 'asc' ? 'aufsteigend' : 'absteigend'
+            }`
+          : ''}
       </div>
 
       <div className={styles.tableWrap} role="listbox" aria-label="Prozesse">
