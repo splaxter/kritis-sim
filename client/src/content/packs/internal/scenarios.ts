@@ -214,7 +214,7 @@ export const internalScenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/nachweise',
       taskText:
-        'Nachweise in /srv/nachweise durchsehen und in /home/timo/statusbericht.md NUR die offenen Punkte festhalten. Was belegt in Ordnung ist, gehört nicht hinein.',
+        '/srv/nachweise durchsehen. Ergebnis nach /home/timo/statusbericht.md:\noffen: <die offenen Punkte, per Komma getrennt>\nBelegtes gehört NICHT in die offen-Zeile.',
       vfsOverlay: {
         directories: ['/srv/nachweise'],
         files: [
@@ -236,12 +236,19 @@ export const internalScenarios: Scenario[] = [
             // makellose Sicherungsbilanz nichts über Wiederherstellung sagt.
             { fileRead: '/srv/nachweise/wiederherstellung.txt' },
             { fileRead: '/srv/nachweise/nis2.txt' },
-            { file: '/home/timo/statusbericht.md', matches: 'Wiederherstellung' },
-            { file: '/home/timo/statusbericht.md', matches: '39|Nachweis' },
+            // Beide offenen Punkte in der offen-ZEILE, nicht irgendwo im Text.
+            { file: '/home/timo/statusbericht.md', matches: '^offen:.*[Ww]iederherstellung' },
+            { file: '/home/timo/statusbericht.md', matches: '^offen:.*([Nn]achweis|39)' },
             // Alles als offen zu melden ist keine Bewertung, sondern ein
             // Abschreiben des Ordners.
-            { file: '/home/timo/statusbericht.md', absentMatches: 'Endpunktschutz|Endpoint' },
-            { file: '/home/timo/statusbericht.md', absentMatches: 'Perimeter|Firewall' },
+            //
+            // Die Sperre hängt an der offen-ZEILE, nicht an der ganzen Datei:
+            // „Endpunktschutz und Perimeter sind belegt" ist eine richtige
+            // Feststellung und darf den Abschluss nicht verhindern.
+            {
+              file: '/home/timo/statusbericht.md',
+              absentMatches: '^offen:.*([Ee]ndpunktschutz|[Ee]ndpoint|[Pp]erimeter|[Ff]irewall)',
+            },
           ],
           resultText:
             'Zwei offene Punkte, und beide stehen nicht dort, wo man sie vermutet.\n\nDie Sicherung lief 30 von 30 Nächten durch — das ist ein Nachweis darüber, dass geschrieben wurde, und über sonst nichts. Der letzte dokumentierte Wiederherstellungstest liegt im November 2024; zwei Termine seither wurden abgesagt. Und der Nachweis nach § 39 BSIG ist alle drei Jahre gegenüber dem BSI zu erbringen — bisher gibt es dafür weder Termin noch Prüfer.\n\nEndpunktschutz und Perimeter sind belegt in Ordnung. Sie in den Bericht zu schreiben hätte ihn länger gemacht und schwächer.',
@@ -253,6 +260,7 @@ export const internalScenarios: Scenario[] = [
         'Fünf Nachweise liegen im Ordner. Drei davon belegen etwas, zwei belegen eine Lücke — und eine der beiden Lücken versteckt sich hinter einer makellosen Statistik.',
         'Ein Sicherungslauf und eine Wiederherstellung sind zwei verschiedene Behauptungen. Für welche der beiden gibt es hier ein Protokoll?',
         '`cat wiederherstellung.txt` und `cat nis2.txt` — die beiden letzten Absätze sind der Bericht.',
+        'Endpunktschutz und Perimeter sind belegt in Ordnung. Sie dürfen erwähnt werden — aber nicht in der offen-Zeile.',
         'Festhalten: `echo "offen: Wiederherstellungstest seit 11/2024, Nachweis nach § 39 BSIG" > /home/timo/statusbericht.md`',
       ],
     },
@@ -718,7 +726,7 @@ export const internalScenarios: Scenario[] = [
         id: 'A',
         text: 'Task-Manager öffnen und den hängenden Prozess beenden',
         outcome: 'PERFECT',
-        consequence: 'Der Prozess ist weg, die Anwendung startet neu. Ob sie sauber hochkommt, weißt du erst, wenn Sabine es bestätigt — also bleibst du stehen, bis sie nickt. Du notierst, welchen Prozess du beendet hast und wann. Zwei Zeilen, die beim nächsten Mal Gold wert sind.',
+        consequence: 'Die Anwendung startet neu. Ob sie sauber hochkommt, weißt du erst, wenn Sabine es bestätigt — also bleibst du stehen, bis sie nickt. Und du notierst, was du beendet hast und wann. Zwei Zeilen, die beim nächsten Mal Gold wert sind.',
         scoreChange: 120,
         reputationChange: 10,
         lesson: 'Eine hängende Anwendung ist fast nie ein Grund zum Neustarten des ganzen Rechners. Der Task-Manager beendet genau den einen Prozess. Wichtig ist, vorher zu fragen, ob ungespeicherte Arbeit offen ist — danach ist sie weg.',
@@ -784,6 +792,10 @@ export const internalScenarios: Scenario[] = [
             'Die Tourenplanung läuft wieder — aber du hast auch den Sicherungslauf abgeschossen. Der stand auf 71 % CPU, weil er seit 02:00 Uhr nachläuft, nicht weil er hängt. Die Sicherung von heute Nacht ist damit unvollständig und muss neu angestoßen werden. „Keine Rückmeldung" stand an einem ganz anderen Prozess.',
           skillGain: { windows: 2 },
           setsFlags: ['onb_backup_abgebrochen'],
+          // Der Fall ist gelöst — „perfekt" ist er nicht. Ohne diese
+          // Korrektur traegt der Ergebnisbildschirm die Einstufung der Choice
+          // und behauptet damit eine Fassung, die es nicht gegeben hat.
+          outcome: 'PARTIAL_SUCCESS',
         },
         {
           interactions: ['endtask:Tourenplanung.exe'],

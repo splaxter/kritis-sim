@@ -1,4 +1,5 @@
 import { Skills } from './skills';
+import { ScenarioOutcome } from './scenarios';
 
 /**
  * GUI ("Windows-style") levels: the point-and-click counterpart to terminal
@@ -408,6 +409,32 @@ export interface GuiSolution {
    * full-credit vs partial solution sets different flags for a follow-up.
    */
   setsFlags?: string[];
+  /**
+   * Ergebnis-Einstufung DIESES Zweigs, wenn das Level aus einem Szenario
+   * heraus geoeffnet wurde. Ohne sie traegt der Ergebnisbildschirm die
+   * Einstufung der CHOICE — und die ist bei einem Fallen-Zweig schlicht
+   * falsch: wer das laufende Backup abschiesst und danach die richtige
+   * Anwendung beendet, hat den Fall geloest, aber nicht „perfekt".
+   *
+   * Bei Events ohne Szenario-Kontext wird das Feld ignoriert (GameEvent kennt
+   * keine outcome-Einstufung).
+   */
+  outcome?: ScenarioOutcome;
+}
+
+/**
+ * Welcher Loesungszweig tatsaechlich erreicht wurde.
+ *
+ * Wandert vom geloesten Level bis zum Ergebnisbildschirm durch. Ohne das
+ * endete der Text des erreichten Zweigs nach der Erfolgsanzeige in der GUI,
+ * und der Ergebnisbildschirm zeigte die Fassung der CHOICE — bei einem
+ * Fallen-Zweig also eine Geschichte, die so nicht stattgefunden hat.
+ */
+export interface SolvedBranch {
+  /** Der `resultText` der gematchten Loesung. */
+  resultText?: string;
+  /** Deren `outcome`, falls sie eine eigene Einstufung mitbringt. */
+  outcome?: ScenarioOutcome;
 }
 
 export interface GuiContext {

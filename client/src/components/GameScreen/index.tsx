@@ -1,6 +1,6 @@
 // client/src/components/GameScreen/index.tsx
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from 'react';
-import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills, EventEffects } from '@kritis/shared';
+import { GameState, GameEvent, EventChoice, Scenario, ScenarioChoice, Skills, EventEffects, SolvedBranch } from '@kritis/shared';
 import { StatsBar } from '../StatsBar';
 import { EventCard } from '../EventCard';
 import { ChapterCard } from '../ChapterCard';
@@ -29,11 +29,18 @@ interface GameScreenProps {
   currentScenario: Scenario | null;
   lastChoice: EventChoice | null;
   lastScenarioChoice: ScenarioChoice | null;
+  /** Der bei einer praktischen Aufgabe tatsaechlich erreichte Loesungszweig. */
+  lastSolvedBranch?: SolvedBranch | null;
   characters: Record<string, string>;
   onChoice: (choice: EventChoice) => void;
   onScenarioChoice: (choice: ScenarioChoice) => void;
   onContinue: () => void;
-  onTerminalSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
+  onTerminalSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
   onTerminalCancel: () => void;
   onTerminalFlagsSet: (flags: string[]) => void;
   onSave?: () => void;
@@ -55,6 +62,7 @@ export function GameScreen({
   currentScenario,
   lastChoice,
   lastScenarioChoice,
+  lastSolvedBranch,
   characters,
   onChoice,
   onScenarioChoice,
@@ -392,6 +400,7 @@ export function GameScreen({
             choice={lastScenarioChoice}
             bsiReference={currentScenario?.bsiReference}
             onContinue={onContinue}
+            solvedBranch={lastSolvedBranch}
           />
         )}
 

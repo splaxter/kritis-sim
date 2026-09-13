@@ -1,4 +1,4 @@
-import { GuiContext, Skills, GameModeId } from '@kritis/shared';
+import { EventEffects, GuiContext, Skills, GameModeId, SolvedBranch } from '@kritis/shared';
 import { FluentProvider, webDarkTheme, makeStyles, tokens } from '@fluentui/react-components';
 import { WindowFrame } from './WindowFrame';
 import { TaskManager } from './apps/TaskManager';
@@ -13,7 +13,12 @@ import { useGuiLevel } from './useGuiLevel';
 
 interface WindowsLevelProps {
   context: GuiContext;
-  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[]) => void;
+  onSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
   onCancel: () => void;
   gameMode?: GameModeId;
   /** Briefing resolved from briefingVariants against game flags (overrides context.briefing). */

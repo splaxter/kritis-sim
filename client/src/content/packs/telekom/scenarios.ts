@@ -9,41 +9,38 @@ import { Scenario } from '@kritis/shared';
  * seine eigene Messung nicht hergibt.
  */
 
-const pingExtern = `zeit;ziel;ergebnis
-2026-04-13 09:30;9.9.9.9;ok
-2026-04-13 10:04;9.9.9.9;ausfall
-2026-04-13 10:04;1.1.1.1;ausfall
-2026-04-13 10:04;8.8.8.8;ausfall
-2026-04-13 11:47;9.9.9.9;ausfall
-2026-04-13 11:47;1.1.1.1;ausfall
-2026-04-13 13:12;8.8.8.8;ausfall
-2026-04-13 15:00;9.9.9.9;ok
-2026-04-13 18:30;9.9.9.9;ok
-2026-04-14 08:00;9.9.9.9;ok
-2026-04-14 10:31;9.9.9.9;ausfall
-2026-04-14 10:31;1.1.1.1;ausfall
-2026-04-14 12:05;8.8.8.8;ausfall
-2026-04-14 13:58;9.9.9.9;ausfall
-2026-04-14 16:20;9.9.9.9;ok
-2026-04-14 21:10;9.9.9.9;ok
-2026-04-15 07:15;9.9.9.9;ok
-2026-04-15 10:12;9.9.9.9;ausfall
-2026-04-15 11:03;1.1.1.1;ausfall
-2026-04-15 13:40;8.8.8.8;ausfall
-2026-04-15 17:45;9.9.9.9;ok
-2026-04-15 23:30;9.9.9.9;ok
+const pingExtern = `zeit;9.9.9.9;1.1.1.1;8.8.8.8
+2026-04-13 08:30;ok;ok;ok
+2026-04-13 09:30;ok;ok;ok
+2026-04-13 10:04;ausfall;ausfall;ausfall
+2026-04-13 11:47;ausfall;ausfall;ausfall
+2026-04-13 13:12;ausfall;ausfall;ausfall
+2026-04-13 15:00;ok;ok;ok
+2026-04-13 18:30;ok;ok;ok
+2026-04-14 08:00;ok;ok;ok
+2026-04-14 10:31;ausfall;ausfall;ausfall
+2026-04-14 12:05;ausfall;ausfall;ausfall
+2026-04-14 13:58;ausfall;ausfall;ausfall
+2026-04-14 16:20;ok;ok;ok
+2026-04-14 21:10;ok;ok;ok
+2026-04-15 07:15;ok;ok;ok
+2026-04-15 10:12;ausfall;ausfall;ausfall
+2026-04-15 11:03;ausfall;ausfall;ausfall
+2026-04-15 13:40;ausfall;ausfall;ausfall
+2026-04-15 17:45;ok;ok;ok
+2026-04-15 23:30;ok;ok;ok
 `;
 
-const pingGateway = `zeit;ziel;ergebnis
-2026-04-13 10:04;192.168.1.1;ok
-2026-04-13 11:47;192.168.1.1;ok
-2026-04-13 13:12;192.168.1.1;ok
-2026-04-14 10:31;192.168.1.1;ok
-2026-04-14 12:05;192.168.1.1;ok
-2026-04-14 13:58;192.168.1.1;ok
-2026-04-15 10:12;192.168.1.1;ok
-2026-04-15 11:03;192.168.1.1;ok
-2026-04-15 13:40;192.168.1.1;ok
+const pingGateway = `zeit;192.168.1.1
+2026-04-13 10:04;ok
+2026-04-13 11:47;ok
+2026-04-13 13:12;ok
+2026-04-14 10:31;ok
+2026-04-14 12:05;ok
+2026-04-14 13:58;ok
+2026-04-15 10:12;ok
+2026-04-15 11:03;ok
+2026-04-15 13:40;ok
 
 Der Router war zu JEDEM Zeitpunkt erreichbar, an dem die externen Ziele
 ausfielen. Das eigene Netz und das Gerät scheiden damit aus.
@@ -53,11 +50,13 @@ const messHinweis = `Messaufbau — Kurzbeschreibung
 
 Alle 30 Sekunden ein Ping auf drei voneinander unabhängige externe Ziele
 (9.9.9.9, 1.1.1.1, 8.8.8.8) sowie auf das lokale Gateway (192.168.1.1).
-Protokolliert wird nur, was von der Vorgabe abweicht, plus stündliche
-Kontrollzeilen.
 
-Ein Ausfall gilt als solcher, wenn drei aufeinanderfolgende Pings an
-dasselbe Ziel unbeantwortet bleiben.
+EINE ZEILE = EINE MESSRUNDE, mit dem Ergebnis für jedes Ziel. Protokolliert
+wird, was von der Vorgabe abweicht, plus stündliche Kontrollzeilen. Ein
+Ausfall gilt als solcher, wenn drei aufeinanderfolgende Pings an dasselbe
+Ziel unbeantwortet bleiben.
+
+Zum Zählen genügt deshalb die Zahl der Zeilen mit „ausfall".
 `;
 
 /* ── Unterlagen für TELEKOM-SC-006 (Bandbreiteneinbruch) ────────────────────
@@ -154,8 +153,12 @@ export const telekomScenarios: Scenario[] = [
       hostname: 'warm-mon-01',
       username: 'timo',
       currentPath: '/srv/messung',
+      // Das Berichtsformat steht im Auftrag, nicht im Kopf des Autors. Eine
+      // Bewertung über Wortlisten wies richtige Befunde ab („10:04-13:58")
+      // und nahm falsche an; ein angesagtes Schema ist für den Spieler
+      // durchschaubar und für die Prüfung eindeutig.
       taskText:
-        'Die Messreihen in /srv/messung auswerten und in /home/timo/meldung.md festhalten, in welchem Zeitfenster die Ausfälle liegen und ob das eigene Netz betroffen war.',
+        '/srv/messung auswerten. Ergebnis nach /home/timo/meldung.md:\nanzahl: <Ausfälle>\nzeitfenster: <von>-<bis>\nlokal: erreichbar | gestört\nursache: <belegt? sonst: unbekannt>',
       vfsOverlay: {
         directories: ['/srv/messung'],
         files: [
@@ -176,23 +179,33 @@ export const telekomScenarios: Scenario[] = [
             // angreifbar: „liegt bestimmt an Ihrem Router" ist das erste, was
             // die Hotline sagt.
             { fileRead: '/srv/messung/ping_gateway.csv' },
-            // Das Zeitfenster — alle Ausfälle liegen zwischen 10 und 14 Uhr.
-            { file: '/home/timo/meldung.md', matches: '10' },
-            { file: '/home/timo/meldung.md', matches: '14' },
-            // Keine erfundene Komponente. Die Messung gibt das nicht her.
-            { file: '/home/timo/meldung.md', absentMatches: 'DSLAM|Verstärker|Verteiler' },
+            // Neun Messrunden mit Ausfall — eine Zeile je Runde.
+            { file: '/home/timo/meldung.md', matches: '^anzahl:\\s*9\\b' },
+            // Das Zeitfenster in vollen Stunden ODER als gemessene Spanne:
+            // „10-14", „10 bis 14", „10:04-13:58" sind alle richtig.
+            {
+              file: '/home/timo/meldung.md',
+              matches: '^zeitfenster:\\s*10(:\\d\\d)?\\s*(-|–|bis)\\s*1[34](:\\d\\d)?',
+            },
+            { file: '/home/timo/meldung.md', matches: '^lokal:\\s*erreichbar\\b' },
+            // Der Kern der Lektion, jetzt als eigene Zeile statt als
+            // Wort-Blacklist: Die Messung belegt ein Muster und einen Ort. Sie
+            // belegt KEIN defektes Bauteil. „unbekannt" ist hier die einzige
+            // ehrliche Angabe — und der Auftrag sagt das ausdrücklich.
+            { file: '/home/timo/meldung.md', matches: '^ursache:\\s*unbekannt\\b' },
           ],
           resultText:
-            'Elf Ausfälle an drei Tagen, alle zwischen 10:04 und 13:58, alle drei externen Ziele gleichzeitig betroffen — und das Gateway zu jedem dieser Zeitpunkte erreichbar.\n\nDamit ist beides gesagt, was eine Störungsmeldung braucht: ein reproduzierbares Zeitfenster und der Nachweis, dass das eigene Netz und das eigene Gerät ausscheiden. Mehr gibt die Messung nicht her — welches Bauteil klemmt, steht in keinem Ping.',
+            'Neun Ausfälle an drei Tagen, alle zwischen 10:04 und 13:58, jedes Mal alle drei externen Ziele gleichzeitig — und das Gateway zu jedem dieser Zeitpunkte erreichbar.\n\nDamit ist beides gesagt, was eine Störungsmeldung braucht: ein reproduzierbares Zeitfenster und der Nachweis, dass das eigene Netz und das eigene Gerät ausscheiden.\n\nUnd die vierte Zeile ist die wichtigste. „unbekannt" sieht nach Schwäche aus, ist aber die einzige Angabe, die diese Messung deckt. Wer stattdessen ein Bauteil benennt, liefert dem Anbieter etwas zum Widerlegen — und mit der Ursache fällt dann auch das Zeitfenster.',
           skillGain: { netzwerk: 6, troubleshooting: 4, softSkills: 2 },
           effects: {},
         },
       ],
       hints: [
         'Zwei Messreihen liegen vor. Die eine zeigt, wann es klemmt — die andere beantwortet die Frage, die die Hotline als Erstes stellen wird.',
-        'Schau dir bei den Ausfällen nur die Uhrzeiten an. Liegen sie verstreut oder in einem Fenster?',
-        '`grep ausfall ping_extern.csv` und danach `cat ping_gateway.csv`.',
-        'Meldung festhalten: `echo "Zeitfenster 10 bis 14 Uhr, Gateway durchgehend erreichbar" > /home/timo/meldung.md`',
+        'Eine Zeile ist eine Messrunde. Zählen heißt also: Zeilen mit „ausfall" zählen. Und die Uhrzeiten daneben ergeben das Fenster.',
+        'Bei „ursache" ist die Frage nicht, was wahrscheinlich kaputt ist, sondern was diese Messung BELEGT.',
+        '`grep -c ausfall ping_extern.csv` für die Zahl, `grep ausfall ping_extern.csv` für die Zeiten, `cat ping_gateway.csv` für die Gegenprobe.',
+        'Meldung schreiben, eine Zeile nach der anderen — `>` legt neu an, `>>` hängt an: `echo "anzahl: 9" > /home/timo/meldung.md`, dann `echo "zeitfenster: 10-14" >> /home/timo/meldung.md`, `echo "lokal: erreichbar" >> /home/timo/meldung.md`, `echo "ursache: unbekannt" >> /home/timo/meldung.md`',
       ],
     },
     realWorldReference: 'Intermittierende Verbindungsprobleme sind die schwierigsten zu diagnostizieren. Automatisiertes Monitoring ist der einzige zuverlässige Weg, sie zu dokumentieren.',
@@ -408,7 +421,7 @@ export const telekomScenarios: Scenario[] = [
       username: 'timo',
       currentPath: '/srv/netz',
       taskText:
-        'Leistungsschein, Routerstatus und Messprotokolle in /srv/netz vergleichen und in /home/timo/befund_bandbreite.md den Widerspruch mit Zahlen festhalten.',
+        '/srv/netz vergleichen. Ergebnis nach /home/timo/befund_bandbreite.md:\ngebucht: <Mbit laut Vertrag>\nprofil: <was der Router aushandelt>\ngemessen: <Mbit am Kabel>',
       vfsOverlay: {
         directories: ['/srv/netz'],
         files: [
@@ -431,10 +444,14 @@ export const telekomScenarios: Scenario[] = [
             // WLAN-Werte liest, hat eine Zahl zwischen 9 und 45 und keine
             // Aussage.
             { fileRead: '/srv/netz/messung_kabel.csv' },
-            // Gebucht ...
-            { file: '/home/timo/befund_bandbreite.md', matches: '200' },
-            // ... und was das Gerät tatsächlich ausgehandelt hat.
-            { file: '/home/timo/befund_bandbreite.md', matches: '5[02]' },
+            // Drei Zahlen an drei benannten Stellen. Vorher genuegte ein Text,
+            // der irgendwo „200" und irgendwo „50" enthielt — auch wenn er das
+            // Gegenteil behauptete.
+            { file: '/home/timo/befund_bandbreite.md', matches: '^gebucht:\\s*200\\b' },
+            { file: '/home/timo/befund_bandbreite.md', matches: '^profil:\\s*(Business\\s*)?5[02]\\b' },
+            // Die Kabelmessung liegt zwischen 46,9 und 47,4 — beide Rundungen
+            // sind richtig, die WLAN-Werte (9 bis 45) liegen ausserhalb.
+            { file: '/home/timo/befund_bandbreite.md', matches: '^gemessen:\\s*4[67]([.,]\\d)?\\b' },
           ],
           resultText:
             'Drei Zahlen, die nicht zueinander passen: 200 Mbit/s gebucht, Profil „Business 50" am Router, 47 Mbit/s am Kabel gemessen. Die Leitung selbst ist fehlerfrei — 0 CRC, 0 FEC in dreizehn Tagen.\n\nDamit ist es kein Leitungsproblem, sondern ein Konfigurationsfehler auf der Anbieterseite, und die Meldung lautet entsprechend nicht „langsam", sondern „falsches Profil".\n\nDie WLAN-Messung daneben schwankt zwischen 9 und 45 Mbit/s. Sie hätte jede These gestützt und keine belegt.',
@@ -446,7 +463,7 @@ export const telekomScenarios: Scenario[] = [
         'Vier Dateien, drei Zahlen, die zusammengehören: was bestellt ist, was das Gerät aushandelt, was ankommt.',
         'Zwei Messreihen liegen vor. Eine davon streut so stark, dass sie als Beleg nichts taugt — nimm die andere.',
         '`cat leistungsschein.txt`, `cat router_status.txt`, `cat messung_kabel.csv`.',
-        'Festhalten: `echo "gebucht 200 Mbit, Profil Business 50, gemessen 47 Mbit am Kabel" > /home/timo/befund_bandbreite.md`',
+        'Festhalten — `>` legt neu an, `>>` hängt an: `echo "gebucht: 200" > /home/timo/befund_bandbreite.md`, dann `echo "profil: Business 50" >> /home/timo/befund_bandbreite.md` und `echo "gemessen: 47" >> /home/timo/befund_bandbreite.md`',
       ],
     },
     realWorldReference: 'Falsche Provisioning-Profile nach Wartungen sind ein häufiger Provider-Fehler. Kunden zahlen für 200 Mbit, bekommen 50 — oft monatelang unbemerkt, wenn kein eigenes Monitoring läuft.',
@@ -476,7 +493,7 @@ export const telekomScenarios: Scenario[] = [
         id: 'A',
         text: 'Im Vertragsordner nachsehen',
         outcome: 'PERFECT',
-        consequence: 'Du hast Leitungskennung und Supportweg vor dir und kannst die Störung melden, ohne dich durchfragen zu lassen. Angerufen hast du noch nicht — das ist der nächste Griff, und diesmal weißt du, was du sagst.',
+        consequence: 'Du schreibst dir beides auf einen Zettel und legst ihn neben das Telefon. Angerufen hast du noch nicht — das ist der nächste Griff, und diesmal weißt du, was du sagst.',
         scoreChange: 130,
         reputationChange: 10,
         lesson: 'Störungsmeldungen scheitern selten an der Technik und oft an fehlenden Vertragsdaten. Leitungskennung, Standort und die vereinbarte Reaktionszeit gehören griffbereit — im Störungsfall ist keine Zeit für Ablage-Archäologie.',
@@ -557,8 +574,12 @@ export const telekomScenarios: Scenario[] = [
         {
           interactions: ['open:anschluss_betriebshof'],
           allRequired: true,
+          // Die Vorschau verschwindet mit dem Level. Was der Spieler zum
+          // Telefonieren braucht, muss deshalb VOLLSTAENDIG hier stehen —
+          // sonst behauptet das Ergebnis, er habe Kennung und Supportweg vor
+          // sich, und zeigt ihm beides nicht.
           resultText:
-            'Das ist das richtige Blatt: Betriebshof, gültig ab 14.01.2026. Leitungskennung DTAG-41-882-7194, Entstörfrist 8 Stunden rund um die Uhr. Die Fassung von 2021 im selben Ordner nennt eine andere Kennung und eine Frist von 24 Stunden — wer sie erwischt, meldet unter falscher Nummer und argumentiert am Ende mit einer Frist, die gar nicht mehr gilt.',
+            'Das ist das richtige Blatt: Betriebshof Ostring 12, gültig ab 14.01.2026.\n\n  Leitungskennung:   DTAG-41-882-7194\n  Störungsannahme:   0800 33 06000 (Geschäftskunden)\n  Entstörfrist:      8 Stunden, 7x24, KRITIS-Kennzeichnung hinterlegt\n  Ansprechpartner:   T. Kellermann, Technischer Service\n\nDie Fassung von 2021 im selben Ordner nennt eine andere Kennung (…-0031), eine andere Nummer und 24 Stunden nur Mo–Fr. Wer sie erwischt, meldet unter falscher Nummer und argumentiert am Ende mit einer Frist, die längst nicht mehr gilt.',
           skillGain: { troubleshooting: 4, softSkills: 4 },
         },
       ],

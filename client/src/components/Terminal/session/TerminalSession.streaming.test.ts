@@ -127,7 +127,7 @@ describe('TerminalSession streaming (drip pacing)', () => {
     const fx = session.handleData('\r');
     expect(fx).toEqual([]);
     expect(onSolved).toHaveBeenCalledTimes(1);
-    expect(onSolved).toHaveBeenCalledWith({ linux: 2 }, undefined, {});
+    expect(onSolved).toHaveBeenCalledWith({ linux: 2 }, undefined, {}, expect.anything());
     expect(session.getSnapshot().solved).toBe(false);
   });
 

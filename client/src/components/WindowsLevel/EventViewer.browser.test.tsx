@@ -50,7 +50,7 @@ describe('WindowsLevel — Event Viewer', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 5, security: 8 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 5, security: 8 }, undefined, undefined, expect.anything());
   });
 
   it('does not solve when a failed-logon event is reported', async () => {

@@ -46,7 +46,7 @@ describe('WindowsLevel — Explorer (share ACL)', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 4 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 4 }, undefined, undefined, expect.anything());
   });
 
   it('blocks removal of a critical entry and does not solve', async () => {
@@ -136,7 +136,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found']);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found'], undefined, expect.anything());
   });
 
   it('opening the WRONG document does not solve (decoy Angebot)', async () => {
@@ -197,7 +197,7 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     expect(preview).toHaveAttribute('aria-live', 'polite');
     expect(preview).toHaveTextContent('MFA-Modul — ENTHALTEN');
     await waitFor(
-      () => expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found']),
+      () => expect(onSolved).toHaveBeenCalledWith({ windows: 2, security: 2 }, ['bastion_delivery_found'], undefined, expect.anything()),
       { timeout: 2500 }
     );
   });

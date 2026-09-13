@@ -990,6 +990,7 @@ function AppContent() {
         learningNudge={learningNudge}
         lastChoice={game.lastChoice}
         lastScenarioChoice={game.lastScenarioChoice}
+        lastSolvedBranch={game.lastSolvedBranch}
         characters={tokenMap}
         onChoice={(choice) => {
           const opensTerminal = choice.terminalCommand && game.currentEvent?.terminalContext;
@@ -1010,8 +1011,8 @@ function AppContent() {
           }
         }}
         onContinue={game.continueGame}
-        onTerminalSolved={(skillGain, setsFlags, solutionEffects) =>
-          game.closeTerminal(true, skillGain, setsFlags, solutionEffects)
+        onTerminalSolved={(skillGain, setsFlags, solutionEffects, branch) =>
+          game.closeTerminal(true, skillGain, setsFlags, solutionEffects, branch)
         }
         onTerminalCancel={() => game.closeTerminal(false)}
         onTerminalFlagsSet={game.setRunFlags}

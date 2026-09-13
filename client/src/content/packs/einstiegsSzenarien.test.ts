@@ -305,3 +305,49 @@ describe('INTERN-SC-004 — die Disposition steht', () => {
       .toMatch(/[Ll]etzte erfolgreiche Verbindung/);
   });
 });
+
+describe('Der erreichte Loesungszweig traegt seine eigene Wahrheit', () => {
+  /**
+   * Befund aus dem Review: Der Fallen-Zweig von INTERN-SC-011 endete dauerhaft
+   * als „★ Perfekt" — der Warnhinweis stand 1,6 Sekunden in der GUI, danach kam
+   * die unveraenderte Erfolgsgeschichte der Choice.
+   */
+  it('INTERN-SC-011: die Falle stuft sich selbst herunter', () => {
+    const sols = gui('INTERN-SC-011').solutions;
+    const falle = sols[0];
+    const sauber = sols[sols.length - 1];
+    expect(falle.outcome, 'ohne eigene Einstufung erbt die Falle „PERFECT"').toBe('PARTIAL_SUCCESS');
+    expect(sauber.outcome, 'der saubere Weg braucht keine Korrektur').toBeUndefined();
+    expect(szenario('INTERN-SC-011').choices.find((c) => c.guiCommand)!.outcome).toBe('PERFECT');
+  });
+
+  it('INTERN-SC-011: die Nachgeschichte passt zu BEIDEN Zweigen', () => {
+    // Sie darf nicht behaupten, es sei nur ein Prozess beendet worden — das
+    // waere im Fallen-Zweig falsch.
+    const c = szenario('INTERN-SC-011').choices.find((x) => x.guiCommand)!;
+    expect(c.consequence).not.toMatch(/welchen Prozess/);
+    expect(c.consequence).toMatch(/Sabine/);
+  });
+
+  /**
+   * Befund aus dem Review: Beim Explorer-Fall verschwand die Vorschau mit dem
+   * Level, und das dauerhafte Ergebnis behauptete „Leitungskennung und
+   * Supportweg vor dir", ohne beides zu zeigen.
+   */
+  it('TELEKOM-SC-007: der Befund traegt Kennung und Supportweg selbst', () => {
+    const sol = gui('TELEKOM-SC-007').solutions[0];
+    expect(sol.resultText, 'Leitungskennung fehlt').toMatch(/DTAG-41-882-7194/);
+    expect(sol.resultText, 'Supportweg fehlt').toMatch(/0800 33 06000/);
+    expect(sol.resultText, 'Entstoerfrist fehlt').toMatch(/8 Stunden/);
+    // Und die Nachgeschichte behauptet nicht mehr, der Spieler habe etwas vor
+    // sich liegen, das ihm niemand zeigt.
+    const c = szenario('TELEKOM-SC-007').choices.find((x) => x.guiCommand)!;
+    expect(c.consequence).not.toMatch(/vor dir/);
+  });
+
+  it.each(GUI_SZENARIEN)('%s: jeder Zweig bringt einen eigenen Ergebnistext mit', (id) => {
+    for (const sol of gui(id).solutions) {
+      expect(sol.resultText.length, 'ein leerer Befund erreicht auch nichts').toBeGreaterThan(40);
+    }
+  });
+});

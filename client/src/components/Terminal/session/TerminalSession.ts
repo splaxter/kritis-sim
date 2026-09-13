@@ -7,7 +7,7 @@
 // Task 4 scope: constructor, getSnapshot(), init() (connect banner + optional
 // beginner auto-hint + first prompt) and the private prompt computation. The
 // keystroke methods (handleData/handleHintRequest/tick) are STUBS returning [].
-import { TerminalContext, Skills, GameModeId, EventEffects, FeedbackRule, TerminalSolution } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId, EventEffects, FeedbackRule, TerminalSolution, SolvedBranch } from '@kritis/shared';
 import { ShellEngine, checkStateGoals, selectFeedback, CommandResult, Completion, formatGrid } from '../../../engine/shell';
 import { buildPrompt } from '../prompt';
 import { gatherCompletions, applyCompletionToLine, longestCommonPrefix, tokenUnderCursor } from '../completion';
@@ -25,7 +25,12 @@ export interface TerminalSessionDeps {
   shell: ShellEngine;
   context: TerminalContext;
   gameMode: GameModeId;
-  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], effects?: EventEffects) => void;
+  onSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    effects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
   /** Fired the moment a scenario command with `setsFlags` matches — immediately
    *  and independent of solving (honeypot: "the player read this"). Mandatory so
    *  the flag effect can never be silently dropped along the wiring chain; tests
@@ -50,6 +55,8 @@ export class TerminalSession {
   private solved = false;
   private pendingSkillGain: Partial<Skills> = {};
   private pendingSolutionEffects: EventEffects | undefined = undefined;
+  /** Text der gematchten Loesung — wandert bis zum Ergebnisbildschirm. */
+  private pendingSolutionText: string | undefined = undefined;
 
   // --- masked/interactive input (e.g. ssh password prompts) ---
   // When set, the next keystrokes feed the buffered answer, NOT the command
@@ -161,7 +168,9 @@ export class TerminalSession {
     if (this.solved) {
       if (data === '\r') {
         this.solved = false;
-        this.deps.onSolved(this.pendingSkillGain, undefined, this.pendingSolutionEffects);
+        this.deps.onSolved(this.pendingSkillGain, undefined, this.pendingSolutionEffects, {
+          resultText: this.pendingSolutionText,
+        });
       }
       return [];
     }
@@ -570,6 +579,7 @@ export class TerminalSession {
     this.solved = true;
     this.pendingSkillGain = mergeSkillGain(this.liveSkillGain, solution.skillGain || {});
     this.pendingSolutionEffects = solution.effects || {};
+    this.pendingSolutionText = resultTextOut;
 
     // Flat state marker for the adapter (the visible banner is the writeLines above).
     effects.push({ type: 'solved', resultText: resultTextOut, skillGain: this.pendingSkillGain });

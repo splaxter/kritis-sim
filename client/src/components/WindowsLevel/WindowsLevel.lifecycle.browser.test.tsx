@@ -62,7 +62,7 @@ describe('WindowsLevel lifecycle', () => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
     expect(onSolved).toHaveBeenCalledTimes(1);
-    expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined, undefined, expect.anything());
     // Give any erroneous second timer a chance to fire.
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
@@ -92,7 +92,7 @@ describe('WindowsLevel keyboard accessibility', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined, undefined, expect.anything());
   });
 
   it('exposes rows as a labelled listbox', () => {

@@ -65,11 +65,53 @@ describe('Gemeinsame Vertraege aller praktischen Shell-Aufgaben', () => {
     expect(andere.length).toBeGreaterThanOrEqual(2);
   });
 
+  /**
+   * Das Berichtsschema muss im AUFTRAG stehen. Eine Bewertung, deren Regeln der
+   * Spieler nicht kennt, ist keine Pruefung, sondern Raten — und genau daran
+   * scheiterte die erste Fassung: sie wies richtige Befunde ab und nahm falsche
+   * an, weil sie Woerter im Fliesstext suchte.
+   */
+  it.each(SHELL_SZENARIEN)('%s: jede geprüfte Berichtszeile ist im Auftrag angesagt', (id) => {
+    const auftrag = ctxOf(id).taskText ?? '';
+    for (const goal of goalsOf(id)) {
+      const g = goal as { file?: string; matches?: string; absentMatches?: string };
+      const muster = g.matches ?? g.absentMatches;
+      if (!g.file || !muster) continue;
+      const schluessel = muster.match(/^\^([a-z]+):/)?.[1];
+      if (!schluessel) continue;
+      expect(auftrag, `Schluessel "${schluessel}" wird geprueft, steht aber nicht im Auftrag`)
+        .toContain(`${schluessel}:`);
+    }
+  });
+
   it.each(SHELL_SZENARIEN)('%s: Hinweise eskalieren, der erste nennt keinen Befehl', (id) => {
     const hints = ctxOf(id).hints;
     expect(hints.length).toBeGreaterThanOrEqual(3);
     expect(hints[0].includes('`'), `erster Hinweis nennt einen Befehl: ${hints[0]}`).toBe(false);
     expect(hints[hints.length - 1].includes('`'), 'letzter Hinweis muss die Syntax geben').toBe(true);
+  });
+
+  /**
+   * Die Hinweiskette muss ein FUNKTIONIERENDER Weg sein, kein gut gemeinter.
+   *
+   * Anlass: Die erste Fassung riet zu `printf 'a\\nb\\n' > datei`. Diese Shell
+   * interpretiert `\\n` in printf aber NICHT — heraus kam eine einzige Zeile
+   * „anzahl: 9nzeitfenster: 10-14n", und wer dem letzten Hinweis folgte, konnte
+   * das Level nicht loesen. Ein Hinweis, der nicht funktioniert, ist schlimmer
+   * als keiner: der Spieler sucht den Fehler bei sich.
+   */
+  it.each(SHELL_SZENARIEN)('%s: die Hinweise sind zusammen ein loesbarer Weg', (id) => {
+    const sh = shellOf(id);
+    const befehle = ctxOf(id)
+      .hints.flatMap((h) => [...h.matchAll(/`([^`]+)`/g)].map((m) => m[1]))
+      // Hinweise erklaeren gelegentlich einen Operator (`>`), das ist kein Befehl.
+      .filter((c) => /\s/.test(c.trim()));
+    expect(befehle.length, 'kein einziger Befehl in den Hinweisen').toBeGreaterThan(0);
+    for (const befehl of befehle) run(sh, befehl);
+    expect(
+      checkStateGoals(sh, goalsOf(id)),
+      `wer den Hinweisen folgt, loest nicht:\n  ${befehle.join('\n  ')}`
+    ).toBe(true);
   });
 
   it.each(SHELL_SZENARIEN)('%s: kein Inhaltsziel wird vom Platzhalter erfuellt', (id) => {
@@ -106,7 +148,7 @@ describe('INTERN-SC-003 — Statusbericht fuer den Aufsichtsrat', () => {
   it('wer nur das Sicherungsprotokoll liest, loest nicht', () => {
     const sh = shellOf(id);
     run(sh, 'cat sicherung_juni.txt');
-    run(sh, `echo "alles in Ordnung, Sicherung laeuft" > ${bericht}`);
+    run(sh, `echo "offen: keine" > ${bericht}`);
     expect(checkStateGoals(sh, goalsOf(id)), 'Sicherungsbilanz ist kein Nachweis').toBe(false);
   });
 
@@ -137,6 +179,20 @@ describe('INTERN-SC-003 — Statusbericht fuer den Aufsichtsrat', () => {
     expect(checkStateGoals(sh, goalsOf(id)), 'belegt Funktionierendes als offen').toBe(false);
   });
 
+  /**
+   * Gegenprobe zur Gegenprobe: Belegtes zu ERWAEHNEN ist richtig und darf den
+   * Abschluss nicht verhindern. Die Sperre haengt an der offen-Zeile, nicht an
+   * der Datei — das war einer der Review-Befunde.
+   */
+  it('Funktionierendes ausserhalb der offen-Zeile zu nennen ist erlaubt', () => {
+    const sh = shellOf(id);
+    run(sh, 'cat wiederherstellung.txt');
+    run(sh, 'cat nis2.txt');
+    run(sh, `echo "${offen}" > ${bericht}`);
+    run(sh, `echo "belegt in Ordnung: Endpunktschutz, Perimeter" >> ${bericht}`);
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
   it('auch grep statt cat zaehlt als gelesen — der Weg ist frei', () => {
     // fileRead wird an der VFS-Grenze aufgezeichnet, nicht am Kommandonamen.
     const sh = shellOf(id);
@@ -150,7 +206,13 @@ describe('INTERN-SC-003 — Statusbericht fuer den Aufsichtsrat', () => {
 describe('CLOUD365-SC-002 — Migrationstag', () => {
   const id = 'CLOUD365-SC-002';
   const befund = '/home/timo/befund.md';
-  const richtig = 'Transfer abgeschlossen (10/10), Clients scheitern am Autodiscover-Eintrag';
+
+  /** Schreibt den Bericht im angesagten Schema. */
+  const schreibe = (sh: ShellEngine, transfer: string, clients: string, ursache: string) => {
+    run(sh, `echo "transfer: ${transfer}" > ${befund}`);
+    run(sh, `echo "clients: ${clients}" >> ${befund}`);
+    run(sh, `echo "ursache: ${ursache}" >> ${befund}`);
+  };
 
   const alleLesen = (sh: ShellEngine) => {
     run(sh, 'cat migration_status.csv');
@@ -161,38 +223,46 @@ describe('CLOUD365-SC-002 — Migrationstag', () => {
   it('der Sollpfad loest', () => {
     const sh = shellOf(id);
     alleLesen(sh);
-    run(sh, `echo "${richtig}" > ${befund}`);
+    schreibe(sh, 'abgeschlossen', 'fehlgeschlagen', 'autodiscover');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
   });
 
-  /** Wer nur die Statusliste liest, meldet einen Erfolg, den keiner merkt. */
-  it('„Migration erfolgreich" allein loest nicht', () => {
+  /**
+   * DER Befund aus dem Review: Die alte Wortsuche nahm einen Bericht an, der
+   * den Vorfall ausdruecklich verneinte — er enthielt zufaellig
+   * „abgeschlossen" und „Autodiscover". Mit benannten Zeilen geht das nicht
+   * mehr durch.
+   */
+  it('ein Bericht, der den Vorfall verneint, loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat migration_status.csv');
-    run(sh, `echo "Migration abgeschlossen, 10 von 10" > ${befund}`);
+    alleLesen(sh);
+    run(
+      sh,
+      `echo "Transfer abgeschlossen, Autodiscover korrekt. Alle Outlook-Tests bestanden; keine offenen Probleme." > ${befund}`
+    );
+    expect(checkStateGoals(sh, goalsOf(id)), 'Fliesstext mit den richtigen Woertern').toBe(false);
+  });
+
+  it('„clients: ok" loest nicht', () => {
+    const sh = shellOf(id);
+    alleLesen(sh);
+    schreibe(sh, 'abgeschlossen', 'ok', 'autodiscover');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   /** Wer nur die Beschwerden zaehlt, rollt eine funktionierende Migration zurueck. */
-  it('„Migration gescheitert" allein loest nicht', () => {
-    const sh = shellOf(id);
-    run(sh, 'cat abnahmetest.txt');
-    run(sh, `echo "Migration gescheitert, Outlook geht nirgends" > ${befund}`);
-    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
-  });
-
-  it('die richtige Ursache ohne den Transferstand loest nicht', () => {
+  it('den Transfer fuer gescheitert zu erklaeren loest nicht', () => {
     const sh = shellOf(id);
     alleLesen(sh);
-    run(sh, `echo "Autodiscover zeigt auf den alten Server" > ${befund}`);
-    expect(checkStateGoals(sh, goalsOf(id)), 'halbe Wahrheit').toBe(false);
+    schreibe(sh, 'unvollstaendig', 'fehlgeschlagen', 'autodiscover');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   it('ohne die Namensaufloesung gelesen zu haben loest es nicht', () => {
     const sh = shellOf(id);
     run(sh, 'cat migration_status.csv');
     run(sh, 'cat abnahmetest.txt');
-    run(sh, `echo "${richtig}" > ${befund}`);
+    schreibe(sh, 'abgeschlossen', 'fehlgeschlagen', 'autodiscover');
     expect(checkStateGoals(sh, goalsOf(id)), 'Ursache geraten statt belegt').toBe(false);
   });
 });
@@ -201,35 +271,61 @@ describe('CLOUD365-SC-006 — Copilot und die zu weite Freigabe', () => {
   const id = 'CLOUD365-SC-006';
   const befund = '/home/timo/dsfa_befund.md';
 
-  it('der Sollpfad loest', () => {
-    const sh = shellOf(id);
+  const lesen = (sh: ShellEngine) => {
     run(sh, 'cat berechtigungen.csv');
     run(sh, 'cat gruppen.csv');
-    run(sh, `echo "zu weit: Personal/Gehaltsabrechnungen fuer 151 Personen lesbar" > ${befund}`);
+  };
+  const schreibe = (sh: ShellEngine, bibliothek: string, betroffene: string) => {
+    run(sh, `echo "bibliothek: ${bibliothek}" > ${befund}`);
+    run(sh, `echo "betroffene: ${betroffene}" >> ${befund}`);
+  };
+
+  it('der Sollpfad loest', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, 'Personal/Gehaltsabrechnungen', '151');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  /**
+   * Befund aus dem Review: Die Sperre lag auf der GANZEN Datei, also verhinderte
+   * ausgerechnet die richtige Feststellung „Archiv2019 ist nicht betroffen" den
+   * Abschluss. Sie haengt jetzt an der bibliothek-Zeile.
+   */
+  it('Archiv2019 ausserhalb der bibliothek-Zeile zu erwaehnen ist erlaubt', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, 'Personal/Gehaltsabrechnungen', '151');
+    run(sh, `echo "geprueft und nicht betroffen: Projekte/Archiv2019" >> ${befund}`);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
   });
 
   /** Der Koeder: dieselbe weite Freigabe, wo sie richtig ist. */
-  it('das Projektarchiv mitzumelden loest nicht', () => {
+  it('das Projektarchiv als Befund zu melden loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat berechtigungen.csv');
-    run(sh, 'cat gruppen.csv');
-    run(sh, `echo "zu weit: Gehaltsabrechnungen und Archiv2019" > ${befund}`);
+    lesen(sh);
+    schreibe(sh, 'Personal/Gehaltsabrechnungen und Projekte/Archiv2019', '151');
     expect(checkStateGoals(sh, goalsOf(id)), 'nach Muster statt nach Inhalt gesucht').toBe(false);
+  });
+
+  it('ohne die Zahl der Betroffenen loest es nicht', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    run(sh, `echo "bibliothek: Personal/Gehaltsabrechnungen" > ${befund}`);
+    expect(checkStateGoals(sh, goalsOf(id)), '„alle" ohne Zahl ist keine Aussage').toBe(false);
   });
 
   it('ohne die Gruppenliste gelesen zu haben loest es nicht', () => {
     const sh = shellOf(id);
     run(sh, 'cat berechtigungen.csv');
-    run(sh, `echo "zu weit: Personal/Gehaltsabrechnungen" > ${befund}`);
-    expect(checkStateGoals(sh, goalsOf(id)), '„alle" ohne Zahl ist keine Aussage').toBe(false);
+    schreibe(sh, 'Personal/Gehaltsabrechnungen', '151');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   it('die falsche Bibliothek zu melden loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat berechtigungen.csv');
-    run(sh, 'cat gruppen.csv');
-    run(sh, `echo "zu weit: Betrieb/Tourenplaene" > ${befund}`);
+    lesen(sh);
+    schreibe(sh, 'Betrieb/Tourenplaene', '151');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 });
@@ -237,53 +333,117 @@ describe('CLOUD365-SC-006 — Copilot und die zu weite Freigabe', () => {
 describe('TELEKOM-SC-001 — sporadische Ausfaelle', () => {
   const id = 'TELEKOM-SC-001';
   const meldung = '/home/timo/meldung.md';
-  const richtig = 'Zeitfenster 10 bis 14 Uhr, Gateway durchgehend erreichbar';
+
+  const lesen = (sh: ShellEngine) => {
+    run(sh, 'grep ausfall ping_extern.csv');
+    run(sh, 'cat ping_gateway.csv');
+  };
+  const schreibe = (sh: ShellEngine, anzahl: string, fenster: string, lokal: string, ursache: string) => {
+    run(sh, `echo "anzahl: ${anzahl}" > ${meldung}`);
+    run(sh, `echo "zeitfenster: ${fenster}" >> ${meldung}`);
+    run(sh, `echo "lokal: ${lokal}" >> ${meldung}`);
+    run(sh, `echo "ursache: ${ursache}" >> ${meldung}`);
+  };
 
   it('der Sollpfad loest', () => {
     const sh = shellOf(id);
-    run(sh, 'grep ausfall ping_extern.csv');
-    run(sh, 'cat ping_gateway.csv');
-    run(sh, `echo "${richtig}" > ${meldung}`);
+    lesen(sh);
+    schreibe(sh, '9', '10-14', 'erreichbar', 'unbekannt');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  /**
+   * Befund aus dem Review: Die genau gemessene Spanne wurde abgewiesen, weil die
+   * alte Pruefung stumpf nach „14" suchte. Beide Schreibweisen sind richtig.
+   */
+  it.each([
+    ['volle Stunden', '10-14'],
+    ['mit "bis"', '10 bis 14'],
+    ['die gemessene Spanne', '10:04-13:58'],
+    ['mit Gedankenstrich', '10:04–13:58'],
+  ])('das Zeitfenster als %s loest', (_l, fenster) => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '9', fenster, 'erreichbar', 'unbekannt');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  it('eine falsche Zahl loest nicht', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '13', '10-14', 'erreichbar', 'unbekannt');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   /** Genau das Argument, mit dem die Hotline jede Meldung abraeumt. */
   it('ohne die Gegenmessung am Gateway loest es nicht', () => {
     const sh = shellOf(id);
     run(sh, 'grep ausfall ping_extern.csv');
-    run(sh, `echo "${richtig}" > ${meldung}`);
+    schreibe(sh, '9', '10-14', 'erreichbar', 'unbekannt');
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
-  /** Die Messung gibt kein defektes Bauteil her. */
-  it('eine erfundene Komponente loest nicht', () => {
+  /** Der Kern: die Messung gibt kein defektes Bauteil her. */
+  it('eine erfundene Komponente als Ursache loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'grep ausfall ping_extern.csv');
-    run(sh, 'cat ping_gateway.csv');
-    run(sh, `echo "10 bis 14 Uhr: defekter Verstärker am Verteiler" > ${meldung}`);
+    lesen(sh);
+    schreibe(sh, '9', '10-14', 'erreichbar', 'defekter Verstaerker am Verteiler');
     expect(checkStateGoals(sh, goalsOf(id)), 'Diagnose vorweggenommen').toBe(false);
   });
 
   it('„geht manchmal nicht" loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat ping_extern.csv');
-    run(sh, 'cat ping_gateway.csv');
+    lesen(sh);
     run(sh, `echo "Internet faellt sporadisch aus" > ${meldung}`);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
+  });
+
+  /** Die Messdaten muessen die Erzaehlung decken (Review-Befund 3). */
+  it('die Erzaehlung deckt sich mit der Messreihe', () => {
+    const csv = ctxOf(id).vfsOverlay!.files!.find((f) => f.path.endsWith('ping_extern.csv'))!.content;
+    const ausfallZeilen = csv.split('\n').filter((z) => z.includes('ausfall'));
+    expect(ausfallZeilen.length, 'neun Messrunden mit Ausfall').toBe(9);
+    // Jede Ausfallzeile fuehrt ALLE drei Ziele als ausgefallen.
+    for (const z of ausfallZeilen) {
+      expect(z.split(';').filter((f) => f.trim() === 'ausfall').length, z).toBe(3);
+    }
+    expect(ctxOf(id).solutions[0].resultText).toMatch(/[Nn]eun Ausfälle/);
+    expect(ctxOf(id).solutions[0].resultText).toMatch(/10:04/);
+    expect(ctxOf(id).solutions[0].resultText).toMatch(/13:58/);
   });
 });
 
 describe('TELEKOM-SC-006 — Bandbreiteneinbruch', () => {
   const id = 'TELEKOM-SC-006';
   const befund = '/home/timo/befund_bandbreite.md';
-  const richtig = 'gebucht 200 Mbit, Profil Business 50, gemessen 47 Mbit am Kabel';
 
-  it('der Sollpfad loest', () => {
-    const sh = shellOf(id);
+  const lesen = (sh: ShellEngine) => {
     run(sh, 'cat leistungsschein.txt');
     run(sh, 'cat router_status.txt');
     run(sh, 'cat messung_kabel.csv');
-    run(sh, `echo "${richtig}" > ${befund}`);
+  };
+  const schreibe = (sh: ShellEngine, gebucht: string, profil: string, gemessen: string) => {
+    run(sh, `echo "gebucht: ${gebucht}" > ${befund}`);
+    run(sh, `echo "profil: ${profil}" >> ${befund}`);
+    run(sh, `echo "gemessen: ${gemessen}" >> ${befund}`);
+  };
+
+  it('der Sollpfad loest', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '200', 'Business 50', '47');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
+  });
+
+  it.each([
+    ['Profil als blosse Zahl', '50', '47'],
+    ['Sync-Wert statt Profilname', '52', '47'],
+    ['gerundet nach unten', 'Business 50', '46'],
+    ['mit Nachkommastelle', 'Business 50', '47.2'],
+  ])('%s loest ebenfalls', (_l, profil, gemessen) => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '200', profil, gemessen);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(true);
   });
 
@@ -293,23 +453,28 @@ describe('TELEKOM-SC-006 — Bandbreiteneinbruch', () => {
     run(sh, 'cat leistungsschein.txt');
     run(sh, 'cat router_status.txt');
     run(sh, 'cat messung_wlan.csv');
-    run(sh, `echo "${richtig}" > ${befund}`);
+    schreibe(sh, '200', 'Business 50', '47');
     expect(checkStateGoals(sh, goalsOf(id)), 'kabelgebundene Messung fehlt').toBe(false);
+  });
+
+  it('ein WLAN-Wert als Messergebnis loest nicht', () => {
+    const sh = shellOf(id);
+    lesen(sh);
+    schreibe(sh, '200', 'Business 50', '18.4');
+    expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });
 
   it('ohne den Routerstatus loest es nicht', () => {
     const sh = shellOf(id);
     run(sh, 'cat leistungsschein.txt');
     run(sh, 'cat messung_kabel.csv');
-    run(sh, `echo "${richtig}" > ${befund}`);
+    schreibe(sh, '200', 'Business 50', '47');
     expect(checkStateGoals(sh, goalsOf(id)), 'das ausgehandelte Profil ist der Kern').toBe(false);
   });
 
   it('„zu langsam" ohne die Zahlen loest nicht', () => {
     const sh = shellOf(id);
-    run(sh, 'cat leistungsschein.txt');
-    run(sh, 'cat router_status.txt');
-    run(sh, 'cat messung_kabel.csv');
+    lesen(sh);
     run(sh, `echo "Leitung ist zu langsam, bitte pruefen" > ${befund}`);
     expect(checkStateGoals(sh, goalsOf(id))).toBe(false);
   });

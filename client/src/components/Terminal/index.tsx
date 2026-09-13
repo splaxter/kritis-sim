@@ -1,12 +1,17 @@
 // client/src/components/Terminal/index.tsx
 import '@xterm/xterm/css/xterm.css';
 import { useState } from 'react';
-import { TerminalContext, Skills, GameModeId, EventEffects } from '@kritis/shared';
+import { TerminalContext, Skills, GameModeId, EventEffects, SolvedBranch } from '@kritis/shared';
 import { useTerminal } from './useTerminal';
 
 interface TerminalProps {
   context: TerminalContext;
-  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[], solutionEffects?: EventEffects) => void;
+  onSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
   onCancel: () => void;
   onFlagsSet: (flags: string[]) => void;
   gameMode?: GameModeId;
@@ -39,9 +44,18 @@ export function Terminal({ context, onSolved, onCancel, onFlagsSet, gameMode = '
         </button>
       </div>
 
-      {/* Persistent task panel — the quest stays reviewable while playing */}
+      {/*
+        Persistent task panel — the quest stays reviewable while playing.
+
+        max-h-40 statt max-h-28: Ein Auftrag mit angesagtem Berichtsschema
+        (Einleitung plus vier Zeilen) braucht auf schmalen Geraeten rund 155 px
+        und lag damit unter der alten Kante von 112 px — die letzte Schemazeile
+        war nur nach Scrollen in einem unscheinbaren Feld zu sehen. Ein Schema,
+        dessen letzte Regel man nicht sieht, ist kein angesagtes Schema. Der
+        Scroll bleibt als Notnagel fuer ungewoehnlich lange Auftraege.
+      */}
       {taskText && (
-        <div className="border-b border-terminal-border bg-terminal-bg-secondary px-3 py-2 text-sm max-h-28 overflow-y-auto">
+        <div className="border-b border-terminal-border bg-terminal-bg-secondary px-3 py-2 text-sm max-h-40 overflow-y-auto">
           <span className="text-terminal-warning">📋 Aufgabe:</span>
           <div className="whitespace-pre-line text-terminal-green-muted">{taskText}</div>
         </div>
