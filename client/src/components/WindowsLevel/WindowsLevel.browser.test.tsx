@@ -79,3 +79,87 @@ describe('WindowsLevel — Task Manager', () => {
     expect(screen.getByText(/94% CPU/i)).toBeInTheDocument();
   });
 });
+
+/**
+ * Issue #5: der erste Griff eines Admins ist „nach CPU sortieren". Vorher gab
+ * es das nicht, und der auffaellige Prozess konnte unter dem Falz liegen.
+ *
+ * Die Sortierung ist ANSICHT: sie aendert keinen Zustand, emittiert nichts und
+ * verraet beim Oeffnen nichts.
+ */
+describe('Task Manager — sortierbare Spalten', () => {
+  // Strukturell statt per Regex: textContent haengt Name, Beschreibung und
+  // Zahlen ohne Trenner aneinander („svchost.exeSystem9802"), und zwischen
+  // „exe" und „System" steht kein Zeichen, an dem sich schneiden liesse.
+  // Der Name ist das erste verschachtelte span der Zeile.
+  const namenInReihenfolge = () =>
+    screen.getAllByRole('option').map((el) => el.querySelector('span span')?.textContent);
+
+  it('startet in der gelieferten Reihenfolge — der Taeter liegt nicht obenauf', () => {
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    expect(namenInReihenfolge()).toEqual(['svchost.exe', 'explorer.exe', 'rogue-miner.exe']);
+    for (const kopf of screen.getAllByRole('columnheader')) {
+      expect(kopf).toHaveAttribute('aria-sort', 'none');
+    }
+  });
+
+  it('CPU-Klick sortiert absteigend und holt den Ausreisser nach oben', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /CPU/ }));
+
+    expect(namenInReihenfolge()).toEqual(['rogue-miner.exe', 'svchost.exe', 'explorer.exe']);
+    expect(screen.getByRole('columnheader', { name: /CPU/ })).toHaveAttribute('aria-sort', 'descending');
+  });
+
+  it('ein zweiter Klick dreht die Richtung um', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /CPU/ }));
+    await user.click(screen.getByRole('button', { name: /CPU/ }));
+
+    expect(namenInReihenfolge()).toEqual(['explorer.exe', 'svchost.exe', 'rogue-miner.exe']);
+    expect(screen.getByRole('columnheader', { name: /CPU/ })).toHaveAttribute('aria-sort', 'ascending');
+  });
+
+  it('Namen sortieren zuerst aufsteigend, Zahlen zuerst absteigend', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /Name/ }));
+    expect(namenInReihenfolge()).toEqual(['explorer.exe', 'rogue-miner.exe', 'svchost.exe']);
+  });
+
+  /** Sortieren ist keine Entscheidung — es darf kein Level loesen. */
+  it('sortieren loest nichts aus', async () => {
+    const user = fakeTimerUser();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /CPU/ }));
+    await user.click(screen.getByRole('button', { name: /Arbeitsspeicher/ }));
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
+    expect(onSolved).not.toHaveBeenCalled();
+  });
+
+  /** Die Sortierung ist eine Ansicht: „Task beenden" muss danach normal gehen. */
+  it('nach dem Sortieren laesst sich der richtige Prozess weiterhin beenden', async () => {
+    const user = fakeTimerUser();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('button', { name: /CPU/ }));
+    await user.click(screen.getByText('rogue-miner.exe'));
+    await user.click(screen.getByRole('button', { name: /Task beenden/i }));
+
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
+    expect(namenInReihenfolge()).not.toContain('rogue-miner.exe');
+  });
+});

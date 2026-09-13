@@ -6,6 +6,7 @@ import { SOLVE_DELAY_MS } from './useGuiLevel';
 import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { derivePermissionMatrix, PERMISSION_ROWS } from './apps/Explorer';
 import { auditTrailStoryEvents } from '../../content/campaigns/audit-trail/events';
 
 const context: GuiContext = {
@@ -251,5 +252,85 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     await user.keyboard('{Backspace}');
     // Back at the root — the real Lieferschein folder is reachable again.
     await waitFor(() => expect(screen.getByText(/02_BASTION-01/)).toBeInTheDocument());
+  });
+});
+
+/**
+ * Issue #5: der echte „Sicherheit"-Tab zeigt fuer die AUSGEWAEHLTE Gruppe ein
+ * Kaestchenraster. Unsere Zeilen nannten nur die Stufe — das ist der eine
+ * Bildschirm, den ein Windows-Admin sofort als vereinfacht erkennt.
+ *
+ * Das Raster wird ABGELEITET und ist reine Darstellung: kein Token, kein
+ * Zustand, nicht bedienbar.
+ */
+describe('derivePermissionMatrix — die Leiter der Stufen', () => {
+  it('Vollzugriff setzt alles', () => {
+    const m = derivePermissionMatrix('Vollzugriff');
+    expect(PERMISSION_ROWS.every((r) => m[r])).toBe(true);
+  });
+
+  it('Ändern setzt alles ausser Vollzugriff', () => {
+    const m = derivePermissionMatrix('Ändern');
+    expect(m['Vollzugriff']).toBe(false);
+    expect(m['Ändern']).toBe(true);
+    expect(m['Schreiben']).toBe(true);
+    expect(m['Lesen']).toBe(true);
+  });
+
+  it('Lesen & Ausführen schliesst Lesen ein, aber nicht Schreiben', () => {
+    const m = derivePermissionMatrix('Lesen & Ausführen');
+    expect(m['Lesen']).toBe(true);
+    expect(m['Ordnerinhalt anzeigen']).toBe(true);
+    expect(m['Schreiben']).toBe(false);
+  });
+
+  it('Lesen setzt nur Lesen', () => {
+    const m = derivePermissionMatrix('Lesen');
+    expect(Object.entries(m).filter(([, v]) => v).map(([k]) => k)).toEqual(['Lesen']);
+  });
+
+  /** Lieber ein leeres Raster als ein erfundenes. */
+  it('eine unbekannte Stufe setzt nichts', () => {
+    const m = derivePermissionMatrix('Spezielle Berechtigungen');
+    expect(Object.values(m).some(Boolean)).toBe(false);
+  });
+});
+
+describe('Explorer ACL — Berechtigungsraster der Auswahl', () => {
+  it('erscheint erst mit einer Auswahl', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    expect(screen.queryByText(/Berechtigungen für/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    expect(screen.getByText(/Berechtigungen für/)).toBeInTheDocument();
+  });
+
+  it('zeigt fuer „Jeder: Vollzugriff" alle Haken bei Zulassen', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    for (const zeile of PERMISSION_ROWS) {
+      expect(screen.getByLabelText(`${zeile}: Zulassen`), zeile).toHaveTextContent('☑');
+      // „Verweigern" bleibt durchgaengig leer — unsere Freigaben kennen keine
+      // expliziten Verbote.
+      expect(screen.getByLabelText(`${zeile}: Verweigern`), zeile).toHaveTextContent('☐');
+    }
+  });
+
+  /** Reine Darstellung: das Raster darf kein Level loesen und nichts aendern. */
+  it('ein Klick ins Raster loest nichts aus', async () => {
+    const user = fakeTimerUser();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    await user.click(screen.getByLabelText('Vollzugriff: Zulassen'));
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
+    expect(onSolved).not.toHaveBeenCalled();
+    expect(screen.getByRole('option', { name: /Jeder/ })).toBeInTheDocument();
   });
 });

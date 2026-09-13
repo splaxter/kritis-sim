@@ -63,6 +63,27 @@ const useStyles = makeStyles({
   principal: { display: 'flex', alignItems: 'center', gap: '6px' },
   warn: { color: tokens.colorPaletteRedForeground1 },
   perm: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2 },
+  matrix: {
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: '10px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    rowGap: '4px',
+  },
+  matrixHead: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 90px',
+    fontSize: tokens.fontSizeBase200,
+    color: tokens.colorNeutralForeground3,
+  },
+  matrixRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 90px',
+    fontSize: tokens.fontSizeBase200,
+    alignItems: 'center',
+  },
+  matrixBox: { textAlign: 'center', fontFamily: tokens.fontFamilyMonospace },
+  matrixCaption: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
   message: { margin: '0 16px 10px' },
   footer: {
     display: 'flex',
@@ -115,6 +136,40 @@ export function Explorer(props: ExplorerProps) {
   return <ExplorerAcl {...props} />;
 }
 
+/**
+ * Die Berechtigungsmatrix des echten „Sicherheit"-Tabs.
+ *
+ * Windows zeigt fuer die AUSGEWAEHLTE Gruppe ein Kaestchenraster; unsere
+ * Zeilen nennen nur die Stufe. Das Raster wird hier ABGELEITET, nicht
+ * zusaetzlich gepflegt — die Stufen bilden eine Leiter, jede hoehere schliesst
+ * die darunter ein. Reine Darstellung: kein Token, kein Zustand, nicht
+ * bedienbar. Wer hier klickt, aendert nichts, genau wie im echten Dialog ohne
+ * „Bearbeiten".
+ */
+export const PERMISSION_ROWS = [
+  'Vollzugriff',
+  'Ändern',
+  'Lesen & Ausführen',
+  'Ordnerinhalt anzeigen',
+  'Lesen',
+  'Schreiben',
+] as const;
+
+/** Welche Kaestchen sind bei dieser Stufe gesetzt? */
+export function derivePermissionMatrix(permission: string): Record<string, boolean> {
+  const enthalten: Record<string, readonly string[]> = {
+    Vollzugriff: PERMISSION_ROWS,
+    'Ändern': ['Ändern', 'Lesen & Ausführen', 'Ordnerinhalt anzeigen', 'Lesen', 'Schreiben'],
+    'Lesen & Ausführen': ['Lesen & Ausführen', 'Ordnerinhalt anzeigen', 'Lesen'],
+    Lesen: ['Lesen'],
+    Schreiben: ['Schreiben'],
+  };
+  // Unbekannte Stufen (z. B. „Spezielle Berechtigungen") setzen nichts —
+  // lieber ein leeres Raster als ein erfundenes.
+  const aktiv = enthalten[permission.trim()] ?? [];
+  return Object.fromEntries(PERMISSION_ROWS.map((r) => [r, aktiv.includes(r)]));
+}
+
 // ── ACL mode (share permissions editor) — unchanged behaviour ───────────────
 
 function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerProps) {
@@ -122,6 +177,9 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
   const [rows, setRows] = useState<AclEntry[]>(entries);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const selectedEntry = rows.find((r) => r.id === selected);
+  const matrix = derivePermissionMatrix(selectedEntry?.permission ?? '');
 
   const select = (id: string) => {
     if (locked) return;
@@ -198,6 +256,33 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
           </div>
         ))}
       </div>
+
+      {selectedEntry && (
+        <div className={styles.matrix}>
+          <div className={styles.matrixCaption}>
+            Berechtigungen für „{selectedEntry.principal}"
+          </div>
+          <div className={styles.matrixHead}>
+            <span />
+            <span className={styles.matrixBox}>Zulassen</span>
+            <span className={styles.matrixBox}>Verweigern</span>
+          </div>
+          {PERMISSION_ROWS.map((zeile) => (
+            <div key={zeile} className={styles.matrixRow}>
+              <span>{zeile}</span>
+              <span className={styles.matrixBox} aria-label={`${zeile}: Zulassen`}>
+                {matrix[zeile] ? '☑' : '☐'}
+              </span>
+              {/* „Verweigern" bleibt leer: keine unserer Freigaben arbeitet mit
+                  expliziten Verboten, und ein erfundenes Häkchen wäre eine
+                  Aussage über die Freigabe, die es nicht gibt. */}
+              <span className={styles.matrixBox} aria-label={`${zeile}: Verweigern`}>
+                ☐
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className={styles.footer}>
         <Button appearance="primary" disabled={!selected || locked} onClick={remove}>
