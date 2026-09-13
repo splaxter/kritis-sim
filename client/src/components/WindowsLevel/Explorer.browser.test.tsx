@@ -6,6 +6,7 @@ import { SOLVE_DELAY_MS } from './useGuiLevel';
 import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { derivePermissionMatrix, PERMISSION_ROWS } from './apps/Explorer';
 import { auditTrailStoryEvents } from '../../content/campaigns/audit-trail/events';
 
 const context: GuiContext = {
@@ -251,5 +252,163 @@ describe('WindowsLevel — Explorer (file browser)', () => {
     await user.keyboard('{Backspace}');
     // Back at the root — the real Lieferschein folder is reachable again.
     await waitFor(() => expect(screen.getByText(/02_BASTION-01/)).toBeInTheDocument());
+  });
+});
+
+/**
+ * Issue #5: der echte „Sicherheit"-Tab zeigt fuer die AUSGEWAEHLTE Gruppe ein
+ * Kaestchenraster. Unsere Zeilen nannten nur die Stufe — das ist der eine
+ * Bildschirm, den ein Windows-Admin sofort als vereinfacht erkennt.
+ *
+ * Das Raster wird ABGELEITET und ist reine Darstellung: kein Token, kein
+ * Zustand, nicht bedienbar.
+ */
+describe('derivePermissionMatrix — die Leiter der Stufen', () => {
+  it('Vollzugriff setzt alles', () => {
+    const m = derivePermissionMatrix('Vollzugriff');
+    expect(PERMISSION_ROWS.every((r) => m[r])).toBe(true);
+  });
+
+  it('Ändern setzt alles ausser Vollzugriff', () => {
+    const m = derivePermissionMatrix('Ändern');
+    expect(m['Vollzugriff']).toBe(false);
+    expect(m['Ändern']).toBe(true);
+    expect(m['Schreiben']).toBe(true);
+    expect(m['Lesen']).toBe(true);
+  });
+
+  it('Lesen & Ausführen schliesst Lesen ein, aber nicht Schreiben', () => {
+    const m = derivePermissionMatrix('Lesen & Ausführen');
+    expect(m['Lesen']).toBe(true);
+    expect(m['Ordnerinhalt anzeigen']).toBe(true);
+    expect(m['Schreiben']).toBe(false);
+  });
+
+  it('Lesen setzt nur Lesen', () => {
+    const m = derivePermissionMatrix('Lesen');
+    expect(Object.entries(m).filter(([, v]) => v).map(([k]) => k)).toEqual(['Lesen']);
+  });
+
+  /** Lieber ein leeres Raster als ein erfundenes. */
+  it('eine unbekannte Stufe setzt nichts', () => {
+    const m = derivePermissionMatrix('Spezielle Berechtigungen');
+    expect(Object.values(m).some(Boolean)).toBe(false);
+  });
+});
+
+describe('Explorer ACL — Berechtigungsraster der Auswahl', () => {
+  it('erscheint erst mit einer Auswahl', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    expect(screen.queryByText(/Berechtigungen für/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    expect(screen.getByText(/Berechtigungen für/)).toBeInTheDocument();
+  });
+
+  /**
+   * Prueft den ACCESSIBILITY-BAUM, nicht ein DOM-Attribut.
+   *
+   * Vorher standen hier ☑/☐ in einem span mit aria-label. getByLabelText fand
+   * das Attribut und der Test war gruen — im Browser kam davon nichts an, weil
+   * aria-label an einem rollenlosen span wirkungslos ist. Genau das hat das
+   * Review zu PR #16 aufgedeckt. Jetzt: echte Checkboxen, echter Zustand.
+   */
+  it('zeigt fuer „Jeder: Vollzugriff" alle Haken bei Zulassen', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    for (const zeile of PERMISSION_ROWS) {
+      expect(screen.getByRole('checkbox', { name: `${zeile} Zulassen` }), zeile).toBeChecked();
+      // „Verweigern" bleibt durchgaengig leer — unsere Freigaben kennen keine
+      // expliziten Verbote.
+      expect(screen.getByRole('checkbox', { name: `${zeile} Verweigern` }), zeile).not.toBeChecked();
+    }
+  });
+
+  it('die Kaestchen sind als Nur-Lese-Darstellung deaktiviert', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    const kaesten = screen.getAllByRole('checkbox');
+    expect(kaesten).toHaveLength(PERMISSION_ROWS.length * 2);
+    for (const k of kaesten) expect(k).toBeDisabled();
+  });
+
+  it('eine niedrigere Stufe zeigt im Baum auch weniger Haken', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Buchhaltung/ }));
+    const gesetzt = screen.getAllByRole('checkbox').filter((k) => (k as HTMLInputElement).checked);
+    expect(gesetzt.length).toBeGreaterThan(0);
+    expect(gesetzt.length).toBeLessThan(PERMISSION_ROWS.length);
+  });
+
+  /** Reine Darstellung: das Raster darf kein Level loesen und nichts aendern. */
+  it('ein Klick ins Raster loest nichts aus', async () => {
+    const user = fakeTimerUser();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
+
+    await user.click(screen.getByRole('option', { name: /Jeder/ }));
+    await user.click(screen.getByRole('checkbox', { name: 'Vollzugriff Zulassen' }));
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
+    expect(onSolved).not.toHaveBeenCalled();
+    expect(screen.getByRole('option', { name: /Jeder/ })).toBeInTheDocument();
+  });
+});
+
+/**
+ * Regression aus dem Review zu b244ab1: `styles.list` gehoerte BEIDEN
+ * Explorer-Modi. Beim Umbau fuer das Berechtigungsraster verlor der
+ * Datei-Explorer sein Scrollen — die Dateien liefen hinter den Footer.
+ *
+ * jsdom loest die Fluent-Klassen auf, also laesst sich das hier direkt pruefen:
+ * jeder Modus braucht einen scrollfaehigen Bereich, und die beiden duerfen sich
+ * dafuer nicht dieselbe Klasse teilen.
+ */
+describe('Explorer — beide Modi behalten ihren Scrollbereich', () => {
+  /** Naechster Vorfahr (oder das Element selbst), der vertikal scrollen kann. */
+  const scrollTraeger = (el: HTMLElement): HTMLElement | null => {
+    let n: HTMLElement | null = el;
+    while (n) {
+      const o = getComputedStyle(n).overflowY;
+      if (o === 'auto' || o === 'scroll') return n;
+      n = n.parentElement;
+    }
+    return null;
+  };
+
+  it('Datei-Modus: die Liste scrollt selbst und waechst mit', () => {
+    render(<WindowsLevel context={filesContext} onSolved={vi.fn()} onCancel={() => {}} />);
+    const liste = screen.getByRole('listbox', { name: 'Dateien' });
+    const cs = getComputedStyle(liste);
+    expect(cs.overflowY, 'Datei-Liste scrollt nicht mehr').toBe('auto');
+    expect(cs.flexGrow, 'Datei-Liste fuellt die Hoehe nicht mehr').toBe('1');
+  });
+
+  it('ACL-Modus: Liste und Raster scrollen gemeinsam in einem Vorfahren', () => {
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    const liste = screen.getByRole('listbox', { name: 'Berechtigungen' });
+    const traeger = scrollTraeger(liste);
+    expect(traeger, 'kein scrollfaehiger Bereich').not.toBeNull();
+    // Der Traeger ist NICHT die Liste selbst — sonst bliebe das Raster aussen vor.
+    expect(traeger).not.toBe(liste);
+  });
+
+  it('die beiden Modi teilen sich die Klasse nicht mehr', () => {
+    const { unmount } = render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+    const aclKlasse = screen.getByRole('listbox', { name: 'Berechtigungen' }).className;
+    unmount();
+
+    render(<WindowsLevel context={filesContext} onSolved={vi.fn()} onCancel={() => {}} />);
+    const dateiKlasse = screen.getByRole('listbox', { name: 'Dateien' }).className;
+
+    expect(dateiKlasse, 'gemeinsame Klasse — genau das war die Regression').not.toBe(aclKlasse);
   });
 });

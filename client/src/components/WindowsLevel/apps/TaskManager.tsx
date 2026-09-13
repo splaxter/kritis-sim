@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   makeStyles,
   tokens,
@@ -44,6 +44,33 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
+  headButton: {
+    // Sieht aus wie der Spaltenkopf, ist aber ein echter Button: Tastatur und
+    // Screenreader bekommen dieselbe Sortierung wie die Maus.
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    font: 'inherit',
+    color: 'inherit',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    columnGap: '4px',
+    ':hover': { color: tokens.colorNeutralForeground1 },
+  },
+  headButtonRight: { justifyContent: 'flex-end' },
+  srOnly: {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    padding: 0,
+    margin: '-1px',
+    overflow: 'hidden',
+    clip: 'rect(0 0 0 0)',
+    whiteSpace: 'nowrap',
+    border: 0,
+  },
+  sortMark: { fontSize: tokens.fontSizeBase100 },
   row: {
     display: 'grid',
     gridTemplateColumns: '2.4fr 0.8fr 1fr 1fr',
@@ -109,11 +136,31 @@ interface TaskManagerProps {
 const fmtCpu = (cpu: number) => `${cpu.toFixed(0)} %`;
 const fmtMem = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${mb} MB`);
 
+type SortKey = 'name' | 'pid' | 'cpu' | 'memoryMb';
+type SortState = { key: SortKey; dir: 'asc' | 'desc' } | null;
+
+const COLUMNS: Array<{ key: SortKey; label: string; numeric: boolean }> = [
+  { key: 'name', label: 'Name', numeric: false },
+  { key: 'pid', label: 'PID', numeric: true },
+  { key: 'cpu', label: 'CPU', numeric: true },
+  { key: 'memoryMb', label: 'Arbeitsspeicher', numeric: true },
+];
+
 export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
   const styles = useStyles();
   const [rows, setRows] = useState<GuiProcess[]>(processes);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<{ intent: 'warning' | 'error'; text: string } | null>(null);
+  /**
+   * Sortierung ist ANSICHT, nicht Zustand.
+   *
+   * `rows` bleibt die Wahrheit (endTask entfernt daraus), sortiert wird nur zum
+   * Rendern. Anfangs bewusst `null`: die gelieferte Reihenfolge bleibt stehen,
+   * damit der auffaellige Prozess nicht schon beim Oeffnen obenauf liegt. Nach
+   * CPU zu sortieren ist der erste Griff eines Admins — das soll der Spieler
+   * TUN, nicht geschenkt bekommen.
+   */
+  const [sort, setSort] = useState<SortState>(null);
 
   const select = (name: string) => {
     if (locked) return;
@@ -121,6 +168,29 @@ export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
     setMessage(null);
     emit(`select:${name}`);
   };
+
+  const toggleSort = (key: SortKey) => {
+    // Bewusst KEIN emit: Sortieren ist eine Blickrichtung, keine Entscheidung.
+    // Das Token-Modell der Level bleibt unangetastet.
+    setSort((prev) =>
+      prev?.key === key
+        ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : // Zahlen zuerst absteigend (der grosse Wert ist der interessante),
+          // Namen zuerst aufsteigend — wie im echten Task-Manager.
+          { key, dir: COLUMNS.find((c) => c.key === key)!.numeric ? 'desc' : 'asc' }
+    );
+  };
+
+  const visibleRows = useMemo(() => {
+    if (!sort) return rows;
+    const faktor = sort.dir === 'asc' ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const x = a[sort.key];
+      const y = b[sort.key];
+      if (typeof x === 'number' && typeof y === 'number') return (x - y) * faktor;
+      return String(x).localeCompare(String(y), 'de') * faktor;
+    });
+  }, [rows, sort]);
 
   const endTask = () => {
     if (locked || !selected) return;
@@ -159,15 +229,51 @@ export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
         </div>
       )}
 
+      {/*
+        KEINE Tabellenrollen hier. role="row"/"columnheader" verlangen einen
+        Tabellen- oder Grid-Kontext, und die Prozesse darunter sind bewusst eine
+        listbox — die Rollen haetten also Beziehungen behauptet, die es nicht
+        gibt (im Review zu PR #16 beanstandet). Stattdessen tragen die
+        Sortierknoepfe ihren Zustand selbst im zugaenglichen Namen, und eine
+        Live-Region meldet den Wechsel.
+      */}
       <div className={styles.headRow}>
-        <span>Name</span>
-        <span style={{ textAlign: 'right' }}>PID</span>
-        <span style={{ textAlign: 'right' }}>CPU</span>
-        <span style={{ textAlign: 'right' }}>Arbeitsspeicher</span>
+        {COLUMNS.map((col) => {
+          const aktiv = sort?.key === col.key;
+          const richtung = aktiv ? (sort!.dir === 'asc' ? 'aufsteigend' : 'absteigend') : null;
+          return (
+            <button
+              key={col.key}
+              type="button"
+              className={mergeClasses(styles.headButton, col.numeric && styles.headButtonRight)}
+              onClick={() => toggleSort(col.key)}
+              aria-label={
+                richtung
+                  ? `${col.label} — sortiert ${richtung}, klicken zum Umkehren`
+                  : `Nach ${col.label} sortieren`
+              }
+            >
+              <span aria-hidden>{col.label}</span>
+              <span className={styles.sortMark} aria-hidden>
+                {aktiv ? (sort!.dir === 'asc' ? '▲' : '▼') : ''}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Ohne Ansage bleibt eine Sortierung fuer Screenreader unbemerkt: die
+          Zeilen ordnen sich neu, aber nichts sagt es. */}
+      <div aria-live="polite" className={styles.srOnly}>
+        {sort
+          ? `Sortiert nach ${COLUMNS.find((c) => c.key === sort.key)!.label}, ${
+              sort.dir === 'asc' ? 'aufsteigend' : 'absteigend'
+            }`
+          : ''}
       </div>
 
       <div className={styles.tableWrap} role="listbox" aria-label="Prozesse">
-        {rows.map((proc) => (
+        {visibleRows.map((proc) => (
           <div
             key={proc.name}
             className={mergeClasses(styles.row, selected === proc.name && styles.rowSelected)}

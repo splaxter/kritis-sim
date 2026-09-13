@@ -43,7 +43,23 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
+  /**
+   * Die scrollende Liste des DATEI-Modus — unveraendert seit jeher.
+   *
+   * ACHTUNG: diese Klasse hatten beide Modi gemeinsam. Als ich sie fuer das
+   * Berechtigungsraster umgebaut habe, verlor der Datei-Explorer sein Scrollen
+   * (Regression, im Review zu PR #16 mit den echten L7-Daten gefunden). Zwei
+   * verschiedene Layouts, zwei Klassen — `list` gehoert jetzt allein dem
+   * Datei-Modus.
+   */
   list: { flex: 1, overflowY: 'auto', minHeight: '80px' },
+  /**
+   * Der ACL-Modus scrollt Liste UND Raster gemeinsam: sonst waechst das Raster
+   * aus dem maxHeight der Wurzel heraus und schiebt den Footer mit „Entfernen"
+   * hinaus (bei 375x667 reproduziert, e2e/mobile-gui-layout.spec.ts).
+   */
+  aclList: { minHeight: '80px' },
+  scrollArea: { flex: 1, minHeight: 0, overflowY: 'auto' },
   row: {
     display: 'grid',
     gridTemplateColumns: '2fr 1.2fr',
@@ -63,6 +79,27 @@ const useStyles = makeStyles({
   principal: { display: 'flex', alignItems: 'center', gap: '6px' },
   warn: { color: tokens.colorPaletteRedForeground1 },
   perm: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2 },
+  matrix: {
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: '10px 16px',
+    display: 'flex',
+    flexDirection: 'column',
+    rowGap: '4px',
+  },
+  matrixHead: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 90px',
+    fontSize: tokens.fontSizeBase200,
+    color: tokens.colorNeutralForeground3,
+  },
+  matrixRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 80px 90px',
+    fontSize: tokens.fontSizeBase200,
+    alignItems: 'center',
+  },
+  matrixBox: { textAlign: 'center', fontFamily: tokens.fontFamilyMonospace },
+  matrixCaption: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
   message: { margin: '0 16px 10px' },
   footer: {
     display: 'flex',
@@ -70,6 +107,8 @@ const useStyles = makeStyles({
     gap: '8px',
     padding: '10px 16px',
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    // Muss sichtbar bleiben, egal wie hoch der Inhalt darueber wird.
+    flexShrink: 0,
   },
   crumb: {
     padding: '6px 16px 2px',
@@ -115,6 +154,45 @@ export function Explorer(props: ExplorerProps) {
   return <ExplorerAcl {...props} />;
 }
 
+/**
+ * Die Berechtigungsmatrix des echten „Sicherheit"-Tabs.
+ *
+ * Windows zeigt fuer die AUSGEWAEHLTE Gruppe ein Kaestchenraster; unsere
+ * Zeilen nennen nur die Stufe. Das Raster wird hier ABGELEITET, nicht
+ * zusaetzlich gepflegt — die Stufen bilden eine Leiter, jede hoehere schliesst
+ * die darunter ein. Reine Darstellung: kein Token, kein Zustand, nicht
+ * bedienbar. Wer hier klickt, aendert nichts, genau wie im echten Dialog ohne
+ * „Bearbeiten".
+ */
+export const PERMISSION_ROWS = [
+  'Vollzugriff',
+  'Ändern',
+  'Lesen & Ausführen',
+  'Ordnerinhalt anzeigen',
+  'Lesen',
+  'Schreiben',
+] as const;
+
+/** Stabile Id-Bausteine fuer aria-labelledby (Ids bleiben ASCII). */
+const slug = (s: string) =>
+  s.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+   .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+/** Welche Kaestchen sind bei dieser Stufe gesetzt? */
+export function derivePermissionMatrix(permission: string): Record<string, boolean> {
+  const enthalten: Record<string, readonly string[]> = {
+    Vollzugriff: PERMISSION_ROWS,
+    'Ändern': ['Ändern', 'Lesen & Ausführen', 'Ordnerinhalt anzeigen', 'Lesen', 'Schreiben'],
+    'Lesen & Ausführen': ['Lesen & Ausführen', 'Ordnerinhalt anzeigen', 'Lesen'],
+    Lesen: ['Lesen'],
+    Schreiben: ['Schreiben'],
+  };
+  // Unbekannte Stufen (z. B. „Spezielle Berechtigungen") setzen nichts —
+  // lieber ein leeres Raster als ein erfundenes.
+  const aktiv = enthalten[permission.trim()] ?? [];
+  return Object.fromEntries(PERMISSION_ROWS.map((r) => [r, aktiv.includes(r)]));
+}
+
 // ── ACL mode (share permissions editor) — unchanged behaviour ───────────────
 
 function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerProps) {
@@ -122,6 +200,9 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
   const [rows, setRows] = useState<AclEntry[]>(entries);
   const [selected, setSelected] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  const selectedEntry = rows.find((r) => r.id === selected);
+  const matrix = derivePermissionMatrix(selectedEntry?.permission ?? '');
 
   const select = (id: string) => {
     if (locked) return;
@@ -172,7 +253,8 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
         <span>Berechtigung</span>
       </div>
 
-      <div className={styles.list} role="listbox" aria-label="Berechtigungen">
+      <div className={styles.scrollArea}>
+      <div className={styles.aclList} role="listbox" aria-label="Berechtigungen">
         {rows.map((entry) => (
           <div
             key={entry.id}
@@ -197,6 +279,59 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
             </span>
           </div>
         ))}
+      </div>
+
+      {selectedEntry && (
+        <div className={styles.matrix}>
+          <div className={styles.matrixCaption}>
+            Berechtigungen für „{selectedEntry.principal}"
+          </div>
+          <div className={styles.matrixHead}>
+            <span />
+            <span className={styles.matrixBox} id="perm-spalte-zulassen">
+              Zulassen
+            </span>
+            <span className={styles.matrixBox} id="perm-spalte-verweigern">
+              Verweigern
+            </span>
+          </div>
+          {PERMISSION_ROWS.map((zeile) => (
+            <div key={zeile} className={styles.matrixRow}>
+              <span id={`perm-${slug(zeile)}`}>{zeile}</span>
+              {/*
+                ECHTE Checkboxen, nicht ☑/☐ in einem span mit aria-label.
+                aria-label wirkt nur auf Elemente mit passender Rolle — an einem
+                schmucklosen span kommt es im Accessibility-Baum gar nicht an,
+                und getByLabelText prueft dann nur das DOM-Attribut, nicht seine
+                Wirkung. Genau dieser Trugschluss ist im Review zu PR #16
+                aufgefallen. `disabled` bildet den Nur-Lese-Charakter des
+                Dialogs ab (kein „Bearbeiten"-Knopf).
+              */}
+              <span className={styles.matrixBox}>
+                <input
+                  type="checkbox"
+                  checked={matrix[zeile]}
+                  disabled
+                  readOnly
+                  aria-labelledby={`perm-${slug(zeile)} perm-spalte-zulassen`}
+                />
+              </span>
+              {/* „Verweigern" bleibt leer: keine unserer Freigaben arbeitet mit
+                  expliziten Verboten, und ein erfundenes Häkchen wäre eine
+                  Aussage über die Freigabe, die es nicht gibt. */}
+              <span className={styles.matrixBox}>
+                <input
+                  type="checkbox"
+                  checked={false}
+                  disabled
+                  readOnly
+                  aria-labelledby={`perm-${slug(zeile)} perm-spalte-verweigern`}
+                />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       </div>
 
       <div className={styles.footer}>
