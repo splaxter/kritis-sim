@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 import { GuiContext, MeldungState } from '@kritis/shared';
 import { WindowsLevel } from './index';
 import { missingRequired } from './apps/Meldung';
@@ -62,6 +63,8 @@ function makeContext(overrides: Partial<GuiContext> = {}): GuiContext {
   };
 }
 
+installFakeTimers();
+
 describe('missingRequired — rein, ohne DOM', () => {
   it('meldet leere, fehlende und nur aus Leerzeichen bestehende Pflichtfelder', () => {
     expect(missingRequired(baseState.felder, {})).toEqual(['kenntnis', 'art']);
@@ -92,7 +95,7 @@ describe('WindowsLevel — Meldeformular', () => {
    * Entscheidung ab, um die der ganze Track geht.
    */
   it('„nein" und „noch unbekannt" werden gleichwertig angeboten', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={makeContext()} onSolved={vi.fn()} onCancel={() => {}} />);
 
     const gruppe = screen.getByRole('radiogroup', { name: /Grenzueberschreitende|Grenzüberschreitende/ });
@@ -111,7 +114,7 @@ describe('WindowsLevel — Meldeformular', () => {
   });
 
   it('weist eine unvollstaendige Meldung zurueck, ohne sie zu senden', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={makeContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -125,7 +128,7 @@ describe('WindowsLevel — Meldeformular', () => {
   });
 
   it('loest aus, wenn Pflichtfelder stehen und die Antwort ehrlich ist', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={makeContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -135,7 +138,11 @@ describe('WindowsLevel — Meldeformular', () => {
     await user.click(within(gruppe).getByRole('radio', { name: 'noch unbekannt' }));
     await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
 
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
   });
 
   /**
@@ -143,7 +150,7 @@ describe('WindowsLevel — Meldeformular', () => {
    * darf nicht weiterzaehlen. Genau der Fehler, den das Kataster-Review fand.
    */
   it('eine korrigierte Antwort zaehlt nicht mehr mit', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     const ctx = makeContext({
       solutions: [
@@ -165,7 +172,11 @@ describe('WindowsLevel — Meldeformular', () => {
     await user.selectOptions(screen.getByLabelText(/Art des Vorfalls/), 'ransomware');
     await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
 
-    await new Promise((r) => setTimeout(r, 2200));
+    // Ueber die Verweildauer hinaus vorspulen: was jetzt nicht gefeuert hat,
+    // feuert nie. Vorher wurde das mit 2,2 s echter Wartezeit "belegt".
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
     expect(onSolved, 'zurueckgenommenes „nein" darf die Falle nicht ausloesen').not.toHaveBeenCalled();
   });
 
@@ -213,7 +224,7 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
   };
 
   it('eine Feldaenderung nach dem Absenden loest NICHT ohne erneutes Absenden', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -226,12 +237,16 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
     // Jetzt die Angabe auf den Fallenwert aendern — ohne erneut abzuschicken.
     await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
 
-    await new Promise((r) => setTimeout(r, 2200));
+    // Ueber die Verweildauer hinaus vorspulen: was jetzt nicht gefeuert hat,
+    // feuert nie. Vorher wurde das mit 2,2 s echter Wartezeit "belegt".
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
     expect(onSolved, 'geloest ohne abzuschicken').not.toHaveBeenCalled();
   });
 
   it('… erst das erneute Absenden loest aus', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -243,12 +258,16 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
     await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
     await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
 
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 3000 });
+    expect(onSolved, 'erst nach der Verweildauer').not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
   });
 
   /** Der schlimmere Fall: Pflichtfeld inzwischen leer. */
   it('mit geleertem Pflichtfeld loest gar nichts mehr', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={fallenContext()} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -261,7 +280,11 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
     await user.clear(screen.getByLabelText(/Zeitpunkt der Kenntnisnahme/));
     await user.click(within(gruppe()).getByRole('radio', { name: 'nein' }));
 
-    await new Promise((r) => setTimeout(r, 2200));
+    // Ueber die Verweildauer hinaus vorspulen: was jetzt nicht gefeuert hat,
+    // feuert nie. Vorher wurde das mit 2,2 s echter Wartezeit "belegt".
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
     expect(onSolved).not.toHaveBeenCalled();
 
     // … und ein Absendeversuch wird jetzt zu Recht zurueckgewiesen.
@@ -271,7 +294,7 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
   });
 
   it('auch eine Mehrfachauswahl macht ein frueheres Absenden ungueltig', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     const ctx = makeContext({
       solutions: [
@@ -289,7 +312,11 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
     await user.click(screen.getByRole('button', { name: /Meldung absenden/ }));
     await user.click(screen.getByRole('checkbox', { name: /Mailserver/ }));
 
-    await new Promise((r) => setTimeout(r, 2200));
+    // Ueber die Verweildauer hinaus vorspulen: was jetzt nicht gefeuert hat,
+    // feuert nie. Vorher wurde das mit 2,2 s echter Wartezeit "belegt".
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS * 2);
+    });
     expect(onSolved).not.toHaveBeenCalled();
   });
 });

@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, cleanup, act } from '@testing-library/react';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 
 const ctx: GuiContext = {
   app: 'taskmanager',
@@ -22,15 +23,15 @@ const ctx: GuiContext = {
   hints: [],
 };
 
+installFakeTimers();
+
 afterEach(() => {
   cleanup();
 });
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 describe('WindowsLevel lifecycle', () => {
   it('does NOT call onSolved if unmounted during the success animation', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     const { unmount } = render(<WindowsLevel context={ctx} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -43,30 +44,36 @@ describe('WindowsLevel lifecycle', () => {
 
     // Player cancels (ESC) → component tears down before the timer fires.
     unmount();
-    await wait(2000); // past SOLVE_DELAY_MS (1600ms)
-
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS + 400); // well past the dwell
+    });
     expect(onSolved).not.toHaveBeenCalled();
   });
 
   it('still calls onSolved exactly once when left to complete', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={ctx} onSolved={onSolved} onCancel={() => {}} />);
 
     await user.click(screen.getByText('rogue.exe'));
     await user.click(screen.getByRole('button', { name: /task beenden/i }));
 
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 2500 });
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
     expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined);
     // Give any erroneous second timer a chance to fire.
-    await wait(400);
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
     expect(onSolved).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('WindowsLevel keyboard accessibility', () => {
   it('selects a row via keyboard (focus + Enter) and solves', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={ctx} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -82,7 +89,10 @@ describe('WindowsLevel keyboard accessibility', () => {
     expect(rogueRow).toHaveAttribute('aria-selected', 'true');
 
     await user.click(screen.getByRole('button', { name: /task beenden/i }));
-    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined), { timeout: 2500 });
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6 }, undefined);
   });
 
   it('exposes rows as a labelled listbox', () => {

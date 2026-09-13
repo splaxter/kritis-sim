@@ -10,19 +10,15 @@ export default defineConfig({
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     setupFiles: ['./src/test/setup.ts'],
     /**
-     * Vitests Standard sind 5 s. Das ist fuer die GUI-Level-Specs zu knapp: sie
-     * warten die ECHTEN 1600 ms von SOLVE_DELAY_MS (useGuiLevel) ab und machen
-     * davor mehrere userEvent-Interaktionen, die unter Last je hunderte ms
-     * kosten. Ein parallel laufendes `npm run dev` genuegte, um 3-11 Tests mit
-     * "Test timed out in 5000ms" umzuwerfen — immer dieselben, immer nur
-     * WindowsLevel, nie mit einer fehlgeschlagenen Zusicherung.
+     * Puffer fuer ausgehungerte Parallel-Worker (jsdom + Fluent-UI-Importkosten).
      *
-     * Die Erhoehung beseitigt den Fehlalarm, nicht die Ursache: richtig waere,
-     * die Animation mit Fake Timers zu ueberspringen, statt sie abzusitzen.
-     * Das bleibt der offene Aufraeumtask. Bis dahin gilt: ein Test, der hier
-     * ins Timeout laeuft, haengt wirklich — 15 s sitzt keine Animation aus.
+     * Seit die GUI-Level-Specs mit Fake Timers laufen (src/test/fakeTimers.ts)
+     * haengt hier KEIN Test mehr an echter Zeit — die 1600 ms Verweildauer aus
+     * useGuiLevel werden vorgespult, nicht abgesessen. Diese Erhoehung verzoegert
+     * also nur noch die Meldung eines Fehlschlags und verlangsamt keinen
+     * gruenen Lauf. Ein Timeout hier heisst: da haengt wirklich etwas.
      */
-    testTimeout: 15000,
+    testTimeout: 15_000,
   },
   resolve: {
     alias: {

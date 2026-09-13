@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, act } from '@testing-library/react';
 import { GuiContext } from '@kritis/shared';
 import { WindowsLevel } from './index';
+import { SOLVE_DELAY_MS } from './useGuiLevel';
+import { installFakeTimers, fakeTimerUser } from '../../test/fakeTimers';
 
 const context: GuiContext = {
   app: 'taskmanager',
@@ -28,9 +29,11 @@ const context: GuiContext = {
   hints: ['Welcher Prozess zieht 94% CPU?'],
 };
 
+installFakeTimers();
+
 describe('WindowsLevel — Task Manager', () => {
   it('solves when the rogue process is selected and ended', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -43,12 +46,15 @@ describe('WindowsLevel — Task Manager', () => {
 
     // Success overlay appears immediately; onSolved fires after a short delay.
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
-    await waitFor(() => expect(onSolved).toHaveBeenCalledTimes(1), { timeout: 2500 });
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
+    expect(onSolved).toHaveBeenCalledTimes(1);
     expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 4 }, undefined);
   });
 
   it('refuses to end a critical system process and does not solve', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
@@ -58,11 +64,14 @@ describe('WindowsLevel — Task Manager', () => {
     // Access-denied message shown, process still listed, level not solved.
     expect(screen.getByText(/kritischer Windows-Prozess/i)).toBeInTheDocument();
     expect(screen.getByText('svchost.exe')).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(SOLVE_DELAY_MS);
+    });
     expect(onSolved).not.toHaveBeenCalled();
   });
 
   it('reveals hints on demand', async () => {
-    const user = userEvent.setup();
+    const user = fakeTimerUser();
     render(<WindowsLevel context={context} onSolved={() => {}} onCancel={() => {}} />);
 
     expect(screen.queryByText(/94% CPU/i)).not.toBeInTheDocument();

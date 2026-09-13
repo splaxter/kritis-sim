@@ -45,7 +45,9 @@ interface UseGuiLevelResult {
   showHint: () => void;
 }
 
-const SOLVE_DELAY_MS = 1600;
+/** Verweildauer der Erfolgsanzeige. Exportiert, damit Tests sie exakt
+ *  vorspulen koennen, statt sie abzusitzen (src/test/fakeTimers.ts). */
+export const SOLVE_DELAY_MS = 1600;
 
 export function useGuiLevel({ context, onSolved }: UseGuiLevelArgs): UseGuiLevelResult {
   const [performed, setPerformed] = useState<string[]>([]);
