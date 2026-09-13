@@ -4,6 +4,7 @@ import { GameScreen } from './components/GameScreen';
 import { allEvents } from './content/events';
 import { selectNextEvent } from './engine/eventEngine';
 import { selectNextScenario } from './engine/scenarioEngine';
+import { getOnboardingContent } from './engine/onboarding';
 import { getAllScenarios } from './content/packs';
 import { useEffect, useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react';
 import { useSaveLoad } from './hooks/useSaveLoad';
@@ -325,6 +326,20 @@ function AppContent() {
       // Learning mode: NEVER auto-serve a level. The Learning Hub renders
       // instead and the player explicitly picks their next lesson.
       if (cliOnly) {
+        return;
+      }
+
+      // Einsteigermodus: der gefuehrte Einstieg VOR der Zufallsentscheidung.
+      // Erster Arbeitstag, drei praktische Einstiegsfaelle, vier
+      // Terminal-Lektionen — als feste Reihenfolge statt als Ziehung. Vorher
+      // hing das am Zufall: `probability` wird von selectNextEvent nie gelesen,
+      // und die Szenariochance liegt in Woche 1 bei zehn Prozent. Gemessen kam
+      // dabei in 40 Laeufen kein einziges Tutorial vor (engine/onboarding.ts).
+      // Ist die Sequenz durch, bleibt unten alles wie bisher.
+      const onboarding = getOnboardingContent(allEvents, allScenarios, game.state);
+      if (onboarding) {
+        if (onboarding.kind === 'event') game.setEvent(onboarding.event);
+        else game.setScenario(onboarding.scenario);
         return;
       }
 
