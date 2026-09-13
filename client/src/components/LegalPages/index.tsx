@@ -1,26 +1,11 @@
 // client/src/components/LegalPages/index.tsx
 import { useState } from 'react';
+import { LEGAL_OWNER, LEGAL_DATA_IS_PLACEHOLDER } from '../../config/legal';
 
-// ═════════════════════════════════════════════════════════════════════
-// BETREIBER-DATEN — Pflichtangaben nach § 5 TMG (Impressum) und Art. 13
-// DSGVO (Verantwortliche Stelle). Echte Daten eingetragen; der Guard-Test
-// in LegalPages.browser.test.tsx läuft dauerhaft (`it`) und bricht den
-// Build, falls je wieder ein TODO/XXX/example.com-Platzhalter einzieht.
-// ═════════════════════════════════════════════════════════════════════
-export const LEGAL_OWNER = {
-  name: 'Timo Klingenberger',
-  street: 'Schlehenweg 16',
-  city: '71364 Winnenden',
-  country: 'Deutschland',
-  email: 'hi@timoklinge.com',
-  /** Nach § 5 TMG optional — auf '' setzen, um die Zeile auszublenden. */
-  phone: '',
-};
-
-/** True solange irgendein Feld noch einen TODO-Platzhalter trägt. */
-export const LEGAL_DATA_IS_PLACEHOLDER = Object.values(LEGAL_OWNER).some(
-  (v) => v.includes('TODO'),
-);
+// Die Betreiberangaben liegen in config/legal.ts — Daten getrennt von
+// Darstellung. Re-Export, damit bestehende Importe dieser Komponente
+// weiterlaufen.
+export { LEGAL_OWNER, LEGAL_DATA_IS_PLACEHOLDER } from '../../config/legal';
 
 interface LegalPagesProps {
   initialPage?: 'impressum' | 'datenschutz';

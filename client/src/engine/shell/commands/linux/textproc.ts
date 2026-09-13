@@ -676,7 +676,7 @@ export const printfCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'printf: missing format string' };
     }
 
-    let format = args.positional[0];
+    const format = args.positional[0];
     const values = args.positional.slice(1);
 
     // Simple printf implementation

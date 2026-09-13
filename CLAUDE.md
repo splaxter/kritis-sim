@@ -22,7 +22,7 @@ npm workspaces monorepo: `client`, `server`, `shared`. Run everything from the r
 - The jsdom `WindowsLevel` specs run on **fake timers** (`client/src/test/fakeTimers.ts`): the 1.6 s success dwell is advanced, not waited out, so they no longer flake under machine load. Call `installFakeTimers()` at module scope, build users with `fakeTimerUser()`, and advance with `act(() => vi.advanceTimersByTime(SOLVE_DELAY_MS))`. A timeout in these specs now means something genuinely hangs.
 - `npm run test:coverage`, `test:watch`, `test:all`
 
-There is no lint script. Typechecking happens via `tsc` inside `npm run build`. Root vitest resolves `@kritis/shared` through `shared/dist` — after changing shared types, rebuild shared (`npm run build -w shared`) before running root tests directly with `npx vitest`.
+`npm run lint` runs ESLint (flat config, non-type-checked) over all three workspaces and also runs in CI; typechecking happens via `tsc` inside `npm run build`. Root vitest resolves `@kritis/shared` through `shared/dist` — after changing shared types, rebuild shared (`npm run build -w shared`) before running root tests directly with `npx vitest`.
 
 For runtime verification of changes, use `.claude/skills/verify/SKILL.md` — it documents how to drive the app (keyboard-first flow, story event order, autosave keys, gotchas like double-Enter landing on a day-transition screen).
 

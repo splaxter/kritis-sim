@@ -226,13 +226,13 @@ describe('learn_ans_04_fleet_hardening — activate the prepared task, harden th
     uncommentPasswordTask(shell);
     const after = run(shell, `cat ${F}`).output;
     // The five prepared lines are live YAML now…
-    expect(after).toMatch(/^    - name: Passwort-Login abschalten$/m);
-    expect(after).toMatch(/^        line: PasswordAuthentication no$/m);
+    expect(after).toMatch(/^ {4}- name: Passwort-Login abschalten$/m);
+    expect(after).toMatch(/^ {8}line: PasswordAuthentication no$/m);
     // …no commented line is left, and no other line was touched: the header,
     // the first task and the inline `^#?` regexps survive verbatim.
     expect(after).not.toMatch(/^# /m);
     expect(after).toMatch(/^---$/m);
-    expect(after).toMatch(/^    - name: Root-Login abschalten$/m);
+    expect(after).toMatch(/^ {4}- name: Root-Login abschalten$/m);
     expect(after).toMatch(/regexp: \^#\?PermitRootLogin/);
     expect(after).toMatch(/regexp: \^#\?PasswordAuthentication/);
   });

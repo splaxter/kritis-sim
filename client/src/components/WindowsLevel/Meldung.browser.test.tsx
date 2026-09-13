@@ -218,7 +218,7 @@ describe('Meldeformular — ein gespeichertes submit gilt nicht weiter', () => {
       ],
     });
 
-  const pflichtfelderFuellen = async (user: ReturnType<typeof userEvent.setup>) => {
+  const pflichtfelderFuellen = async (user: ReturnType<typeof fakeTimerUser>) => {
     await user.type(screen.getByLabelText(/Zeitpunkt der Kenntnisnahme/), '17:40');
     await user.selectOptions(screen.getByLabelText(/Art des Vorfalls/), 'ransomware');
   };
