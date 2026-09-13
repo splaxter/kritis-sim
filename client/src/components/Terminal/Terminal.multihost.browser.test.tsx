@@ -62,7 +62,7 @@ describe('Terminal multi-host: ssh password login + stateGoal solution', () => {
     // 4. Enter confirms: solution gain {linux:3} + live ssh drip {linux:2} sum up.
     term.emitData('\r');
     expect(onSolved).toHaveBeenCalledTimes(1);
-    expect(onSolved).toHaveBeenCalledWith({ linux: 5 }, undefined, {});
+    expect(onSolved).toHaveBeenCalledWith({ linux: 5 }, undefined, {}, expect.anything());
   });
 
   it('Ctrl+C during the password prompt returns to a normal working prompt', () => {

@@ -290,7 +290,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
     expect(screen.getByText(/Lücke ehrlich vermerkt/)).toBeInTheDocument();
     // Der Solve-Callback feuert erst nach SOLVE_DELAY_MS (1600 ms) — waitFor
     // braucht ein Timeout darüber (Konvention der Geschwister-Tests).
-    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({ security: 4 }, undefined), {
+    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({ security: 4 }, undefined, undefined, expect.anything()), {
       timeout: 3000,
     });
   });
@@ -377,7 +377,7 @@ describe('WindowsLevel — Pflichtenkataster', () => {
     await user.click(await screen.findByRole('menuitem', { name: /IT-Abteilung/ }));
 
     expect(screen.getByText(/keiner Stichprobe stand/)).toBeInTheDocument();
-    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({}, ['kat_owner_fabricated']), {
+    await waitFor(() => expect(onSolved).toHaveBeenCalledWith({}, ['kat_owner_fabricated'], undefined, expect.anything()), {
       timeout: 3000,
     });
   });

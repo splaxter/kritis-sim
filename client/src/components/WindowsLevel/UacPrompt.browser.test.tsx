@@ -48,7 +48,7 @@ describe('WindowsLevel — UAC prompt', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 3, security: 6 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 3, security: 6 }, undefined, undefined, expect.anything());
   });
 
   it('does not solve when allowed (Ja) and shows the risk warning', async () => {
@@ -78,6 +78,6 @@ describe('WindowsLevel — UAC prompt', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 3, security: 6 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 3, security: 6 }, undefined, undefined, expect.anything());
   });
 });

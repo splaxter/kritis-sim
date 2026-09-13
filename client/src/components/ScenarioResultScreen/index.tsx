@@ -1,11 +1,19 @@
 // client/src/components/ScenarioResultScreen/index.tsx
-import { ScenarioChoice } from '@kritis/shared';
+import { ScenarioChoice, SolvedBranch } from '@kritis/shared';
 import { getOutcomeColor, getOutcomeLabel, calculateScenarioEffects } from '../../engine/scenarioEngine';
 
 interface ScenarioResultScreenProps {
   choice: ScenarioChoice;
   bsiReference?: string;
   onContinue: () => void;
+  /**
+   * Der Loesungszweig, den der Spieler bei einer praktischen Aufgabe wirklich
+   * erreicht hat. Er gewinnt ueber die Einstufung der Choice und steht VOR
+   * deren Nachgeschichte: die Choice beschreibt, was der Spieler versucht hat,
+   * der Zweig, was dabei herauskam. Bei einer reinen Dialogentscheidung ist er
+   * `null` und alles bleibt wie bisher.
+   */
+  solvedBranch?: SolvedBranch | null;
 }
 
 // Display labels for the actual stat fields the engine touches, so the
@@ -27,7 +35,7 @@ const RELATIONSHIP_LABELS: Record<string, string> = {
   kollegen: 'Kollegen',
 };
 
-export function ScenarioResultScreen({ choice, bsiReference, onContinue }: ScenarioResultScreenProps) {
+export function ScenarioResultScreen({ choice, bsiReference, onContinue, solvedBranch }: ScenarioResultScreenProps) {
   // Show the effects that are ACTUALLY applied to the game state (skills,
   // relationships, stress), not the abstract score/reputation numbers which
   // never matched the bars (GitHub issue #2).
@@ -69,10 +77,24 @@ export function ScenarioResultScreen({ choice, bsiReference, onContinue }: Scena
 
   return (
     <div className="border border-terminal-border p-6">
-      {/* Outcome Header */}
-      <div className={`text-xl mb-4 ${getOutcomeColor(choice.outcome)}`}>
-        {getOutcomeLabel(choice.outcome)}
+      {/* Outcome Header — der erreichte Zweig korrigiert die Einstufung der
+          Choice. Wer das laufende Backup abschiesst und danach die richtige
+          Anwendung beendet, hat den Fall geloest, aber nicht „perfekt". */}
+      <div className={`text-xl mb-4 ${getOutcomeColor(solvedBranch?.outcome ?? choice.outcome)}`}>
+        {getOutcomeLabel(solvedBranch?.outcome ?? choice.outcome)}
       </div>
+
+      {/* Was bei der praktischen Aufgabe tatsaechlich herausgekommen ist.
+          Steht bewusst VOR der Nachgeschichte und bleibt stehen — vorher
+          verschwand dieser Text nach der Erfolgsanzeige in der App. */}
+      {solvedBranch?.resultText && (
+        <div className="border border-terminal-success p-4 mb-6">
+          <div className="text-terminal-success mb-2">─ BEFUND ─</div>
+          <div className="text-terminal-green-dim leading-relaxed whitespace-pre-wrap">
+            {solvedBranch.resultText}
+          </div>
+        </div>
+      )}
 
       {/* Consequence */}
       <div className="mb-6 text-terminal-green-dim leading-relaxed whitespace-pre-wrap">

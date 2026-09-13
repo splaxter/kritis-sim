@@ -234,6 +234,20 @@ export interface TerminalHostSpec {
   mailboxes?: TerminalMailboxSpec[];
 }
 
+/** Ein Feld eines `schluessel: wert`-Berichts (siehe StateGoal.reportFields). */
+export interface ReportField {
+  /** Der Schluessel, wie er im Auftrag angesagt ist (klein, ASCII). */
+  key: string;
+  /** Regex, auf den der WERT passen muss. */
+  matches?: string;
+  /** Regex, den der Wert NICHT enthalten darf. */
+  absentMatches?: string;
+  /** Der Wert als kommagetrennte Liste: diese Eintraege muessen vorkommen. */
+  requiredItems?: string[];
+  /** ... und diese nicht. */
+  forbiddenItems?: string[];
+}
+
 /** Declarative win condition, checked against live engine state after every command. */
 export interface StateGoal {
   /**
@@ -391,6 +405,31 @@ export interface StateGoal {
    * as inspecting 'target'.
    */
   mailboxInspected?: string;
+  /**
+   * Prueft `file` als BERICHT aus `schluessel: wert`-Zeilen statt als Fliesstext.
+   *
+   * WARUM ES DAS GIBT: Ein `matches` laeuft ueber die ganze Datei. Damit laesst
+   * sich nicht ausdruecken, was ein Bericht ausmacht — dass jede Angabe GENAU
+   * EINMAL dasteht und fuer sich stimmt. Eine Regex-Pruefung nahm deshalb
+   * Berichte an, die sich selbst widersprachen („clients: fehlgeschlagen" und
+   * darunter „clients: ok"), liess EINE Zeile ZWEI Bedingungen erfuellen
+   * („offen: Nachweis des Wiederherstellungstests" galt als zwei Befunde) und
+   * verlangte an anderer Stelle eine Wortstellung, die der Auftrag gar nicht
+   * fordert.
+   *
+   * Regeln:
+   * - Eine Zeile ist ein Feld, wenn sie auf `schluessel: wert` passt. Der
+   *   Schluessel wird klein geschrieben verglichen.
+   * - Jeder hier genannte Schluessel muss GENAU EINMAL vorkommen. Zweimal ist
+   *   ein Widerspruch, keinmal eine fehlende Angabe — beides faellt durch.
+   * - `matches`/`absentMatches` pruefen den WERT (ohne Schluessel, getrimmt),
+   *   nicht die ganze Datei. Sie sind daher frei von Wortstellung.
+   * - `items` liest den Wert als kommagetrennte LISTE und vergleicht die
+   *   Eintraege als Ganzes (klein geschrieben, getrimmt). So zaehlt
+   *   „nachweis des wiederherstellungstests" nicht als Eintrag
+   *   „wiederherstellungstest".
+   */
+  reportFields?: ReportField[];
   /**
    * Session-aware, SEMANTIC read proof: met iff a command successfully read
    * THIS file's content during the terminal session. `fileRead` is the

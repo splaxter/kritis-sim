@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, CampaignId, EventEffects, Skills } from '@kritis/shared';
+import { GameState, EventChoice, GameEvent, Scenario, ScenarioChoice, GameModeId, CampaignId, EventEffects, Skills, SolvedBranch } from '@kritis/shared';
 import {
   createInitialState,
   applyEffects,
@@ -127,7 +127,15 @@ interface UseGameReturn {
   makeScenarioChoice: (choice: ScenarioChoice) => void;
   openTerminal: (choice: EventChoice) => void;
   openScenarioTerminal: (choice: ScenarioChoice) => void;
-  closeTerminal: (solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[], solutionEffects?: EventEffects) => void;
+  closeTerminal: (
+    solved: boolean,
+    skillGain?: Partial<Skills>,
+    solutionFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
+  /** Der tatsaechlich erreichte Loesungszweig — fuer den Ergebnisbildschirm. */
+  lastSolvedBranch: SolvedBranch | null;
   continueGame: () => void;
   skipToNextDay: () => void;
   endStoryAct: () => void;
@@ -144,6 +152,7 @@ export function useGame(): UseGameReturn {
   // Event state
   const [currentEvent, setCurrentEvent] = useState<GameEvent | null>(null);
   const [lastChoice, setLastChoice] = useState<EventChoice | null>(null);
+  const [lastSolvedBranch, setLastSolvedBranch] = useState<SolvedBranch | null>(null);
   const [pendingTerminalChoice, setPendingTerminalChoice] = useState<EventChoice | null>(null);
 
   // Scenario state
@@ -251,6 +260,7 @@ export function useGame(): UseGameReturn {
       return newState;
     });
 
+    setLastSolvedBranch(null);
     setLastChoice(choice);
     setPhase('result');
   }, [currentEvent]);
@@ -276,6 +286,7 @@ export function useGame(): UseGameReturn {
       return newState;
     });
 
+    setLastSolvedBranch(null);
     setLastScenarioChoice(choice);
     setPhase('result');
   }, [currentScenario]);
@@ -293,7 +304,17 @@ export function useGame(): UseGameReturn {
   // Rewards from a matched terminal/GUI solution are applied additively on top
   // of the choice's own effects. This includes both skillGain and effects such
   // as stress relief or relationship changes authored on the solution.
-  const closeTerminal = useCallback((solved: boolean, skillGain?: Partial<Skills>, solutionFlags?: string[], solutionEffects?: EventEffects) => {
+  const closeTerminal = useCallback((
+    solved: boolean,
+    skillGain?: Partial<Skills>,
+    solutionFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => {
+    // Welchen Zweig der Spieler wirklich erreicht hat. Wird beim Abbruch und
+    // bei jedem neuen Inhalt zurueckgesetzt, damit nie der Text einer frueheren
+    // Loesung an einem spaeteren Ergebnis klebt.
+    setLastSolvedBranch(solved ? branch ?? null : null);
     // Handle event terminal choice
     if (solved && pendingTerminalChoice) {
       setState((prev) => {
@@ -482,6 +503,7 @@ export function useGame(): UseGameReturn {
     setLearningTrack,
     makeChoice,
     makeScenarioChoice,
+    lastSolvedBranch,
     openTerminal,
     openScenarioTerminal,
     closeTerminal,

@@ -3,6 +3,7 @@
 
 import { TerminalContext } from './terminal';
 import { GuiContext } from './gui';
+import { GameModeId } from './gameMode';
 
 export type ScenarioOutcome =
   | 'PERFECT'
@@ -53,6 +54,21 @@ export interface Scenario {
   bsiReference?: string;
   involvedNpcs?: string[]; // NPC IDs involved in this scenario
   tags?: string[];
+  /**
+   * Restrict this scenario to specific game modes (same semantics as
+   * `GameEvent.requiredModes`); omitted = every mode.
+   *
+   * WARUM ES DAS GIBT: Die Auswahl kennt nur `difficulty`, und der
+   * Frueh-Cap liegt in JEDEM Modus bei 2. Ein Einstiegsfall auf
+   * Schwierigkeit 1 landete damit auch in Woche 1 eines 24-woechigen
+   * KRITIS-Laufs — inhaltlich der falsche Ton, und messbar schaedlich:
+   * die drei Einstiegsfaelle vergroesserten den Frueh-Pool (Schwierigkeit
+   * <= 2) von 9 auf 12 Szenarien und verschoben den KRITIS-Verlauf so
+   * weit, dass `kritisLatePacing` in Woche 23 auf leere Tage lief
+   * (0 tote Tage auf main, 32 von 200 Laeufen mit ihnen im Pool, wieder
+   * 0 ohne sie). Schwierigkeit ist eben keine Zielgruppe.
+   */
+  requiredModes?: GameModeId[];
   terminalContext?: TerminalContext; // Terminal challenge for this scenario
   guiContext?: GuiContext; // Windows-style GUI challenge for this scenario
 }

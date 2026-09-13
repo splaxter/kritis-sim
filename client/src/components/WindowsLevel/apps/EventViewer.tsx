@@ -10,10 +10,21 @@ import {
 import { EventLogEntry, EventLevel } from '@kritis/shared';
 
 const useStyles = makeStyles({
+  /**
+   * Eine Flex-Spalte, die ihre eigene Hoehenbegrenzung auch EINHAELT.
+   *
+   * Ohne `minHeight: 0` und ohne schrumpfbare Mitte schob die Detailansicht
+   * (die erst beim Auswaehlen erscheint) die Fussleiste aus dem Fenster: im
+   * Querformat lagen 24 der 32 Pixel des Meldeknopfs darunter, und weil der
+   * Desktop `overflow: hidden` traegt, half auch Scrollen nicht. Die Liste und
+   * die Detailansicht geben jetzt nach, die Fussleiste nie.
+   */
   root: {
     display: 'flex',
     flexDirection: 'column',
     maxHeight: 'min(72vh, 620px)',
+    minHeight: 0,
+    overflow: 'hidden',
   },
   toolbar: {
     display: 'flex',
@@ -21,6 +32,7 @@ const useStyles = makeStyles({
     justifyContent: 'space-between',
     padding: '8px 16px',
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    flexShrink: 0,
   },
   heading: {
     fontSize: tokens.fontSizeBase400,
@@ -31,6 +43,7 @@ const useStyles = makeStyles({
   filterBar: {
     padding: '2px 8px',
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    flexShrink: 0,
   },
   headRow: {
     display: 'grid',
@@ -40,11 +53,17 @@ const useStyles = makeStyles({
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
+    flexShrink: 0,
   },
+  // Mindesthoehe eine Zeile statt 120 px: im Querformat bleiben nach Kopf-,
+  // Filter- und Fussleiste keine 120 px uebrig, und die harte Untergrenze war
+  // genau das, was die Fussleiste hinausgedraengt hat.
   list: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
     overflowY: 'auto',
-    minHeight: '120px',
+    minHeight: '44px',
   },
   row: {
     display: 'grid',
@@ -67,11 +86,18 @@ const useStyles = makeStyles({
   },
   level: { display: 'flex', alignItems: 'center', gap: '6px' },
   dot: { width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0 },
+  // Gibt nach, wenn es eng wird — sie ist der Teil, der zuletzt hinzukommt,
+  // also auch der, der zuerst weichen muss. Der Inhalt bleibt ueber ihren
+  // eigenen Scrollbereich erreichbar.
   details: {
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
     padding: '12px 16px',
     backgroundColor: tokens.colorNeutralBackground2,
-    maxHeight: '150px',
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: 'auto',
+    minHeight: 0,
+    maxHeight: 'min(150px, 30vh)',
     overflowY: 'auto',
   },
   detailsTitle: {
@@ -86,12 +112,15 @@ const useStyles = makeStyles({
     fontFamily: tokens.fontFamilyMonospace,
     lineHeight: tokens.lineHeightBase300,
   },
+  // Nie schrumpfen, nie verdraengt werden: hier sitzt die einzige Handlung,
+  // mit der sich das Level loesen laesst.
   footer: {
     display: 'flex',
     justifyContent: 'flex-end',
     gap: '8px',
     padding: '10px 16px',
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    flexShrink: 0,
   },
 });
 

@@ -4,12 +4,24 @@ import { GameEvent } from '@kritis/shared';
  * Tutorial Events for Beginner Mode
  * These events only appear in beginner mode and teach basic terminal commands
  * Jens guides the player through fundamental IT admin tasks
+ *
+ * AUSGELIEFERT WERDEN SIE über den geführten Einstieg
+ * (`engine/onboarding.ts`), nicht über die Zufallsauswahl. Der Grund ist
+ * gemessen: `selectNextEvent` liest `probability` nie und wählt gleichmäßig aus
+ * dem Pool. Da die vier hier über `requires.events` an `evt_first_day` und
+ * aneinander hängen, riss die Kette schon am ersten Tag — in 40 simulierten
+ * Einsteiger-Läufen wurde KEIN einziges dieser Tutorials je serviert.
+ *
+ * FENSTER: Wochen 1-3 statt nur Woche 1. Der geführte Einstieg braucht das
+ * nicht (er umgeht den Filter), aber es ist das Sicherheitsnetz: wer aus dem
+ * Einstiegsfenster herausfällt, kann sie so wenigstens noch regulär bekommen.
+ * Reihenfolge und Voraussetzungen bleiben unverändert.
  */
 
 export const tutorialEvents: GameEvent[] = [
   {
     id: 'evt_tutorial_navigation',
-    weekRange: [1, 1],
+    weekRange: [1, 3],
     dayPreference: [1, 2],
     probability: 1,
     requiredModes: ['beginner'],
@@ -94,7 +106,7 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
   },
   {
     id: 'evt_tutorial_files',
-    weekRange: [1, 1],
+    weekRange: [1, 3],
     dayPreference: [2, 3],
     probability: 1,
     requiredModes: ['beginner'],
@@ -183,7 +195,7 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
   },
   {
     id: 'evt_tutorial_search',
-    weekRange: [1, 1],
+    weekRange: [1, 3],
     dayPreference: [3, 4],
     probability: 1,
     requiredModes: ['beginner'],
@@ -272,7 +284,7 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
   },
   {
     id: 'evt_tutorial_network',
-    weekRange: [1, 1],
+    weekRange: [1, 3],
     dayPreference: [4, 5],
     probability: 1,
     requiredModes: ['beginner'],

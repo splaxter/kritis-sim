@@ -63,7 +63,7 @@ describe('WindowsLevel — Core-Firewall', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ netzwerk: 5, security: 5 }, ['solution_firewall_locked']);
+    expect(onSolved).toHaveBeenCalledWith({ netzwerk: 5, security: 5 }, ['solution_firewall_locked'], undefined, expect.anything());
   });
 
   it('refuses to block the critical management rule and does not solve', async () => {

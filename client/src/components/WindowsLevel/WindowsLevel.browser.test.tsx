@@ -50,7 +50,7 @@ describe('WindowsLevel — Task Manager', () => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
     expect(onSolved).toHaveBeenCalledTimes(1);
-    expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 4 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 4 }, undefined, undefined, expect.anything());
   });
 
   it('refuses to end a critical system process and does not solve', async () => {

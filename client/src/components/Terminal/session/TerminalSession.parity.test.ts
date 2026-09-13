@@ -163,7 +163,7 @@ describe('TerminalSession parity: multi-host ssh login + remote stateGoal solve'
     // 6. Enter confirms → onSolved fires exactly once with the merged gain.
     session.handleData('\r');
     expect(onSolved).toHaveBeenCalledTimes(1);
-    expect(onSolved).toHaveBeenCalledWith({ linux: 5 }, undefined, {});
+    expect(onSolved).toHaveBeenCalledWith({ linux: 5 }, undefined, {}, expect.anything());
   });
 });
 

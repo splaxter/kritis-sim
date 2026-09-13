@@ -50,7 +50,7 @@ describe('WindowsLevel — Windows-Sicherheit (Settings)', () => {
     act(() => {
       vi.advanceTimersByTime(SOLVE_DELAY_MS);
     });
-    expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 8 }, undefined);
+    expect(onSolved).toHaveBeenCalledWith({ windows: 6, security: 8 }, undefined, undefined, expect.anything());
   });
 
   it('renders status from enabled === recommended, not enabled alone', () => {

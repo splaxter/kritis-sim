@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { GuiContext, Skills } from '@kritis/shared';
+import { EventEffects, GuiContext, Skills, SolvedBranch } from '@kritis/shared';
 import { findMetGuiSolution } from './guiSolution';
 
 interface UseGuiLevelArgs {
   context: GuiContext;
-  onSolved: (skillGain: Partial<Skills>, setsFlags?: string[]) => void;
+  onSolved: (
+    skillGain: Partial<Skills>,
+    setsFlags?: string[],
+    solutionEffects?: EventEffects,
+    branch?: SolvedBranch
+  ) => void;
 }
 
 interface UseGuiLevelResult {
@@ -82,7 +87,14 @@ export function useGuiLevel({ context, onSolved }: UseGuiLevelArgs): UseGuiLevel
           setResultText(met.resultText);
           solveTimerRef.current = setTimeout(() => {
             solveTimerRef.current = null;
-            onSolved(met.skillGain, met.setsFlags);
+            // Der ERREICHTE Zweig muss den Ergebnisbildschirm erreichen.
+            // Vorher endete sein Text nach 1,6 s in der GUI, und der Spieler
+            // bekam die Erfolgsgeschichte der Choice — bei einem Fallen-Zweig
+            // also eine Fassung, die es so nicht gegeben hat.
+            onSolved(met.skillGain, met.setsFlags, undefined, {
+              resultText: met.resultText,
+              outcome: met.outcome,
+            });
           }, SOLVE_DELAY_MS);
         }
         return next;

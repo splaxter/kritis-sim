@@ -133,10 +133,35 @@ one task. Passing it sets `learn_foundations_proven`, which
 `completedEvents`: the save must not claim something that did not happen. The hub
 labels the track "Übersprungen — Einstufungstest bestanden".
 
-## Scenario packs (5 packs, 42 scenarios)
+## Scenario packs (5 packs, 45 scenarios)
 
-`client/src/content/packs/`: internal (10), kritis-infra (12), amse-it (8),
-cloud365 (6), telekom (6).
+`client/src/content/packs/`: internal (11), kritis-infra (12), amse-it (8),
+cloud365 (7), telekom (7).
+
+**27 of them are practically playable** — the choice opens a real terminal or a
+Windows-style GUI app instead of resolving as a decision. internal, cloud365 and
+telekom carry three each (they used to carry none).
+
+Three sit at **difficulty 1** and exist for genuine newcomers: `INTERN-SC-011`
+(end a hung process), `CLOUD365-SC-007` (refuse an unrequested elevation
+prompt), `TELEKOM-SC-007` (find the contract sheet that is actually in force).
+They are gated to `beginner` + `intermediate` via `Scenario.requiredModes` —
+difficulty is not an audience, and the early-game cap is 2 in every mode, so
+without the gate they would open week 1 of a 24-week KRITIS run.
+
+### The guided beginner start
+
+Weeks 1-3, days 1-4 of `beginner` serve a fixed sequence
+(`engine/onboarding.ts`), not a draw: first working day → the three difficulty-1
+cases → the four shell tutorials. Day 5 of every week stays with the regular
+selection, and once the sequence is done the rule is invisible.
+
+This is not polish. `selectNextEvent` never reads `GameEvent.probability`; it
+picks `pool[hash % pool.length]`. `evt_first_day` was therefore regularly
+displaced on day 1, and because the four tutorials hang off it via
+`requires.events`, the whole chain broke: in 40 simulated runs **not one** of
+the four tutorials was ever served. Widening their week window changed nothing —
+the window was never the binding constraint.
 
 ## Guards (authoritative)
 
@@ -156,6 +181,16 @@ These tests fail loudly if content drifts — trust them over this document:
   script from declarative goals.
 - `engine/learningPath.skip.test.ts` — the Foundations skip opens exactly what the
   four lessons open, and nothing more.
+- `engine/packScenarioLessons.test.ts` — drives every practical pack SHELL task's
+  solution path through the real ShellEngine plus three to four failure paths each
+  (claim without a source, missing evidence, wrong conclusion, reporting everything).
+  The negative tests matter more than the positive ones here.
+- `content/packs/einstiegsSzenarien.test.ts` — the practical GUI tasks: the wrong
+  process/entry/document must NOT solve, and merely selecting must not either.
+  Also pins the two-solution ordering of `INTERN-SC-011` (risk before praise).
+- `engine/onboarding.test.ts` + `engine/beginnerOnboarding.test.ts` — the guided
+  sequence as a rule, and as a played-out 12-week run: all four tutorials served,
+  order kept, day 5 untouched, no empty day before the final week.
 - `content/campaigns/kataster/*.test.ts` (180) — per-act guards plus the campaign-wide
   flag-cycle check (nothing set that nobody reads, nothing read that nobody sets) and
   `levels.test.ts`: **the name of a file the player must WRITE may never contain what its

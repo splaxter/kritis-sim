@@ -73,6 +73,36 @@ These four modes remain defined and playable. They are now reached through the m
 | Mentor Notes | Yes | Educational explanations after events |
 | Terminal Tutorial | Yes | Step-by-step terminal guidance |
 
+### Guided start (weeks 1-3, days 1-4)
+
+Beginner — and **only** beginner — serves a fixed sequence before the regular
+selection runs (`client/src/engine/onboarding.ts`, wired in `App.tsx` ahead of
+the scenario/event draw):
+
+1. `evt_first_day` — arriving
+2. `INTERN-SC-011` — end a hung process (Task Manager, difficulty 1)
+3. `CLOUD365-SC-007` — refuse an unrequested elevation prompt (UAC, difficulty 1)
+4. `TELEKOM-SC-007` — find the contract sheet in force (Explorer, difficulty 1)
+5.-8. the four `evt_tutorial_*` shell lessons
+
+The rule serves the first UNFINISHED step, not the step nominally due for that
+day, so a skipped or cancelled day shifts the line instead of leaving a gap.
+**Day 5 of every week stays with the regular selection**, and once the sequence
+is complete the rule returns `null` and leaves no trace. Twelve eligible days
+for eight steps is deliberate slack.
+
+**Why a fixed sequence and not probabilities:** `selectNextEvent` never reads
+`GameEvent.probability` — it picks `pool[hash % pool.length]`. `evt_first_day`
+was therefore regularly displaced on day 1, and since all four tutorials hang
+off it (and each other) through `requires.events`, the chain never started: in
+40 simulated runs **not one** of the four tutorials was ever served. Widening
+their week window from 1 to 1-3 changed nothing; the window was never the
+binding constraint. With the sequence it is 160 of 160
+(`engine/beginnerOnboarding.test.ts`).
+
+Their `weekRange` is still 1-3 — as a safety net for a run that falls out of the
+guided window, not because the guided path needs it.
+
 ### Starting Relationships
 
 | NPC | Value | Description |

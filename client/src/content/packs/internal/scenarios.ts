@@ -1,6 +1,63 @@
 // Internal NPCs - Scenarios
 import { Scenario } from '@kritis/shared';
 
+/* ── Nachweise für INTERN-SC-003 (Statusbericht) ───────────────────────────
+ *
+ * Die Falle steht in zwei Dateien, nicht in einer: Das Sicherungsprotokoll
+ * sieht makellos aus — 30 von 30 Läufen erfolgreich. Dass seit anderthalb
+ * Jahren niemand geprüft hat, ob sich daraus etwas WIEDERHERSTELLEN lässt,
+ * steht woanders. Wer nur das Protokoll liest, meldet Grün.
+ */
+
+const nachweisSicherung = `Sicherungsprotokoll Dispo-Server — Juni 2026
+Auftrag: "Dispo täglich", 02:00 Uhr, Ziel Bandbibliothek B2
+
+01.06. erfolgreich   11.06. erfolgreich   21.06. erfolgreich
+02.06. erfolgreich   12.06. erfolgreich   22.06. erfolgreich
+03.06. erfolgreich   13.06. erfolgreich   23.06. erfolgreich
+04.06. erfolgreich   14.06. erfolgreich   24.06. erfolgreich
+05.06. erfolgreich   15.06. erfolgreich   25.06. erfolgreich
+06.06. erfolgreich   16.06. erfolgreich   26.06. erfolgreich
+07.06. erfolgreich   17.06. erfolgreich   27.06. erfolgreich
+08.06. erfolgreich   18.06. erfolgreich   28.06. erfolgreich
+09.06. erfolgreich   19.06. erfolgreich   29.06. erfolgreich
+10.06. erfolgreich   20.06. erfolgreich   30.06. erfolgreich
+
+30 von 30 Läufen ohne Fehler.
+`;
+
+const nachweisWiederherstellung = `Wiederherstellung — Protokolle
+Ablage: /srv/nachweise/wiederherstellung.txt
+
+Ein erfolgreicher Sicherungslauf belegt, dass Daten geschrieben wurden.
+Er belegt NICHT, dass sie sich zurückholen lassen.
+
+Letzter dokumentierter Wiederherstellungstest: 14.11.2024 (Teilrestore Dispo).
+Seither: keiner. Zwei Termine angesetzt (03/2026, 05/2026), beide wegen
+Tagesgeschäft abgesagt. Kein Protokoll vorhanden.
+`;
+
+const nachweisEndpoint = `Endpunktschutz — Stand 30.06.2026
+Verwaltete Geräte: 151
+Mit aktuellem Schutz: 151
+Älteste Signatur: 4 Stunden
+Letzte Prüfung: 30.06.2026, Protokoll im Verwaltungsportal.
+`;
+
+const nachweisFirewall = `Perimeter — Stand 30.06.2026
+Geräte: 2x Sophos XGS 2100, in Betrieb seit 12.05.2026
+Herstellerunterstützung: vertraglich bis 05/2031
+Regelwerk zuletzt geprüft: 08.06.2026, Protokoll abgelegt.
+`;
+
+const nachweisNis2 = `NIS-2 / BSIG — Stand 30.06.2026
+Registrierung beim BSI: erfolgt 02/2026.
+Meldewege dokumentiert und im Leitstand ausgehängt: ja.
+
+Nachweis nach § 39 BSIG (alle drei Jahre gegenüber dem BSI zu erbringen):
+bislang nicht erbracht. Kein Termin, kein Prüfer beauftragt, kein Budget.
+`;
+
 export const internalScenarios: Scenario[] = [
   {
     id: 'INTERN-SC-001',
@@ -112,12 +169,16 @@ export const internalScenarios: Scenario[] = [
     choices: [
       {
         id: 'A',
-        text: 'Eine ehrliche Ampel-Darstellung erstellen: Grün/Gelb/Rot für jeden Bereich',
+        text: 'Die Nachweise durchgehen und die offenen Punkte zusammenstellen',
         outcome: 'PERFECT',
-        consequence: 'Du erstellst eine übersichtliche Ampel-Grafik: Firewall (Gelb - Hardware alt), Backup (Grün), Endpoint Security (Grün), KRITIS-Compliance (Gelb - NIS2 in Arbeit). Unter jeder Ampel ein Satz Erklärung. Dr. Krause ist beeindruckt: "Endlich jemand, der verständlich schreibt!" Der Aufsichtsrat genehmigt das Security-Budget.',
+        // Der Ergebnistext behauptet nichts über die Aufsichtsratssitzung —
+        // die findet erst morgen statt, und was dort beschlossen wird, hat der
+        // Spieler nicht in der Hand.
+        consequence: 'Du schickst Dr. Krause eine Seite: zwei offene Punkte, jeder mit einem Satz, woran man das sieht. Seine Antwort um 23:40: "Das ist das erste Mal, dass ich einen IT-Bericht verstehe, ohne nachzufragen. Der Punkt mit dem Wiederherstellungstest kommt morgen als Erstes dran."',
         scoreChange: 200,
         reputationChange: 25,
-        lesson: 'Ampel-Darstellungen sind Management-Sprache. Grün/Gelb/Rot versteht jeder. Zu viel Grün wirkt unglaubwürdig, zu viel Rot wirkt inkompetent.',
+        lesson: 'Ein Statusbericht ist eine Aussage über Nachweise, nicht über Gefühle. Und ein erfolgreicher Sicherungslauf ist kein Nachweis, dass eine Wiederherstellung gelingt — das sind zwei verschiedene Behauptungen und zwei verschiedene Protokolle.',
+        terminalCommand: true,
       },
       {
         id: 'B',
@@ -147,6 +208,68 @@ export const internalScenarios: Scenario[] = [
         lesson: 'Delegieren an den Chef funktioniert, aber jede Gelegenheit, direkt mit dem GF zu interagieren, ist eine Karrierechance.',
       },
     ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'warm-adm-01',
+      username: 'timo',
+      currentPath: '/srv/nachweise',
+      taskText:
+        'Ergebnis nach /home/timo/statusbericht.md:\noffen: <Kurznamen der offenen Punkte, per Komma>\nMöglich: wiederherstellungstest, nachweis-39, endpunktschutz, perimeter',
+      vfsOverlay: {
+        directories: ['/srv/nachweise'],
+        files: [
+          { path: '/srv/nachweise/sicherung_juni.txt', content: nachweisSicherung },
+          { path: '/srv/nachweise/wiederherstellung.txt', content: nachweisWiederherstellung },
+          { path: '/srv/nachweise/endpunktschutz.txt', content: nachweisEndpoint },
+          { path: '/srv/nachweise/perimeter.txt', content: nachweisFirewall },
+          { path: '/srv/nachweise/nis2.txt', content: nachweisNis2 },
+        ],
+      },
+      commands: [],
+      commandSkillGain: { cat: { linux: 1 }, grep: { linux: 2 }, ls: { linux: 1 } },
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Ohne diese Datei gelesen zu haben, kann niemand wissen, dass die
+            // makellose Sicherungsbilanz nichts über Wiederherstellung sagt.
+            { fileRead: '/srv/nachweise/wiederherstellung.txt' },
+            { fileRead: '/srv/nachweise/nis2.txt' },
+            {
+              file: '/home/timo/statusbericht.md',
+              reportFields: [
+                {
+                  key: 'offen',
+                  // Als LISTE gelesen, nicht als Text. Sonst erfüllte eine
+                  // einzige Angabe zwei Bedingungen: „Nachweis des
+                  // Wiederherstellungstests" enthält beide Woerter und galt
+                  // damit als zwei Befunde, obwohl der § 39-Nachweis gar nicht
+                  // vorkam. Ein Eintrag muss GANZ passen.
+                  requiredItems: ['wiederherstellungstest', 'nachweis-39'],
+                  // Alles als offen zu melden ist keine Bewertung, sondern ein
+                  // Abschreiben des Ordners. Die Sperre gilt nur für EINTRÄGE
+                  // dieser Liste — „endpunktschutz ist belegt" darf als eigene
+                  // Zeile danebenstehen.
+                  forbiddenItems: ['endpunktschutz', 'perimeter'],
+                },
+              ],
+            },
+          ],
+          resultText:
+            'Zwei offene Punkte, und beide stehen nicht dort, wo man sie vermutet.\n\nDie Sicherung lief 30 von 30 Nächten durch — das ist ein Nachweis darüber, dass geschrieben wurde, und über sonst nichts. Der letzte dokumentierte Wiederherstellungstest liegt im November 2024; zwei Termine seither wurden abgesagt. Und der Nachweis nach § 39 BSIG ist alle drei Jahre gegenüber dem BSI zu erbringen — bisher gibt es dafür weder Termin noch Prüfer.\n\nEndpunktschutz und Perimeter sind belegt in Ordnung. Sie in den Bericht zu schreiben hätte ihn länger gemacht und schwächer.',
+          skillGain: { security: 5, softSkills: 5, troubleshooting: 2 },
+          effects: {},
+        },
+      ],
+      hints: [
+        'Fünf Nachweise liegen im Ordner. Drei davon belegen etwas, zwei belegen eine Lücke — und eine der beiden Lücken versteckt sich hinter einer makellosen Statistik.',
+        'Ein Sicherungslauf und eine Wiederherstellung sind zwei verschiedene Behauptungen. Für welche der beiden gibt es hier ein Protokoll?',
+        '`cat wiederherstellung.txt` und `cat nis2.txt` — die beiden letzten Absätze sind der Bericht.',
+        'Endpunktschutz und Perimeter sind belegt in Ordnung — sie gehören nicht in die offen-Liste.',
+        'Festhalten: `echo "offen: wiederherstellungstest, nachweis-39" > /home/timo/statusbericht.md`',
+      ],
+    },
     realWorldReference: 'C-Level-Reporting ist eine Kernkompetenz für IT-Führungskräfte. Die Fähigkeit, Technik für Manager zu übersetzen, unterscheidet gute von durchschnittlichen IT-Leitern.',
     bsiReference: 'BSI IT-Grundschutz: ORP.1 Organisation, ISMS.1 Informationssicherheitsmanagement',
     involvedNpcs: ['INTERN-GF', 'INTERN-CHEF'],
@@ -162,12 +285,16 @@ export const internalScenarios: Scenario[] = [
     choices: [
       {
         id: 'A',
-        text: 'Sofort prüfen: Server-Status, Netzwerk, Datenbank — remote aus dem Bett',
+        text: 'Remote einloggen und im Ereignisprotokoll nachsehen, was um 05:30 passiert ist',
         outcome: 'PERFECT',
-        consequence: 'Du loggst dich per VPN ein. Server läuft, Netzwerk ok. Datenbank... Timeout. Du startest den Datenbank-Dienst neu. Nach 4 Minuten läuft alles. Du rufst Sabine an: "Sollte jetzt gehen." Sie bestätigt. Du dokumentierst den Vorfall und schläfst weiter.',
+        // Bewusst KEINE Reparatur im Ergebnistext: der Spieler hat eine
+        // Ereignisanzeige gelesen, nicht einen Dienst neu gestartet. Was hier
+        // steht, muss er selbst getan haben.
+        consequence: 'Du hast die Ursache eingegrenzt und gemeldet, keine zehn Minuten nach Sabines Anruf. Der Neustart des Datenbankdienstes läuft danach über die Rufbereitschaft — mit einer Meldung, die sagt, was kaputt ist, statt "geht nicht". Um 06:05 fahren die Touren.',
         scoreChange: 200,
         reputationChange: 30,
-        lesson: 'Schnelle, systematische Diagnose ist bei Ausfällen alles. Die Fähigkeit, remote aus dem Bett zu arbeiten, ist im IT-Alltag unbezahlbar.',
+        lesson: 'Eine brauchbare Störungsmeldung nennt Komponente, Zeitpunkt und Beleg. "Die Disposition ist down" löst niemand, "der Dispo-Dienst bekommt seit 05:29 keine Datenbankverbindung, Ereignis 4103" schon.',
+        guiCommand: true,
       },
       {
         id: 'B',
@@ -197,6 +324,86 @@ export const internalScenarios: Scenario[] = [
         lesson: 'Externe Dienstleister sind gut für geplante Wartung, aber bei akuten Ausfällen musst du selbst handeln können. Abhängigkeit ist ein Risiko.',
       },
     ],
+    guiContext: {
+      app: 'eventviewer',
+      title: 'Ereignisanzeige',
+      hostname: 'SRV-DISPO-01',
+      briefing:
+        'Wähle den Eintrag aus, der die Störung erklärt, und melde ihn. Entscheidend sind die Meldungsdetails und der Zeitpunkt — die Fahrer stehen seit 05:47.',
+      state: {
+        eventViewer: {
+          logName: 'Anwendung',
+          entries: [
+            {
+              id: 'ev_backup_ok',
+              level: 'Information',
+              dateTime: '15.06.2026 02:00:11',
+              source: 'Veeam Agent',
+              eventId: 190,
+              message: 'Sicherungsauftrag "Dispo-Server täglich" erfolgreich abgeschlossen. Dauer 41 Minuten.',
+            },
+            {
+              id: 'ev_zertifikat',
+              level: 'Warnung',
+              dateTime: '15.06.2026 04:12:03',
+              source: 'Schannel',
+              eventId: 36885,
+              message:
+                'Beim Aufbau einer TLS-Verbindung hat der Server eine Liste vertrauenswürdiger Zertifizierungsstellen gesendet, die sehr lang ist. Die Verbindung wurde dennoch aufgebaut.',
+            },
+            {
+              id: 'ev_druckwarteschlange',
+              level: 'Warnung',
+              dateTime: '15.06.2026 05:03:47',
+              source: 'PrintService',
+              eventId: 372,
+              message: 'Das Dokument "Tourenliste_Nord" konnte nicht gedruckt werden. Der Drucker ist offline.',
+            },
+            {
+              id: 'ev_db_verbindung',
+              level: 'Fehler',
+              dateTime: '15.06.2026 05:29:52',
+              source: 'DispoService',
+              eventId: 4103,
+              message:
+                'Verbindung zur Datenbank DISPO01 konnte nicht hergestellt werden: Zeitüberschreitung nach 30 Sekunden. Der Dienst nimmt keine Routenabrufe mehr an. Letzte erfolgreiche Verbindung: 15.06.2026 05:28:44.',
+            },
+            {
+              id: 'ev_db_wiederholung',
+              level: 'Fehler',
+              dateTime: '15.06.2026 05:34:52',
+              source: 'DispoService',
+              eventId: 4103,
+              message:
+                'Verbindung zur Datenbank DISPO01 konnte nicht hergestellt werden: Zeitüberschreitung nach 30 Sekunden. Wiederholungsversuch 2 von 12.',
+            },
+            {
+              id: 'ev_lizenz',
+              level: 'Warnung',
+              dateTime: '15.06.2026 05:41:18',
+              source: 'DispoService',
+              eventId: 2211,
+              message:
+                'Die Wartungslizenz läuft in 34 Tagen ab. Der Betrieb ist davon nicht betroffen.',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          interactions: ['report:ev_db_verbindung'],
+          allRequired: true,
+          resultText:
+            'Genau der Eintrag: Ereignis 4103 um 05:29:52, letzte erfolgreiche Verbindung 05:28:44. Damit ist die Störung auf die Minute datiert und auf eine Komponente eingegrenzt — die Datenbank DISPO01, nicht "die Disposition". Der Wiederholungsversuch um 05:34 bestätigt es nur; die Lizenzwarnung und die Druckwarteschlange sind unabhängig und wären als Meldung eine Sackgasse gewesen.',
+          skillGain: { windows: 4, troubleshooting: 6 },
+        },
+      ],
+      hints: [
+        'Sabines Anruf kam um 05:47. Du suchst etwas, das kurz davor angefangen hat — und das mit der Routenabfrage zu tun hat.',
+        'Es gibt mehrere Warnungen in dieser Nacht. Warnung heißt nicht Ursache: Filtere nach „Fehler" und lies die Meldungsdetails.',
+        'Wähle den ersten Eintrag von DispoService mit Ereignis-ID 4103 (05:29:52) aus und klicke „Als Vorfall melden" — die Zeile mit der letzten erfolgreichen Verbindung ist der Beleg.',
+      ],
+    },
     realWorldReference: 'Kritische Systeme fallen gerne außerhalb der Arbeitszeit aus. Ein IT-Admin in KRITIS muss jederzeit handlungsfähig sein.',
     bsiReference: 'BSI IT-Grundschutz: DER.2.1 Behandlung von Sicherheitsvorfällen',
     involvedNpcs: ['INTERN-FACHABT'],
@@ -502,5 +709,123 @@ export const internalScenarios: Scenario[] = [
     bsiReference: 'BSI IT-Grundschutz: ORP.2 Personal',
     involvedNpcs: ['INTERN-KOLLEGEN'],
     tags: ['team', 'konflikt', 'cloud', 'legacy', 'moderation'],
+  },
+  {
+    /**
+     * Einstiegsfall 1 von 3 (Schwierigkeit 1) — die erste praktische Handlung
+     * im Spiel: einen Prozess gezielt beenden.
+     *
+     * Die Falle ist bewusst NICHT versteckt: der Sicherungslauf trägt die
+     * höchste CPU-Last und ist trotzdem der falsche Prozess. Wer nach der
+     * größten Zahl greift, statt zu lesen, beendet das Backup. Das löst den
+     * Fall zwar auch — aber über eine eigene, schlechtere Lösung mit eigenem
+     * Ergebnistext, nicht stillschweigend als Erfolg.
+     */
+    id: 'INTERN-SC-011',
+    title: 'Der erste Prozess, der nicht mehr reagiert',
+    category: 'troubleshooting',
+    difficulty: 1,
+    flavorText: 'Sabine Müller steht in der Tür, ungewöhnlich ruhig. "Die Tourenplanung reagiert nicht mehr. Fenster ist grau, Mausklicks passieren einfach nichts. Ich hab nichts Ungespeichertes offen — die Touren von heute sind alle schon raus." Sie schaut dich an. "Kriegst du das hin?"',
+    urgency: 'medium',
+    choices: [
+      {
+        id: 'A',
+        text: 'Task-Manager öffnen und den hängenden Prozess beenden',
+        outcome: 'PERFECT',
+        consequence: 'Die Anwendung startet neu. Ob sie sauber hochkommt, weißt du erst, wenn Sabine es bestätigt — also bleibst du stehen, bis sie nickt. Und du notierst, was du beendet hast und wann. Zwei Zeilen, die beim nächsten Mal Gold wert sind.',
+        scoreChange: 120,
+        reputationChange: 10,
+        lesson: 'Eine hängende Anwendung ist fast nie ein Grund zum Neustarten des ganzen Rechners. Der Task-Manager beendet genau den einen Prozess. Wichtig ist, vorher zu fragen, ob ungespeicherte Arbeit offen ist — danach ist sie weg.',
+        guiCommand: true,
+      },
+      {
+        id: 'B',
+        text: 'Sabine bitten, den Rechner komplett neu zu starten',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence: 'Funktioniert. Dauert acht Minuten, in denen Sabine nicht arbeiten kann, und ihr wisst hinterher nicht, was eigentlich hing. Beim dritten Mal in dieser Woche fragt sie: "Können wir dem nicht mal auf den Grund gehen?"',
+        scoreChange: 20,
+        reputationChange: 0,
+        lesson: 'Der Neustart ist der Vorschlaghammer: Er wirkt fast immer und erklärt nie etwas. Als Dauerlösung verdeckt er das eigentliche Problem — und das kommt wieder.',
+      },
+      {
+        id: 'C',
+        text: 'Das an Jens abgeben — er kennt die Tourenplanung besser',
+        outcome: 'SUCCESS',
+        consequence: 'Jens erledigt es in zwei Minuten und erklärt dir dabei, was er tut. "Beim nächsten Mal machst du das selbst, ja?" Sabine kann weiterarbeiten. Du hast nichts falsch gemacht — aber auch nichts selbst gekonnt.',
+        scoreChange: 60,
+        reputationChange: 5,
+        lesson: 'Abgeben ist legitim, gerade am Anfang. Es wird nur dann zum Problem, wenn es die Regel bleibt: Wer nie selbst zugreift, ist beim nächsten Ausfall genauso abhängig wie beim ersten.',
+      },
+    ],
+    guiContext: {
+      app: 'taskmanager',
+      title: 'Task-Manager',
+      hostname: 'WS-DISPO-02',
+      briefing:
+        'Klicke einen Prozess an, um ihn auszuwählen, und beende ihn mit „Task beenden". Die Spaltenköpfe lassen sich sortieren — die höchste CPU-Last ist aber nicht automatisch der Schuldige.',
+      state: {
+        taskManager: {
+          processes: [
+            { name: 'System', pid: 4, cpu: 1, memoryMb: 26, description: 'NT Kernel & System', critical: true },
+            { name: 'svchost.exe', pid: 912, cpu: 2, memoryMb: 148, description: 'Hostprozess für Windows-Dienste', critical: true },
+            { name: 'explorer.exe', pid: 2988, cpu: 1, memoryMb: 196, description: 'Windows-Explorer' },
+            {
+              name: 'veeam-agent.exe',
+              pid: 2210,
+              cpu: 71,
+              memoryMb: 344,
+              description: 'Datensicherung — Sicherungslauf von 02:00 Uhr, läuft nach',
+            },
+            {
+              name: 'Tourenplanung.exe',
+              pid: 4712,
+              cpu: 0,
+              memoryMb: 782,
+              description: 'Tourenplanung WARM — keine Rückmeldung',
+            },
+            { name: 'OUTLOOK.EXE', pid: 4420, cpu: 3, memoryMb: 318, description: 'Microsoft Outlook' },
+            { name: 'msedge.exe', pid: 6104, cpu: 4, memoryMb: 402, description: 'Microsoft Edge' },
+          ],
+        },
+      },
+      solutions: [
+        {
+          // Risiko vor Lob: wer zuerst den Sicherungslauf abschiesst, bekommt
+          // diese Fassung — der Fall ist gelöst, der Preis steht im Text.
+          interactions: ['endtask:veeam-agent.exe', 'endtask:Tourenplanung.exe'],
+          allRequired: true,
+          resultText:
+            'Die Tourenplanung läuft wieder — aber du hast auch den Sicherungslauf abgeschossen. Der stand auf 71 % CPU, weil er seit 02:00 Uhr nachläuft, nicht weil er hängt. Die Sicherung von heute Nacht ist damit unvollständig und muss neu angestoßen werden. „Keine Rückmeldung" stand an einem ganz anderen Prozess.',
+          skillGain: { windows: 2 },
+          setsFlags: ['onb_backup_abgebrochen'],
+          // Der Fall ist gelöst — „perfekt" ist er nicht. Ohne diese
+          // Korrektur traegt der Ergebnisbildschirm die Einstufung der Choice
+          // und behauptet damit eine Fassung, die es nicht gegeben hat.
+          outcome: 'PARTIAL_SUCCESS',
+        },
+        {
+          interactions: ['endtask:Tourenplanung.exe'],
+          allRequired: true,
+          resultText:
+            'Genau der. „Keine Rückmeldung" ist die Windows-Formulierung für: Das Fenster nimmt keine Eingaben mehr an. 782 MB Speicher, 0 % CPU — die Anwendung tut nichts mehr, sie liegt nur noch herum. Der Sicherungslauf daneben sah mit 71 % dramatischer aus und war völlig in Ordnung.',
+          skillGain: { windows: 5, troubleshooting: 3 },
+        },
+      ],
+      hints: [
+        'Du suchst die Anwendung, über die Sabine sich beschwert — nicht den Prozess mit der größten Zahl.',
+        'In der Beschreibungsspalte steht bei einem Prozess „keine Rückmeldung". Genau das meint Sabine mit „reagiert nicht mehr".',
+        'Wähle „Tourenplanung.exe" mit einem Klick aus und drücke dann „Task beenden". Den Sicherungslauf lässt du in Ruhe.',
+      ],
+    },
+    realWorldReference: 'Windows markiert Prozesse, die keine Fensternachrichten mehr verarbeiten, als „keine Rückmeldung". Der Task-Manager ist das Standardwerkzeug, um genau diesen einen Prozess zu beenden, statt das ganze System neu zu starten.',
+    bsiReference: 'BSI IT-Grundschutz: OPS.1.1.2 Ordnungsgemäße IT-Administration',
+    involvedNpcs: ['INTERN-FACHABT'],
+    /**
+     * Einsteiger und Standard, NICHT KRITIS: Der erste Griff zum Task-Manager
+     * gehört an den Anfang einer Laufbahn, nicht in Woche 1 eines
+     * 24-wöchigen KRITIS-Laufs. Siehe Scenario.requiredModes.
+     */
+    requiredModes: ['beginner', 'intermediate'],
+    tags: ['einstieg', 'gui', 'windows', 'taskmanager', 'troubleshooting'],
   },
 ];
