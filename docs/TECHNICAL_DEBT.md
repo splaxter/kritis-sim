@@ -8,8 +8,9 @@ Last updated: 2026-07-09
 
 | Item | Location | Description |
 |------|----------|-------------|
-| Add true difficulty-1 onboarding scenarios | `client/src/content/packs/*/scenarios.ts` | No scenario is below difficulty 2. Beginner mode is forgiving, but a gentler difficulty-1 tier would smooth a true novice's first hour. |
-| Broaden interactive challenge types beyond terminal | `client/src/content/packs/cloud365/`, `client/src/content/packs/internal/`, `client/src/content/packs/telekom/` | These packs play mostly as decision scenarios. GUI or lightweight interactive tasks would make them feel as playable as `amse-it` / `kritis-infra`. |
+| Empty day at the very end of a beginner run | `client/src/content/events/`, `engine/eventEngine.ts` | In a deterministic 40-seed simulation, beginner runs hit an empty day at **w12d4** in 2 of 40 runs (16 of 40 before the guided start added three scenarios). Guarded and bounded by `engine/beginnerOnboarding.test.ts`, which asserts no empty day before the last week. The fix is more late-window beginner content, not another selection rule. |
+| `GameEvent.probability` is declared but never read | `client/src/engine/eventEngine.ts:147` | `selectNextEvent` picks `pool[hash % pool.length]`; the field only exists in `chainEngine`. About 200 of ~370 events declare `probability: 1`, so it cannot be promoted to a priority after the fact without resorting the whole game. Authors should know the field is decoration. The guided beginner start (`engine/onboarding.ts`) exists because of this. |
+| Simulation guards depend on a real `Math.random()` | `client/src/engine/chainEngine.ts:125`, `kritisLatePacing.test.ts` | `scheduleChainEvents` draws per trigger, so the 40-seed KRITIS pacing simulation can be green or red for identical content. `beginnerOnboarding.test.ts` stubs a seeded generator; `kritisLatePacing.test.ts` does not yet. |
 
 ### Code Quality (Minor)
 
@@ -27,6 +28,17 @@ Last updated: 2026-07-09
 ---
 
 ## Completed
+
+### 2026-09-13 — Einstieg und aktive Anbieter-Packs
+
+Design + Plan: `docs/plans/2026-09-13-einstieg-und-aktive-packs*.md`
+
+| Item | Wie |
+|------|-----|
+| Keine Szenarien unter Schwierigkeit 2 | Drei neue Faelle auf Schwierigkeit 1, je einer pro bisher passivem Pack: `INTERN-SC-011` (Prozess beenden), `CLOUD365-SC-007` (Rechteanforderung ablehnen), `TELEKOM-SC-007` (gueltige Vertragsfassung finden). Alle drei GUI, ohne Shell-Vorwissen, ohne Countdown. |
+| cloud365 / internal / telekom spielen rein entscheidungsbasiert | Sechs vorhandene Faelle haben jetzt eine echte Aufgabe (fuenf Shell, eine Ereignisanzeige). Jedes der drei Packs kommt damit auf drei praktische Aufgaben; 27 der 45 Szenarien sind praktisch spielbar. |
+| Szenarien kannten keine Modus-Gatung | `Scenario.requiredModes`, analog zu `GameEvent`. Notwendig geworden, weil der Frueh-Cap in JEDEM Modus bei 2 liegt: die Einstiegsfaelle landeten sonst in Woche 1 eines 24-woechigen KRITIS-Laufs und liessen `kritisLatePacing` in Woche 23 leer laufen (0 tote Tage auf main, 32 von 200 Laeufen mit ihnen im Pool, wieder 0 ohne sie). |
+| Die vier Shell-Tutorials des Einsteigermodus liefen nie | Sie haengen ueber `requires.events` an `evt_first_day`, und der wurde an Tag 1 vom Zufall verdraengt, weil `probability` nicht gelesen wird. In 40 simulierten Laeufen wurde KEIN einziges Tutorial serviert — auch nicht nach dem blossen Verbreitern ihres Zeitfensters. Der gefuehrte Einstieg (`engine/onboarding.ts`) macht daraus eine feste Reihenfolge: 160 von 160. |
 
 ### 2026-09-13 — Hardening (Ersatz fuer den liegengebliebenen PR #8)
 

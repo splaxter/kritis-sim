@@ -220,14 +220,20 @@ for (const viewport of VIEWPORTS) {
 }
 
 /**
- * The scenario card is served by a deterministic hash of
- * (seed + week + day + completedEvents.length) — see App.tsx — so a fixed seed
- * reliably produces one. That matters: the card's header overflowed at 320px
- * and only appeared on the RNG draws that served a scenario instead of an
- * event, which is exactly the kind of defect a flaky check would keep missing.
+ * The scenario card used to be reached via a magic seed whose hash happened to
+ * land under the 10% scenario chance at week 1 / day 1. That is no longer how
+ * beginner mode starts: `engine/onboarding.ts` serves a fixed sequence on days
+ * 1-4 of weeks 1-3, and its first step is an EVENT (the first working day).
+ *
+ * The replacement is strictly better than the old magic number — it does not
+ * depend on a hash at all. We resume a beginner run that has the first working
+ * day behind it, which makes the second step of the sequence due: a scenario,
+ * by construction. The card's header once overflowed at 320px and only showed
+ * up on the RNG draws that served a scenario, which is exactly the kind of
+ * defect a flaky precondition keeps missing.
  */
 const SCENARIO_PLAYER = 'player-mobile-scenario';
-const SCENARIO_SEED = 'E2E-SCEN-2'; // hash%100 === 3 < 10 at week 1/day 1
+const SCENARIO_SEED = 'E2E-SCEN-2';
 
 async function seedScenarioRun(page: Page) {
   const envelope = {
@@ -238,14 +244,16 @@ async function seedScenarioRun(page: Page) {
       runNumber: 1,
       gameMode: 'beginner',
       currentWeek: 1,
-      currentDay: 1,
+      // Day 2 with the first working day done: the guided sequence is due with
+      // its first scenario. No hash, no probability, no flake.
+      currentDay: 2,
       skills: { netzwerk: 40, linux: 40, windows: 40, security: 40, troubleshooting: 40, softSkills: 40 },
       relationships: { chef: 10, gf: 0, kaemmerer: 0, fachabteilung: 0, kollegen: 15 },
       stress: 10,
       budget: 15000,
       compliance: 50,
       activeEvents: [],
-      completedEvents: [],
+      completedEvents: ['evt_first_day'],
       completedScenarios: [],
       flags: {},
       unlockedCommands: ['help', 'ls', 'cd', 'pwd'],
@@ -274,8 +282,8 @@ for (const viewport of VIEWPORTS) {
     await page.goto('/');
     await page.getByText(/WEITER SPIELEN/).click();
 
-    // Fails loudly if the seed ever stops producing a scenario, rather than
-    // silently degrading into an event-only check.
+    // Fails loudly if the guided sequence ever stops producing a scenario here,
+    // rather than silently degrading into an event-only check.
     await expect(page.getByText('─ SZENARIO ─')).toBeVisible();
     await expectNoDocumentOverflow(page);
     await expectNoInternalOverflowIn(page, 'body');
