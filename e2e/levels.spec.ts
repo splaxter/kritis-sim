@@ -2,6 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { learningPathEvents } from '../client/src/content/events/learning-path';
 import { blackoutEvents } from '../client/src/content/events/blackout';
 import { guiLevelEvents } from '../client/src/content/events/gui-levels';
+import { nis2Events } from '../client/src/content/events/learning-path-nis2';
 import { LEARNING_TRACKS } from '../client/src/content/events/learning-tracks';
 import type { GameEvent } from '@kritis/shared';
 
@@ -19,7 +20,7 @@ import type { GameEvent } from '@kritis/shared';
 const PLAYER_ID = 'player-e2e-levels';
 
 const eventById = new Map<string, GameEvent>(
-  [...learningPathEvents, ...blackoutEvents, ...guiLevelEvents].map((e) => [e.id, e])
+  [...learningPathEvents, ...blackoutEvents, ...guiLevelEvents, ...nis2Events].map((e) => [e.id, e])
 );
 
 const ALL_LEVEL_IDS = LEARNING_TRACKS.flatMap((t) => t.levels.map((l) => l.eventId));
@@ -85,9 +86,35 @@ function deriveCliSolution(ctx: TerminalCtx): string[] {
 type GuiStep =
   | { row: string }
   | { button: RegExp }
-  | { switch: string };
+  | { switch: string }
+  // Formular-Apps (Meldung): Textfeld, Auswahlliste, Mehrfachauswahl und
+  // Radiogruppe. Ein Radio-Label wie „nein" kommt mehrfach vor, deshalb wird
+  // die Gruppe immer mitgenannt.
+  | { fill: RegExp; value: string }
+  | { choose: RegExp; value: string }
+  | { check: RegExp }
+  | { radio: RegExp; value: RegExp };
 
 const GUI_ACTIONS: Record<string, GuiStep[]> = {
+  // Erstmeldung: Pflichtfelder fuellen, dann die beiden ehrlichen Antworten.
+  // „noch unbekannt" statt „nein" ist der eigentliche Lerninhalt.
+  learn_nis2_02_erstmeldung: [
+    { fill: /Zeitpunkt der Kenntnisnahme/, value: '05.09.2026 17:40' },
+    { choose: /Art des Vorfalls/, value: 'ransomware' },
+    { check: /Dateiserver Disposition/ },
+    { choose: /Betroffene kritische Dienstleistung/, value: 'entsorgung' },
+    { radio: /Verdacht auf rechtswidrige/, value: /^ja$/ },
+    { radio: /Grenzueberschreitende|Grenzüberschreitende/, value: /noch unbekannt/ },
+    { button: /Meldung absenden/ },
+  ],
+  // Folgemeldung: die frueher gemachte Angabe korrigieren statt verteidigen.
+  learn_nis2_03_folgemeldung: [
+    { choose: /Schweregrad/, value: 'erheblich' },
+    // Verankert: „Auswirkungen" steckt auch in „Grenzueberschreitende Auswirkungen".
+    { fill: /^Auswirkungen$/, value: 'Tourenplanung ausgefallen, Ersatzverfahren auf Papier.' },
+    { radio: /Grenzueberschreitende|Grenzüberschreitende/, value: /^ja$/ },
+    { button: /Meldung absenden/ },
+  ],
   gui_taskmanager_rogue: [{ row: 'xmr-stak-rx.exe' }, { button: /Task beenden/i }],
   gui_taskmanager_doppelganger: [{ row: 'scvhost.exe' }, { button: /Task beenden/i }],
   gui_eventviewer_bruteforce: [
@@ -226,6 +253,17 @@ async function solveGui(page: Page, steps: GuiStep[]) {
         .click({ timeout: 10000 });
     } else if ('button' in step) {
       await page.getByRole('button', { name: step.button }).first().click({ timeout: 10000 });
+    } else if ('fill' in step) {
+      await page.getByLabel(step.fill).first().fill(step.value, { timeout: 10000 });
+    } else if ('choose' in step) {
+      await page.getByLabel(step.choose).first().selectOption(step.value, { timeout: 10000 });
+    } else if ('check' in step) {
+      await page.getByRole('checkbox', { name: step.check }).first().check({ timeout: 10000 });
+    } else if ('radio' in step) {
+      await page
+        .getByRole('radiogroup', { name: step.radio })
+        .getByRole('radio', { name: step.value })
+        .click({ timeout: 10000 });
     } else {
       await page.getByRole('switch', { name: step.switch }).click({ timeout: 10000 });
     }
@@ -271,6 +309,18 @@ async function assertCompleted(page: Page, levelId: string) {
 //   client/src/engine/netTrackLessons.test.ts
 //   client/src/engine/ansibleTrackLessons.test.ts
 // They are skipped (not deleted) here so the intent stays visible in the e2e suite.
+/**
+ * Einzelne Level mit declarative stateGoals und `commands: []` — deriveCliSolution
+ * kann daraus nichts ableiten. Ihr Loesbarkeitsbeweis faehrt die echte
+ * ShellEngine in client/src/engine/nis2TrackLessons.test.ts, inklusive
+ * Negativtests. Die GUI-Level desselben Tracks laufen hier ganz normal mit.
+ */
+const HARNESS_INCOMPATIBLE_LEVELS = new Set([
+  'learn_nis2_01_schwelle',
+  'learn_nis2_04_wer_war_das',
+  'learn_nis2_05_belastbar',
+]);
+
 const HARNESS_INCOMPATIBLE_TRACKS = new Set([
   'ssh_remote',
   'systemd_journal',
@@ -286,8 +336,12 @@ for (const track of LEARNING_TRACKS) {
     : test.describe;
   describeLevels(`Track ${track.id}`, () => {
     for (const lvl of track.levels) {
+      // Einzelne Level koennen inkompatibel sein, ohne dass es der ganze Track
+      // ist: der nis2-Track mischt stateGoals-CLI (nicht ableitbar) mit
+      // GUI-Formularen (sehr wohl fahrbar).
+      const testLevel = HARNESS_INCOMPATIBLE_LEVELS.has(lvl.eventId) ? test.skip : test;
       const ev = eventById.get(lvl.eventId);
-      test(`${lvl.eventId} — solvable end-to-end`, async ({ page }) => {
+      testLevel(`${lvl.eventId} — solvable end-to-end`, async ({ page }) => {
         expect(ev, `event ${lvl.eventId} missing from content`).toBeTruthy();
         const event = ev as GameEvent;
 

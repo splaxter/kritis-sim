@@ -10,6 +10,8 @@ import { tutorialEvents } from './tutorials';
 import { chainEvents } from './chains';
 import { storyEvents } from './story';
 import { learningPathEvents } from './learning-path';
+import { einstufungEvents } from './learning-path-einstufung';
+import { nis2Events } from './learning-path-nis2';
 import { advancedLearningEvents } from './learning-path-advanced';
 import { guiLevelEvents } from './gui-levels';
 import { blackoutEvents } from './blackout';
@@ -26,6 +28,8 @@ export const allEvents: GameEvent[] = [
   ...chainEvents,
   ...storyEvents,
   ...learningPathEvents,
+  ...einstufungEvents,
+  ...nis2Events,
   ...advancedLearningEvents,
   ...guiLevelEvents,
   ...blackoutEvents,

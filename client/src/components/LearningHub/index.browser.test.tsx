@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { GameState } from '@kritis/shared';
 import { allEvents } from '../../content/events';
@@ -171,5 +171,79 @@ describe('LearningHub — mit Enter durch die Lektionen', () => {
     render(<LearningHub state={mkState(alleIds)} onPick={onPick} />);
     await user.keyboard('{Enter}');
     expect(onPick).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Die Abkuerzung fuer Erfahrene. Sie ist eine ZWEITAKTION, nie die Empfehlung:
+ * die Enter-Kette durch den Lernpfad darf sich davon nicht veraendern.
+ */
+describe('LearningHub — Einstufungstest', () => {
+  const mkSkipped = () =>
+    ({
+      completedEvents: [],
+      flags: { learn_foundations_proven: true },
+      gameMode: 'learning',
+      isStoryMode: false,
+      learningState: {},
+    } as unknown as GameState);
+
+  it('bietet den Test an, solange die Grundlagen offen sind', () => {
+    render(<LearningHub state={mkState()} onPick={vi.fn()} />);
+    expect(screen.getByText(/Kennst du das schon/)).toBeInTheDocument();
+    expect(screen.getByText(/Einstufungstest/)).toBeInTheDocument();
+  });
+
+  it('verschwindet, sobald die Grundlagen gespielt sind', () => {
+    render(<LearningHub state={mkState(FOUNDATIONS_DONE)} onPick={vi.fn()} />);
+    expect(screen.queryByText(/Kennst du das schon/)).not.toBeInTheDocument();
+  });
+
+  it('verschwindet auch, wenn der Test bereits bestanden ist', () => {
+    render(<LearningHub state={mkSkipped()} onPick={vi.fn()} />);
+    expect(screen.queryByText(/Kennst du das schon/)).not.toBeInTheDocument();
+  });
+
+  it('startet den Test per Klick', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<LearningHub state={mkState()} onPick={onPick} />);
+
+    await user.click(screen.getByText(/Kennst du das schon/));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0].id).toBe('learn_00_einstufung');
+  });
+
+  it('startet den Test per [T]', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<LearningHub state={mkState()} onPick={onPick} />);
+
+    // Fokus weg von der CTA, sonst gewinnt das fokussierte Bedienelement.
+    (document.activeElement as HTMLElement | null)?.blur();
+    await user.keyboard('t');
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0].id).toBe('learn_00_einstufung');
+  });
+
+  it('Enter startet weiterhin die Empfehlung, nicht den Test', async () => {
+    const user = userEvent.setup();
+    const onPick = vi.fn();
+    render(<LearningHub state={mkState()} onPick={onPick} />);
+
+    await user.keyboard('{Enter}');
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick.mock.calls[0][0].id).not.toBe('learn_00_einstufung');
+  });
+
+  it('die Grundlagen-Karte sagt ehrlich, dass sie uebersprungen wurde', () => {
+    render(<LearningHub state={mkSkipped()} onPick={vi.fn()} />);
+    const hinweis = screen.getByText(/Übersprungen — Einstufungstest bestanden/);
+    // … und die Lektionen bleiben sichtbar bei 0 von 4. Auf die Karte
+    // eingegrenzt: 0/4 steht auch bei anderen Tracks mit vier Kern-Leveln.
+    const karte = hinweis.closest('div.border') as HTMLElement;
+    expect(within(karte).getByText('Grundlagen')).toBeInTheDocument();
+    expect(within(karte).getByText('0/4')).toBeInTheDocument();
   });
 });

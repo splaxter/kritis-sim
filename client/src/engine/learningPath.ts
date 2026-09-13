@@ -5,9 +5,25 @@ export type TrackState = 'locked' | 'available' | 'in_progress' | 'completed';
 
 const isDone = (state: GameState, id: string) => state.completedEvents.includes(id);
 
+/**
+ * Sind die Voraussetzungen eines Levels erfuellt?
+ *
+ * Der Einstufungstest ersetzt die vier Grundlagen — und zwar auch dort, wo sie
+ * als `requires.events` verlangt werden. Ohne diesen Zweig oeffnet das Flag nur
+ * den Track, waehrend jedes erste Level an seiner eigenen Voraussetzung haengen
+ * bleibt: der Lernpfad haette gar keine Empfehlung mehr gehabt. Beim Schreiben
+ * des Skip-Tests aufgefallen, nicht im Entwurf.
+ */
 function reqsMet(state: GameState, ev: GameEvent | undefined): boolean {
   const reqs = ev?.requires?.events ?? [];
-  return reqs.every((r) => isDone(state, r));
+  const skipped = isFoundationsSkipped(state);
+  return reqs.every((r) => isDone(state, r) || (skipped && isFoundationsLevel(r)));
+}
+
+/** Gehoert diese Event-Id zu den Kern-Leveln der Grundlagen? */
+function isFoundationsLevel(id: string, tracks = LEARNING_TRACKS): boolean {
+  const f = tracks.find((t) => t.isFoundations);
+  return !!f && coreLevels(f).some((l) => l.eventId === id);
 }
 
 function coreLevels(track: LearningTrack) {
@@ -19,7 +35,25 @@ export function getTrackOfLevel(levelId: string, tracks = LEARNING_TRACKS): Lear
   return tracks.find((t) => t.levels.some((l) => l.eventId === levelId));
 }
 
+/**
+ * Flag des bestandenen Einstufungstests (`learn_00_einstufung`).
+ *
+ * BEWUSST kein Eintrag der vier Grundlagen-Level in `completedEvents`: das waere
+ * eine Behauptung ueber etwas, das nicht stattgefunden hat — genau die Sorte
+ * Luege, die DAS KATASTER bestraft. Die Grundlagen bleiben spielbar und werden
+ * im Hub als „uebersprungen" ausgewiesen, nicht als gespielt.
+ */
+export const FOUNDATIONS_PROVEN_FLAG = 'learn_foundations_proven';
+
+/** Wurde der Einstufungstest bestanden? */
+export function isFoundationsSkipped(state: GameState): boolean {
+  return !!state.flags?.[FOUNDATIONS_PROVEN_FLAG];
+}
+
 export function isFoundationsComplete(state: GameState, tracks = LEARNING_TRACKS): boolean {
+  // Einmal bewiesen zaehlt wie durchgespielt — der Riegel soll Koennen sichern,
+  // nicht Anwesenheit.
+  if (isFoundationsSkipped(state)) return true;
   const f = tracks.find((t) => t.isFoundations);
   return !!f && coreLevels(f).every((l) => isDone(state, l.eventId));
 }

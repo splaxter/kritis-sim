@@ -23,6 +23,14 @@ interface UseGuiLevelResult {
    *
    * Removing a token can never newly satisfy a solution (all matchers are
    * positive), so this deliberately does not re-check for a win.
+   *
+   * GILT AUCH FUER HANDLUNGS-TOKEN wie `submit`. Die sind zwar Ereignisse und
+   * keine Zustaende — aber ihre VORAUSSETZUNG ist ein Zustand. Bleibt ein
+   * einmal abgeschicktes `submit` im Verlauf stehen, loest eine spaetere
+   * Feldaenderung das Level, ohne dass jemand abgeschickt hat; im schlimmsten
+   * Fall mit inzwischen leerem Pflichtfeld. Wer eine Formular-App baut, muss
+   * das Absende-Token bei jeder Aenderung zuruecknehmen (siehe
+   * `invalidateSubmit` in apps/Meldung.tsx). Im Review zu PR #14 gefunden.
    */
   retract: (interaction: string) => void;
   /** Interactions performed so far, in order. */

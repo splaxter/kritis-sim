@@ -8,6 +8,7 @@ import { Settings } from './apps/Settings';
 import { Explorer } from './apps/Explorer';
 import { CoreFirewall } from './apps/CoreFirewall';
 import { Kataster } from './apps/Kataster';
+import { Meldung } from './apps/Meldung';
 import { useGuiLevel } from './useGuiLevel';
 
 interface WindowsLevelProps {
@@ -93,6 +94,7 @@ const APP_ICONS: Record<string, string> = {
   settings: '⚙️',
   corefirewall: '🧱',
   kataster: '📋',
+  meldung: '📨',
 };
 
 export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: WindowsLevelProps) {
@@ -153,6 +155,23 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             rules={context.state.coreFirewall?.rules ?? []}
             subnets={context.state.coreFirewall?.subnets ?? []}
             emit={emit}
+            locked={solved}
+          />
+        );
+      case 'meldung':
+        return (
+          <Meldung
+            state={
+              context.state.meldung ?? {
+                stufe: 'erst',
+                kenntnisSeit: '—',
+                meldestelle: 'Gemeinsame Meldestelle des BSI und des BBK',
+                rechtsgrundlage: '§ 32 Abs. 1 BSIG',
+                felder: [],
+              }
+            }
+            emit={emit}
+            retract={retract}
             locked={solved}
           />
         );

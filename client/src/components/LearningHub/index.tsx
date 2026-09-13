@@ -12,6 +12,8 @@ import {
   getTrackState,
   getTrackProgress,
   getRecommendedNext,
+  isFoundationsComplete,
+  isFoundationsSkipped,
   TrackState,
 } from '../../engine/learningPath';
 
@@ -37,8 +39,16 @@ const LEVEL_GLYPH: Record<'done' | 'next' | 'locked' | 'advanced', string> = {
 const eventById = (id: string): GameEvent | undefined => allEvents.find((e) => e.id === id);
 const levelTitle = (id: string): string => eventById(id)?.title ?? id;
 
+/** Das Level, das die Grundlagen ersetzt. Gehoert bewusst zu keinem Track. */
+const EINSTUFUNG_ID = 'learn_00_einstufung';
+
 export function LearningHub({ state, onPick }: LearningHubProps) {
   const recommended = getRecommendedNext(state, allEvents);
+  // Die Abkuerzung zeigt sich nur, solange sie etwas bringt: die Grundlagen
+  // sind offen und noch nicht per Test ersetzt. Sie ist NIE die Empfehlung —
+  // die Enter-Kette bleibt unveraendert auf der naechsten Lektion.
+  const einstufung = eventById(EINSTUFUNG_ID);
+  const zeigeEinstufung = !!einstufung && !isFoundationsComplete(state);
   const tracks = [...LEARNING_TRACKS].sort((a, b) => a.order - b.order);
   const ctaRef = useRef<HTMLButtonElement>(null);
 
@@ -71,6 +81,21 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [recommended, startRecommended]);
 
+  // [T] startet den Einstufungstest — mit derselben Zurueckhaltung wie Enter:
+  // liegt der Fokus auf einem Bedienelement, gewinnt dieses.
+  useEffect(() => {
+    if (!zeigeEinstufung || !einstufung) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 't' && e.key !== 'T') return;
+      const active = document.activeElement;
+      if (active instanceof HTMLButtonElement || active instanceof HTMLInputElement) return;
+      e.preventDefault();
+      onPick(einstufung);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [zeigeEinstufung, einstufung, onPick]);
+
   return (
     <div className="w-full max-w-2xl mx-auto p-4 space-y-4">
       <h1 className="text-xl font-bold text-terminal-green">Lernpfad</h1>
@@ -86,6 +111,21 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
             <div className="text-xs text-terminal-green-muted shrink-0">[Enter]</div>
           </div>
           <div className="font-bold">{recommended.title}</div>
+        </button>
+      )}
+
+      {zeigeEinstufung && (
+        <button
+          onClick={() => onPick(einstufung!)}
+          className="w-full border border-terminal-border hover:border-terminal-info focus:border-terminal-info focus:outline-none p-3 text-left transition-colors"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-terminal-green-muted tracking-wide">Kennst du das schon?</div>
+            <div className="text-xs text-terminal-green-muted shrink-0">[T]</div>
+          </div>
+          <div className="text-sm text-terminal-green-dim">
+            Einstufungstest — eine Aufgabe statt vier Lektionen. Bestanden heißt: Grundlagen frei.
+          </div>
         </button>
       )}
 
@@ -113,6 +153,14 @@ export function LearningHub({ state, onPick }: LearningHubProps) {
                   </div>
                   {lockReason && (
                     <div className="break-words text-sm text-terminal-green-dim">{lockReason}</div>
+                  )}
+                  {track.isFoundations && isFoundationsSkipped(state) && (
+                    // Ehrlich beschriftet: der Test ERSETZT die Lektionen, er
+                    // spielt sie nicht. Der Zaehler bleibt deshalb bei 0/4 und
+                    // die Lektionen bleiben anwaehlbar.
+                    <div className="break-words text-sm text-terminal-green-muted">
+                      Übersprungen — Einstufungstest bestanden. Die Lektionen bleiben offen.
+                    </div>
                   )}
                 </div>
                 <span className="shrink-0 border border-terminal-border px-1.5 py-0.5 text-xs tracking-wide">
