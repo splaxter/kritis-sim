@@ -196,3 +196,30 @@ die Shell-Aufgaben länger brauchen.
 Der ungeklärte Playwright-Layout-Flake (`scenario card fits …`) bleibt
 außerhalb dieser Änderung; ein tatsächlicher neuer Fehlschlag wird anhand
 seines Traces geprüft, nicht auf Verdacht behandelt.
+
+---
+
+## Nachtrag: Review gegen 6a96ee1 (13.09.2026)
+
+Fünf P2-Befunde, alle behoben. Zwei davon haben eine Regel geändert, nicht nur
+eine Zeile:
+
+**Berichte werden gegen ein angesagtes Schema geprüft, nicht gegen Wortlisten.**
+Eine Wortsuche im Fließtext wies richtige Befunde ab (die exakt gemessene Spanne
+„10:04–13:58", die richtige Feststellung „Archiv2019 ist nicht betroffen") und
+nahm falsche an (ein Bericht, der den Vorfall ausdrücklich verneinte, aber
+zufällig die gesuchten Wörter enthielt). Jede geprüfte `schluessel: wert`-Zeile
+steht seitdem im `taskText` — ein Guard erzwingt das. Eine Bewertung, deren
+Regeln der Spieler nicht kennt, ist Raten, keine Prüfung.
+
+**Der erreichte Lösungszweig erreicht den Ergebnisbildschirm.** Sein Text endete
+vorher nach 1,6 Sekunden in der GUI; dauerhaft stand die Fassung der Choice da.
+Beim Fallen-Zweig war das „★ Perfekt" für einen abgeschossenen Sicherungslauf.
+`SolvedBranch` wandert jetzt bis zum Ergebnis durch, `GuiSolution.outcome`
+korrigiert die Einstufung.
+
+**Falle, die sich lohnt zu merken:** `printf 'a\nb\n' > datei` interpretiert das
+`\n` in dieser Shell NICHT. Ein Hinweis, der das riet, machte das Level für
+jeden unlösbar, der ihm folgte. Der neue Test `die Hinweise sind zusammen ein
+lösbarer Weg` fährt alle Befehle aus den Hinweisen durch die echte Shell und
+verlangt, dass sie am Ende lösen — er fand sofort eine zweite Lücke.
