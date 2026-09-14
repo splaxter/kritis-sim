@@ -53,6 +53,26 @@ describe('CampaignSelectModal', () => {
     expect(first).toHaveFocus();
   });
 
+  it('zeigt die Voraussetzung auf der Karte, bevor die Kampagne startet', () => {
+    // Der Anlass: DAS KATASTER verlangt ab dem ersten Level Suchen, Lesen UND
+    // Schreiben in der Shell — die Karte sagte darueber nur "Hands-on". Was man
+    // koennen muss, gehoert vor den Start, nicht ins erste Level.
+    renderModal();
+
+    for (const campaign of visible) {
+      const option = screen.getByRole('button', { name: new RegExp(campaign.title) });
+      if (campaign.menu.prerequisite) {
+        expect(option, `${campaign.id}`).toHaveTextContent(campaign.menu.prerequisite);
+      }
+    }
+    // Und konkret: die offene Kampagne mit Terminal-Leveln sagt es wirklich.
+    const kataster = screen.getByRole('button', { name: /Das Kataster/ });
+    expect(kataster).toHaveTextContent(/Terminal-Grundlagen/);
+    // Die textfreie Kampagne bekommt keine Huerde angedichtet.
+    const probation = screen.getByRole('button', { name: /Die Probezeit/ });
+    expect(probation).not.toHaveTextContent(/Voraussetzung/);
+  });
+
   it('offers only the open campaigns — AUDIT TRAIL is not in the DOM', () => {
     renderModal();
 

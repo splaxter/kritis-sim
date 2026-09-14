@@ -127,9 +127,15 @@ const EDGE_TOLERANCE_PX = 2;
 async function expectFullyInsideViewport(page: Page, name: RegExp, viewport: { width: number; height: number }) {
   const box = await page.getByRole('button', { name }).boundingBox();
   expect(box, `${name} has no box`).not.toBeNull();
-  // Leading edges are exact — nothing may start off-screen.
-  expect(box!.y, `${name} clipped at the top`).toBeGreaterThanOrEqual(0);
-  expect(box!.x, `${name} clipped at the left`).toBeGreaterThanOrEqual(0);
+  // Leading edges carry the same sub-pixel slack as the trailing ones, for the
+  // same reason: scrolling the LAST card into view runs the container to its
+  // scroll end, where fractional layout leaves the top edge about a pixel high
+  // (measured: -0.78 / -1.03 / -1.39 across the three viewports). The slack is
+  // deliberately far below any real defect — the same assertion caught a card
+  // that genuinely did not fit at -43.78, and the bug this guard was written
+  // for parked one at -51.
+  expect(box!.y, `${name} clipped at the top`).toBeGreaterThanOrEqual(-EDGE_TOLERANCE_PX);
+  expect(box!.x, `${name} clipped at the left`).toBeGreaterThanOrEqual(-EDGE_TOLERANCE_PX);
   expect(box!.y + box!.height, `${name} clipped at the bottom`)
     .toBeLessThanOrEqual(viewport.height + EDGE_TOLERANCE_PX);
   expect(box!.x + box!.width, `${name} clipped at the right`)
@@ -179,6 +185,13 @@ for (const viewport of VIEWPORTS) {
     // … and the last card plus the [ESC] control are reachable by scrolling.
     await expectReachable(page, /Audit Trail/, viewport);
     await expectReachable(page, /Zurück/, viewport);
+
+    // Die Voraussetzungszeile macht die Karten hoeher — mit drei Karten ist das
+    // hier der hoechste Zustand des Dialogs. Eine Warnung, die man nur nach
+    // Scrollen sieht, warnt niemanden: die Karte muss GANZ in den Viewport
+    // passen und der Satz sichtbar sein.
+    await expectReachable(page, /Das Kataster/, viewport);
+    await expect(page.getByText(/Voraussetzung: Terminal-Grundlagen/)).toBeVisible();
     await expectNoInternalOverflowAcrossSelections(page, 'Kampagne wählen', 2);
 
     // Back out to the experience picker and take the OTHER branch.

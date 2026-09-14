@@ -19,6 +19,8 @@ export const auditTrailCampaign: CampaignDefinition = {
     eyebrow: 'KAMPAGNE 2 · GEHEIM',
     description:
       'Eine NIS-2-Prüfung bei WARM: Du sollst die Auditfähigkeit herstellen — und findest eine Spur, die jemand lieber loswerden würde. Beweise sauber sichern, Grenzen einhalten, im Audit bestehen.',
+    prerequisite:
+      'Voraussetzung: Terminal- und Windows-Grundlagen. Beweise werden hier selbst gesichert und protokolliert, nicht angeklickt.',
     meta: '6 Kapitel · 3 Enden · Hands-on (Terminal & GUI)',
     badge: 'GEHEIM',
     badgeClass: 'border-terminal-warning text-terminal-warning',

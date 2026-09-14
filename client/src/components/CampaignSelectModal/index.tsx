@@ -199,6 +199,16 @@ export function CampaignSelectModal({ playerId, onSelect, onClose }: CampaignSel
                       <p className="text-sm leading-relaxed text-terminal-green-dim">
                         {campaign.menu.description}
                       </p>
+                      {/* Voraussetzung statt Kleingedrucktem: was man KOENNEN
+                          muss, steht vor dem Start und nicht erst im ersten
+                          Level. mt-3 (nicht mt-auto), damit der Absatz an der
+                          Beschreibung klebt — die Faktenzeile unten bleibt der
+                          Fusspunkt der Karte. */}
+                      {campaign.menu.prerequisite && (
+                        <p className="mt-3 border-l-2 border-terminal-warning/70 pl-2 text-xs leading-relaxed text-terminal-warning">
+                          {campaign.menu.prerequisite}
+                        </p>
+                      )}
                       <div className="mt-auto border-t border-terminal-border/70 pt-3 text-xs text-terminal-green-muted">
                         {campaign.menu.meta}
                       </div>

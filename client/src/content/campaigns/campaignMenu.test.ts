@@ -29,6 +29,47 @@ describe('campaign picker registry', () => {
     }
   });
 
+  /**
+   * Der Befund, aus dem dieser Guard entstand: DAS KATASTER stand mit
+   * „Hands-on (Terminal & Kataster)" im Picker — und im Quelltext sogar mit
+   * „die zugaenglichste der drei Kampagnen, wenig Vorwissen noetig". Das erste
+   * Level verlangt aber `find`, `wc -l`, `grep -r`, `cat` UND eine Umlenkung
+   * (`echo … >> datei`), weil die Shell keinen Editor hat. „Hands-on" sagt, wie
+   * viel gespielt wird; es sagt nicht, was man dafuer koennen muss.
+   *
+   * Die Regel ist deshalb an den INHALT gebunden, nicht an eine Liste von ids:
+   * wer Terminal-Level hat, sagt vorher, dass man tippen koennen muss.
+   * GUI-Level zaehlen bewusst nicht — die erklaeren sich am Bildschirm selbst.
+   */
+  it('jede Kampagne mit Terminal-Leveln nennt ihre Voraussetzung — und nur die', () => {
+    for (const c of listCampaigns()) {
+      const terminalLevels = [...c.storyEvents, ...c.sidequestEvents].filter(
+        (e) => e.terminalContext
+      ).length;
+      if (terminalLevels > 0) {
+        expect(
+          c.menu.prerequisite?.trim(),
+          `${c.id} hat ${terminalLevels} Terminal-Level und muesste sagen, was man dafuer koennen muss`
+        ).toBeTruthy();
+      } else {
+        expect(
+          c.menu.prerequisite,
+          `${c.id} hat kein Terminal-Level — eine Huerde anzukuendigen, die es nicht gibt, schreckt umsonst ab`
+        ).toBeUndefined();
+      }
+    }
+  });
+
+  it('die Voraussetzung steht in der Karte, nicht in der Faktenzeile', () => {
+    // Sonst waere der Guard oben mit einem angehaengten Wort in `meta` zu
+    // erfuellen — und die Zeile wuerde im Kleingedruckten verschwinden.
+    for (const c of listCampaigns()) {
+      if (!c.menu.prerequisite) continue;
+      expect(c.menu.meta, `${c.id}`).not.toContain(c.menu.prerequisite);
+      expect(c.menu.description, `${c.id}`).not.toContain(c.menu.prerequisite);
+    }
+  });
+
   it('hides AUDIT TRAIL from the picker until it is unlocked', () => {
     // The normal player sees the two OPEN campaigns; the secret one is absent
     // from the list entirely (not disabled, not greyed out — invisible).

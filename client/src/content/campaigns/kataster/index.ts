@@ -23,9 +23,19 @@ export const katasterCampaign: CampaignDefinition = {
     eyebrow: 'KAMPAGNE 3',
     description:
       'Der neue ISB stellt eine Frage, die niemand im Haus beantworten kann: Welche Regelwerke gelten für Sie? Dein Vorgänger ist in Rente, sein Ordner halb leer — und jede Pflicht ohne Aufpasser ist eine Uhr, die schon läuft.',
+    // Kurz gehalten, weil gemessen: auf 320 px kostet jede Zeile hier rund 16 px
+    // Kartenhöhe, und eine Karte, die nicht mehr in den Bildschirm passt, warnt
+    // erst nach dem Scrollen. Die Begründung steht im Level, die Warnung hier.
+    prerequisite:
+      'Voraussetzung: Terminal-Grundlagen. Du suchst, liest und schreibst hier selbst in der Shell. Ohne CLI-Erfahrung: erst Kampagne 1.',
     meta: '6 Kapitel · 3 Enden · Hands-on (Terminal & Kataster)',
+    badge: 'TERMINAL',
+    badgeClass: 'border-terminal-warning text-terminal-warning',
   },
-  // Sichtbar: die zugänglichste der drei Kampagnen, wenig Vorwissen nötig.
+  // Sichtbar, weil sie gefunden werden soll — aber NICHT die einsteigerfreundlichste:
+  // im Stoff ja (die Leitfrage braucht kein Vorwissen), im Werkzeug nein. Jedes
+  // Level verlangt Suchen, Lesen UND Schreiben in der Shell; Kampagne 1 ist der
+  // sanfte Einstieg. Deshalb die Voraussetzungszeile oben.
   startChapterId: 'kt_ch01_ordner',
   chapters: katasterChapters,
   sidequests: [],

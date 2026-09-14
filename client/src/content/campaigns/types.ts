@@ -37,6 +37,12 @@ export interface CampaignMenuEntry {
   description: string;
   /** Short facts line, e.g. "12 Kapitel · 3 Enden · Casual". */
   meta: string;
+  /** Was ein Spieler können muss, bevor die Kampagne Spaß macht — eine Zeile
+   *  im Picker, über der Faktenzeile. Pflicht für jede Kampagne mit
+   *  Terminal-Leveln, verboten für eine ohne (campaignMenu.test.ts): "Hands-on"
+   *  in `meta` sagt, WIE VIEL gespielt wird, nicht WAS man dafür können muss —
+   *  und genau diese Verwechslung ließ Einsteiger in DAS KATASTER laufen. */
+  prerequisite?: string;
   badge?: string;
   /** Tailwind classes for the badge; omit when there is no badge. */
   badgeClass?: string;

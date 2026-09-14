@@ -220,7 +220,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
     image: undefined,
     involvedCharacters: ['bert'],
     mentorNote:
-      'Eine Inventur ist die Grundlage jeder Auditfähigkeit: Was betreiben wir, in welchem Zustand, seit wann? `stat` zeigt Metadaten einer Datei; mit `echo "…" >> datei` schreibst du deine Doku Zeile für Zeile.',
+      'Eine Inventur ist die Grundlage jeder Auditfähigkeit: Was betreiben wir, in welchem Zustand, seit wann? `stat` zeigt Metadaten einer Datei; mit `echo "…" >> datei` schreibst du deine Doku Zeile für Zeile. Zwei Zeichen, nicht eines: `>` allein überschreibt die Datei und damit alles, was schon drinstand.',
     choices: [
       {
         id: 'start',
@@ -238,7 +238,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Asset-Export unter /srv finden und LESEN (cat; stat für die Metadaten); konten.md im Wiki-Export lesen; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).',
+        'Asset-Export unter /srv finden und LESEN (cat; stat für die Metadaten); konten.md im Wiki-Export lesen; Inventur nach /home/timo/inventar.md schreiben (mindestens EXCH01 und BASTION-01).\n\nSchreiben ohne Editor: echo "Zeile" >> pfad hängt eine Zeile an, > allein überschreibt. Unbekannter Befehl? help zeigt alle verfügbaren.',
       vfsOverlay: {
         directories: ['/srv/assets', '/srv/wiki-export'],
         files: [
