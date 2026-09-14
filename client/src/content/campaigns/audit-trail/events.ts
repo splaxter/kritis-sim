@@ -1069,7 +1069,7 @@ export const auditTrailStoryEvents: GameEvent[] = [
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Auf waage01: pauschale SSH-Freigabe entfernen, eingehend default deny, SSH nur von 10.0.30.10 (BASTION-01) erlauben, Firewall aktivieren. Danach Weg über bastion01 prüfen. Zugangsdaten: siehe bastion-zugang.txt.',
+        'Auf waage01 mit ufw: SSH nur von 10.0.30.10 (BASTION-01) erlauben, eingehend default deny, Firewall aktivieren, pauschale SSH-Freigabe entfernen. Danach Weg über bastion01 prüfen. Zugangsdaten: siehe bastion-zugang.txt.\n\nReihenfolge rettet die eigene Sitzung: erst die neue Regel, zuletzt die alte Pauschalfreigabe löschen.',
       vfsOverlay: {
         files: [
           {
