@@ -169,7 +169,7 @@ export function RunSummaryScreen({
           <div className="mt-4 border border-terminal-green/30 p-3 text-sm text-terminal-green-dim">
             <span className="text-terminal-green">Tipp:</span> Im Lernmodus kannst du
             Terminal- und Windows-Aufgaben in Ruhe üben — ohne Zeitdruck und Stress.
-            Du erreichst ihn im Hauptmenü über <span className="text-terminal-green">[LERNMODUS]</span>.
+            Du erreichst ihn im Hauptmenü über <span className="text-terminal-green">[LERNBEREICH]</span>.
           </div>
         )}
 

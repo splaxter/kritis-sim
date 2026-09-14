@@ -750,6 +750,28 @@ export class TerminalSession {
     return [];
   }
 
+  /**
+   * Wie weit darf der Leerlauf-Hinweis hoechstens gehen?
+   *
+   * Die Hinweise eines Tutorials sind SCHRITTE und reden so
+   * („Super! Jetzt `ls` …"). Der Index folgte aber der Uhr: nach acht Sekunden
+   * Pause kam der naechste, egal was der Spieler getan hatte. Wer `pwd`
+   * wiederholte, bekam „Super! Jetzt `ls`" — der Mentor behauptete einen
+   * Fortschritt, den es nicht gab.
+   *
+   * Die Obergrenze ist deshalb der ECHTE Fortschritt: die Zahl der bereits
+   * erfuellten Loesungsschritte. Hat das Level kein Schrittmodell (reine
+   * stateGoals-Level), zaehlt ersatzweise die Zahl ausgefuehrter Befehle —
+   * damit die Hinweisliste wenigstens nicht im Leerlauf durchlaeuft.
+   */
+  private idleHintCeiling(): number {
+    const schrittLoesung = (this.deps.context.solutions ?? []).find((s) => s.commands.length > 0);
+    if (schrittLoesung) {
+      return schrittLoesung.commands.filter((c) => this.teachedCommands.has(c)).length;
+    }
+    return this.commandsUsed.length;
+  }
+
   // Beginner idle auto-hint — reproduces the old showIdleSuggestion output:
   // blank line, yellow 💡 hint, then a bare fresh prompt (does NOT clear or
   // rewrite the current input line), and reveals nothing once hints are
@@ -757,9 +779,19 @@ export class TerminalSession {
   // Distinct from handleHintRequest (footer button) by design.
   handleIdleHint(): TerminalEffect[] {
     const hints = this.deps.context.hints;
-    if (this.hintsUsed >= hints.length) return [];
-    const hint = hints[this.hintsUsed];
-    this.hintsUsed++;
+    // Nie weiter als der Fortschritt: sonst behauptet der Hinweis etwas ueber
+    // den Spieler. Steht er noch am selben Schritt, wird der AKTUELLE Hinweis
+    // wiederholt — und `hintsUsed` bleibt stehen, damit die Restanzeige
+    // („Hinweis (N uebrig)") die Wahrheit sagt.
+    const index = Math.min(this.hintsUsed, this.idleHintCeiling());
+    if (index >= hints.length) return [];
+    // Wiederholung nur, wenn wirklich etwas zurueckgehalten wird. Gibt es
+    // keinen naechsten Hinweis mehr, ist Schweigen richtig — sonst tropft der
+    // letzte Hinweis alle acht Sekunden nach, ohne dass es etwas zu verbergen
+    // gaebe. (Genau das sichert der aeltere Test „once hints are exhausted".)
+    if (index < this.hintsUsed && this.hintsUsed >= hints.length) return [];
+    const hint = hints[index];
+    if (index >= this.hintsUsed) this.hintsUsed = index + 1;
     return [
       { type: 'writeLine', text: '' },
       { type: 'writeLine', text: '\x1b[33m💡 ' + hint + '\x1b[0m' },

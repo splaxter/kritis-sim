@@ -244,7 +244,7 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
           <div className="text-terminal-green-dim">
             Terminal- und Windows-Aufgaben kannst du im <span className="text-terminal-green">Lernmodus</span> in
             Ruhe üben — ohne Zeitdruck, mit Hinweisen und Schritt für Schritt. Du erreichst ihn
-            im Hauptmenü über <span className="text-terminal-green">[LERNMODUS]</span>.
+            im Hauptmenü über <span className="text-terminal-green">[LERNBEREICH]</span>.
           </div>
           <button
             onClick={learningNudge.onDismiss}

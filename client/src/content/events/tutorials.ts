@@ -90,7 +90,9 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
         {
           commands: ['pwd', 'ls', 'cd'],
           allRequired: true,
-          resultText: 'Du hast die Grundbefehle gemeistert!',
+          resultText: `Du weißt jetzt, wo du bist (\`pwd\`), was da liegt (\`ls\`) und wie du woanders hinkommst (\`cd\`).
+
+Das ist Orientierung, noch keine Diagnose: Du hast dir drei Verzeichnisse angesehen, nicht herausgefunden, ob auf dieser Maschine etwas klemmt.`,
           skillGain: { linux: 5, troubleshooting: 3 },
           effects: { stress: -5 },
         },
@@ -179,7 +181,9 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
         {
           commands: ['cat', 'head', 'tail'],
           allRequired: true,
-          resultText: 'Du kannst jetzt Log-Dateien effizient lesen!',
+          resultText: `\`cat\` zeigt alles, \`head\` den Anfang, \`tail\` das Ende — bei einer Logdatei also das Neueste.
+
+Gelesen heißt noch nicht verstanden: In der Datei standen Zeilen mit ERROR. Welche davon zusammengehören und welche nur Rauschen sind, hast du damit noch nicht entschieden.`,
           skillGain: { linux: 5, troubleshooting: 3 },
           effects: { stress: -5 },
         },
@@ -268,7 +272,9 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         {
           commands: ['grep'],
           allRequired: true,
-          resultText: 'Du kannst jetzt effizient in Dateien suchen!',
+          resultText: `\`grep\` findet die Zeilen, die zu einem Muster passen — aus 2000 Zeilen werden drei.
+
+Und jetzt kommt der Teil, den kein Befehl abnimmt: Die drei Treffer sind Backup-Fehler von drei aufeinanderfolgenden Nächten. Ob das EIN Problem ist oder drei, steht nicht in der Ausgabe. Ins Ticket gehört die Zeitreihe, nicht die schönste einzelne Zeile.`,
           skillGain: { linux: 5, troubleshooting: 5 },
           effects: { stress: -5 },
         },
@@ -316,13 +322,18 @@ Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch ge
       commands: [
         {
           pattern: 'ping mail.warm.local',
+          // Das ^C gehört dazu: Ein nacktes `ping` läuft, bis man es abbricht
+          // — genau das sagt der zweite Hinweis. Ohne die Abbruchzeile endete
+          // die Simulation von selbst und widerlegte ihren eigenen Hinweis.
           output: `PING mail.warm.local (192.168.1.50) 56(84) bytes of data.
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=1 ttl=64 time=0.523 ms
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=2 ttl=64 time=0.412 ms
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=3 ttl=64 time=0.389 ms
-
+^C
 --- mail.warm.local ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2003ms`,
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+
+# Abgebrochen mit Strg+C. Ohne das läuft ping weiter — Paket für Paket.`,
           teachesCommand: 'ping',
           skillGain: { netzwerk: 3 },
         },
@@ -364,14 +375,16 @@ Address: 192.168.1.50`,
         {
           commands: ['ping', 'nslookup'],
           allRequired: true,
-          resultText: 'Server ist erreichbar und DNS funktioniert!',
+          resultText: `Zwei Dinge stehen fest: Der Name mail.warm.local löst auf 192.168.1.50 auf, und diese Adresse antwortet auf Ping.
+
+Was damit NICHT feststeht: ob der Mailserver läuft. Ping beantwortet ein Netzwerk-Paket — das tut auch ein Rechner, auf dem jeder Dienst abgestürzt ist. „Der Server ist erreichbar" und „Mail funktioniert" sind zwei verschiedene Aussagen, und du hast bisher nur die erste.`,
           skillGain: { netzwerk: 5, troubleshooting: 5 },
           effects: { stress: -5, relationships: { kollegen: 5 } },
         },
       ],
       hints: [
         '💡 Jens: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
-        '💡 Jens: "Tipp: Mit `ping -c 3` begrenzt du auf 3 Pakete, sonst läuft es ewig."',
+        '💡 Jens: "Du musstest mit Strg+C abbrechen, oder? Mit `ping -c 3` sagst du vorher, wie viele Pakete es sein sollen."',
         '💡 Jens: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
         '💡 Jens: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
       ],

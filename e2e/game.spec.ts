@@ -68,9 +68,13 @@ test.describe('KRITIS Admin Simulator', () => {
       // Wait for event to appear
       await page.waitForTimeout(1000);
 
-      // Should have at least one choice button
-      const buttons = page.locator('button');
-      await expect(buttons.first()).toBeVisible({ timeout: 5000 });
+      // Eine AUSWAHL muss da sein — nicht irgendein Knopf. `button.first()`
+      // nahm den erstbesten im DOM, und seit die Statistik auf schmalen
+      // Geraeten einklappbar ist, ist das auf dem Desktop ein per CSS
+      // ausgeblendeter Schalter. Der Test heisst „with choices"; also prueft er
+      // jetzt auch eine Auswahl, wie der Nachbartest daneben.
+      const choiceButtons = page.locator('button:has-text("[")');
+      await expect(choiceButtons.first()).toBeVisible({ timeout: 5000 });
     });
 
     test('can make a choice and see result', async ({ page }) => {

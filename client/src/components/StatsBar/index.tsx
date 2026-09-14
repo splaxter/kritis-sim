@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { GameState, getGameModeConfig } from '@kritis/shared';
 import { getRunLabel, getChapterProgress } from '../../content/campaigns';
 import { SkillBar } from './SkillBar';
@@ -73,6 +74,22 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
     return <LearningModeHeader state={state} lessonLabel={lessonLabel} lessonProgressPercent={lessonProgressPercent} />;
   }
 
+  /**
+   * Auf schmalen Geraeten sind Fertigkeiten und Beziehungen eingeklappt.
+   *
+   * Playtest-Befund: Bei 375x667 fuellten Kopfzeile und Statistik fast den
+   * ganzen ersten Bildschirm — die AUFGABE begann darunter. Vierzehn
+   * gestapelte Balken sind auf einem Telefon kein Ueberblick, sondern eine
+   * Wand vor dem, was der Spieler tun soll.
+   *
+   * Bewusst NICHT eingeklappt: die Warnbanner und die Zeile mit Stress, Budget
+   * und Compliance. Das sind die Werte, an denen ein Lauf scheitert; sie
+   * duerfen nicht hinter einem Klick liegen.
+   *
+   * Ab `sm` (640 px) ist alles wie vorher offen — dort war nie etwas kaputt.
+   */
+  const [detailsOffen, setDetailsOffen] = useState(false);
+
   const modeConfig = getGameModeConfig(state.gameMode);
   // The badge names the run: story runs by campaign (so a second campaign never
   // reads as "Die Probezeit"), everything else by mode.
@@ -92,7 +109,7 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
   const warnings = getDefeatWarnings(state);
 
   return (
-    <div className="border border-terminal-border p-4">
+    <div className="border border-terminal-border p-3 sm:p-4">
       {/* Pre-defeat warning banner — pulses while any metric is in its danger band */}
       {warnings.length > 0 && (
         <div className="mb-3 border border-terminal-danger px-3 py-1.5 text-sm text-terminal-danger animate-pulse motion-reduce:animate-none">
@@ -105,9 +122,9 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
       {/* Header — wraps: title + run badge + week don't share one line on a
           320px phone, and without wrapping the week readout is pushed
           off-screen. */}
-      <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 mb-4 pb-2 border-b border-terminal-border">
+      <div className="flex flex-wrap justify-between items-center gap-x-3 gap-y-1 mb-2 pb-2 sm:mb-4 border-b border-terminal-border">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-          <span className="text-lg">KRITIS ADMIN SIMULATOR</span>
+          <span className="text-base sm:text-lg">KRITIS ADMIN SIMULATOR</span>
           <span className="text-terminal-green-dim text-sm border border-terminal-border px-2 py-0.5">
             {runLabel.icon} {runLabel.name}
           </span>
@@ -122,9 +139,23 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
         </div>
       </div>
 
+      {/* Nur auf schmalen Geraeten: der Schalter fuer die Detailwerte. */}
+      <button
+        type="button"
+        onClick={() => setDetailsOffen((o) => !o)}
+        aria-expanded={detailsOffen}
+        aria-controls="statsbar-details"
+        className="sm:hidden mb-2 w-full border border-terminal-border px-3 py-1 text-left text-sm text-terminal-green-dim hover:bg-terminal-bg-highlight"
+      >
+        {detailsOffen ? '▾' : '▸'} Skills &amp; Beziehungen
+      </button>
+
       {/* Single column on phones: two columns of skill bars with fixed-width
           value labels overflow a 375px viewport sideways. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+      <div
+        id="statsbar-details"
+        className={`${detailsOffen ? 'grid' : 'hidden'} grid-cols-1 gap-4 sm:grid sm:grid-cols-2 sm:gap-6`}
+      >
         {/* Skills */}
         <div>
           <div className="text-terminal-green-dim mb-2 text-sm">─ SKILLS ─</div>
@@ -155,7 +186,7 @@ export function StatsBar({ state, lessonLabel, lessonProgressPercent }: StatsBar
       {/* Status bar */}
       {/* Stress · Budget · Compliance — wraps rather than pushing the last
           value off a narrow screen. */}
-      <div className="mt-4 pt-2 border-t border-terminal-border flex flex-wrap gap-x-8 gap-y-1 text-sm">
+      <div className="mt-3 pt-2 sm:mt-4 border-t border-terminal-border flex flex-wrap gap-x-6 sm:gap-x-8 gap-y-1 text-sm">
         <span className={stressColor}>
           Stress:{' '}
           <span className="font-mono">

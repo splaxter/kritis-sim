@@ -33,9 +33,23 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
+  /**
+   * `minmax(0, …)` statt blossem `fr`.
+   *
+   * Eine fr-Spur hat als Mindestbreite automatisch `min-content`. Ein langer,
+   * nicht umbrechbarer Dateiname („Anschluss_Betriebshof_2026.pdf") zwingt die
+   * Namensspalte damit ueber die Kastenbreite hinaus und schiebt die
+   * Datumsspalte hinaus — bei 320 px gemessen: 293 px Inhalt in 252 px Breite.
+   * Mit `minmax(0, …)` darf die Spur schrumpfen, und der Name bricht um.
+   *
+   * Bewusst umbrechen statt abschneiden: Der Unterschied zwischen der gueltigen
+   * und der ersetzten Vertragsfassung steckt im ENDE des Namens (…_2026 gegen
+   * …_2021). Ein Auslassungszeichen wuerde genau die Information verstecken,
+   * um die es in dem Fall geht.
+   */
   headRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1.2fr',
+    gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1.2fr)',
     padding: '6px 16px',
     backgroundColor: tokens.colorNeutralBackground1,
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -62,7 +76,9 @@ const useStyles = makeStyles({
   scrollArea: { flex: 1, minHeight: 0, overflowY: 'auto' },
   row: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1.2fr',
+    gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1.2fr)',
+    // Der Name darf umbrechen, statt das Raster zu sprengen.
+    overflowWrap: 'anywhere',
     padding: '8px 16px',
     alignItems: 'center',
     cursor: 'default',
@@ -88,13 +104,15 @@ const useStyles = makeStyles({
   },
   matrixHead: {
     display: 'grid',
-    gridTemplateColumns: '1fr 80px 90px',
+    gridTemplateColumns: 'minmax(0, 1fr) 80px 90px',
+    overflowWrap: 'anywhere',
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
   },
   matrixRow: {
     display: 'grid',
-    gridTemplateColumns: '1fr 80px 90px',
+    gridTemplateColumns: 'minmax(0, 1fr) 80px 90px',
+    overflowWrap: 'anywhere',
     fontSize: tokens.fontSizeBase200,
     alignItems: 'center',
   },
