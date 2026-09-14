@@ -260,3 +260,85 @@ describe('Die Ping-Uebung behauptet nichts ueber den Spieler', () => {
     }
   });
 });
+
+/* ── Getrennte Buchhaltung: Position ist nicht Verbrauch ───────────────── */
+
+describe('Uebersprungene Zusatztipps bleiben erreichbar', () => {
+  /** Der Hinweistext eines handleHintRequest()-Aufrufs (Schaltflaeche). */
+  function knopfHinweis(s: TerminalSession): string | null {
+    const zeile = s.handleHintRequest().find(
+      (e) => e.type === 'writeLine' && typeof e.text === 'string' && e.text.includes('\x1b[33m')
+    ) as { text: string } | undefined;
+    return zeile ? zeile.text.replace(/\x1b\[[0-9;]*m/g, '').replace(/^\r\n/, '') : null;
+  }
+
+  /**
+   * DER Befund aus Runde 3, als Ablauf:
+   *
+   *   Such-Tutorial starten          → 6 Hinweise, einer gezeigt
+   *   `grep ERROR error.log`, warten → die Automatik springt zum Kontext (5)
+   *   danach                         → „Hinweis (0 uebrig)", Schaltflaeche tot
+   *
+   * `hintsUsed = index + 1` hatte die vier uebersprungenen Tipps mitverbucht.
+   */
+  it('der Sprung zum Kontextschritt verbraucht die Optionstipps nicht', () => {
+    const ctx = byId('evt_tutorial_search').terminalContext!;
+    const s = sessionFuer(ctx);
+
+    idleHint(s); // Hinweis 0 — „grep ERROR error.log"
+    expect(s.getSnapshot().hintsUsed).toBe(1);
+
+    tippe(s, 'grep ERROR error.log');
+    const kontext = idleHint(s)!;
+    expect(kontext, 'die Automatik springt zum Kontextschritt').toMatch(/cat error\.log|grep -A 2/);
+
+    // Gezeigt sind jetzt genau ZWEI: der erste und der Kontexthinweis.
+    expect(
+      s.getSnapshot().hintsUsed,
+      'die uebersprungenen Optionstipps duerfen nicht als verbraucht gelten'
+    ).toBe(2);
+    expect(ctx.hints.length - s.getSnapshot().hintsUsed, '„Hinweis (N uebrig)"').toBe(4);
+  });
+
+  it('die uebersprungenen Tipps lassen sich danach von Hand holen', () => {
+    const s = sessionFuer(byId('evt_tutorial_search').terminalContext!);
+    idleHint(s);
+    tippe(s, 'grep ERROR error.log');
+    idleHint(s); // springt zum Kontext
+
+    // Die Schaltflaeche liefert die uebersprungenen Tipps, nicht „nichts mehr".
+    const geholt = [knopfHinweis(s), knopfHinweis(s), knopfHinweis(s)];
+    expect(geholt.join('\n')).toMatch(/-i/);
+    expect(geholt.join('\n')).toMatch(/-c/);
+    expect(geholt.join('\n')).toMatch(/-r/);
+  });
+
+  it('die Schaltflaeche wiederholt nichts, was schon zu sehen war', () => {
+    const s = sessionFuer(byId('evt_tutorial_search').terminalContext!);
+    const zuerst = idleHint(s);
+    expect(knopfHinweis(s), 'der erste Hinweis stand schon da').not.toBe(zuerst);
+  });
+
+  it('erst wenn der Spieler wirklich alle kennt, ist die Schaltflaeche leer', () => {
+    const ctx = byId('evt_tutorial_search').terminalContext!;
+    const s = sessionFuer(ctx);
+    const gesehen = new Set<string>();
+    for (let i = 0; i < ctx.hints.length; i++) {
+      const h = knopfHinweis(s);
+      expect(h, `Hinweis ${i + 1} von ${ctx.hints.length} fehlt`).not.toBeNull();
+      gesehen.add(h!);
+    }
+    expect(gesehen.size, 'jeder Hinweis genau einmal').toBe(ctx.hints.length);
+    expect(knopfHinweis(s), 'danach ist wirklich Schluss').toBeNull();
+    expect(s.getSnapshot().hintsUsed).toBe(ctx.hints.length);
+  });
+
+  it('die Automatik wiederholt einen Schritt, ohne den Rest zu verbrauchen', () => {
+    const s = sessionFuer(byId('evt_tutorial_network').terminalContext!);
+    idleHint(s);
+    const vorher = s.getSnapshot().hintsUsed;
+    idleHint(s);
+    idleHint(s);
+    expect(s.getSnapshot().hintsUsed, 'Warten hat Hinweise aufgebraucht').toBe(vorher);
+  });
+});

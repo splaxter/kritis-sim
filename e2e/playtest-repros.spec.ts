@@ -131,3 +131,36 @@ test('Audit Trail L1: der Befund steht auf dem Ergebnisbildschirm', async ({ pag
   await expect(page.getByText('Befund')).toBeVisible({ timeout: 5000 });
   await expect(page.getByText(/LESEN/)).toBeVisible();
 });
+
+/**
+ * Review Runde 3: Die Automatik sprang im Such-Tutorial zum Kontexthinweis und
+ * verbrauchte dabei die vier uebersprungenen Optionstipps. Die Schaltflaeche
+ * stand danach auf „Hinweis (0 uebrig)" und war deaktiviert — drei Tipps waren
+ * auch von Hand nicht mehr erreichbar.
+ */
+test('Repro 5: der Sprung zum Kontext verbraucht die Optionstipps nicht', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await seedTut(page, ['evt_first_day', 'evt_tutorial_navigation', 'evt_tutorial_files']);
+  await starte(page, /Terminal-Grundlagen: Suchen/);
+
+  const knopf = page.getByRole('button', { name: /Hinweis \(/ });
+  await expect(knopf).toContainText('5 übrig');
+
+  await tippe(page, 'grep ERROR error.log');
+  await page.waitForTimeout(9000); // Leerlauf-Hilfe
+
+  const txt = await page.locator('.xterm').innerText();
+  expect(txt.split('💡').pop() ?? '', 'die Automatik springt zum Kontext')
+    .toMatch(/cat error\.log|grep -A 2/);
+
+  // DAS ist der Befund: vorher stand hier „0 übrig" und der Knopf war tot.
+  await expect(knopf, 'vier uebersprungene Tipps waeren verloren').toContainText('4 übrig');
+  await expect(knopf).toBeEnabled();
+
+  // Und sie lassen sich wirklich holen.
+  await knopf.click();
+  await page.waitForTimeout(300);
+  const nachher = await page.locator('.xterm').innerText();
+  expect(nachher.length, 'der Klick hat nichts ausgegeben').toBeGreaterThan(txt.length);
+  await expect(knopf).toContainText('3 übrig');
+});
