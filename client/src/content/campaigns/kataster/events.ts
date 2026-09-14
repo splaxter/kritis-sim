@@ -128,11 +128,13 @@ Es ist nicht viel. Genau das ist der Befund.
 **Deine Aufgabe:**
 - Verschaff dir einen Überblick: wie viele Dateien sind das überhaupt? (\`find\`, \`wc -l\`)
 - Durchsuche die Vertragsakten nach dem, was **regelmäßig** zu tun ist (\`grep -r\`)
-- Lies den Fund und halte ihn schriftlich fest in \`/home/timo/quellen.md\``,
+- Lies den Fund und halte ihn schriftlich fest in \`/home/timo/quellen.md\`
+
+Zum Schreiben gibt es hier keinen Editor. Eine Zeile hängst du mit \`echo "Zeile" >> pfad\` an eine Datei an; \`>\` allein legt sie neu an und überschreibt, was drinstand.`,
     image: undefined,
     involvedCharacters: ['bert'],
     mentorNote:
-      'Ein Vertrag ist kein Ablageobjekt. Er ist eine Liste von Dingen, die jemand regelmäßig tun muss. Die Wörter, an denen man sie findet, sind immer dieselben: monatlich, jährlich, unverzüglich, binnen, nachzuweisen. `grep -rn muster verzeichnis` durchsucht einen ganzen Ordnerbaum und zeigt Datei und Zeilennummer.',
+      'Ein Vertrag ist kein Ablageobjekt. Er ist eine Liste von Dingen, die jemand regelmäßig tun muss. Die Wörter, an denen man sie findet, sind immer dieselben: monatlich, jährlich, unverzüglich, binnen, nachzuweisen. `grep -rn muster verzeichnis` durchsucht einen ganzen Ordnerbaum und zeigt Datei und Zeilennummer.\n\nUnd das Festhalten gehört dazu: Auf einem Server gibt es oft keinen Editor, nur die Shell. `echo "Zeile" >> datei` hängt an, `>` überschreibt. Dieser Unterschied ist der Grund, warum man das eine Zeichen zweimal tippt — mit einem Zeichen zu wenig ist die Datei von gestern weg.',
     choices: [
       {
         id: 'start',
@@ -150,7 +152,7 @@ Es ist nicht viel. Genau das ist der Befund.
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Umfang von /srv/verwaltung feststellen (find + wc -l); Vertragsakten nach regelmäßigen Pflichten durchsuchen (grep -r); den Fund lesen und in /home/timo/quellen.md festhalten.',
+        'Umfang von /srv/verwaltung feststellen (find + wc -l); Vertragsakten nach regelmäßigen Pflichten durchsuchen (grep -r); den Fund lesen und in /home/timo/quellen.md festhalten.\n\nSchreiben ohne Editor: echo "Zeile" >> pfad hängt eine Zeile an, > allein überschreibt. Unbekannter Befehl? help zeigt alle verfügbaren.',
       vfsOverlay: {
         directories: [
           '/srv/verwaltung/vertragsakten',

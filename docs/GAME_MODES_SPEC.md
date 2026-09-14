@@ -225,6 +225,8 @@ Each advanced track ships 4 levels (16 total, in `client/src/content/events/lear
 
 **Framing (AUDIT TRAIL, Das Kataster):** both are **hands-on** and say so in their menu copy — authored `terminalCommand` and `guiCommand` beats carry the plot rather than decorating it. Das Kataster adds the `kataster` GUI app (register rows, owners, evidence) alongside the terminal levels.
 
+**Prerequisite (`menu.prerequisite`):** "hands-on" says how much is *played*, not what the player must *be able to do* — and the two were confused. All six Das Kataster terminal levels end with the player writing a finding into a file, the shell has no editor (`echo … >> datei` is the only way), and no story-mode player was ever taught it: the four terminal tutorials are `requiredModes: ['beginner']` and the guided onboarding runs only in beginner mode. Every campaign with terminal levels therefore declares a one-line `prerequisite`, rendered above the facts line in the picker; a campaign without them must **not** declare one (a hurdle that does not exist only scares people off). The first level that asks for writing shows the redirection in its **`taskText`** — the panel that stays on screen — not only in the mentor note. Guards: `content/campaigns/campaignMenu.test.ts`, `content/campaigns/schreibenOhneEditor.test.ts`, `CampaignSelectModal.browser.test.tsx`, `e2e/mobile-menu-layout.spec.ts` (the line must be visible without scrolling at 320 px — measured, the card may not exceed the viewport).
+
 ### Configuration
 
 | Setting | Value | Rationale |
@@ -427,8 +429,10 @@ Step 2a — campaign picker (`CampaignSelectModal`), first entry preselected:
 ```
 01. Die Probezeit — EMPFOHLEN — 12 Kapitel · 3 Enden · Casual
 02. Audit Trail  — GEHEIM    — 6 Kapitel · 3 Enden · Hands-on  (only after 'trick17')
-03. Das Kataster —           — 6 Kapitel · 3 Enden · Hands-on (Terminal & Kataster)
+03. Das Kataster — TERMINAL  — 6 Kapitel · 3 Enden · Hands-on (Terminal & Kataster)
 ```
+Cards 02 and 03 carry a `prerequisite` line above the facts line (see *Framing*
+below); 01 has no terminal levels and deliberately carries none.
 Registry order is fixed; a locked AUDIT TRAIL is simply absent, so Das Kataster
 sits at 02 until the code is typed and at 03 afterwards.
 Step 2b — simulation picker (`GameModeSelectModal`, simulation-only), Einsteiger preselected:
