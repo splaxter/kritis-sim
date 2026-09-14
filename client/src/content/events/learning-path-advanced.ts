@@ -1577,7 +1577,7 @@ dann roll es aus."
       username: 'deploy',
       currentPath: '/opt/playbooks',
       taskText:
-        'motd.yml mit ansible-playbook zuerst als Trockenlauf ansehen (--check), dann ohne den Schalter ausrollen; per ssh auf web01 prüfen, dass /etc/motd die Meldung enthält.',
+        'motd.yml mit ansible-playbook zuerst als Trockenlauf ansehen (--check), dann ohne den Schalter ausrollen; danach per ssh auf web01 einloggen und dort mit cat /etc/motd prüfen, dass die Meldung angekommen ist.',
       vfsOverlay: {
         files: [
           ...controllerSshFiles,
@@ -1613,8 +1613,16 @@ dann roll es aus."
           commands: [],
           allRequired: false,
           stateGoals: [
+            // Alle DREI Hosts — der Ergebnistext behauptet „auf allen drei
+            // Webservern"; web03 fehlte hier und wurde deshalb nie geprüft.
             { host: 'web01', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
             { host: 'web02', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+            { host: 'web03', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+            // Die im Auftrag angesagte Kontrolle muss auch VERLANGT sein. Ohne
+            // sie war das Level schon nach dem Ausrollen gelöst, und der
+            // ssh-Schritt im Auftragstext war ein Versprechen, das die Sitzung
+            // gar nicht mehr entgegennimmt.
+            { host: 'web01', fileRead: '/etc/motd' },
           ],
           resultText:
             'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nMerke dir die Reihenfolge für die Produktion: erst `--check` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. Dort ist das kein Luxus, sondern Pflicht.',

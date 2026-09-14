@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { createShellFromContext, checkStateGoals } from './shell';
 import { alleTerminalLevel } from './terminalLevelRegistry';
 import { befehleImText, LINUX_BEFEHLE } from './wissensbilanz';
+import { fahreZeilen } from './sollpfadFahrer';
 
 /**
  * Die zehn Faelle, die ihre Anforderung erst im Hinweis nannten.
@@ -81,10 +81,12 @@ const WEGE: Weg[] = [
   },
   {
     id: 'learn_ans_01_inventory',
-    nennt: ['ansible-playbook', 'ssh'],
+    nennt: ['ansible-playbook', 'ssh', 'cat'],
     zeilen: [
       { cmd: 'ansible-playbook motd.yml --check' },
       { cmd: 'ansible-playbook motd.yml' },
+      { cmd: 'ssh web01' },
+      { cmd: 'cat /etc/motd' },
     ],
   },
   {
@@ -121,23 +123,35 @@ describe('Der Auftragstext nennt das Werkzeug', () => {
     }
   });
 
+  /**
+   * Gefahren wird durch die SITZUNG, nicht an ihr vorbei.
+   *
+   * Der erste Anlauf rief `shell.execute` direkt auf und pruefte am Ende die
+   * `stateGoals`. Das umgeht die Erfolgserkennung — und bestaetigt damit auch
+   * einen Auftragstext, dessen letzte Schritte im Spiel gar nicht mehr zur
+   * Ausfuehrung kommen. Genau das ist passiert: Der Ansible-Auftrag verlangte
+   * eine Kontrolle per ssh, das Level war aber schon nach dem Ausrollen
+   * geloest; wer danach weitertippt, bestaetigt nur noch den Abschluss.
+   */
   it.each(WEGE.map((w) => [w.id, w] as const))(
-    '%s laesst sich mit genau diesen Werkzeugen loesen',
+    '%s wird durch den angesagten Weg geloest — und zwar durch den GANZEN',
     (_id, weg) => {
       const ctx = level(weg.id).terminalContext!;
-      const shell = createShellFromContext(ctx);
-      for (const { cmd, antworten } of weg.zeilen) {
-        shell.execute(cmd);
-        let i = 0;
-        while (shell.hasPendingInput() && i < 8) shell.continueInput(antworten?.[i++] ?? '');
-      }
-      const geloest = (ctx.solutions ?? []).some((l) =>
-        l.stateGoals ? checkStateGoals(shell, l.stateGoals) : false
-      );
+      const fahrt = fahreZeilen(ctx, weg.zeilen);
+
       expect(
-        geloest,
+        fahrt.geloestNachZeile,
         `der im Auftrag angesagte Weg loest ${weg.id} nicht:\n  ${weg.zeilen.map((z) => z.cmd).join('\n  ')}`
-      ).toBe(true);
+      ).not.toBeNull();
+
+      // Ein Auftrag, der nach dem Erfolg noch Schritte ansagt, verspricht eine
+      // Kontrolle, die das Spiel nie entgegennimmt: Nach dem Erfolg wartet die
+      // Sitzung auf das bestaetigende Enter.
+      expect(
+        fahrt.geloestNachZeile,
+        `${weg.id} ist schon nach Zeile ${fahrt.geloestNachZeile} von ${weg.zeilen.length} geloest — ` +
+          'die restlichen angesagten Schritte kommen im Spiel nie zur Ausfuehrung'
+      ).toBe(weg.zeilen.length);
     }
   );
 });

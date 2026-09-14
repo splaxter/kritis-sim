@@ -82,13 +82,17 @@ describe('learn_ans_01_inventory — check first, apply second', () => {
     const real = run(shell, 'ansible-playbook motd.yml');
     expect(real.exitCode).toBe(0);
     expect(real.output).toMatch(/changed=[1-9]/);
-    expect(checkStateGoals(shell, goals)).toBe(true);
+    // Rolled out is not yet verified: the task text announces a check on a
+    // host, so that check is part of the goal. Without it the level would be
+    // finished before the player ever types the step it asks for.
+    expect(checkStateGoals(shell, goals)).toBe(false);
 
     // Verify on a host via ssh (key auth, no password prompt).
     const login = run(shell, 'ssh web01');
     expect(login.exitCode).toBe(0);
     expect(shell.getPromptInfo().hostname).toBe('web01');
     expect(run(shell, 'cat /etc/motd').output).toMatch(/Zugriff nur nach Freigabe/);
+    expect(checkStateGoals(shell, goals)).toBe(true);
   });
 });
 
