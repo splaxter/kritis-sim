@@ -1,6 +1,7 @@
 import type { GameEvent, TerminalContext } from '@kritis/shared';
 import { allLinuxCommands } from './shell/commands/linux';
 import { allPowerShellCommands } from './shell/commands/powershell';
+import { anforderungen } from './anforderungen';
 
 /**
  * Die Wissensbilanz: Was hat das Spiel gezeigt, bevor es etwas verlangt?
@@ -52,8 +53,13 @@ export const POWERSHELL_BEFEHLE: ReadonlySet<string> = namen(allPowerShellComman
  * (`ci`, `gc`, `h`, `sl`) ebenso: zu kurz, um zufaellige Treffer zu ueberleben.
  */
 const ZWEIDEUTIG = new Set([
+  // Deutsche oder englische Alltagswoerter, die zugleich Befehle sind
   'du', 'dir', 'man', 'top', 'id', 'date', 'file', 'free', 'host', 'type',
   'test', 'server', 'which', 'less', 'source', 'env', 'ip', 'lo', 'export',
+  // PowerShell-Kuerzel, die als Silbe durchgehen. Eine pauschale Regel „alles
+  // mit hoechstens zwei Zeichen" waere bequem, hat aber `ps` und `ss`
+  // mitgenommen — beide sind in deutschem Text eindeutig.
+  'ci', 'gc', 'gl', 'sc', 'sl', 'h', 'gi', 'ni', 'ri', 'si', 'cli', 'ft',
 ]);
 
 /** Umlenkung und Verkettung sind kein Befehl, muessen aber gelernt werden. */
@@ -62,7 +68,7 @@ export const OPERATOREN = ['>>', '>', '|'] as const;
 /** Zeichen, nach denen ein Befehl anfangen kann. */
 const GRENZE = new Set(['`', '(', '|', ';', '+', ',', ':', '"', "'", '\n']);
 
-const brauchtKontext = (wort: string) => ZWEIDEUTIG.has(wort) || wort.length <= 2;
+const brauchtKontext = (wort: string) => ZWEIDEUTIG.has(wort);
 
 /**
  * Die Befehle in einem Stueck Text, so wie ein Spieler sie dort sehen wuerde.
@@ -115,6 +121,12 @@ export function gezeigteBefehle(ctx: TerminalContext): Set<string> {
   for (const cmd of ctx.commands ?? []) {
     for (const b of befehleImText(cmd.pattern, vok)) gezeigt.add(b);
     if (cmd.teachesCommand) gezeigt.add(cmd.teachesCommand.toLowerCase());
+    // Ein gescripteter Beat fuehrt seinen Befehl vor, auch wenn die Shell ihn
+    // gar nicht kennt: `whois 185.234.72.15` ist im Spiel eine gueltige Zeile
+    // mit Ausgabe, obwohl `whois` nirgends implementiert ist. Wer nur das
+    // Shell-Vokabular fragt, uebersieht genau diese Level.
+    const erstes = cmd.pattern.trim().split(/\s+/)[0]?.toLowerCase();
+    if (erstes && /^[a-z][a-z0-9_.-]*$/.test(erstes)) gezeigt.add(erstes);
   }
   return gezeigt;
 }
@@ -140,19 +152,15 @@ export function hinweisBefehle(ctx: TerminalContext): Set<string> {
 }
 
 /**
- * Was der Sollpfad BRAUCHT. Quelle sind die Hinweise (der vom Spiel selbst
- * angebotene Loesungsweg) und die vorgesehenen `solutions[].commands`.
+ * Was der Sollpfad BRAUCHT — aus der Siegbedingung, nicht aus den Hinweisen.
+ *
+ * Die erste Fassung las die Anforderungen aus den Hinweisen. Damit verschwand
+ * eine Anforderung, sobald man ihre letzte Erklaerung loeschte: eine
+ * unangekuendigte `sha256sum`-Pflicht blieb unsichtbar. Die Hinweise sind jetzt
+ * nur noch eine QUELLE VON SICHTBARKEIT, nie eine Quelle von Anforderungen.
  */
 export function verlangteBefehle(ctx: TerminalContext): Set<string> {
-  const verlangt = hinweisBefehle(ctx);
-  const vok = vokabularVon(ctx);
-  for (const loesung of ctx.solutions ?? []) {
-    for (const name of loesung.commands ?? []) {
-      const wort = name.toLowerCase();
-      if (vok.has(wort)) verlangt.add(wort);
-    }
-  }
-  return verlangt;
+  return new Set(anforderungen(ctx).liste.flatMap((a) => a.kandidaten));
 }
 
 export interface Befund {
@@ -162,6 +170,17 @@ export interface Befund {
   unloesbar: string[];
   /** Neu und nur im Hinweis erklaert, nicht im Auftrag. */
   nurImHinweis: string[];
+  /** Zielarten, die die Anforderungsableitung nicht deutet. Solange die
+   *  dastehen, ist das Level UNGEPRUEFT, nicht sauber. */
+  ungedeutet: string[];
+}
+
+export interface Routenlevel {
+  event: GameEvent;
+  /** Muss der Spieler dieses Level gespielt haben, bevor die naechsten kommen?
+   *  Optionale Lektionen sind KEINE Pflichtvorgeschichte — was sie zeigen,
+   *  darf ein spaeteres Level nicht voraussetzen. */
+  pflicht: boolean;
 }
 
 export interface Routenbilanz {
@@ -177,14 +196,14 @@ export interface Routenbilanz {
  */
 export function bilanziere(
   route: string,
-  levelInReihenfolge: GameEvent[],
+  levelInReihenfolge: readonly Routenlevel[],
   vorwissen: Iterable<string> = []
 ): Routenbilanz {
   const bekannt = new Set<string>(vorwissen);
   const befunde: Befund[] = [];
   let terminalLevel = 0;
 
-  for (const event of levelInReihenfolge) {
+  for (const { event, pflicht } of levelInReihenfolge) {
     const ctx = event.terminalContext;
     if (!ctx) continue;
     terminalLevel++;
@@ -192,23 +211,50 @@ export function bilanziere(
     const zeigt = gezeigteBefehle(ctx);
     const angesagt = angesagteBefehle(event, ctx);
     const imHinweis = hinweisBefehle(ctx);
-    const verlangt = verlangteBefehle(ctx);
+    const noetig = anforderungen(ctx);
 
     // Alles, was im Level SELBST zu sehen ist — abschreibbar.
     const sichtbar = new Set([...zeigt, ...angesagt, ...imHinweis]);
+    const verfuegbar = (b: string) => bekannt.has(b) || sichtbar.has(b);
 
-    const unloesbar = [...verlangt].filter((b) => !bekannt.has(b) && !sichtbar.has(b)).sort();
-    const nurImHinweis = [...verlangt]
-      .filter((b) => !bekannt.has(b) && !zeigt.has(b) && !angesagt.has(b) && imHinweis.has(b))
+    const unloesbar = noetig.liste
+      .filter((a) => !a.kandidaten.some(verfuegbar))
+      .map((a) => a.was)
+      .sort();
+    // „Nur im Hinweis": kein Kandidat war vorher bekannt oder im Auftrag zu
+    // sehen, aber einer steht im Hinweis. Loesbar — und trotzdem der Fall,
+    // ueber den sich der Auftraggeber beschwert hat.
+    const nurImHinweis = noetig.liste
+      .filter(
+        (a) =>
+          !a.kandidaten.some((k) => bekannt.has(k) || zeigt.has(k) || angesagt.has(k)) &&
+          a.kandidaten.some((k) => imHinweis.has(k))
+      )
+      .map((a) => a.was)
       .sort();
 
-    if (unloesbar.length > 0 || nurImHinweis.length > 0) {
-      befunde.push({ eventId: event.id, titel: event.title, unloesbar, nurImHinweis });
+    if (unloesbar.length || nurImHinweis.length || noetig.ungedeutet.length) {
+      befunde.push({
+        eventId: event.id,
+        titel: event.title,
+        unloesbar,
+        nurImHinweis,
+        ungedeutet: noetig.ungedeutet,
+      });
     }
 
-    // Erst NACH der Pruefung lernen: ein Level deckt sich nicht selbst.
-    for (const b of sichtbar) bekannt.add(b);
-    for (const b of verlangt) bekannt.add(b);
+    // Erst NACH der Pruefung lernen — und nur, wenn das Level Pflicht ist.
+    //
+    // Gelernt wird, was der Spieler GESEHEN hat, plus die Befehle, die er
+    // zwangslaeufig getippt hat: eine Anforderung mit genau einem Kandidaten
+    // laesst keine Wahl. Bei einer ODER-Anforderung („irgendwie schreiben")
+    // waere das Gegenteil fatal — wer alle zwoelf Schreib-Kandidaten als
+    // gelernt verbucht, haelt danach auch `sha256sum` fuer bekannt und
+    // uebersieht genau die unangekuendigte Pflicht, die gefunden werden soll.
+    if (pflicht) {
+      for (const b of sichtbar) bekannt.add(b);
+      for (const a of noetig.liste) if (a.kandidaten.length === 1) bekannt.add(a.kandidaten[0]);
+    }
   }
 
   return { route, terminalLevel, befunde, vokabular: [...bekannt].sort() };

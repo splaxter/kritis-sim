@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { befehleImText, bilanziere, LINUX_BEFEHLE } from './wissensbilanz';
+import { befehleAusMuster, anforderungenAusZielen } from './anforderungen';
 import { festeRouten } from './terminalLevelRegistry';
 
 /**
  * Verlangt das Spiel je einen Befehl, den es nie gezeigt hat?
  *
  * Die Frage stellt sich, weil die Antwort zweimal „ja" war und beide Male ein
- * Mensch sie gefunden hat: DAS KATASTER verlangte im ersten Level `find`,
- * `wc -l`, `grep -r` und eine Umlenkung, und ein Story-Spieler hatte davon nie
- * eines gesehen — die Grundlagen-Tutorials tragen `requiredModes: ['beginner']`.
+ * Mensch sie gefunden hat. Die erste Fassung dieser Pruefung beantwortete sie
+ * allerdings noch falsch — sie las die Anforderungen aus den HINWEISEN. Damit
+ * verschwand jede Anforderung, sobald man ihre Erklaerung loeschte: genau der
+ * Fall, den sie finden soll. Anforderungen kommen deshalb ausschliesslich aus
+ * der Siegbedingung (`anforderungen.ts`), Hinweise nur noch als Sichtbarkeit.
  */
 
 describe('Befehle aus einem Text lesen', () => {
@@ -30,36 +33,82 @@ describe('Befehle aus einem Text lesen', () => {
   /**
    * Der Grund fuer die Kontextregel. `du`, `dir` und `man` sind Befehle UND
    * deutsche Woerter; `Groß/Klein` enthaelt einen Schraegstrich und ist trotzdem
-   * kein Pfad. Ohne diese Regel meldete die Bilanz „du" als ungelernten Befehl.
+   * kein Pfad.
    */
   it('faellt nicht auf deutsche Woerter herein, die auch Befehle sind', () => {
     expect([...befehleImText('Mit grep -i ignorierst du Groß/Klein.', LINUX_BEFEHLE)]).toEqual(['grep']);
     expect([...befehleImText('Schau dir das an, man weiß ja nie.', LINUX_BEFEHLE)]).toEqual([]);
-    // Mit echtem Argument zaehlen sie sehr wohl.
     expect([...befehleImText('du -sh /var/log', LINUX_BEFEHLE)]).toContain('du');
     expect([...befehleImText('man grep', LINUX_BEFEHLE)]).toContain('man');
   });
 
+  /**
+   * Eine pauschale Regel „hoechstens zwei Zeichen braucht Kontext" war bequem
+   * und falsch: sie nahm `ps` und `ss` mit, die in deutschem Text eindeutig
+   * sind — `ps aux` galt dadurch als nie gezeigt.
+   */
+  it('kurze, aber eindeutige Befehle zaehlen ohne Sonderbedingung', () => {
+    expect([...befehleImText('`ps aux | grep miner`', LINUX_BEFEHLE)]).toContain('ps');
+    expect([...befehleImText('`ss -tulpn`', LINUX_BEFEHLE)]).toContain('ss');
+  });
+
   it('faerbt PowerShell nicht auf Linux ab', () => {
-    // `dir`, `gc`, `ci` sind PowerShell-Aliasse. In einem Linux-Level sind sie
-    // keine Befehle, sondern deutsche Silben.
     expect([...befehleImText('Sieh dir /var/log an', LINUX_BEFEHLE)]).toEqual([]);
+  });
+});
+
+describe('Anforderungen kommen aus der Siegbedingung, nicht aus den Hinweisen', () => {
+  /**
+   * Der Review-Befund: Eine unangekuendigte `sha256sum`-Pflicht in einem
+   * `commandRan`-Ziel blieb voellig unsichtbar, weil die Anforderungen aus den
+   * Hinweisen gelesen wurden. Eine Pruefung, die genau dann wegschaut, wenn die
+   * Erklaerung fehlt, prueft das Gegenteil von dem, was sie soll.
+   */
+  it('ein commandRan-Ziel ist eine Anforderung, auch ohne jeden Hinweis', () => {
+    const { liste } = anforderungenAusZielen([
+      { commandRan: { pattern: '^\\s*sha256sum\\b', outcome: 'succeeded' } },
+    ]);
+    expect(liste.map((a) => a.was)).toEqual(['sha256sum']);
+  });
+
+  it('liest den Befehl aus dem Vorspann echter Muster', () => {
+    expect(befehleAusMuster('^\\s*find\\s.*-iname')).toEqual(['find']);
+    expect(befehleAusMuster('^(?:sudo\\s+)?ufw\\s+status(?:\\s+numbered)?$')).toEqual(['ufw']);
+    expect(befehleAusMuster('^\\s*awk\\b')).toEqual(['awk']);
+    // Eine Alternative ist eine ODER-Anforderung, keine drei Pflichten.
+    expect(befehleAusMuster('^\\s*(grep|awk|cat)\\b')).toEqual(['grep', 'awk', 'cat']);
+  });
+
+  it('ein Inhaltsziel verlangt Schreiben, ein Lesenachweis Lesen', () => {
+    const schreiben = anforderungenAusZielen([{ file: '/tmp/a', matches: 'x' }]);
+    expect(schreiben.liste.map((a) => a.was)).toEqual(['schreiben']);
+    expect(schreiben.liste[0].kandidaten).toContain('>>');
+
+    const lesen = anforderungenAusZielen([{ fileRead: '/tmp/a' }]);
+    expect(lesen.liste.map((a) => a.was)).toEqual(['lesen']);
+    expect(lesen.liste[0].kandidaten).toContain('cat');
+  });
+
+  /** Was nicht gedeutet werden kann, muss SICHTBAR ungeprueft bleiben. */
+  it('meldet eine unbekannte Zielart, statt sie als erfuellt zu behandeln', () => {
+    const aus = anforderungenAusZielen([{ dasGibtEsNicht: true } as never]);
+    expect(aus.ungedeutet).toEqual(['dasGibtEsNicht']);
   });
 });
 
 const bilanzen = festeRouten().map((r) => ({ route: r.name, bilanz: bilanziere(r.name, r.level) }));
 
 describe('Wissensbilanz je Route', () => {
-  it('die Routen sind nicht leer (sonst prueft der Rest nichts)', () => {
+  it('es gibt genug Routen und Level (sonst prueft der Rest nichts)', () => {
+    expect(bilanzen.length, 'Routen fehlen').toBeGreaterThanOrEqual(15);
     const gesamt = bilanzen.reduce((n, b) => n + b.bilanz.terminalLevel, 0);
-    expect(gesamt, 'kein einziges Terminal-Level auf einer festen Route').toBeGreaterThan(40);
+    expect(gesamt, 'kaum Terminal-Level auf festen Routen').toBeGreaterThan(80);
   });
 
   /**
-   * Die harte Regel. „Unloesbar" heisst: der Befehl steht NIRGENDS — nicht im
-   * Auftrag, nicht in einem Hinweis, nicht in einer vorgefuehrten Zeile — und
-   * die Route hat ihn vorher nie gezeigt. Wer ihn nicht von aussen mitbringt,
-   * kommt nicht weiter.
+   * Die harte Regel. „Unloesbar" heisst: KEIN Kandidat der Anforderung steht
+   * irgendwo — nicht im Auftrag, nicht in einem Hinweis, nicht in einer
+   * vorgefuehrten Zeile — und die Route hat vorher keinen gezeigt.
    */
   it.each(bilanzen.map((b) => [b.route, b] as const))(
     '%s verlangt nichts, was nirgends steht',
@@ -71,37 +120,64 @@ describe('Wissensbilanz je Route', () => {
       ).toEqual([]);
     }
   );
+
+  /**
+   * Eine Zielart, die die Ableitung nicht kennt, darf nicht als „sauber"
+   * durchgehen — sonst waechst der blinde Fleck still mit dem Inhalt.
+   */
+  it.each(bilanzen.map((b) => [b.route, b] as const))(
+    '%s enthaelt keine ungedeutete Zielart',
+    (_name, { bilanz }) => {
+      const offen = bilanz.befunde.filter((f) => f.ungedeutet.length > 0);
+      expect(
+        offen.map((f) => `${f.eventId}: ${f.ungedeutet.join(', ')}`),
+        'neue Zielart — in anforderungen.ts abbilden, sonst prueft die Bilanz sie nicht'
+      ).toEqual([]);
+    }
+  );
 });
 
 /**
- * Die weiche Regel als Ratsche. „Nur im Hinweis" heisst: der Befehl ist neu und
- * wird erst im Hinweis erklaert, nicht im Auftrag. Loesbar — aber es ist genau
- * der Fall, ueber den sich der Auftraggeber beschwert hat: sich Hinweise
- * abzuholen, um den ersten Schritt zu tun, fuehlt sich nicht nach Lernen an.
+ * Die weiche Regel als Ratsche — und zwar ueber PAARE aus Level und
+ * Anforderung, nicht ueber Zahlen.
  *
- * Die Zahlen sind der gemessene Stand, kein Ziel. Sie duerfen sinken, nicht
- * steigen: ein neues Level, das seinen Befehl erst im Hinweis nennt, faellt auf.
+ * Der Review-Befund: Eine Obergrenze pro Route liess zwei Verschlechterungen
+ * durch. Ein neues betroffenes Level passte unter die zu hohe Grenze, und ein
+ * ZUSAETZLICHER Befehl in einem bereits betroffenen Level war voellig
+ * unsichtbar — `[cat]` wurde `[cat, grep]`, die Levelzahl blieb gleich.
+ *
+ * Bestehende Paare duerfen verschwinden (das ist die Verbesserung); neue
+ * duerfen nicht dazukommen.
  */
-const RATSCHE: Record<string, number> = {
-  'Einstieg (gefuehrt)': 0,
-  Lernpfad: 5,
-  'Story · Die Probezeit': 0,
-  'Story · Audit Trail': 3,
-  'Story · Das Kataster': 3,
-};
+const BEKANNTE_HINWEISPAARE = new Set([
+  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|schreiben',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|schreiben',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|ssh',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|sed',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|systemctl',
+  'Lernpfad · Netz-Forensik|learn_net_01_open_doors|dienstSteuern',
+  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|schreiben',
+  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|schreiben',
+  'Story · Audit Trail|at_l8_bastion_live|ufw',
+]);
 
 describe('Neue Befehle gehoeren in den Auftrag, nicht erst in den Hinweis', () => {
-  it.each(bilanzen.map((b) => [b.route, b] as const))(
-    '%s wird nicht schlechter',
-    (name, { bilanz }) => {
-      const betroffen = bilanz.befunde.filter((f) => f.nurImHinweis.length > 0);
-      const grenze = RATSCHE[name];
-      expect(grenze, `Route "${name}" fehlt in der Ratsche`).toBeDefined();
-      expect(
-        betroffen.length,
-        `${betroffen.map((f) => `${f.eventId}: ${f.nurImHinweis.join(', ')}`).join(' | ')}\n` +
-          'Wurde es besser? Dann die Zahl in RATSCHE senken.'
-      ).toBeLessThanOrEqual(grenze);
-    }
+  const aktuelle = bilanzen.flatMap(({ route, bilanz }) =>
+    bilanz.befunde.flatMap((f) => f.nurImHinweis.map((b) => `${route}|${f.eventId}|${b}`))
   );
+
+  it('kein neues Paar aus Level und Anforderung', () => {
+    const neu = aktuelle.filter((p) => !BEKANNTE_HINWEISPAARE.has(p));
+    expect(
+      neu,
+      'diese Anforderung wird erst im Hinweis erklaert — gehoert in den Auftragstext'
+    ).toEqual([]);
+  });
+
+  it('die Liste ist nicht veraltet', () => {
+    // Verschwundene Paare sind gute Nachrichten, aber die Liste muss ihnen
+    // folgen — sonst deckt sie irgendwann einen echten neuen Fall.
+    const verwaist = [...BEKANNTE_HINWEISPAARE].filter((p) => !aktuelle.includes(p));
+    expect(verwaist, 'behoben — bitte aus BEKANNTE_HINWEISPAARE streichen').toEqual([]);
+  });
 });

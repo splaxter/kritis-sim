@@ -8,6 +8,7 @@ import { getCampaign } from '../content/campaigns';
 import { getAllScenarios, getScenarioById } from '../content/packs';
 import { ONBOARDING_SEQUENCE } from './onboarding';
 import { LEARNING_TRACKS } from '../content/events/learning-tracks';
+import type { Routenlevel } from './wissensbilanz';
 
 /**
  * Jedes Terminal-Level des Spiels, aus allen Quellen und entdoppelt.
@@ -36,14 +37,26 @@ export function alleTerminalLevel(): GameEvent[] {
 }
 
 /**
- * Die Routen mit FESTER Reihenfolge — nur sie haben ein „bis dahin", gegen das
- * sich eine Wissensbilanz rechnen laesst. Die Simulationsmodi fehlen hier
- * bewusst: `selectNextEvent` waehlt gleichverteilt aus einem Pool, da gibt es
- * kein Vorher.
+ * Die Routen, auf denen es ueberhaupt ein „bis dahin" gibt.
+ *
+ * Zwei Dinge waren in der ersten Fassung falsch und sind hier korrigiert:
+ *
+ * - Der Lernpfad ist KEINE lineare Kette. Nach den Grundlagen sind alle Tracks
+ *   frei waehlbar (`getTrackState`), und wer direkt in Netz-Forensik einsteigt,
+ *   hat die vorher gelisteten Tracks nie gesehen. Eine Route pro Track, jede
+ *   mit den Grundlagen davor — das ist das garantierte Vorwissen, mehr nicht.
+ * - Optionale Lektionen sind keine Pflichtvorgeschichte. Sie werden geprueft,
+ *   zaehlen aber nicht zum Wissen der Level DANACH (`pflicht: false`).
+ *
+ * Das Finale verlangt drei abgeschlossene Tracks, aber nicht WELCHE. Garantiert
+ * sind deshalb nur die Grundlagen — alles andere waere geraten.
+ *
+ * Die Simulationsmodi fehlen bewusst: `selectNextEvent` waehlt gleichverteilt
+ * aus einem Pool, da gibt es kein Vorher.
  */
 export interface Route {
   name: string;
-  level: GameEvent[];
+  level: Routenlevel[];
 }
 
 export function festeRouten(): Route[] {
@@ -52,27 +65,43 @@ export function festeRouten(): Route[] {
     if (!nachId.has(e.id)) nachId.set(e.id, e);
   }
 
-  const einstieg: GameEvent[] = [];
+  const einstieg: Routenlevel[] = [];
   for (const schritt of ONBOARDING_SEQUENCE) {
     if (schritt.kind === 'event') {
       const e = nachId.get(schritt.id);
-      if (e) einstieg.push(e);
+      if (e) einstieg.push({ event: e, pflicht: true });
     } else {
       const s = getScenarioById(schritt.id);
-      if (s) einstieg.push({ id: s.id, title: s.title, description: s.flavorText ?? '', terminalContext: s.terminalContext } as unknown as GameEvent);
+      if (s) einstieg.push({
+        event: { id: s.id, title: s.title, description: s.flavorText ?? '', terminalContext: s.terminalContext } as unknown as GameEvent,
+        pflicht: true,
+      });
     }
   }
 
-  const lernpfad = LEARNING_TRACKS.flatMap(
-    (t) => t.levels.map((l) => nachId.get(l.eventId)).filter((e): e is GameEvent => !!e)
-  );
+  const trackLevel = (trackId: string): Routenlevel[] => {
+    const track = LEARNING_TRACKS.find((t) => t.id === trackId);
+    if (!track) return [];
+    return track.levels
+      .map((l) => ({ event: nachId.get(l.eventId), pflicht: !l.optional }))
+      .filter((x): x is Routenlevel => !!x.event);
+  };
+
+  const grundlagen = LEARNING_TRACKS.find((t) => t.isFoundations);
+  const grundlagenLevel = grundlagen ? trackLevel(grundlagen.id) : [];
+
+  const lernpfadRouten: Route[] = LEARNING_TRACKS.filter((t) => !t.isFoundations).map((t) => ({
+    name: `Lernpfad · ${t.title}`,
+    level: [...grundlagenLevel, ...trackLevel(t.id)],
+  }));
 
   return [
     { name: 'Einstieg (gefuehrt)', level: einstieg },
-    { name: 'Lernpfad', level: lernpfad },
+    { name: 'Lernpfad · Grundlagen', level: grundlagenLevel },
+    ...lernpfadRouten,
     ...(['probation', 'audit-trail', 'kataster'] as const).map((id) => ({
       name: `Story · ${getCampaign(id).title}`,
-      level: getCampaign(id).storyEvents,
+      level: getCampaign(id).storyEvents.map((event) => ({ event, pflicht: true })),
     })),
   ];
 }
