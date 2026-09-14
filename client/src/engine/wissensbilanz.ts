@@ -1,7 +1,7 @@
 import type { GameEvent, TerminalContext } from '@kritis/shared';
 import { allLinuxCommands } from './shell/commands/linux';
 import { allPowerShellCommands } from './shell/commands/powershell';
-import { anforderungenJeLoesung, type Anforderungen } from './anforderungen';
+import { anforderungenJeLoesung, UNBELEGTE_KANDIDATEN, type Anforderungen } from './anforderungen';
 
 /**
  * Die Wissensbilanz: Was hat das Spiel gezeigt, bevor es etwas verlangt?
@@ -175,6 +175,9 @@ export interface Befund {
   /** Zielarten, die die Anforderungsableitung nicht deutet. Solange die
    *  dastehen, ist das Level UNGEPRUEFT, nicht sauber. */
   ungedeutet: string[];
+  /** Anforderungen, deren einziger sichtbarer Kandidat im Labor nicht belegt
+   *  werden konnte. Weder gruen noch rot — offen, und zwar sichtbar. */
+  ungeprueft: string[];
 }
 
 export interface Routenlevel {
@@ -223,8 +226,15 @@ export function bilanziere(
     // — jede Anforderung hat einen verfuegbaren Kandidaten und keine Zielart
     // blieb ungedeutet. Gibt es keinen gangbaren, entscheidet der mit den
     // wenigsten Luecken, damit die Meldung den naechstliegenden Weg nennt.
+    // Ein Kandidat, den das Labor nicht belegen konnte, traegt keine Aussage:
+    // die Anforderung ist dann nicht erfuellt, sondern UNGEPRUEFT.
+    const belegtVerfuegbar = (b: string) => verfuegbar(b) && !UNBELEGTE_KANDIDATEN.has(b);
     const bewertet = wege.map((weg) => ({
       weg,
+      ungeprueft: weg.liste
+        .filter((a) => !a.kandidaten.some(belegtVerfuegbar) && a.kandidaten.some(verfuegbar))
+        .map((a) => a.was)
+        .sort(),
       unloesbar: weg.liste.filter((a) => !a.kandidaten.some(verfuegbar)).map((a) => a.was).sort(),
       nurImHinweis: weg.liste
         .filter(
@@ -235,7 +245,8 @@ export function bilanziere(
         .map((a) => a.was)
         .sort(),
     }));
-    const luecken = (b: (typeof bewertet)[number]) => b.unloesbar.length + b.weg.ungedeutet.length;
+    const luecken = (b: (typeof bewertet)[number]) =>
+      b.unloesbar.length + b.weg.ungedeutet.length + b.ungeprueft.length;
     const gangbar = bewertet.filter((b) => luecken(b) === 0);
     const beste = (gangbar.length > 0 ? gangbar : bewertet)
       .slice()
@@ -244,9 +255,10 @@ export function bilanziere(
     const unloesbar = beste?.unloesbar ?? [];
     const nurImHinweis = beste?.nurImHinweis ?? [];
     const ungedeutet = beste?.weg.ungedeutet ?? [];
+    const ungeprueft = beste?.ungeprueft ?? [];
 
-    if (unloesbar.length || nurImHinweis.length || ungedeutet.length) {
-      befunde.push({ eventId: event.id, titel: event.title, unloesbar, nurImHinweis, ungedeutet });
+    if (unloesbar.length || nurImHinweis.length || ungedeutet.length || ungeprueft.length) {
+      befunde.push({ eventId: event.id, titel: event.title, unloesbar, nurImHinweis, ungedeutet, ungeprueft });
     }
 
     // Erst NACH der Pruefung lernen — und nur, wenn das Level Pflicht ist.

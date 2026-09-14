@@ -1,4 +1,5 @@
 import type { StateGoal, TerminalContext } from '@kritis/shared';
+import { createShellFromContext } from './shell';
 
 /**
  * Was ein Level WIRKLICH verlangt — aus seiner Siegbedingung, nicht aus seinen
@@ -32,26 +33,56 @@ import type { StateGoal, TerminalContext } from '@kritis/shared';
  * erklaert eine Anleitung fuer ausreichend, mit der das Level nicht loest.
  */
 export type Faehigkeit =
-  | 'inhaltSchreiben'
+  | 'berichtSchreiben'
+  | 'dateiAendern'
   | 'dateiAnlegen'
   | 'lesen'
   | 'loeschen'
   | 'kopieren'
-  | 'dienstSteuern';
+  | 'lauscherEntfernen';
 
 /**
  * Welcher Befehl welche Wirkung hat, ist GEMESSEN, nicht geschaetzt:
- * `anforderungen.kandidaten.test.ts` fuehrt jeden Eintrag hier gegen die echte
- * Shell aus und prueft, dass das zugehoerige Ziel danach wirklich erfuellt ist
- * — und dass die beiden gemeldeten Fehlbesetzungen (`touch` als Schreiber,
- * `stat` als Lesenachweis) es NICHT sind.
+ * `anforderungen.kandidaten.test.ts` fuehrt jeden Eintrag hier aus und prueft
+ * das zugehoerige Ziel. Drei Runden Review haben dabei dieselbe Lehre dreimal
+ * erteilt:
+ *
+ * - `touch` legt an, schreibt aber keinen Inhalt.
+ * - `stat` sieht die Datei an, liest sie aber nicht.
+ * - `ssh-keygen` schreibt seinen SCHLUESSEL, nicht deinen Bericht — ein
+ *   Spezialfall beweist keine allgemeine Faehigkeit.
+ * - `ufw` sperrt einen Port, beendet aber keinen Lauscher.
+ *
+ * Deshalb gilt hier: JEDER Eintrag ist gegen ein Ziel DERSELBEN Bauart in
+ * einem echten Levelkontext belegt, und es gibt keine Liste „ungeprueft, aber
+ * erlaubt". Was nicht belegt ist, zaehlt nicht.
+ *
+ * Die verbleibende Naeherung, ausdruecklich: Eine Faehigkeit ist eine Klasse,
+ * kein Beweis fuer den Einzelfall. Dass `ssh-copy-id` in SSH 1 den
+ * `authorized_keys` schreibt, heisst nicht, dass es in einem anderen Level
+ * einen Inventurbericht schreiben koennte. Die Trennung nach vorhandener und
+ * neuer Zieldatei faengt den groben Teil davon; der Rest bleibt eine Naeherung
+ * und wird hier benannt statt wegdefiniert.
  */
+/**
+ * Kandidaten, die der Inhalt nachweislich BENUTZT, die ich aber im Labor nicht
+ * zum Laufen gebracht habe — `scp` ueber mehrere Hosts. Sie gelten NICHT als
+ * Beleg: eine Anforderung, deren einziger verfuegbarer Kandidat hier steht,
+ * wird als UNGEPRUEFT gemeldet. Das ist der Unterschied zur vorigen Fassung,
+ * die „ungeprueft" mit „ausreichend" verwechselt hat.
+ */
+export const UNBELEGTE_KANDIDATEN: ReadonlySet<string> = new Set(['scp']);
+
 export const FAEHIGKEIT_KANDIDATEN: Record<Faehigkeit, readonly string[]> = {
-  // Inhalt in eine Datei bringen. Ohne Editor bleibt Umlenkung, `tee`, ein
-  // In-Place-`sed` oder eine Kopie.
-  inhaltSchreiben: ['>>', '>', 'tee', 'sed', 'cp', 'ssh-keygen', 'set-content', 'scp', 'ansible-playbook'],
-  // Nur ihre Existenz — dafuer genuegt `touch`.
-  dateiAnlegen: ['touch', '>', '>>', 'tee', 'cp', 'ssh-keygen', 'scp', 'ansible-playbook'],
+  // Einen Befund in eine Datei bringen, die es noch NICHT gibt. Ohne Editor
+  // bleibt die Umlenkung, `tee`, `Set-Content` — oder eine Kopie, wenn der
+  // Inhalt anderswo schon existiert.
+  berichtSchreiben: ['>>', '>', 'tee', 'set-content', 'cp', 'scp', 'ssh-copy-id', 'ansible-playbook'],
+  // Eine VORHANDENE Datei aendern. Zusaetzlich zu den obigen gehoeren die
+  // Werkzeuge dazu, die gezielt in bestehende Dateien schreiben.
+  dateiAendern: ['>>', '>', 'tee', 'set-content', 'cp', 'sed', 'ansible-playbook'],
+  // Nur ihre Existenz — dafuer genuegt auch `touch` oder eine Kopie.
+  dateiAnlegen: ['touch', '>', '>>', 'tee', 'cp', 'copy-item'],
   // Ein Lesezugriff wird nur verbucht, wenn der Befehl die Datei wirklich
   // EINLIEST. `stat` und `ls` sehen nur die Metadaten und zaehlen nicht.
   lesen: [
@@ -61,16 +92,12 @@ export const FAEHIGKEIT_KANDIDATEN: Record<Faehigkeit, readonly string[]> = {
   ],
   loeschen: ['rm', 'remove-item'],
   kopieren: ['cp', 'scp', 'copy-item'],
-  // Einen Lauscher oeffnen oder schliessen: ueber den Dienst, ueber den Prozess
-  // oder ueber die Firewall.
-  dienstSteuern: ['systemctl', 'kill', 'ufw', 'service', 'stop-process'],
+  // Einen Lauscher beendet man ueber den Prozess oder seinen Dienst. Eine
+  // Firewallregel tut das NICHT — sie sperrt den Weg, der Prozess laeuft
+  // weiter, und das Ziel bleibt unerfuellt.
+  lauscherEntfernen: ['kill'],
 };
 
-/**
- * Eine Anforderung ist immer eine ODER-Liste: `sha256sum` ist eine Liste mit
- * einem Eintrag, „irgendwie Inhalt schreiben" eine mit acht. Erfuellt ist sie,
- * wenn EIN Kandidat bekannt oder sichtbar ist.
- */
 export interface Anforderung {
   /** Wofuer sie steht, fuer die Fehlermeldung. */
   was: string;
@@ -125,22 +152,46 @@ const ZIEL_BEFEHL: Partial<Record<keyof StateGoal, string>> = {
 
 /** Zielarten, die eine Faehigkeit erzwingen. */
 const ZIEL_FAEHIGKEIT: Partial<Record<keyof StateGoal, Faehigkeit>> = {
-  matches: 'inhaltSchreiben',
-  absentMatches: 'inhaltSchreiben',
-  reportFields: 'inhaltSchreiben',
+  // matches/absentMatches/reportFields haengen davon ab, ob die Zieldatei
+  // schon existiert — das entscheidet `faehigkeitFuerInhalt` mit der echten
+  // Dateisystemlage, nicht diese Tabelle.
   fileExists: 'dateiAnlegen',
   sameContentAs: 'kopieren',
   fileCopied: 'kopieren',
   fileAbsent: 'loeschen',
   fileRead: 'lesen',
-  listenerPresent: 'dienstSteuern',
-  listenerAbsent: 'dienstSteuern',
+  listenerAbsent: 'lauscherEntfernen',
 };
+
+/**
+ * Zielarten, die nichts VERLANGEN, sondern etwas BEWAHREN. `listenerPresent`
+ * auf Port 22 heisst „der gute Dienst laeuft noch" — er lief schon vorher, es
+ * ist eine Schutzbedingung gegen Kollateralschaden. Sie als Anforderung zu
+ * fuehren, erfand eine Pflicht, die es nicht gibt.
+ */
+const ZIEL_BEWAHREND = new Set<string>(['listenerPresent']);
 
 /** Zielarten ohne eigene Anforderung — sie beschreiben nur, WO geprueft wird. */
 const ZIEL_NEUTRAL = new Set<string>(['file', 'host', 'service', 'mailbox']);
 
-export function anforderungenAusZielen(ziele: readonly StateGoal[]): Anforderungen {
+/**
+ * Inhaltsziele sind zwei verschiedene Aufgaben, je nach Lage im Dateisystem:
+ * Eine Datei, die es noch nicht gibt, muss der Spieler SCHREIBEN; eine
+ * vorhandene muss er AENDERN. Das ist kein Feinschliff — `ssh-copy-id` kann
+ * `authorized_keys` ergaenzen, aber niemals deinen Inventurbericht anlegen.
+ * Entschieden wird es an der echten Dateisystemlage des Levels, nicht an einer
+ * Vermutung.
+ */
+function faehigkeitFuerInhalt(ziel: StateGoal, existiert: (z: StateGoal) => boolean): Faehigkeit {
+  return existiert(ziel) ? 'dateiAendern' : 'berichtSchreiben';
+}
+
+const INHALTSZIELE = new Set<string>(['matches', 'absentMatches', 'reportFields']);
+
+export function anforderungenAusZielen(
+  ziele: readonly StateGoal[],
+  existiert: (ziel: StateGoal) => boolean = () => false
+): Anforderungen {
   const liste: Anforderung[] = [];
   const ungedeutet: string[] = [];
   const merke = (was: string, kandidaten: string[]) => {
@@ -152,6 +203,12 @@ export function anforderungenAusZielen(ziele: readonly StateGoal[]): Anforderung
     for (const schluessel of Object.keys(ziel) as (keyof StateGoal)[]) {
       if (ziel[schluessel] === undefined) continue;
       if (ZIEL_NEUTRAL.has(schluessel)) continue;
+      if (ZIEL_BEWAHREND.has(schluessel)) continue;
+      if (INHALTSZIELE.has(schluessel)) {
+        const faehigkeit = faehigkeitFuerInhalt(ziel, existiert);
+        merke(faehigkeit, [...FAEHIGKEIT_KANDIDATEN[faehigkeit]]);
+        continue;
+      }
 
       if (schluessel === 'commandRan') {
         const namen = befehleAusMuster((ziel.commandRan as { pattern: string }).pattern);
@@ -179,17 +236,65 @@ export function anforderungenAusZielen(ziele: readonly StateGoal[]): Anforderung
  * das erste Wort, weil der Spieler den Befehl lernt, nicht die Zeile.
  */
 export function anforderungenJeLoesung(ctx: TerminalContext): Anforderungen[] {
+  const existiert = zieldateiExistiert(ctx);
   return (ctx.solutions ?? []).map((loesung) => {
-    const aus = anforderungenAusZielen(loesung.stateGoals ?? []);
-    for (const roh of loesung.commands ?? []) {
+    const aus = anforderungenAusZielen(loesung.stateGoals ?? [], existiert);
+    const namen = loesung.commands ?? [];
+    if (namen.length === 0) return aus;
+
+    // `solutions[].commands` haelt teils mehrteilige Namen („systemctl start",
+    // „ps aux") und level-eigene Verben („check-account"). Beides zaehlt als
+    // erfuellt, wenn ENTWEDER der ganze Name oder sein erstes Wort verfuegbar
+    // ist: der ganze Name, weil gescriptete Beats ihn ueber `teachesCommand`
+    // vorfuehren; das erste Wort, weil der Spieler den Befehl lernt.
+    const kandidatenVon = (roh: string) => {
       const name = roh.toLowerCase();
-      const ersterTeil = name.split(/\s+/)[0];
       // Eine reine Zahl ist kein Befehl (Ports, PIDs in Beat-Namen).
-      const kandidaten = [name, ersterTeil].filter((k) => k && !/^\d+$/.test(k));
-      if (kandidaten.length > 0 && !aus.liste.some((a) => a.was === name)) {
-        aus.liste.push({ was: name, kandidaten: [...new Set(kandidaten)] });
+      return [name, name.split(/\s+/)[0]].filter((k) => k && !/^\d+$/.test(k));
+    };
+
+    if (loesung.allRequired) {
+      // UND: jeder Name ist eine eigene Anforderung.
+      for (const roh of namen) {
+        const kandidaten = [...new Set(kandidatenVon(roh))];
+        const was = roh.toLowerCase();
+        if (kandidaten.length > 0 && !aus.liste.some((a) => a.was === was)) {
+          aus.liste.push({ was, kandidaten });
+        }
       }
+      return aus;
+    }
+
+    // ODER: `checkSolutions` prueft ohne `allRequired` mit `some` — EIN Name
+    // genuegt. Die erste Fassung machte daraus N Pflichten und meldete ein
+    // Level als unloesbar, das die echte Sitzung mit einer einzigen Zeile
+    // loest. Hier wird daraus EINE Anforderung mit allen Namen als Kandidaten.
+    const kandidaten = [...new Set(namen.flatMap(kandidatenVon))];
+    if (kandidaten.length > 0) {
+      aus.liste.push({ was: namen.map((n) => n.toLowerCase()).join('|'), kandidaten });
     }
     return aus;
   });
+}
+
+/**
+ * Existiert die Zieldatei eines Ziels schon, bevor der Spieler etwas tut?
+ *
+ * Gefragt wird die ECHTE Shell des Levels — inklusive Vorlagen und
+ * Overlay-Dateien auf dem jeweiligen Host. Alles andere waere wieder eine
+ * Vermutung, und Vermutungen sind in dieser Datei dreimal danebengegangen.
+ */
+export function zieldateiExistiert(ctx: TerminalContext): (ziel: StateGoal) => boolean {
+  let shell: ReturnType<typeof createShellFromContext> | null = null;
+  return (ziel: StateGoal) => {
+    if (!ziel.file) return false;
+    try {
+      shell ??= createShellFromContext(ctx);
+      const host = ziel.host ? shell.getHost(ziel.host) : undefined;
+      const vfs = host?.vfs ?? shell.getVfs();
+      return vfs.exists(vfs.resolvePath(ziel.file));
+    } catch {
+      return false;
+    }
+  };
 }

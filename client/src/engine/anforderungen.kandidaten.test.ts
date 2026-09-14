@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { StateGoal, TerminalContext } from '@kritis/shared';
 import { createShellFromContext, checkStateGoals } from './shell';
-import { FAEHIGKEIT_KANDIDATEN, type Faehigkeit } from './anforderungen';
+import { FAEHIGKEIT_KANDIDATEN, UNBELEGTE_KANDIDATEN, type Faehigkeit } from './anforderungen';
+import { alleTerminalLevel } from './terminalLevelRegistry';
 
 /**
  * Die Kandidatenlisten sind GEMESSEN, nicht plausibel.
@@ -72,18 +73,29 @@ const NACHWEISE: Nachweis[] = [
     { k: 'tee', z: [`echo "INHALT" | tee ${L}/ziel.txt`] },
     { k: 'cp', z: [`cp ${L}/quelle.txt ${L}/ziel.txt`] },
   ].map(({ k, z }) => ({
-    faehigkeit: 'inhaltSchreiben' as const, kandidat: k, ctx: linux, zeilen: z,
+    faehigkeit: 'berichtSchreiben' as const, kandidat: k, ctx: linux, zeilen: z,
     ziel: { file: `${L}/ziel.txt`, matches: 'INHALT' } as StateGoal,
   })),
-  { faehigkeit: 'inhaltSchreiben', kandidat: 'sed', ctx: linux,
+  { faehigkeit: 'dateiAendern', kandidat: 'sed', ctx: linux,
     zeilen: [`sed -i 's/alt/INHALT/' ${L}/vorhanden.txt`],
     ziel: { file: `${L}/vorhanden.txt`, matches: 'INHALT' } },
-  { faehigkeit: 'inhaltSchreiben', kandidat: 'ssh-keygen', ctx: linux,
-    zeilen: ['ssh-keygen -t ed25519'],
-    ziel: { file: `${L}/.ssh/id_ed25519`, matches: '.' } },
-  { faehigkeit: 'inhaltSchreiben', kandidat: 'set-content', ctx: windows,
+  { faehigkeit: 'berichtSchreiben', kandidat: 'set-content', ctx: windows,
     zeilen: [`Set-Content ${W}\\ziel.txt "INHALT"`],
     ziel: { file: `${W}\\ziel.txt`, matches: 'INHALT' } },
+
+  // ── Vorhandene Datei aendern ──────────────────────────────────────────────
+  ...[
+    { k: '>', z: [`echo "INHALT" > ${L}/vorhanden.txt`] },
+    { k: '>>', z: [`echo "INHALT" >> ${L}/vorhanden.txt`] },
+    { k: 'tee', z: [`echo "INHALT" | tee ${L}/vorhanden.txt`] },
+    { k: 'cp', z: [`cp ${L}/quelle.txt ${L}/vorhanden.txt`] },
+  ].map(({ k, z }) => ({
+    faehigkeit: 'dateiAendern' as const, kandidat: k, ctx: linux, zeilen: z,
+    ziel: { file: `${L}/vorhanden.txt`, matches: 'INHALT' } as StateGoal,
+  })),
+  { faehigkeit: 'dateiAendern', kandidat: 'set-content', ctx: windows,
+    zeilen: [`Set-Content ${W}\\quelle.txt "GEAENDERT"`],
+    ziel: { file: `${W}\\quelle.txt`, matches: 'GEAENDERT' } },
 
   // ── Datei anlegen ─────────────────────────────────────────────────────────
   ...[
@@ -96,9 +108,7 @@ const NACHWEISE: Nachweis[] = [
     faehigkeit: 'dateiAnlegen' as const, kandidat: k, ctx: linux, zeilen: z,
     ziel: { file: `${L}/neu.txt`, fileExists: true } as StateGoal,
   })),
-  { faehigkeit: 'dateiAnlegen', kandidat: 'ssh-keygen', ctx: linux,
-    zeilen: ['ssh-keygen -t ed25519'],
-    ziel: { file: `${L}/.ssh/id_ed25519`, fileExists: true } },
+
 
   // ── Lesen ─────────────────────────────────────────────────────────────────
   ...[
@@ -133,24 +143,78 @@ const NACHWEISE: Nachweis[] = [
   { faehigkeit: 'kopieren', kandidat: 'cp', ctx: linux,
     zeilen: [`cp ${L}/quelle.txt ${L}/kopie.txt`],
     ziel: { file: `${L}/kopie.txt`, sameContentAs: `${L}/quelle.txt` } },
+  { faehigkeit: 'dateiAnlegen', kandidat: 'copy-item', ctx: windows,
+    zeilen: [`Copy-Item ${W}\\quelle.txt ${W}\\neu.txt`],
+    ziel: { file: `${W}\\neu.txt`, fileExists: true } },
   { faehigkeit: 'kopieren', kandidat: 'copy-item', ctx: windows,
     zeilen: [`Copy-Item ${W}\\quelle.txt ${W}\\kopie.txt`],
     ziel: { file: `${W}\\kopie.txt`, sameContentAs: `${W}\\quelle.txt` } },
 ];
 
 /**
- * Kandidaten, die eine Umgebung brauchen, die dieses Labor nicht stellt:
- * mehrere Rechner (`scp`), ein Playbook mit Zielhosts
- * (`ansible-playbook`) oder einen laufenden Dienst beziehungsweise Lauscher
- * (`systemctl`, `service`, `kill`, `ufw`, `stop-process`).
- *
- * Sie stehen hier NAMENTLICH, damit die Luecke sichtbar bleibt und nicht
- * waechst — genau wie eine ungedeutete Zielart.
+ * Nachweise in ECHTEN Levelkontexten. Ein Kandidat, der nur im Labor an einer
+ * Hilfsdatei belegt ist, beweist nichts ueber das Ziel, an dem er im Spiel
+ * haengt — genau daran ist `ssh-keygen` gescheitert: Der alte Nachweis pruefte
+ * `matches: '.'` auf einer Schluesseldatei und galt damit als „schreibt
+ * Inhalt". Einen Inventurbericht schreibt es trotzdem nie.
  */
-const NICHT_IM_LABOR_BELEGT = new Set([
-  'scp', 'ansible-playbook',
-  'systemctl', 'service', 'kill', 'ufw', 'stop-process',
-]);
+interface Kontextnachweis {
+  faehigkeit: Faehigkeit;
+  kandidat: string;
+  level: string;
+  zeilen: { cmd: string; antworten?: string[] }[];
+  ziel: StateGoal;
+}
+
+const PW = 'sonnenblume23';
+
+const KONTEXTNACHWEISE: Kontextnachweis[] = [
+  {
+    faehigkeit: 'berichtSchreiben', kandidat: 'ssh-copy-id', level: 'learn_ssh_01_first_key',
+    zeilen: [{ cmd: 'ssh-keygen -t ed25519' }, { cmd: 'ssh-copy-id admin@web01', antworten: [PW] }],
+    ziel: { host: 'web01', file: '/home/admin/.ssh/authorized_keys', matches: 'ssh-ed25519' },
+  },
+  {
+    faehigkeit: 'berichtSchreiben', kandidat: 'ansible-playbook', level: 'learn_ans_01_inventory',
+    zeilen: [{ cmd: 'ansible-playbook motd.yml' }],
+    ziel: { host: 'web01', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+  },
+  {
+    faehigkeit: 'berichtSchreiben', kandidat: 'cp', level: 'learn_net_02_backchannel',
+    zeilen: [{ cmd: 'sudo cp /etc/hosts /root/incident/hosts.bak' }],
+    ziel: { file: '/root/incident/hosts.bak', matches: '91\\.203\\.5\\.77' },
+  },
+  {
+    faehigkeit: 'dateiAendern', kandidat: 'sed', level: 'learn_ssh_02_open_door',
+    zeilen: [
+      { cmd: 'ssh admin@web01', antworten: [PW] },
+      { cmd: "sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin no/' /etc/ssh/sshd_config" },
+    ],
+    ziel: { host: 'web01', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+  },
+  {
+    faehigkeit: 'dateiAendern', kandidat: 'ansible-playbook', level: 'learn_ans_02_drift',
+    zeilen: [{ cmd: 'ansible-playbook harden.yml' }],
+    ziel: { host: 'web02', file: '/etc/ssh/sshd_config', matches: '^PermitRootLogin no' },
+  },
+  {
+    faehigkeit: 'lauscherEntfernen', kandidat: 'kill', level: 'learn_net_01_open_doors',
+    zeilen: [{ cmd: 'sudo kill 6666' }],
+    ziel: { listenerAbsent: { port: 31337 } },
+  },
+];
+
+function imLevel(id: string, zeilen: { cmd: string; antworten?: string[] }[], ziel: StateGoal): boolean {
+  const event = alleTerminalLevel().find((e) => e.id === id);
+  if (!event?.terminalContext) throw new Error(`Level ${id} nicht gefunden — Nachweis veraltet?`);
+  const shell = createShellFromContext(event.terminalContext);
+  for (const { cmd, antworten } of zeilen) {
+    shell.execute(cmd);
+    let i = 0;
+    while (shell.hasPendingInput() && i < 8) shell.continueInput(antworten?.[i++] ?? '');
+  }
+  return checkStateGoals(shell, [ziel]);
+}
 
 describe('Jeder Kandidat erfuellt die Zielart, der er zugeordnet ist', () => {
   it.each(NACHWEISE.map((n) => [`${n.faehigkeit}/${n.kandidat}`, n] as const))(
@@ -163,22 +227,38 @@ describe('Jeder Kandidat erfuellt die Zielart, der er zugeordnet ist', () => {
     }
   );
 
-  it('jeder gelistete Kandidat ist belegt oder ausdruecklich als unbelegt benannt', () => {
-    const belegt = new Set(NACHWEISE.map((n) => `${n.faehigkeit}/${n.kandidat}`));
+  it.each(KONTEXTNACHWEISE.map((n) => [`${n.faehigkeit}/${n.kandidat} in ${n.level}`, n] as const))(
+    '%s',
+    (_name, n) => {
+      expect(
+        imLevel(n.level, n.zeilen, n.ziel),
+        `${n.kandidat} steht als ${n.faehigkeit}, erfuellt das Ziel in ${n.level} aber nicht`
+      ).toBe(true);
+    }
+  );
+
+  it('JEDER gelistete Kandidat hat einen Nachweis — belegt oder ausdruecklich offen', () => {
+    // Es gibt keine dritte Kategorie „ungeprueft, aber erlaubt" mehr. Was nicht
+    // belegt ist, steht in UNBELEGTE_KANDIDATEN und zaehlt dann auch nicht als
+    // Erfuellung (siehe wissensbilanz.ts).
+    const belegt = new Set([
+      ...NACHWEISE.map((n) => `${n.faehigkeit}/${n.kandidat}`),
+      ...KONTEXTNACHWEISE.map((n) => `${n.faehigkeit}/${n.kandidat}`),
+    ]);
     const offen: string[] = [];
     for (const [faehigkeit, kandidaten] of Object.entries(FAEHIGKEIT_KANDIDATEN)) {
       for (const k of kandidaten) {
         if (belegt.has(`${faehigkeit}/${k}`)) continue;
-        if (NICHT_IM_LABOR_BELEGT.has(k)) continue;
+        if (UNBELEGTE_KANDIDATEN.has(k)) continue;
         offen.push(`${faehigkeit}/${k}`);
       }
     }
-    expect(offen, 'Kandidat ohne Nachweis — entweder belegen oder streichen').toEqual([]);
+    expect(offen, 'Kandidat ohne Nachweis — belegen, streichen oder als unbelegt fuehren').toEqual([]);
   });
 
   it('die Liste der unbelegten Kandidaten ist nicht veraltet', () => {
     const alleKandidaten = new Set(Object.values(FAEHIGKEIT_KANDIDATEN).flat());
-    const verwaist = [...NICHT_IM_LABOR_BELEGT].filter((k) => !alleKandidaten.has(k));
+    const verwaist = [...UNBELEGTE_KANDIDATEN].filter((k) => !alleKandidaten.has(k));
     expect(verwaist, 'steht als unbelegt, wird aber nirgends mehr angeboten').toEqual([]);
   });
 });
@@ -192,7 +272,7 @@ describe('Die gemeldeten Fehlbesetzungen sind wirklich welche', () => {
   it('touch legt an, schreibt aber keinen Inhalt', () => {
     expect(erfuellt(linux, [`touch ${L}/ziel.txt`], { file: `${L}/ziel.txt`, fileExists: true })).toBe(true);
     expect(erfuellt(linux, [`touch ${L}/ziel.txt`], { file: `${L}/ziel.txt`, matches: 'INHALT' })).toBe(false);
-    expect(FAEHIGKEIT_KANDIDATEN.inhaltSchreiben).not.toContain('touch');
+    expect(FAEHIGKEIT_KANDIDATEN.berichtSchreiben).not.toContain('touch');
   });
 
   it('stat sieht die Datei an, liest sie aber nicht', () => {
@@ -205,6 +285,6 @@ describe('Die gemeldeten Fehlbesetzungen sind wirklich welche', () => {
   it('sha256sum liest, schreibt aber nicht von sich aus', () => {
     expect(erfuellt(linux, [`sha256sum ${L}/quelle.txt`], { fileRead: `${L}/quelle.txt` })).toBe(true);
     expect(erfuellt(linux, [`sha256sum ${L}/quelle.txt`], { file: `${L}/ziel.txt`, matches: '.' })).toBe(false);
-    expect(FAEHIGKEIT_KANDIDATEN.inhaltSchreiben).not.toContain('sha256sum');
+    expect(FAEHIGKEIT_KANDIDATEN.berichtSchreiben).not.toContain('sha256sum');
   });
 });

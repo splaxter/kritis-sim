@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { befehleImText, bilanziere, LINUX_BEFEHLE } from './wissensbilanz';
-import { befehleAusMuster, anforderungenAusZielen } from './anforderungen';
+import { befehleAusMuster, anforderungenAusZielen, anforderungenJeLoesung } from './anforderungen';
 import { festeRouten } from './terminalLevelRegistry';
 
 /**
@@ -79,9 +79,35 @@ describe('Anforderungen kommen aus der Siegbedingung, nicht aus den Hinweisen', 
     expect(befehleAusMuster('^\\s*(grep|awk|cat)\\b')).toEqual(['grep', 'awk', 'cat']);
   });
 
+  /**
+   * Review-Befund: ODER galt zwischen Loesungen, innerhalb der Befehlsbedingung
+   * aber weiter UND. `checkSolutions` prueft ohne `allRequired` mit `some` —
+   * ein Level, das die echte Sitzung mit `pwd` loest, galt deshalb als
+   * unloesbar, weil `sha256sum` danebenstand.
+   */
+  it('allRequired: false macht aus den Befehlen EINE Anforderung', () => {
+    const ctx = {
+      type: 'linux', hostname: 'h', username: 'u', currentPath: '/', commands: [], hints: [],
+      solutions: [{ commands: ['pwd', 'sha256sum'], allRequired: false, resultText: '', skillGain: {} }],
+    } as unknown as Parameters<typeof anforderungenJeLoesung>[0];
+    const [weg] = anforderungenJeLoesung(ctx);
+    expect(weg.liste.length, 'zwei Alternativen sind eine Anforderung').toBe(1);
+    expect(weg.liste[0].kandidaten).toContain('pwd');
+    expect(weg.liste[0].kandidaten).toContain('sha256sum');
+  });
+
+  it('allRequired: true bleibt eine Pflicht je Befehl', () => {
+    const ctx = {
+      type: 'linux', hostname: 'h', username: 'u', currentPath: '/', commands: [], hints: [],
+      solutions: [{ commands: ['pwd', 'ls'], allRequired: true, resultText: '', skillGain: {} }],
+    } as unknown as Parameters<typeof anforderungenJeLoesung>[0];
+    const [weg] = anforderungenJeLoesung(ctx);
+    expect(weg.liste.map((a) => a.was).sort()).toEqual(['ls', 'pwd']);
+  });
+
   it('ein Inhaltsziel verlangt Schreiben, ein Lesenachweis Lesen', () => {
     const schreiben = anforderungenAusZielen([{ file: '/tmp/a', matches: 'x' }]);
-    expect(schreiben.liste.map((a) => a.was)).toEqual(['inhaltSchreiben']);
+    expect(schreiben.liste.map((a) => a.was)).toEqual(['berichtSchreiben']);
     expect(schreiben.liste[0].kandidaten).toContain('>>');
 
     const lesen = anforderungenAusZielen([{ fileRead: '/tmp/a' }]);
@@ -122,6 +148,23 @@ describe('Wissensbilanz je Route', () => {
   );
 
   /**
+   * Eine Anforderung, deren einziger sichtbarer Kandidat im Labor nicht belegt
+   * ist, ist weder gruen noch rot — sie ist OFFEN. Vorher galt so ein Kandidat
+   * schlicht als ausreichend; ein benannter Pruefverzicht macht eine falsche
+   * Zuordnung aber nicht richtig.
+   */
+  it.each(bilanzen.map((b) => [b.route, b] as const))(
+    '%s stuetzt sich auf keinen unbelegten Kandidaten',
+    (_name, { bilanz }) => {
+      const offen = bilanz.befunde.filter((f) => f.ungeprueft.length > 0);
+      expect(
+        offen.map((f) => `${f.eventId}: ${f.ungeprueft.join(', ')}`),
+        'einziger sichtbarer Kandidat ist im Labor nicht belegt — belegen oder Inhalt aendern'
+      ).toEqual([]);
+    }
+  );
+
+  /**
    * Eine Zielart, die die Ableitung nicht kennt, darf nicht als „sauber"
    * durchgehen — sonst waechst der blinde Fleck still mit dem Inhalt.
    */
@@ -150,14 +193,15 @@ describe('Wissensbilanz je Route', () => {
  * duerfen nicht dazukommen.
  */
 const BEKANNTE_HINWEISPAARE = new Set([
-  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|inhaltSchreiben',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|inhaltSchreiben',
+  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|dateiAendern',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|berichtSchreiben',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|ssh',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|dateiAendern',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|sed',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|systemctl',
-  'Lernpfad · Netz-Forensik|learn_net_01_open_doors|dienstSteuern',
-  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|inhaltSchreiben',
-  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|inhaltSchreiben',
+  'Lernpfad · Netz-Forensik|learn_net_01_open_doors|lauscherEntfernen',
+  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|dateiAendern',
+  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|berichtSchreiben',
   'Story · Audit Trail|at_l8_bastion_live|ufw',
 ]);
 
