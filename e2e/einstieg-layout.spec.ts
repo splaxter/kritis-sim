@@ -108,6 +108,25 @@ for (const vp of VIEWPORTS) {
     await assertNichtAbgeschnitten(page, 'Anschluss_Betriebshof_2026.pdf');
     await assertNichtAbgeschnitten(page, 'Öffnen');
 
+    // Playtest-Befund: Bei 320px lief die Datumsspalte ueber die rechte Kante
+    // hinaus, weil eine `fr`-Spur als Mindestbreite `min-content` hat und der
+    // lange Dateiname sie aufblaeht. Gemessen wird der INHALT gegen den Kasten.
+    const zeilen = await page.evaluate(() => {
+      const treffer = [...document.querySelectorAll('[role="option"]')].map((z) => ({
+        text: (z as HTMLElement).innerText.replace(/\s+/g, ' ').slice(0, 40),
+        inhalt: z.scrollWidth,
+        kasten: z.clientWidth,
+      }));
+      return treffer;
+    });
+    expect(zeilen.length, 'keine Dateizeilen gefunden').toBeGreaterThan(0);
+    for (const z of zeilen) {
+      expect(
+        z.inhalt,
+        `Zeile laeuft ueber: ${z.inhalt}px Inhalt in ${z.kasten}px Breite — „${z.text}"`
+      ).toBeLessThanOrEqual(z.kasten + 1);
+    }
+
     await page.getByText('Anschluss_Betriebshof_2026.pdf').dblclick();
     await expect(page.getByText('AUFGABE ABGESCHLOSSEN')).toBeVisible({ timeout: 5000 });
 
@@ -285,4 +304,70 @@ test('Terminal-Aufgabe: der Befund steht danach auf dem Ergebnisbildschirm', asy
   await page.keyboard.press('Enter');
   await expect(page.getByText('─ BEFUND ─')).toBeVisible({ timeout: 5000 });
   await expect(page.getByText(/Neun Ausfälle an drei Tagen/)).toBeVisible();
+});
+
+/**
+ * Playtest-Befund: Bei 375x667 fuellten Kopfzeile und Statistik fast den ganzen
+ * ersten Bildschirm — die Aufgabe begann darunter. Gemessen wird deshalb, was
+ * der Spieler ohne Scrollen SIEHT, nicht ob das Element existiert.
+ *
+ * Gemessen bei 320x568 mit einem Szenario:
+ *   vorher   StatsBar 284px, Titel bei 415px (73 % des Fensters)
+ *   nachher  StatsBar 252px, Titel bei 383px (67 %)
+ *
+ * Die Schranke liegt bei 70 %: darunter bleiben mindestens 170px fuer Titel und
+ * erste Zeilen — die Aufgabe ist sichtbar UND lesbar, nicht nur vorhanden.
+ *
+ * Der Rest der Hoehe bei 320px ist NICHT die Statistik, sondern der Kopf der
+ * Szenariokarte selbst (Kategorie, Dringlichkeit, Schwierigkeit — rund 115px,
+ * weil er dort auf drei Zeilen umbricht). Den anzutasten hiesse, Klarheit gegen
+ * Pixel zu tauschen; er bleibt, und diese Zahl steht hier, damit die naechste
+ * Messung weiss, wo sie herkommt.
+ */
+for (const vp of [VIEWPORTS[0], VIEWPORTS[1]]) {
+  test(`Die Aufgabe beginnt im ersten Bildschirm auf ${vp.name}`, async ({ page }) => {
+    await page.setViewportSize(vp);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await seedShellAufgabe(page, 'INTERN-SC-004');
+    await page.goto('/');
+    await page.getByText(/WEITER SPIELEN/).click();
+    await expect(page.getByText('Die Disposition ist down')).toBeVisible();
+
+    // Die UEBERSCHRIFT des Falls, nicht irgendein Textknoten, der die Worte
+    // ebenfalls enthaelt — sonst misst man die Vorgeschichte statt des Titels.
+    const oben = await page
+      .getByRole('heading', { name: /Disposition ist down/ })
+      .evaluate((el) => el.getBoundingClientRect().top);
+
+    // Der Titel des Falls muss im ersten Bildschirm liegen, nicht darunter.
+    expect(
+      oben,
+      `der Fall beginnt erst bei ${Math.round(oben)}px von ${vp.height}px Fensterhoehe`
+    ).toBeLessThan(vp.height * 0.7);
+  });
+}
+
+test('Die Detailwerte sind auf dem Telefon eingeklappt, die Gefahrenwerte nicht', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS[1]);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await seedShellAufgabe(page, 'INTERN-SC-004');
+  await page.goto('/');
+  await page.getByText(/WEITER SPIELEN/).click();
+
+  await expect(page.getByText('─ SKILLS ─')).toBeHidden();
+  await expect(page.getByText(/Compliance: \d+%/)).toBeVisible();
+
+  // Und sie lassen sich oeffnen.
+  await page.getByRole('button', { name: /Skills & Beziehungen/i }).click();
+  await expect(page.getByText('─ SKILLS ─')).toBeVisible();
+});
+
+test('Auf dem Desktop bleibt die Statistik offen', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await seedShellAufgabe(page, 'INTERN-SC-004');
+  await page.goto('/');
+  await page.getByText(/WEITER SPIELEN/).click();
+  await expect(page.getByText('─ SKILLS ─')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Skills & Beziehungen/i })).toBeHidden();
 });

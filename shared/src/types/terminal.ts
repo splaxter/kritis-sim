@@ -101,6 +101,25 @@ export interface TerminalContext {
   commands: TerminalCommand[];
   solutions: TerminalSolution[];
   hints: string[];
+  /**
+   * Ordnet jedem Hinweis den Loesungsschritt zu, zu dem er FUEHRT.
+   *
+   * `hintFor[i]` ist das Token aus `solutions[].commands`, das der Hinweis i
+   * erarbeiten soll; `null` markiert einen Zusatztipp ohne eigenen Schritt.
+   *
+   * WARUM ES DAS GIBT: Die automatische Hilfe im Einsteigermodus braucht eine
+   * Antwort auf „welcher Hinweis gehoert zum aktuellen Schritt?". Ohne
+   * Zuordnung gibt es nur zwei schlechte Regeln — nach der Uhr weiterzaehlen
+   * (dann lobt der Mentor Schritte, die es nicht gab) oder die Zahl der
+   * erfuellten Tokens als Index nehmen (dann bleibt die Hilfe stehen, sobald
+   * Hinweise und Schritte nicht 1:1 stehen: das Netzwerk-Tutorial hat fuenf
+   * Hinweise fuer drei Schritte, und der noetige Port-Hinweis war automatisch
+   * NIE erreichbar).
+   *
+   * Fehlt das Feld, faellt die Automatik auf „hoechstens ein Hinweis je
+   * tatsaechlich ausgefuehrtem Befehl" zurueck.
+   */
+  hintFor?: (string | null)[];
   /** Optional VFS overlay for scenario-specific files */
   vfsOverlay?: VFSOverlay;
   /** Optional environment variables */

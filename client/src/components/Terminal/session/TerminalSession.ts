@@ -95,7 +95,21 @@ export class TerminalSession {
   private readonly availableCommands: string[];
 
   // --- hint / command tracking (exposed via snapshot) ---
-  private hintsUsed = 0;
+  /**
+   * WELCHE Hinweise der Spieler schon gesehen hat — nicht wie viele.
+   *
+   * Vorher war das ein Zaehler, der zugleich als Cursor in die Liste diente.
+   * Sobald die Automatik zu einem spaeteren Hinweis sprang (etwa vom Suchen
+   * direkt zum Kontextschritt, an drei Optionstipps vorbei), setzte
+   * `hintsUsed = index + 1` alle uebersprungenen auf „verbraucht": die
+   * Schaltflaeche sprang auf „0 uebrig" und die Tipps zu -i, -c und -r waren
+   * auch von Hand nicht mehr erreichbar.
+   *
+   * Position und Verbrauch sind zwei verschiedene Dinge. Die Automatik waehlt
+   * eine POSITION (welcher Hinweis passt zum aktuellen Schritt), die
+   * Schaltflaeche blaettert durch das, was noch NICHT gezeigt wurde.
+   */
+  private shownHints = new Set<number>();
   private commandsUsed: string[] = [];
   private teachedCommands = new Set<string>();
 
@@ -138,7 +152,7 @@ export class TerminalSession {
     if (gameMode === 'beginner' && context.hints.length > 0) {
       effects.push({ type: 'writeLine', text: `\x1b[33m💡 ${context.hints[0]}\x1b[0m` });
       effects.push({ type: 'writeLine', text: '' });
-      this.hintsUsed = 1;
+      this.shownHints.add(0);
     }
 
     this.prompt = this.computePrompt();
@@ -345,15 +359,14 @@ export class TerminalSession {
           return [this.render()];
         }
         {
-          const hints = this.deps.context.hints;
-          if (this.hintsUsed < hints.length) {
-            const hint = hints[this.hintsUsed];
-            this.hintsUsed++;
+          const index = this.nextUnshownHint();
+          if (index !== null) {
+            this.shownHints.add(index);
             return [
               { type: 'writeLine', text: '' },
-              { type: 'writeLine', text: `\x1b[33m💡 ${hint}\x1b[0m` },
+              { type: 'writeLine', text: `\x1b[33m💡 ${this.deps.context.hints[index]}\x1b[0m` },
               this.render(),
-              { type: 'updateHints', count: this.hintsUsed },
+              { type: 'updateHints', count: this.shownHints.size },
             ];
           }
           return [
@@ -736,18 +749,71 @@ export class TerminalSession {
   // Footer [Hinweis] button / idle auto-hint. Mirrors the hook's `showHint`:
   // NO 💡 emoji, a `\r\n`-prefixed yellow line, guarded so an exhausted hint
   // list emits nothing. Emits updateHints so the adapter can sync React state.
+  /**
+   * Der naechste Hinweis, den der Spieler noch NICHT gesehen hat — oder `null`,
+   * wenn er alle kennt. Bewusst der niedrigste offene Index: von der Automatik
+   * uebersprungene Zusatztipps bleiben so von Hand erreichbar.
+   */
+  private nextUnshownHint(): number | null {
+    const { hints } = this.deps.context;
+    for (let i = 0; i < hints.length; i++) if (!this.shownHints.has(i)) return i;
+    return null;
+  }
+
   handleHintRequest(): TerminalEffect[] {
-    const hints = this.deps.context.hints;
-    if (this.hintsUsed < hints.length) {
-      const hint = hints[this.hintsUsed];
-      this.hintsUsed++;
-      return [
-        { type: 'writeLine', text: `\r\n\x1b[33m${hint}\x1b[0m` },
-        this.render(),
-        { type: 'updateHints', count: this.hintsUsed },
-      ];
+    const index = this.nextUnshownHint();
+    if (index === null) return [];
+    this.shownHints.add(index);
+    return [
+      { type: 'writeLine', text: `\r\n\x1b[33m${this.deps.context.hints[index]}\x1b[0m` },
+      this.render(),
+      { type: 'updateHints', count: this.shownHints.size },
+    ];
+  }
+
+  /**
+   * Welchen Hinweis braucht der Spieler JETZT?
+   *
+   * Mit `hintFor` ist die Frage beantwortbar: der erste Hinweis, dessen
+   * Zielschritt noch offen ist. Zusatztipps (`null`) ueberspringt die Automatik
+   * — sie bleiben ueber die Hinweis-Schaltflaeche erreichbar.
+   *
+   * Zwei frueher probierte Regeln taugten nicht:
+   *   - nach der Uhr weiterzaehlen → der Mentor lobte Schritte, die es nicht
+   *     gab („Super! Jetzt `ls`", nachdem `pwd` wiederholt wurde);
+   *   - die Zahl erfuellter Tokens als Index nehmen → die Hilfe blieb stehen,
+   *     sobald Hinweise und Schritte nicht 1:1 stehen. Das Netzwerk-Tutorial
+   *     hat fuenf Hinweise fuer drei Schritte; der noetige Port-Hinweis war
+   *     automatisch nie erreichbar.
+   *
+   * Ohne `hintFor` bleibt der Notbehelf: hoechstens ein Hinweis je tatsaechlich
+   * ausgefuehrtem Befehl. Gezaehlt werden dabei AUCH echte Shell-Ausfuehrungen,
+   * nicht nur Skript-Treffer — sonst stuende die Automatik bei reinen
+   * stateGoals-Leveln fuer immer auf Hinweis 0.
+   */
+  private idleHintIndex(): number | null {
+    const { hints, hintFor } = this.deps.context;
+    if (hints.length === 0) return null;
+
+    if (hintFor && hintFor.length > 0) {
+      // Der aktuelle Schritt: der erste, der noch offen ist.
+      const aktuell = hintFor.find((ziel) => ziel && !this.teachedCommands.has(ziel));
+      if (!aktuell) return null; // alles erledigt — nichts nachzuhelfen
+
+      // Alle Hinweise, die auf DIESEN Schritt hinarbeiten, in ihrer
+      // Reihenfolge. Mehrere sind erlaubt: ein Tutorial darf erst orientieren
+      // („schau in den logs-Ordner") und dann den Befehl nennen.
+      const passend: number[] = [];
+      for (let i = 0; i < hints.length; i++) if (hintFor[i] === aktuell) passend.push(i);
+
+      // Der naechste noch nicht gezeigte; sind alle gezeigt, wird der letzte
+      // wiederholt — nie ein Hinweis zu einem Schritt, der nicht dran ist.
+      const naechster = passend.find((i) => !this.shownHints.has(i));
+      return naechster !== undefined ? naechster : passend[passend.length - 1];
     }
-    return [];
+
+    const ausgefuehrt = this.commandsUsed.length + this.deps.shell.getExecutionLog().length;
+    return Math.min(ausgefuehrt, hints.length - 1);
   }
 
   // Beginner idle auto-hint — reproduces the old showIdleSuggestion output:
@@ -757,9 +823,17 @@ export class TerminalSession {
   // Distinct from handleHintRequest (footer button) by design.
   handleIdleHint(): TerminalEffect[] {
     const hints = this.deps.context.hints;
-    if (this.hintsUsed >= hints.length) return [];
-    const hint = hints[this.hintsUsed];
-    this.hintsUsed++;
+    const index = this.idleHintIndex();
+    if (index === null || index >= hints.length) return [];
+    // Wiederholung nur, wenn wirklich etwas zurueckgehalten wird. Kennt der
+    // Spieler schon alle Hinweise, ist Schweigen richtig — sonst tropft der
+    // letzte alle acht Sekunden nach, ohne dass es etwas zu verbergen gaebe.
+    // (Genau das sichert der aeltere Test „once hints are exhausted".)
+    if (this.shownHints.has(index) && this.nextUnshownHint() === null) return [];
+    const hint = hints[index];
+    // NUR diesen einen als gesehen buchen. `index + 1` hatte alle
+    // uebersprungenen Zusatztipps mitverbraucht.
+    this.shownHints.add(index);
     return [
       { type: 'writeLine', text: '' },
       { type: 'writeLine', text: '\x1b[33m💡 ' + hint + '\x1b[0m' },
@@ -844,6 +918,6 @@ export class TerminalSession {
   }
 
   getSnapshot(): TerminalSnapshot {
-    return { hintsUsed: this.hintsUsed, commandsUsed: [...this.commandsUsed], solved: this.solved };
+    return { hintsUsed: this.shownHints.size, commandsUsed: [...this.commandsUsed], solved: this.solved };
   }
 }

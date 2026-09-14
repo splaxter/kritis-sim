@@ -11,6 +11,9 @@ export const randomFlavorEvents: GameEvent[] = [
   {
     id: 'evt_random_windows_update',
     weekRange: [1, 12],
+    // Der Titel IST der Witz — Patchday ist dienstags. Ohne Tagesbindung
+    // erschien „Normaler Dienstag" am Freitag und nahm ihm die Pointe.
+    dayPreference: [2],
     probability: 0.3,
     category: 'absurd',
     title: 'Normaler Dienstag',

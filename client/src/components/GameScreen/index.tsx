@@ -304,6 +304,7 @@ export function GameScreen({
                     mentorModeEnabled={state.mentorModeEnabled}
                     isStoryMode={true}
                     learningCtas={learningResultCtas}
+                    solvedBranch={lastSolvedBranch}
                   />
                 </div>
               </div>
@@ -319,6 +320,7 @@ export function GameScreen({
                     choice={lastScenarioChoice}
                     bsiReference={currentScenario?.bsiReference}
                     onContinue={onContinue}
+                    solvedBranch={lastSolvedBranch}
                   />
                 </div>
               </div>
@@ -391,6 +393,7 @@ export function GameScreen({
             mentorModeEnabled={state.mentorModeEnabled}
             learningCtas={learningResultCtas}
             learningNudge={learningNudge}
+            solvedBranch={lastSolvedBranch}
           />
         )}
 
