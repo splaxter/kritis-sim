@@ -1,5 +1,5 @@
 // client/src/components/ResultScreen/index.tsx
-import { EventChoice, EventEffects } from '@kritis/shared';
+import { EventChoice, EventEffects, SolvedBranch } from '@kritis/shared';
 import { MentorNote } from '../MentorNote';
 import { formatNarrativeText } from '../../engine/formatNarrativeText';
 
@@ -21,6 +21,13 @@ export interface LearningResultCtas {
 }
 
 interface ResultScreenProps {
+  /**
+   * Der Loesungszweig, den der Spieler bei einer praktischen Aufgabe wirklich
+   * erreicht hat. Ohne ihn endet der Lerntext einer Terminal- oder GUI-Aufgabe
+   * im Level: der Spieler drueckt Enter und das Ergebnis zeigt nur noch die
+   * Erzaehlung der Choice. Genau dasselbe Loch gab es auf dem Szenario-Weg.
+   */
+  solvedBranch?: SolvedBranch | null;
   choice: EventChoice;
   onContinue: () => void;
   characters?: Record<string, string>;
@@ -33,7 +40,7 @@ interface ResultScreenProps {
   learningNudge?: { onDismiss: () => void };
 }
 
-export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas, learningNudge }: ResultScreenProps) {
+export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, mentorModeEnabled, isStoryMode, learningCtas, learningNudge, solvedBranch }: ResultScreenProps) {
   const renderEffects = (effects: EventEffects) => {
     const items: JSX.Element[] = [];
 
@@ -208,6 +215,17 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
       <div className="text-terminal-success text-xl mb-4">
         ✓ ENTSCHEIDUNG GETROFFEN
       </div>
+
+      {/* Was bei der praktischen Aufgabe herausgekommen ist — bleibt stehen,
+          statt mit dem Level zu verschwinden. */}
+      {solvedBranch?.resultText && (
+        <div className="border border-terminal-success p-4 mb-6">
+          <div className="text-terminal-success mb-2">- BEFUND -</div>
+          <div className="text-terminal-green-dim leading-relaxed whitespace-pre-wrap">
+            {solvedBranch.resultText}
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 text-terminal-green-dim leading-relaxed">
         {formatNarrativeText(choice.resultText, characters)}

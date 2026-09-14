@@ -391,6 +391,7 @@ export function GameScreen({
             mentorModeEnabled={state.mentorModeEnabled}
             learningCtas={learningResultCtas}
             learningNudge={learningNudge}
+            solvedBranch={lastSolvedBranch}
           />
         )}
 

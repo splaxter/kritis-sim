@@ -183,7 +183,9 @@ Er stellt dir einen Kaffee hin. "Log-Dateien, Configs, alles kannst du direkt im
           allRequired: true,
           resultText: `\`cat\` zeigt alles, \`head\` den Anfang, \`tail\` das Ende — bei einer Logdatei also das Neueste.
 
-Gelesen heißt noch nicht verstanden: In der Datei standen Zeilen mit ERROR. Welche davon zusammengehören und welche nur Rauschen sind, hast du damit noch nicht entschieden.`,
+Und genau da liegt die Falle: Am Ende von system.log steht „Backup erfolgreich abgeschlossen". Wer nur \`tail\` liest, geht beruhigt nach Hause und hat die Zeile um 08:15:22 nie gesehen — „[WARN] Hohe CPU-Auslastung", eine Viertelstunde vor dem Backup.
+
+Ob die beiden etwas miteinander zu tun haben, sagt dir keiner der drei Befehle. Lesen ist nicht Verstehen.`,
           skillGain: { linux: 5, troubleshooting: 3 },
           effects: { stress: -5 },
         },
@@ -247,6 +249,38 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
           teachesCommand: 'grep',
           skillGain: { linux: 3 },
         },
+        /*
+         * Der Blick über den Filter hinaus — und der Grund, warum dieses Level
+         * nicht beim Finden aufhört.
+         *
+         * `grep ERROR` liefert drei Zeilen. Wer daraus ein Ticket schreibt,
+         * meldet ein Problem, das es seit 08:17:30 nicht mehr gibt: Der dritte
+         * Versuch lief durch. Ein Filter zeigt, wonach man gesucht hat, nie
+         * das, was daneben stand. Das ist keine Schwäche von grep, sondern
+         * seine Bauart — und der Grund, warum ein Befund ohne Kontext keiner
+         * ist.
+         */
+        {
+          pattern: 'cat error.log',
+          output: `2026-03-15 08:15:00 [INFO] Backup-Dienst startet
+2026-03-15 08:16:00 [ERROR] Dienst "backup" nicht erreichbar
+2026-03-15 08:16:30 [ERROR] Retry 1/3
+2026-03-15 08:17:00 [ERROR] Retry 2/3
+2026-03-15 08:17:30 [INFO] Retry 3/3 erfolgreich — Verbindung steht
+2026-03-15 08:45:00 [INFO] Backup abgeschlossen, 0 Fehler`,
+          teachesCommand: 'kontext',
+          skillGain: { linux: 2, troubleshooting: 4 },
+        },
+        {
+          pattern: 'grep -A 2 ERROR error.log',
+          output: `2026-03-15 08:16:00 [ERROR] Dienst "backup" nicht erreichbar
+2026-03-15 08:16:30 [ERROR] Retry 1/3
+2026-03-15 08:17:00 [ERROR] Retry 2/3
+2026-03-15 08:17:30 [INFO] Retry 3/3 erfolgreich — Verbindung steht
+2026-03-15 08:45:00 [INFO] Backup abgeschlossen, 0 Fehler`,
+          teachesCommand: 'kontext',
+          skillGain: { linux: 3, troubleshooting: 4 },
+        },
         {
           pattern: 'grep -i failed auth.log',
           output: `2026-03-15 07:45:12 Login FAILED for user: mueller
@@ -270,11 +304,21 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
       ],
       solutions: [
         {
-          commands: ['grep'],
+          commands: ['grep', 'kontext'],
           allRequired: true,
-          resultText: `\`grep\` findet die Zeilen, die zu einem Muster passen — aus 2000 Zeilen werden drei.
+          resultText: `\`grep ERROR\` liefert drei Zeilen. Wer daraus ein Ticket schreibt, meldet drei Fehler.
 
-Und jetzt kommt der Teil, den kein Befehl abnimmt: Die drei Treffer sind Backup-Fehler von drei aufeinanderfolgenden Nächten. Ob das EIN Problem ist oder drei, steht nicht in der Ausgabe. Ins Ticket gehört die Zeitreihe, nicht die schönste einzelne Zeile.`,
+Die vollständige Datei erzählt etwas anderes:
+
+  08:16:00  Dienst nicht erreichbar
+  08:16:30  Retry 1/3
+  08:17:00  Retry 2/3
+  08:17:30  Retry 3/3 erfolgreich
+  08:45:00  Backup abgeschlossen, 0 Fehler
+
+Das sind keine drei Fehler. Das ist EIN Aussetzer von neunzig Sekunden, den der Dienst selbst geheilt hat. Ins Ticket gehört er trotzdem — aber als „hat sich nach drei Versuchen gefangen", nicht als Störung.
+
+Ein Filter zeigt, wonach du gesucht hast. Nie das, was daneben stand.`,
           skillGain: { linux: 5, troubleshooting: 5 },
           effects: { stress: -5 },
         },
@@ -284,6 +328,8 @@ Und jetzt kommt der Teil, den kein Befehl abnimmt: Die drei Treffer sind Backup-
         '💡 Jens: "Mit `-i` ist die Suche case-insensitive: `grep -i failed auth.log`"',
         '💡 Jens: "Mit `-c` zählst du die Treffer: `grep -c ERROR error.log`"',
         '💡 Jens: "Und `-r` sucht rekursiv in allen Dateien: `grep -r ERROR .`"',
+        '💡 Jens: "Drei Treffer — und jetzt? Ein Filter zeigt dir nur, wonach du gesucht hast. Was stand DANEBEN?"',
+        '💡 Jens: "Sieh dir die ganze Datei an: `cat error.log`. Oder gezielt den Kontext: `grep -A 2 ERROR error.log`."',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
@@ -299,7 +345,7 @@ Und jetzt kommt der Teil, den kein Befehl abnimmt: Die drei Treffer sind Backup-
     },
     category: 'team',
     title: 'Terminal-Grundlagen: Netzwerk',
-    description: `Jens ruft von seinem Platz — was allein schon ein Ereignis ist: "Hey, der Mailserver antwortet nicht. Kannst du mal checken ob er überhaupt erreichbar ist?"
+    description: `Jens ruft von seinem Platz — was allein schon ein Ereignis ist: "Hey, der Mailserver antwortet nicht. Kannst du mal nachsehen, woran es liegt?"
 
 Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch gelesen hast.
 
@@ -308,9 +354,12 @@ Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch ge
     choices: [
       {
         id: 'ready',
-        text: 'Server ist erreichbar - war wohl nur ein Timeout!',
+        // War: „Server ist erreichbar - war wohl nur ein Timeout!" — also
+        // ausgerechnet der voreilige Schluss, den dieses Level korrigiert.
+        // Die Option darf die Antwort nicht vorwegnehmen.
+        text: 'Schauen wir nach, was da los ist.',
         effects: { relationships: { kollegen: 10 }, skills: { netzwerk: 5 } },
-        resultText: 'Jens gibt dir einen Daumen hoch. "Gut gemacht! Das sind die wichtigsten Diagnose-Tools. Den Rest lernst du on the job."',
+        resultText: 'Jens liest deine Meldung zweimal. "Port 25 zu. Also lebt die Kiste, aber der Dienst ist weg." Er greift zum Telefon. "Gut, dass du nicht \'geht doch\' geschrieben hast."',
         terminalCommand: true,
       },
     ],
@@ -370,14 +419,44 @@ Address: 192.168.1.50`,
  2  mail.warm.local (192.168.1.50)  0.523 ms`,
           skillGain: { netzwerk: 3 },
         },
+        /*
+         * Der eigentliche Befund des Levels — und der Grund, warum es nicht bei
+         * ping und nslookup aufhört.
+         *
+         * Ping und DNS sagen: Der Name löst auf, der Rechner antwortet. Beides
+         * ist wahr und beantwortet trotzdem nicht Jens' Frage. Erst der Blick
+         * auf den PORT zeigt, dass der Dienst weg ist — und damit steht die
+         * Lektion nicht als Merksatz im Abschlusstext, sondern auf dem Schirm.
+         *
+         * Zwei Schreibweisen, weil beide gaengig sind; dieselbe Lektion.
+         */
+        {
+          pattern: 'nc -zv mail.warm.local 25',
+          output: `nc: connect to mail.warm.local (192.168.1.50) port 25 (tcp) failed: Connection refused`,
+          teachesCommand: 'portcheck',
+          skillGain: { netzwerk: 4, troubleshooting: 4 },
+        },
+        {
+          pattern: 'telnet mail.warm.local 25',
+          output: `Trying 192.168.1.50...
+telnet: Unable to connect to remote host: Connection refused`,
+          teachesCommand: 'portcheck',
+          skillGain: { netzwerk: 4, troubleshooting: 4 },
+        },
       ],
       solutions: [
         {
-          commands: ['ping', 'nslookup'],
+          commands: ['ping', 'nslookup', 'portcheck'],
           allRequired: true,
-          resultText: `Zwei Dinge stehen fest: Der Name mail.warm.local löst auf 192.168.1.50 auf, und diese Adresse antwortet auf Ping.
+          resultText: `Drei Ergebnisse, und das dritte ist das einzige, das Jens' Frage beantwortet:
 
-Was damit NICHT feststeht: ob der Mailserver läuft. Ping beantwortet ein Netzwerk-Paket — das tut auch ein Rechner, auf dem jeder Dienst abgestürzt ist. „Der Server ist erreichbar" und „Mail funktioniert" sind zwei verschiedene Aussagen, und du hast bisher nur die erste.`,
+  Name löst auf        mail.warm.local -> 192.168.1.50
+  Rechner antwortet     3 von 3 Paketen, 0 % Verlust
+  Port 25               Connection refused
+
+Ping und DNS waren richtig — und hätten dich in die Irre geführt, wenn du dort aufgehört hättest. Ein Rechner, auf dem jeder Dienst abgestürzt ist, antwortet genauso brav auf Ping. „Erreichbar" und „funktioniert" sind zwei verschiedene Aussagen, und nur die zweite hat Jens gefragt.
+
+Merke: Einen Dienst prüft man auf seinem Port, nicht auf seiner IP.`,
           skillGain: { netzwerk: 5, troubleshooting: 5 },
           effects: { stress: -5, relationships: { kollegen: 5 } },
         },
@@ -386,7 +465,8 @@ Was damit NICHT feststeht: ob der Mailserver läuft. Ping beantwortet ein Netzwe
         '💡 Jens: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
         '💡 Jens: "Du musstest mit Strg+C abbrechen, oder? Mit `ping -c 3` sagst du vorher, wie viele Pakete es sein sollen."',
         '💡 Jens: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
-        '💡 Jens: "Bonus: `traceroute` zeigt dir den Netzwerkweg zum Ziel."',
+        '💡 Jens: "Der Rechner antwortet — meine Frage war aber, ob der MAILSERVER antwortet. Das ist nicht dasselbe."',
+        '💡 Jens: "Mail läuft auf Port 25. Klopf da an: `nc -zv mail.warm.local 25` (oder `telnet mail.warm.local 25`)."',
       ],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux', 'network'],
