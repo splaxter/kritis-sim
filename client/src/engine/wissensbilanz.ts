@@ -1,7 +1,7 @@
 import type { GameEvent, TerminalContext } from '@kritis/shared';
 import { allLinuxCommands } from './shell/commands/linux';
 import { allPowerShellCommands } from './shell/commands/powershell';
-import { anforderungen } from './anforderungen';
+import { anforderungenJeLoesung, type Anforderungen } from './anforderungen';
 
 /**
  * Die Wissensbilanz: Was hat das Spiel gezeigt, bevor es etwas verlangt?
@@ -160,7 +160,9 @@ export function hinweisBefehle(ctx: TerminalContext): Set<string> {
  * nur noch eine QUELLE VON SICHTBARKEIT, nie eine Quelle von Anforderungen.
  */
 export function verlangteBefehle(ctx: TerminalContext): Set<string> {
-  return new Set(anforderungen(ctx).liste.flatMap((a) => a.kandidaten));
+  return new Set(
+    anforderungenJeLoesung(ctx).flatMap((l) => l.liste.flatMap((a) => a.kandidaten))
+  );
 }
 
 export interface Befund {
@@ -211,36 +213,40 @@ export function bilanziere(
     const zeigt = gezeigteBefehle(ctx);
     const angesagt = angesagteBefehle(event, ctx);
     const imHinweis = hinweisBefehle(ctx);
-    const noetig = anforderungen(ctx);
+    const wege = anforderungenJeLoesung(ctx);
 
     // Alles, was im Level SELBST zu sehen ist — abschreibbar.
     const sichtbar = new Set([...zeigt, ...angesagt, ...imHinweis]);
     const verfuegbar = (b: string) => bekannt.has(b) || sichtbar.has(b);
 
-    const unloesbar = noetig.liste
-      .filter((a) => !a.kandidaten.some(verfuegbar))
-      .map((a) => a.was)
-      .sort();
-    // „Nur im Hinweis": kein Kandidat war vorher bekannt oder im Auftrag zu
-    // sehen, aber einer steht im Hinweis. Loesbar — und trotzdem der Fall,
-    // ueber den sich der Auftraggeber beschwert hat.
-    const nurImHinweis = noetig.liste
-      .filter(
-        (a) =>
-          !a.kandidaten.some((k) => bekannt.has(k) || zeigt.has(k) || angesagt.has(k)) &&
-          a.kandidaten.some((k) => imHinweis.has(k))
-      )
-      .map((a) => a.was)
-      .sort();
+    // ODER zwischen den Loesungen: gemeldet wird der BESTE Weg. Gangbar heisst
+    // — jede Anforderung hat einen verfuegbaren Kandidaten und keine Zielart
+    // blieb ungedeutet. Gibt es keinen gangbaren, entscheidet der mit den
+    // wenigsten Luecken, damit die Meldung den naechstliegenden Weg nennt.
+    const bewertet = wege.map((weg) => ({
+      weg,
+      unloesbar: weg.liste.filter((a) => !a.kandidaten.some(verfuegbar)).map((a) => a.was).sort(),
+      nurImHinweis: weg.liste
+        .filter(
+          (a) =>
+            !a.kandidaten.some((k: string) => bekannt.has(k) || zeigt.has(k) || angesagt.has(k)) &&
+            a.kandidaten.some((k: string) => imHinweis.has(k))
+        )
+        .map((a) => a.was)
+        .sort(),
+    }));
+    const luecken = (b: (typeof bewertet)[number]) => b.unloesbar.length + b.weg.ungedeutet.length;
+    const gangbar = bewertet.filter((b) => luecken(b) === 0);
+    const beste = (gangbar.length > 0 ? gangbar : bewertet)
+      .slice()
+      .sort((a, b) => luecken(a) - luecken(b) || a.nurImHinweis.length - b.nurImHinweis.length)[0];
 
-    if (unloesbar.length || nurImHinweis.length || noetig.ungedeutet.length) {
-      befunde.push({
-        eventId: event.id,
-        titel: event.title,
-        unloesbar,
-        nurImHinweis,
-        ungedeutet: noetig.ungedeutet,
-      });
+    const unloesbar = beste?.unloesbar ?? [];
+    const nurImHinweis = beste?.nurImHinweis ?? [];
+    const ungedeutet = beste?.weg.ungedeutet ?? [];
+
+    if (unloesbar.length || nurImHinweis.length || ungedeutet.length) {
+      befunde.push({ eventId: event.id, titel: event.title, unloesbar, nurImHinweis, ungedeutet });
     }
 
     // Erst NACH der Pruefung lernen — und nur, wenn das Level Pflicht ist.
@@ -253,7 +259,10 @@ export function bilanziere(
     // uebersieht genau die unangekuendigte Pflicht, die gefunden werden soll.
     if (pflicht) {
       for (const b of sichtbar) bekannt.add(b);
-      for (const a of noetig.liste) if (a.kandidaten.length === 1) bekannt.add(a.kandidaten[0]);
+      // Gelernt wird nur aus dem Weg, den der Spieler realistisch geht.
+      for (const a of beste?.weg.liste ?? []) {
+        if (a.kandidaten.length === 1) bekannt.add(a.kandidaten[0]);
+      }
     }
   }
 

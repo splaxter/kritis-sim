@@ -81,7 +81,7 @@ describe('Anforderungen kommen aus der Siegbedingung, nicht aus den Hinweisen', 
 
   it('ein Inhaltsziel verlangt Schreiben, ein Lesenachweis Lesen', () => {
     const schreiben = anforderungenAusZielen([{ file: '/tmp/a', matches: 'x' }]);
-    expect(schreiben.liste.map((a) => a.was)).toEqual(['schreiben']);
+    expect(schreiben.liste.map((a) => a.was)).toEqual(['inhaltSchreiben']);
     expect(schreiben.liste[0].kandidaten).toContain('>>');
 
     const lesen = anforderungenAusZielen([{ fileRead: '/tmp/a' }]);
@@ -150,14 +150,14 @@ describe('Wissensbilanz je Route', () => {
  * duerfen nicht dazukommen.
  */
 const BEKANNTE_HINWEISPAARE = new Set([
-  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|schreiben',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|schreiben',
+  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|inhaltSchreiben',
+  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|inhaltSchreiben',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|ssh',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|sed',
   'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|systemctl',
   'Lernpfad · Netz-Forensik|learn_net_01_open_doors|dienstSteuern',
-  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|schreiben',
-  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|schreiben',
+  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|inhaltSchreiben',
+  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|inhaltSchreiben',
   'Story · Audit Trail|at_l8_bastion_live|ufw',
 ]);
 

@@ -15,17 +15,51 @@ import type { StateGoal, TerminalContext } from '@kritis/shared';
  * Deshalb: Quelle sind die `stateGoals` und `solutions[].commands`. Und was
  * hier NICHT abgebildet ist, wird als `ungedeutet` gemeldet statt stillschweigend
  * als erfuellt zu gelten.
+ *
+ * UND innerhalb einer Loesung, ODER zwischen ihnen. Die erste Fassung hat die
+ * Ziele aller Loesungen mit `flatMap` zusammengeworfen und damit aus einem
+ * Angebot eine Pflichtenliste gemacht: eine zusaetzliche Hash-Loesung liess ein
+ * Level als „unloesbar: sha256sum" gelten, obwohl der unveraenderte erste Weg
+ * weiterhin ohne Hash funktioniert. So prueft die Engine, so rechnet die Bilanz.
  */
 
-/** Eine Faehigkeit, die mehrere Befehle erfuellen koennen. */
-export type Faehigkeit = 'schreiben' | 'lesen' | 'loeschen' | 'kopieren' | 'dienstSteuern';
+/**
+ * Eine Faehigkeit, die mehrere Befehle erfuellen koennen.
+ *
+ * Die Trennung von „Datei anlegen" und „Inhalt schreiben" ist kein Feinschliff,
+ * sondern ein Review-Befund: `touch` legt eine Datei an und erfuellt damit
+ * `fileExists`, aber niemals ein `matches`. Wer beides in einen Topf wirft,
+ * erklaert eine Anleitung fuer ausreichend, mit der das Level nicht loest.
+ */
+export type Faehigkeit =
+  | 'inhaltSchreiben'
+  | 'dateiAnlegen'
+  | 'lesen'
+  | 'loeschen'
+  | 'kopieren'
+  | 'dienstSteuern';
 
+/**
+ * Welcher Befehl welche Wirkung hat, ist GEMESSEN, nicht geschaetzt:
+ * `anforderungen.kandidaten.test.ts` fuehrt jeden Eintrag hier gegen die echte
+ * Shell aus und prueft, dass das zugehoerige Ziel danach wirklich erfuellt ist
+ * — und dass die beiden gemeldeten Fehlbesetzungen (`touch` als Schreiber,
+ * `stat` als Lesenachweis) es NICHT sind.
+ */
 export const FAEHIGKEIT_KANDIDATEN: Record<Faehigkeit, readonly string[]> = {
-  // Inhalt in eine Datei bringen. Ohne Editor bleibt Umlenkung, `tee` oder ein
-  // Werkzeug, das selbst schreibt.
-  schreiben: ['>>', '>', 'tee', 'sed', 'ssh-keygen', 'ssh-copy-id', 'set-content', 'sha256sum', 'ansible-playbook', 'cp', 'scp', 'touch'],
-  lesen: ['cat', 'less', 'head', 'tail', 'grep', 'awk', 'sed', 'diff', 'stat', 'get-content', 'select-string', 'nl', 'tac', 'strings', 'xxd', 'cut', 'sort'],
-  loeschen: ['rm', 'sed', 'remove-item'],
+  // Inhalt in eine Datei bringen. Ohne Editor bleibt Umlenkung, `tee`, ein
+  // In-Place-`sed` oder eine Kopie.
+  inhaltSchreiben: ['>>', '>', 'tee', 'sed', 'cp', 'ssh-keygen', 'set-content', 'scp', 'ansible-playbook'],
+  // Nur ihre Existenz — dafuer genuegt `touch`.
+  dateiAnlegen: ['touch', '>', '>>', 'tee', 'cp', 'ssh-keygen', 'scp', 'ansible-playbook'],
+  // Ein Lesezugriff wird nur verbucht, wenn der Befehl die Datei wirklich
+  // EINLIEST. `stat` und `ls` sehen nur die Metadaten und zaehlen nicht.
+  lesen: [
+    'cat', 'less', 'head', 'tail', 'nl', 'tac', 'rev', 'strings', 'xxd', 'wc',
+    'sort', 'base64', 'sha256sum', 'md5sum', 'grep', 'awk', 'sed', 'diff',
+    'file', 'cut', 'uniq', 'tr', 'get-content', 'select-string',
+  ],
+  loeschen: ['rm', 'remove-item'],
   kopieren: ['cp', 'scp', 'copy-item'],
   // Einen Lauscher oeffnen oder schliessen: ueber den Dienst, ueber den Prozess
   // oder ueber die Firewall.
@@ -34,8 +68,8 @@ export const FAEHIGKEIT_KANDIDATEN: Record<Faehigkeit, readonly string[]> = {
 
 /**
  * Eine Anforderung ist immer eine ODER-Liste: `sha256sum` ist eine Liste mit
- * einem Eintrag, „irgendwie schreiben" eine mit acht. Das haelt den Pruefer
- * einfach — erfuellt ist sie, wenn EIN Kandidat bekannt oder sichtbar ist.
+ * einem Eintrag, „irgendwie Inhalt schreiben" eine mit acht. Erfuellt ist sie,
+ * wenn EIN Kandidat bekannt oder sichtbar ist.
  */
 export interface Anforderung {
   /** Wofuer sie steht, fuer die Fehlermeldung. */
@@ -91,10 +125,10 @@ const ZIEL_BEFEHL: Partial<Record<keyof StateGoal, string>> = {
 
 /** Zielarten, die eine Faehigkeit erzwingen. */
 const ZIEL_FAEHIGKEIT: Partial<Record<keyof StateGoal, Faehigkeit>> = {
-  matches: 'schreiben',
-  absentMatches: 'schreiben',
-  reportFields: 'schreiben',
-  fileExists: 'schreiben',
+  matches: 'inhaltSchreiben',
+  absentMatches: 'inhaltSchreiben',
+  reportFields: 'inhaltSchreiben',
+  fileExists: 'dateiAnlegen',
   sameContentAs: 'kopieren',
   fileCopied: 'kopieren',
   fileAbsent: 'loeschen',
@@ -136,7 +170,7 @@ export function anforderungenAusZielen(ziele: readonly StateGoal[]): Anforderung
 }
 
 /**
- * Alles, was ein Level verlangt — Ziele UND die vorgesehenen Befehlsnamen.
+ * Die Anforderungen EINER Loesung: alles darin muss zusammen erfuellt sein.
  *
  * `solutions[].commands` haelt teils mehrteilige Namen („systemctl start",
  * „ps aux") und level-eigene Verben („check-account"). Beides zaehlt als
@@ -144,10 +178,9 @@ export function anforderungenAusZielen(ziele: readonly StateGoal[]): Anforderung
  * der ganze Name, weil gescriptete Beats ihn ueber `teachesCommand` vorfuehren;
  * das erste Wort, weil der Spieler den Befehl lernt, nicht die Zeile.
  */
-export function anforderungen(ctx: TerminalContext): Anforderungen {
-  const ziele = (ctx.solutions ?? []).flatMap((l) => l.stateGoals ?? []);
-  const aus = anforderungenAusZielen(ziele);
-  for (const loesung of ctx.solutions ?? []) {
+export function anforderungenJeLoesung(ctx: TerminalContext): Anforderungen[] {
+  return (ctx.solutions ?? []).map((loesung) => {
+    const aus = anforderungenAusZielen(loesung.stateGoals ?? []);
     for (const roh of loesung.commands ?? []) {
       const name = roh.toLowerCase();
       const ersterTeil = name.split(/\s+/)[0];
@@ -157,6 +190,6 @@ export function anforderungen(ctx: TerminalContext): Anforderungen {
         aus.liste.push({ was: name, kandidaten: [...new Set(kandidaten)] });
       }
     }
-  }
-  return aus;
+    return aus;
+  });
 }
