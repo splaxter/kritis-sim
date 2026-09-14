@@ -1,4 +1,4 @@
-import type { GameEvent } from '@kritis/shared';
+import type { GameEvent, TerminalContext } from '@kritis/shared';
 import { createShellFromContext } from './shell';
 import { TerminalSession } from '../components/Terminal/session/TerminalSession';
 import { sollpfad, type Sollpfad } from './sollpfad';
@@ -30,6 +30,61 @@ export interface Fahrt {
   geloest: boolean;
   /** Wie viele Zeilen wurden bis dahin gebraucht? */
   zeilenGetippt: number;
+}
+
+export interface Zeile {
+  cmd: string;
+  /** Antworten auf Rueckfragen (Passwort, Passphrase) in ihrer Reihenfolge. */
+  antworten?: string[];
+}
+
+export interface Zeilenfahrt {
+  /** Nach der wievielten Zeile war das Level zum ersten Mal geloest? null = nie. */
+  geloestNachZeile: number | null;
+  zeilenGetippt: number;
+}
+
+/**
+ * Feste Zeilen durch die SITZUNG fahren — nicht an ihr vorbei.
+ *
+ * Der Unterschied ist kein Detail: Wer `shell.execute` direkt aufruft, umgeht
+ * die Erfolgserkennung und merkt deshalb NICHT, dass ein Level schon nach der
+ * zweiten Zeile geloest ist. Genau so hat ein Nachweis einen Aufgabentext
+ * bestaetigt, dessen letzte beide Schritte im Spiel nie zur Ausfuehrung kommen:
+ * Nach dem Erfolg wartet die Sitzung auf das bestaetigende Enter, und was der
+ * Spieler danach tippt, ist keine Eingabe mehr.
+ */
+export function fahreZeilen(ctx: TerminalContext, zeilen: readonly Zeile[]): Zeilenfahrt {
+  const shell = createShellFromContext(ctx);
+  const session = new TerminalSession({
+    shell, context: ctx, gameMode: 'learning', onSolved: () => {}, onFlagsSet: () => {},
+  });
+
+  let geloestNachZeile: number | null = null;
+  let zeilenGetippt = 0;
+
+  const ausstreamen = (effekte: { type: string }[]) => {
+    let offen = effekte.some((e) => e.type === 'scheduleDrip');
+    for (let i = 0; offen && i < MAX_TICKS; i++) {
+      offen = session.tick('drip').some((e) => e.type === 'scheduleDrip');
+    }
+  };
+
+  for (const { cmd, antworten } of zeilen) {
+    if (geloestNachZeile !== null) break; // nach dem Erfolg tippt niemand weiter
+    for (const zeichen of cmd) session.handleData(zeichen);
+    ausstreamen(session.handleData('\r'));
+    zeilenGetippt++;
+    let i = 0;
+    while (shell.hasPendingInput() && i < 8) {
+      const antwort = antworten?.[i++] ?? '';
+      for (const zeichen of antwort) session.handleData(zeichen);
+      ausstreamen(session.handleData('\r'));
+    }
+    if (session.getSnapshot().solved) geloestNachZeile = zeilenGetippt;
+  }
+
+  return { geloestNachZeile, zeilenGetippt };
 }
 
 export function fahreSollpfad(event: GameEvent): Fahrt {

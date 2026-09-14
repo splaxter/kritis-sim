@@ -136,7 +136,7 @@ Home. Danach will ich sehen, dass du OHNE Passwort raufkommst.“
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Schlüsselpaar erzeugen, Public Key auf web01 (admin) hinterlegen, passwortlos einloggen.',
+        'Schlüsselpaar erzeugen (ssh-keygen), Public Key auf web01 (admin) hinterlegen (ssh-copy-id), passwortlos einloggen (ssh).\n\nDas Admin-Passwort brauchst du genau einmal — zum Hinterlegen. Es steht in safe-zettel.txt.',
       vfsOverlay: {
         files: [
           {
@@ -178,7 +178,7 @@ Home. Danach will ich sehen, dass du OHNE Passwort raufkommst.“
         },
       ],
       hints: [
-        '🤖 Jens: Erst brauchst du ein Schlüsselpaar. Es gibt ein Standard-Werkzeug dafür — der Name beginnt mit ssh-…',
+        '🤖 Jens: Ein Schlüsselpaar sind zwei Dateien: der private Teil bleibt für immer auf deiner Kiste, der öffentliche darf überallhin. Nur den öffentlichen legst du auf dem Server ab — deshalb ist das Verfahren sicherer als ein Passwort, das bei jedem Login über die Leitung geht.',
         '🤖 Jens: `ssh-keygen -t ed25519` erzeugt das Paar in ~/.ssh/. Die Passphrase darfst du hier leer lassen.',
         '🤖 Jens: Zum Verteilen gibt es ssh-copy-id. Das Admin-Passwort steht im Safe-Zettel (`cat safe-zettel.txt`).',
         '🤖 Jens: Komplett: `ssh-keygen -t ed25519` → `ssh-copy-id admin@web01` (Passwort: siehe Zettel) → `ssh admin@web01`.',
@@ -234,7 +234,7 @@ Rechenzentrum müssen.“
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Per Schlüssel auf web01 einloggen (der Test!), PermitRootLogin no und PasswordAuthentication no setzen, sshd neu starten.',
+        'Per Schlüssel auf web01 einloggen (ssh — der Test!), in /etc/ssh/sshd_config PermitRootLogin no und PasswordAuthentication no setzen, sshd neu starten.\n\nBestehende Zeilen gezielt ersetzen, nicht anhängen: sudo sed -i. Neustart: sudo systemctl restart ssh.',
       vfsOverlay: {
         files: [
           // Key continuity: the onboarding keypair from SSH 1 is pre-seeded.
@@ -1124,7 +1124,7 @@ raus, WELCHER Prozess da lauscht, und machst ihn dicht.“
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Lauschende Ports auf srv-web auflisten, mit der Soll-Liste (22/80/443) vergleichen, den fremden Prozess über seine PID beenden.',
+        'Lauschende Ports auf srv-web auflisten (ss), mit der Soll-Liste (22/80/443) vergleichen, den fremden Prozess über seine PID beenden (sudo kill PID).\n\nEine Firewallregel genügt nicht: sie sperrt den Weg, der Prozess läuft weiter.',
       listeners: [
         { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
         { proto: 'tcp', port: 80, address: '0.0.0.0', pid: 1234, program: 'apache2' },
@@ -1225,7 +1225,7 @@ Erst sicherst du den Beweis, DANN drehst du den Kanal zu.
       username: 'timo',
       currentPath: '/home/timo',
       taskText:
-        'Stehende Ausgangsverbindung finden (ss -tp), manipulierten /etc/hosts-Eintrag finden, /etc/hosts als Beweis nach /root/incident/hosts.bak sichern, dann die Zeile entfernen.',
+        'Stehende Ausgangsverbindung finden (ss -tp), manipulierten /etc/hosts-Eintrag finden, /etc/hosts als Beweis nach /root/incident/hosts.bak sichern (sudo cp), dann die Zeile entfernen (sudo sed -i).\n\nReihenfolge zählt: erst sichern, dann löschen.',
       vfsOverlay: {
         directories: ['/root/incident'],
         files: [
@@ -1577,7 +1577,7 @@ dann roll es aus."
       username: 'deploy',
       currentPath: '/opt/playbooks',
       taskText:
-        'motd.yml zuerst mit --check ansehen, dann ausrollen; per SSH auf web01 prüfen, dass /etc/motd die Meldung enthält.',
+        'motd.yml mit ansible-playbook zuerst als Trockenlauf ansehen (--check), dann ohne den Schalter ausrollen; danach per ssh auf web01 einloggen und dort mit cat /etc/motd prüfen, dass die Meldung angekommen ist.',
       vfsOverlay: {
         files: [
           ...controllerSshFiles,
@@ -1613,8 +1613,16 @@ dann roll es aus."
           commands: [],
           allRequired: false,
           stateGoals: [
+            // Alle DREI Hosts — der Ergebnistext behauptet „auf allen drei
+            // Webservern"; web03 fehlte hier und wurde deshalb nie geprüft.
             { host: 'web01', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
             { host: 'web02', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+            { host: 'web03', file: '/etc/motd', matches: 'Zugriff nur nach Freigabe' },
+            // Die im Auftrag angesagte Kontrolle muss auch VERLANGT sein. Ohne
+            // sie war das Level schon nach dem Ausrollen gelöst, und der
+            // ssh-Schritt im Auftragstext war ein Versprechen, das die Sitzung
+            // gar nicht mehr entgegennimmt.
+            { host: 'web01', fileRead: '/etc/motd' },
           ],
           resultText:
             'Ausgerollt. Auf allen drei Webservern steht jetzt dieselbe Login-Meldung — geschrieben aus einer einzigen Datei, in einem einzigen Lauf. Genau das ist der Gewinn von Konfigurationsmanagement: eine Wahrheit für die ganze Flotte.\n\nMerke dir die Reihenfolge für die Produktion: erst `--check` (der Trockenlauf zeigt, was passieren WÜRDE), dann der echte Lauf. Dort ist das kein Luxus, sondern Pflicht.',
@@ -1624,7 +1632,7 @@ dann roll es aus."
       ],
       hints: [
         '🤖 Jens: Verschaff dir erst den Überblick: Welche Hosts stehen im Inventar, und was steht im Playbook? Beide Dateien kannst du einfach anzeigen.',
-        '🤖 Jens: Das Werkzeug heißt ansible-playbook. Es gibt einen Schalter für einen Trockenlauf — er rechnet die Änderungen aus, ohne sie anzuwenden.',
+        '🤖 Jens: Der Trockenlauf rechnet jede Änderung aus und wendet keine an. Genau deshalb gehört er vor jeden echten Lauf: Er zeigt dir, was passieren WIRD, solange Zurückdrehen noch billig ist.',
         '🤖 Jens: Trockenlauf zuerst, dann echt: derselbe Aufruf einmal mit dem Trockenlauf-Schalter, einmal ohne. Danach per SSH auf einen Host schauen.',
         '🤖 Jens: `ansible-playbook motd.yml --check` (Trockenlauf) → `ansible-playbook motd.yml` (echt) → `ssh web01` → `cat /etc/motd`.',
       ],

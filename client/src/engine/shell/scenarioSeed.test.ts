@@ -171,8 +171,13 @@ describe('extractPathsFromText', () => {
   });
 
   it('classifies dotted basenames as files, others as dirs; ignores URLs', () => {
-    expect(extractPathsFromText('siehe https://x.de/foo und /etc/ssh/sshd_config'))
-      .toEqual([{ path: '/etc/ssh/sshd_config', kind: 'dir' }]);
+    // `/etc/ssh/sshd_config` stand hier frueher als Beispiel fuer „dotless =>
+    // Ordner" — und hat damit einen Fehler als Erwartung festgeschrieben: die
+    // Datei wurde als ORDNER materialisiert, `cat` antwortete „Is a
+    // directory". Sie steht jetzt in FILE_BASENAMES; als Beispiel fuer einen
+    // echten Ordner dient ein echter Ordner.
+    expect(extractPathsFromText('siehe https://x.de/foo und /var/log/archiv'))
+      .toEqual([{ path: '/var/log/archiv', kind: 'dir' }]);
     expect(extractPathsFromText('lies /opt/notes.txt'))
       .toEqual([{ path: '/opt/notes.txt', kind: 'file' }]);
   });
@@ -290,4 +295,24 @@ describe('seedVfsFromScenario (via createShellFromContext)', () => {
     });
     expect(shell.getVfs().isFile('C:\\Logs\\backup.log')).toBe(true);
   });
+});
+
+describe('Dotlose Konfigurationsdateien sind Dateien, keine Ordner', () => {
+  /**
+   * `isDirLike` haelt jeden Basisnamen ohne Punkt fuer einen Ordner. Fuer
+   * `/etc/ssh/sshd_config` — in mehreren Leveln im Auftrag oder Hinweis genannt
+   * und deshalb materialisiert — hiess das: `cat` antwortete „Is a directory",
+   * und zwar auf der LOKALEN Maschine, waehrend die echte Konfiguration auf dem
+   * Zielhost liegt. Beim Pruefen der neuen Auftragstexte aufgefallen; der
+   * Fehler bestand schon vorher.
+   */
+  it.each(['sshd_config', 'ssh_config', 'fstab', 'motd', 'resolv.conf'])(
+    '/etc/%s wird als Datei angelegt',
+    (name) => {
+      const pfade = extractPathsFromText(`Sieh dir /etc/${name} an.`);
+      const treffer = pfade.find((p) => p.path.endsWith(name));
+      expect(treffer, `/etc/${name} wurde gar nicht erkannt`).toBeDefined();
+      expect(treffer!.kind, `/etc/${name} wurde als Ordner materialisiert`).toBe('file');
+    }
+  );
 });

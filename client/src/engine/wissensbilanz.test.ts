@@ -192,17 +192,11 @@ describe('Wissensbilanz je Route', () => {
  * Bestehende Paare duerfen verschwinden (das ist die Verbesserung); neue
  * duerfen nicht dazukommen.
  */
-const BEKANNTE_HINWEISPAARE = new Set([
-  'Lernpfad · Pflicht & Nachweis|learn_nis2_01_schwelle|dateiAendern',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|berichtSchreiben',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_01_first_key|ssh',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|dateiAendern',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|sed',
-  'Lernpfad · SSH & Remote-Zugriff|learn_ssh_02_open_door|systemctl',
-  'Lernpfad · Netz-Forensik|learn_net_01_open_doors|lauscherEntfernen',
-  'Lernpfad · Netz-Forensik|learn_net_02_backchannel|dateiAendern',
-  'Lernpfad · Ansible & Konfigurationsmanagement|learn_ans_01_inventory|berichtSchreiben',
-  'Story · Audit Trail|at_l8_bastion_live|ufw',
+const BEKANNTE_HINWEISPAARE = new Set<string>([
+  // Leer, und das ist das Ergebnis einer eigenen Runde: Die zehn Faelle, die
+  // hier standen, nannten ihre Anforderung erst im Hinweis. Sie stehen jetzt
+  // im Auftragstext — dem Feld, das waehrend des Spielens sichtbar bleibt —,
+  // waehrend die Hinweise weiterhin das WIE und das WARUM tragen.
 ]);
 
 describe('Neue Befehle gehoeren in den Auftrag, nicht erst in den Hinweis', () => {

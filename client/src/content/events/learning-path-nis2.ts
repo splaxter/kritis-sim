@@ -140,7 +140,7 @@ Das Wort „kann" ist der ganze Unterschied. Die Schwelle ist das Potenzial, nic
       username: 'timo',
       currentPath: '/srv/meldungen',
       taskText:
-        'Vorfallliste und Einzelmeldungen in /srv/meldungen sichten; in /home/timo/einstufung.md festhalten, welche Vorgaenge nach § 2 BSIG meldepflichtig sind.',
+        'Vorfallliste und Einzelmeldungen in /srv/meldungen sichten (cat); in /home/timo/einstufung.md festhalten, welche Vorgänge nach § 2 BSIG meldepflichtig sind.\n\nFesthalten ohne Editor: echo "…" > /home/timo/einstufung.md überschreibt die Datei, >> hängt an.',
       vfsOverlay: {
         directories: ['/srv/meldungen'],
         files: [

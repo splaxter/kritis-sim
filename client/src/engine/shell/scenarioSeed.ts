@@ -39,6 +39,12 @@ const looksLikePath = (token: string): boolean =>
 const FILE_BASENAMES = new Set([
   'id_rsa', 'id_ed25519', 'authorized_keys', 'known_hosts', 'makefile',
   'dockerfile', 'passwd', 'shadow', 'hosts', 'sudoers', 'crontab',
+  // Ohne diesen Eintrag wurde `/etc/ssh/sshd_config` — in mehreren Leveln im
+  // Auftrag oder Hinweis genannt — als ORDNER materialisiert. `cat` antwortete
+  // dann mit „Is a directory", und zwar auf der lokalen Maschine, waehrend die
+  // echte Konfiguration auf dem Zielhost liegt. Beim Pruefen der neuen
+  // Auftragstexte aufgefallen, bestand aber schon vorher.
+  'sshd_config', 'ssh_config', 'fstab', 'resolv.conf', 'motd',
 ]);
 
 const isDirLike = (path: string): boolean => {
