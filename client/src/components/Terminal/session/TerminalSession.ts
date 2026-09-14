@@ -751,25 +751,48 @@ export class TerminalSession {
   }
 
   /**
-   * Wie weit darf der Leerlauf-Hinweis hoechstens gehen?
+   * Welchen Hinweis braucht der Spieler JETZT?
    *
-   * Die Hinweise eines Tutorials sind SCHRITTE und reden so
-   * („Super! Jetzt `ls` …"). Der Index folgte aber der Uhr: nach acht Sekunden
-   * Pause kam der naechste, egal was der Spieler getan hatte. Wer `pwd`
-   * wiederholte, bekam „Super! Jetzt `ls`" — der Mentor behauptete einen
-   * Fortschritt, den es nicht gab.
+   * Mit `hintFor` ist die Frage beantwortbar: der erste Hinweis, dessen
+   * Zielschritt noch offen ist. Zusatztipps (`null`) ueberspringt die Automatik
+   * — sie bleiben ueber die Hinweis-Schaltflaeche erreichbar.
    *
-   * Die Obergrenze ist deshalb der ECHTE Fortschritt: die Zahl der bereits
-   * erfuellten Loesungsschritte. Hat das Level kein Schrittmodell (reine
-   * stateGoals-Level), zaehlt ersatzweise die Zahl ausgefuehrter Befehle —
-   * damit die Hinweisliste wenigstens nicht im Leerlauf durchlaeuft.
+   * Zwei frueher probierte Regeln taugten nicht:
+   *   - nach der Uhr weiterzaehlen → der Mentor lobte Schritte, die es nicht
+   *     gab („Super! Jetzt `ls`", nachdem `pwd` wiederholt wurde);
+   *   - die Zahl erfuellter Tokens als Index nehmen → die Hilfe blieb stehen,
+   *     sobald Hinweise und Schritte nicht 1:1 stehen. Das Netzwerk-Tutorial
+   *     hat fuenf Hinweise fuer drei Schritte; der noetige Port-Hinweis war
+   *     automatisch nie erreichbar.
+   *
+   * Ohne `hintFor` bleibt der Notbehelf: hoechstens ein Hinweis je tatsaechlich
+   * ausgefuehrtem Befehl. Gezaehlt werden dabei AUCH echte Shell-Ausfuehrungen,
+   * nicht nur Skript-Treffer — sonst stuende die Automatik bei reinen
+   * stateGoals-Leveln fuer immer auf Hinweis 0.
    */
-  private idleHintCeiling(): number {
-    const schrittLoesung = (this.deps.context.solutions ?? []).find((s) => s.commands.length > 0);
-    if (schrittLoesung) {
-      return schrittLoesung.commands.filter((c) => this.teachedCommands.has(c)).length;
+  private idleHintIndex(): number | null {
+    const { hints, hintFor } = this.deps.context;
+    if (hints.length === 0) return null;
+
+    if (hintFor && hintFor.length > 0) {
+      // Der aktuelle Schritt: der erste, der noch offen ist.
+      const aktuell = hintFor.find((ziel) => ziel && !this.teachedCommands.has(ziel));
+      if (!aktuell) return null; // alles erledigt — nichts nachzuhelfen
+
+      // Alle Hinweise, die auf DIESEN Schritt hinarbeiten, in ihrer
+      // Reihenfolge. Mehrere sind erlaubt: ein Tutorial darf erst orientieren
+      // („schau in den logs-Ordner") und dann den Befehl nennen.
+      const passend: number[] = [];
+      for (let i = 0; i < hints.length; i++) if (hintFor[i] === aktuell) passend.push(i);
+
+      // Der naechste noch nicht gezeigte; sind alle gezeigt, wird der letzte
+      // wiederholt — nie ein Hinweis zu einem Schritt, der nicht dran ist.
+      const naechster = passend.find((i) => i >= this.hintsUsed);
+      return naechster !== undefined ? naechster : passend[passend.length - 1];
     }
-    return this.commandsUsed.length;
+
+    const ausgefuehrt = this.commandsUsed.length + this.deps.shell.getExecutionLog().length;
+    return Math.min(ausgefuehrt, hints.length - 1);
   }
 
   // Beginner idle auto-hint — reproduces the old showIdleSuggestion output:
@@ -779,18 +802,16 @@ export class TerminalSession {
   // Distinct from handleHintRequest (footer button) by design.
   handleIdleHint(): TerminalEffect[] {
     const hints = this.deps.context.hints;
-    // Nie weiter als der Fortschritt: sonst behauptet der Hinweis etwas ueber
-    // den Spieler. Steht er noch am selben Schritt, wird der AKTUELLE Hinweis
-    // wiederholt — und `hintsUsed` bleibt stehen, damit die Restanzeige
-    // („Hinweis (N uebrig)") die Wahrheit sagt.
-    const index = Math.min(this.hintsUsed, this.idleHintCeiling());
-    if (index >= hints.length) return [];
+    const index = this.idleHintIndex();
+    if (index === null || index >= hints.length) return [];
     // Wiederholung nur, wenn wirklich etwas zurueckgehalten wird. Gibt es
     // keinen naechsten Hinweis mehr, ist Schweigen richtig — sonst tropft der
     // letzte Hinweis alle acht Sekunden nach, ohne dass es etwas zu verbergen
     // gaebe. (Genau das sichert der aeltere Test „once hints are exhausted".)
     if (index < this.hintsUsed && this.hintsUsed >= hints.length) return [];
     const hint = hints[index];
+    // `hintsUsed` waechst nur, wenn ein NEUER Hinweis faellt — sonst schrumpfte
+    // die Restanzeige durch blosses Warten.
     if (index >= this.hintsUsed) this.hintsUsed = index + 1;
     return [
       { type: 'writeLine', text: '' },

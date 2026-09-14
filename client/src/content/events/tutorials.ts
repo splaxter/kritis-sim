@@ -92,7 +92,7 @@ drwxr-xr-x 2 admin admin 4096 Mär 14 14:00 scripts`,
           allRequired: true,
           resultText: `Du weißt jetzt, wo du bist (\`pwd\`), was da liegt (\`ls\`) und wie du woanders hinkommst (\`cd\`).
 
-Das ist Orientierung, noch keine Diagnose: Du hast dir drei Verzeichnisse angesehen, nicht herausgefunden, ob auf dieser Maschine etwas klemmt.`,
+Das ist Orientierung, noch keine Diagnose: Du weißt jetzt, wie man sich umsieht — nicht, ob auf dieser Maschine etwas klemmt.`,
           skillGain: { linux: 5, troubleshooting: 3 },
           effects: { stress: -5 },
         },
@@ -103,6 +103,9 @@ Das ist Orientierung, noch keine Diagnose: Du hast dir drei Verzeichnisse angese
         '💡 Jens: "Mit `cd Dokumente` wechselst du in einen Ordner. Probier mal!"',
         '💡 Jens: "Und mit `cd ..` gehst du wieder zurück. Einfach, oder?"',
       ],
+      // Welcher Hinweis führt zu welchem Schritt. `null` = Zusatztipp, den die
+      // Automatik überspringt und der über die Schaltfläche erreichbar bleibt.
+      hintFor: ['pwd', 'ls', 'cd', null],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
   },
@@ -196,6 +199,12 @@ Ob die beiden etwas miteinander zu tun haben, sagt dir keiner der drei Befehle. 
         '💡 Jens: "Bei langen Dateien hilft `head -3 datei` für die ersten 3 Zeilen."',
         '💡 Jens: "Und `tail -2 datei` zeigt die letzten 2 Zeilen. Super für aktuelle Logs!"',
       ],
+      // Der erste Hinweis („schau in den logs-Ordner, tippe `ls`") ist kein
+      // eigener Schritt, sondern die Hinführung zum ersten: `cat`. Beide zeigen
+      // auf denselben Schritt, und die Automatik gibt sie der Reihe nach.
+      // Vorher verlangte sie nach `ls` erneut `ls`, weil `ls` gar kein
+      // Lösungstoken dieses Levels ist.
+      hintFor: ['cat', 'cat', 'head', 'tail'],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
   },
@@ -243,6 +252,7 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         },
         {
           pattern: 'grep ERROR error.log',
+          patternRegex: '^grep\\s+ERROR\\s+error\\.log$',
           output: `2026-03-15 08:16:00 [ERROR] Dienst "backup" nicht erreichbar
 2026-03-15 08:16:30 [ERROR] Retry 1/3
 2026-03-15 08:17:00 [ERROR] Retry 2/3`,
@@ -262,6 +272,10 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
          */
         {
           pattern: 'cat error.log',
+          // Ohne Anker galt `cat error.log.1` als Lesen von error.log — und gab
+          // dessen Inhalt aus. Der Kontextschritt hätte damit eine Datei
+          // belegt, die der Spieler nie geöffnet hat.
+          patternRegex: '^cat\\s+error\\.log$',
           output: `2026-03-15 08:15:00 [INFO] Backup-Dienst startet
 2026-03-15 08:16:00 [ERROR] Dienst "backup" nicht erreichbar
 2026-03-15 08:16:30 [ERROR] Retry 1/3
@@ -273,6 +287,7 @@ Er zwinkert. "Zeit für den mächtigsten Befehl überhaupt: grep."`,
         },
         {
           pattern: 'grep -A 2 ERROR error.log',
+          patternRegex: '^grep\\s+-A\\s*2\\s+ERROR\\s+error\\.log$',
           output: `2026-03-15 08:16:00 [ERROR] Dienst "backup" nicht erreichbar
 2026-03-15 08:16:30 [ERROR] Retry 1/3
 2026-03-15 08:17:00 [ERROR] Retry 2/3
@@ -331,6 +346,10 @@ Ein Filter zeigt, wonach du gesucht hast. Nie das, was daneben stand.`,
         '💡 Jens: "Drei Treffer — und jetzt? Ein Filter zeigt dir nur, wonach du gesucht hast. Was stand DANEBEN?"',
         '💡 Jens: "Sieh dir die ganze Datei an: `cat error.log`. Oder gezielt den Kontext: `grep -A 2 ERROR error.log`."',
       ],
+      // Drei Zusatztipps zu grep-Optionen liegen zwischen den beiden Schritten.
+      // Die Automatik springt von „suchen" direkt zu „Kontext" — vorher führte
+      // sie stattdessen zu `grep -i failed auth.log`, was kein Token bringt.
+      hintFor: ['grep', null, null, null, null, 'kontext'],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux'],
   },
@@ -371,23 +390,40 @@ Das ist deine Chance, die Netzwerk-Befehle auszuprobieren, die du im Handbuch ge
       commands: [
         {
           pattern: 'ping mail.warm.local',
-          // Das ^C gehört dazu: Ein nacktes `ping` läuft, bis man es abbricht
-          // — genau das sagt der zweite Hinweis. Ohne die Abbruchzeile endete
-          // die Simulation von selbst und widerlegte ihren eigenen Hinweis.
+          patternRegex: '^ping\\s+mail\\.warm\\.local$',
+          /*
+           * Die Ausgabe sagt, was die ÜBUNG tut — nicht, was der Spieler getan
+           * hat.
+           *
+           * Erst endete sie nach drei Paketen von selbst und widersprach dem
+           * Hinweis „sonst läuft es ewig". Dann stand dort ein ^C samt
+           * „Abgebrochen mit Strg+C" — und schrieb dem Spieler einen
+           * Tastendruck zu, den er nie gemacht hat (die Simulation nimmt
+           * während der getakteten Ausgabe ohnehin kein Strg+C an). Beides war
+           * eine Behauptung über den Spieler.
+           *
+           * Jetzt ist es eine Aussage über die Übung, und die stimmt.
+           */
           output: `PING mail.warm.local (192.168.1.50) 56(84) bytes of data.
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=1 ttl=64 time=0.523 ms
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=2 ttl=64 time=0.412 ms
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=3 ttl=64 time=0.389 ms
-^C
+
 --- mail.warm.local ping statistics ---
 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
 
-# Abgebrochen mit Strg+C. Ohne das läuft ping weiter — Paket für Paket.`,
+# Diese Übung stoppt nach drei Paketen. Auf einer echten Maschine tut ping das
+# NICHT — dort läuft es, bis du Strg+C drückst.`,
           teachesCommand: 'ping',
           skillGain: { netzwerk: 3 },
         },
         {
           pattern: 'ping -c 3 mail.warm.local',
+          patternRegex: '^ping\\s+-c\\s*3\\s+mail\\.warm\\.local$',
+          // Zählt als ping-Schritt. Vorher tat es das NICHT: Wer nur der
+          // empfohlenen Variante folgte, konnte das Level trotz DNS und
+          // Portcheck nicht abschließen — der Tipp führte in eine Sackgasse.
+          teachesCommand: 'ping',
           output: `PING mail.warm.local (192.168.1.50) 56(84) bytes of data.
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=1 ttl=64 time=0.523 ms
 64 bytes from mail.warm.local (192.168.1.50): icmp_seq=2 ttl=64 time=0.412 ms
@@ -432,12 +468,18 @@ Address: 192.168.1.50`,
          */
         {
           pattern: 'nc -zv mail.warm.local 25',
+          // VERANKERT. Die Skript-Erkennung matcht sonst per startsWith, und
+          // `nc -zv mail.warm.local 2525` galt als Treffer — mit einer Ausgabe,
+          // die „Port 25: Connection refused" behauptete. Ein Beleg für einen
+          // Port, den der Spieler gar nicht geprüft hat.
+          patternRegex: '^nc\\s+-zv\\s+mail\\.warm\\.local\\s+25$',
           output: `nc: connect to mail.warm.local (192.168.1.50) port 25 (tcp) failed: Connection refused`,
           teachesCommand: 'portcheck',
           skillGain: { netzwerk: 4, troubleshooting: 4 },
         },
         {
           pattern: 'telnet mail.warm.local 25',
+          patternRegex: '^telnet\\s+mail\\.warm\\.local\\s+25$',
           output: `Trying 192.168.1.50...
 telnet: Unable to connect to remote host: Connection refused`,
           teachesCommand: 'portcheck',
@@ -463,11 +505,14 @@ Merke: Einen Dienst prüft man auf seinem Port, nicht auf seiner IP.`,
       ],
       hints: [
         '💡 Jens: "Zuerst testen ob der Server antwortet. Probier `ping mail.warm.local`"',
-        '💡 Jens: "Du musstest mit Strg+C abbrechen, oder? Mit `ping -c 3` sagst du vorher, wie viele Pakete es sein sollen."',
+        '💡 Jens: "Auf einer echten Maschine läuft ping weiter, bis du Strg+C drückst. Mit `ping -c 3` legst du die Zahl vorher fest."',
         '💡 Jens: "Jetzt DNS prüfen: `nslookup mail.warm.local` zeigt die IP-Auflösung."',
         '💡 Jens: "Der Rechner antwortet — meine Frage war aber, ob der MAILSERVER antwortet. Das ist nicht dasselbe."',
         '💡 Jens: "Mail läuft auf Port 25. Klopf da an: `nc -zv mail.warm.local 25` (oder `telnet mail.warm.local 25`)."',
       ],
+      // Fünf Hinweise, drei Schritte. Ohne diese Zuordnung war der letzte — und
+      // für den Abschluss nötige — Hinweis automatisch nie erreichbar.
+      hintFor: ['ping', null, 'nslookup', null, 'portcheck'],
     },
     tags: ['tutorial', 'terminal', 'beginner', 'linux', 'network'],
   },

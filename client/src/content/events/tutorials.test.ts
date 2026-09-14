@@ -49,17 +49,27 @@ describe('Tutorials — kein Abschlusstext behauptet Beherrschung', () => {
 describe('Tutorials — die Simulation widerspricht ihren Hinweisen nicht', () => {
   const netz = byId('evt_tutorial_network');
 
-  it('das nackte ping zeigt, dass es abgebrochen werden musste', () => {
+  /**
+   * Diese Zusicherung stand hier einmal ANDERSHERUM — sie verlangte ein `^C` in
+   * der Ausgabe. Das war der zweite Fehlversuch: Die Simulation druckte einen
+   * Abbruch, den der Spieler nie ausgeloest hatte (und gar nicht ausloesen
+   * kann, weil waehrend der getakteten Ausgabe keine Eingabe angenommen wird).
+   * Der erste Versuch hatte den umgekehrten Fehler — die Ausgabe endete
+   * kommentarlos und widersprach dem Hinweis „laeuft ewig".
+   *
+   * Richtig ist beides nicht: Die Ausgabe sagt jetzt, was die UEBUNG tut.
+   */
+  it('das nackte ping erfindet keinen Abbruch', () => {
     const bare = netz.terminalContext!.commands.find((c) => c.pattern === 'ping mail.warm.local')!;
-    expect(bare.output, 'ohne Abbruchzeile endet es scheinbar von selbst').toMatch(/\^C/);
+    expect(bare.output, 'ohne Tastendruck darf kein ^C erscheinen').not.toMatch(/\^C/);
+    expect(bare.output, 'stattdessen: was die Uebung tut').toMatch(/Übung/);
+    expect(bare.output, 'und was auf einer echten Maschine gilt').toMatch(/Strg\+C/);
   });
 
-  it('der Hinweis behauptet nichts, was die Ausgabe widerlegt', () => {
-    const hinweise = netz.terminalContext!.hints.join('\n');
-    const bare = netz.terminalContext!.commands.find((c) => c.pattern === 'ping mail.warm.local')!;
-    // Wenn ein Hinweis von „laeuft ewig"/Abbruch spricht, muss die Ausgabe das zeigen.
-    if (/ewig|Strg\+C|abbrechen/i.test(hinweise)) {
-      expect(bare.output).toMatch(/\^C|Strg\+C/);
+  it('kein Hinweis schreibt dem Spieler einen Abbruch zu', () => {
+    for (const h of netz.terminalContext!.hints) {
+      expect(h, `„${h}" behauptet etwas ueber den Spieler`)
+        .not.toMatch(/musstest|hast du abgebrochen/i);
     }
   });
 

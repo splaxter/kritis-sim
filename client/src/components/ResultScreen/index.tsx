@@ -166,6 +166,19 @@ export function ResultScreen({ choice, onContinue, characters = {}, mentorNote, 
           <span className="text-xl">✓</span> Entscheidung getroffen
         </div>
 
+        {/* Auch im Story-Modus: Der Befund einer geloesten Aufgabe gehoert auf
+            den Ergebnisbildschirm. Dieser Zweig kehrt VOR dem Standard-Layout
+            zurueck — beim ersten Anlauf war er deshalb uebersehen worden, und
+            Kampagnen-Level verloren ihren Abschlussbefund weiterhin. */}
+        {solvedBranch?.resultText && (
+          <div className="bg-terminal-success/10 border-l-4 border-terminal-success p-4 mb-5 rounded-r">
+            <div className="text-terminal-success text-sm font-medium mb-1">Befund</div>
+            <div className="text-gray-200 leading-relaxed whitespace-pre-wrap">
+              {solvedBranch.resultText}
+            </div>
+          </div>
+        )}
+
         <div className="mb-5 text-gray-200 leading-relaxed">
           {formatNarrativeText(choice.resultText, characters)}
         </div>
