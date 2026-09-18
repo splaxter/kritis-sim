@@ -5,10 +5,12 @@
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
   TerminalServiceSpec, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
+  TerminalNftSpec,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
 import { resolveTemplateIds, applyTemplate } from './templates';
+import { NftState, emptyNftState, seedNftState } from './nftables';
 
 export interface SystemdUnitState {
   unit: string;
@@ -51,6 +53,8 @@ export interface HostState {
   services: SystemdUnitState[];
   journal: TerminalJournalEntry[];
   firewall: FirewallState;
+  /** nftables ruleset (`nft`); empty unless a level seeds one. */
+  nft: NftState;
   accounts: { name: string; password?: string }[];
   /** Exchange mailboxes on this host (empty unless a level seeds them). */
   mailboxes: MailboxState[];
@@ -203,6 +207,7 @@ export function seedPrimaryHost(
     services?: TerminalServiceSpec[];
     journal?: TerminalJournalEntry[];
     firewall?: TerminalFirewallSpec;
+    nft?: TerminalNftSpec;
     listeners?: NetListener[];
     connections?: NetConnection[];
     mailboxes?: TerminalMailboxSpec[];
@@ -219,6 +224,7 @@ export function seedPrimaryHost(
       rules: (spec.firewall.rules ?? []).map(r => ({ ...r })),
     };
   }
+  if (spec.nft) host.nft = seedNftState(spec.nft);
   // Listeners/connections replace the defaults when a level authors them —
   // a forensic level owns its full port view, not a merge of the baseline.
   if (spec.listeners) host.listeners = cloneListeners(spec.listeners);
@@ -257,6 +263,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
       defaultOutgoing: 'allow',
       rules: (spec.firewall?.rules ?? []).map(r => ({ ...r })),
     },
+    nft: spec.nft ? seedNftState(spec.nft) : emptyNftState(),
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
     listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
     connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
@@ -276,6 +283,7 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
     services: DEFAULT_UNITS.map(u => ({ ...u })),
     journal: [],
     firewall: { enabled: true, defaultIncoming: 'allow', defaultOutgoing: 'allow', rules: [] },
+    nft: emptyNftState(),
     accounts: [{ name: vfs.getUser() }],
     listeners: cloneListeners(DEFAULT_LISTENERS),
     connections: cloneConnections(DEFAULT_CONNECTIONS),

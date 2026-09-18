@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { GuiContext } from '@kritis/shared';
 import { guiLevelEvents } from '../../content/events/gui-levels';
 import { blackoutEvents } from '../../content/events/blackout';
+import { advancedLearningEvents } from '../../content/events/learning-path-advanced';
 import { WindowsLevel } from './index';
 
 const blk = (id: string): GuiContext | undefined =>
@@ -198,6 +199,7 @@ const PREVIEWS: Record<string, GuiContext | undefined> = {
   blk_logread: blk('blk_c1_logread'),
   blk_hunt_gui: blk('blk_c1_hunt_gui'),
   corefirewall: blk('blk_c3_firewall'),
+  perimeter: advancedLearningEvents.find((e) => e.guiContext?.app === 'perimeter')?.guiContext,
   kataster: katasterSample,
   meldung: meldungSample,
 };

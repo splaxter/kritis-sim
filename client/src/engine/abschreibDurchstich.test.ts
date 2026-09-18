@@ -25,7 +25,7 @@ const level = alleTerminalLevel();
 /** Der Bestand, gegen den die drei Mengen unten gelten. Waechst oder schrumpft
  *  er, muessen die Mengen neu bestimmt werden — sonst behauptet dieser Test
  *  Deckung, die er nicht mehr hat. */
-const LEVEL_GESAMT = 87;
+const LEVEL_GESAMT = 88;
 
 /**
  * Level, deren sichtbare Zeilen den Sollpfad NICHT vollstaendig hergeben.

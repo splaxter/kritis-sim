@@ -18,7 +18,7 @@ export * from './feedback';
 
 import {
   TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
-  TerminalJournalEntry, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
+  TerminalJournalEntry, TerminalFirewallSpec, TerminalNftSpec, TerminalMailboxSpec, NetListener, NetConnection,
 } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { createHostState, seedPrimaryHost } from './hosts';
@@ -117,6 +117,8 @@ export function createShellFromContext(context: {
   journal?: TerminalJournalEntry[];
   /** Firewall state seeded onto the PRIMARY host. */
   firewall?: TerminalFirewallSpec;
+  /** nftables ruleset seeded onto the PRIMARY host. */
+  nft?: TerminalNftSpec;
   /** Listening sockets seeded onto the PRIMARY host. */
   listeners?: NetListener[];
   /** Established connections seeded onto the PRIMARY host. */
@@ -164,11 +166,12 @@ export function createShellFromContext(context: {
 
   // Seed custom services/journal/firewall onto the primary host AFTER the VFS
   // overlay is in place (unit files must exist when snapshotted).
-  if (context.services || context.journal || context.firewall || context.listeners || context.connections || context.mailboxes) {
+  if (context.services || context.journal || context.firewall || context.nft || context.listeners || context.connections || context.mailboxes) {
     seedPrimaryHost(shell.getBaseHost(), {
       services: context.services,
       journal: context.journal,
       firewall: context.firewall,
+      nft: context.nft,
       listeners: context.listeners,
       connections: context.connections,
       mailboxes: context.mailboxes,

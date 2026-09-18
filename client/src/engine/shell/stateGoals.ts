@@ -6,6 +6,7 @@
 import { ReportField, StateGoal } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { HostState, UfwRule, canonicalUnitName } from './hosts';
+import { evaluatePacket } from './nftables';
 import { attemptMatches } from './feedback';
 import { sha256Hex, toBytes } from './commands/linux/extended';
 
@@ -44,6 +45,7 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.firewallRule !== undefined
     || goal.firewallDefaultIncoming !== undefined
     || goal.firewallEnabled !== undefined
+    || goal.nftVerdict !== undefined
     || goal.listenerAbsent !== undefined
     || goal.listenerPresent !== undefined
     // loggedIn/sshdEffective/ansibleRan are non-vacuous even with empty
@@ -277,6 +279,15 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
   }
   if (goal.firewallEnabled !== undefined && host.firewall.enabled !== goal.firewallEnabled) {
     return false;
+  }
+  if (goal.nftVerdict) {
+    const g = goal.nftVerdict;
+    const trace = evaluatePacket(
+      host.nft,
+      { saddr: g.from, dport: g.port, proto: g.proto, ctState: g.state },
+      g.hook ?? 'input',
+    );
+    if (trace.verdict !== g.expect) return false;
   }
   return true;
 }

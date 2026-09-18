@@ -3,6 +3,7 @@ import { learningPathEvents } from '../client/src/content/events/learning-path';
 import { blackoutEvents } from '../client/src/content/events/blackout';
 import { guiLevelEvents } from '../client/src/content/events/gui-levels';
 import { nis2Events } from '../client/src/content/events/learning-path-nis2';
+import { advancedLearningEvents } from '../client/src/content/events/learning-path-advanced';
 import { LEARNING_TRACKS } from '../client/src/content/events/learning-tracks';
 import type { GameEvent } from '@kritis/shared';
 
@@ -20,7 +21,8 @@ import type { GameEvent } from '@kritis/shared';
 const PLAYER_ID = 'player-e2e-levels';
 
 const eventById = new Map<string, GameEvent>(
-  [...learningPathEvents, ...blackoutEvents, ...guiLevelEvents, ...nis2Events].map((e) => [e.id, e])
+  [...learningPathEvents, ...blackoutEvents, ...guiLevelEvents, ...nis2Events, ...advancedLearningEvents]
+    .map((e) => [e.id, e])
 );
 
 const ALL_LEVEL_IDS = LEARNING_TRACKS.flatMap((t) => t.levels.map((l) => l.eventId));
@@ -114,6 +116,14 @@ const GUI_ACTIONS: Record<string, GuiStep[]> = {
     { fill: /^Auswirkungen$/, value: 'Tourenplanung ausgefallen, Ersatzverfahren auf Papier.' },
     { radio: /Grenzueberschreitende|Grenzüberschreitende/, value: /^ja$/ },
     { button: /Meldung absenden/ },
+  ],
+  // Perimeter-Regelwerk: einengen, dann BEIDE Testverkehre messen. Die
+  // Messungen gehoeren zur Loesung — eine Aenderung ohne Gegenprobe waere eine
+  // Behauptung, und die App nimmt jede Messung von vor einer Aenderung zurueck.
+  learn_fw_01_regelwerk: [
+    { button: /Quelle einengen: Fernwartung Hersteller/i },
+    { button: /Testverkehr senden: Fremder Absender/i },
+    { button: /Testverkehr senden: Wartungsrechner des Herstellers/i },
   ],
   gui_taskmanager_rogue: [{ row: 'xmr-stak-rx.exe' }, { button: /Task beenden/i }],
   gui_taskmanager_doppelganger: [{ row: 'scvhost.exe' }, { button: /Task beenden/i }],
@@ -328,18 +338,26 @@ const HARNESS_INCOMPATIBLE_TRACKS = new Set([
   'ansible_config',
 ]);
 
+/**
+ * Die Gegenrichtung zu HARNESS_INCOMPATIBLE_LEVELS: einzelne Level, die der
+ * Harness SEHR WOHL fahren kann, obwohl ihr Track als Ganzes ausgenommen ist.
+ * Ein Track wird wegen seiner CLI-Level ausgenommen; ein GUI-Level darin ist
+ * davon nicht betroffen und soll deshalb auch nicht mit durchrutschen.
+ */
+const HARNESS_OK_LEVELS = new Set(['learn_fw_01_regelwerk']);
+
 // ── The suite: one test per learning-track level ─────────────────────────────
 
 for (const track of LEARNING_TRACKS) {
-  const describeLevels = HARNESS_INCOMPATIBLE_TRACKS.has(track.id)
-    ? test.describe.skip
-    : test.describe;
-  describeLevels(`Track ${track.id}`, () => {
+  test.describe(`Track ${track.id}`, () => {
     for (const lvl of track.levels) {
+      const trackAusgenommen =
+        HARNESS_INCOMPATIBLE_TRACKS.has(track.id) && !HARNESS_OK_LEVELS.has(lvl.eventId);
       // Einzelne Level koennen inkompatibel sein, ohne dass es der ganze Track
       // ist: der nis2-Track mischt stateGoals-CLI (nicht ableitbar) mit
       // GUI-Formularen (sehr wohl fahrbar).
-      const testLevel = HARNESS_INCOMPATIBLE_LEVELS.has(lvl.eventId) ? test.skip : test;
+      const testLevel =
+        trackAusgenommen || HARNESS_INCOMPATIBLE_LEVELS.has(lvl.eventId) ? test.skip : test;
       const ev = eventById.get(lvl.eventId);
       testLevel(`${lvl.eventId} — solvable end-to-end`, async ({ page }) => {
         expect(ev, `event ${lvl.eventId} missing from content`).toBeTruthy();

@@ -2006,4 +2006,256 @@ kannst — sauber und wiederholbar."
     },
     tags: ['learning', 'ansible', 'terminal', 'security', 'automation', 'kritis'],
   },
+  // ===========================================================================
+  // Perimeter-Regelwerk: das Paar aus WebAdmin und Konsole
+  //
+  // Die beiden Level gehören zusammen. Level A lässt den Spieler eine zu breite
+  // Regel einengen und das Ergebnis MESSEN — danach sieht im WebAdmin alles
+  // richtig aus. Level B zeigt an derselben Kiste, dass es das nicht war: Die
+  // Oberfläche verwaltet nur ihre eigene Kette, und davor steht eine Ausnahme,
+  // die niemand mehr auf dem Schirm hatte. Entwurf:
+  // docs/plans/2026-09-18-firewall-regelwerk-design.md
+  // ===========================================================================
+  {
+    id: 'learn_fw_01_regelwerk',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_net_03_the_wall'] },
+    category: 'training',
+    involvedCharacters: ['jens'],
+    title: 'Perimeter 1: Die zu weit offene Tür',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  TICKET #5140 — Fernwartung Anlagenhersteller               ║
+║  Melder: Jens                                               ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Jens dreht seinen Monitor zu dir: „Schau dir mal Regel 1 auf der
+Perimeter-Firewall an. Der Anlagenhersteller wartet die Leittechnik
+per Fernzugriff — völlig in Ordnung, steht so im Vertrag. Aber die
+Quelle steht auf \`any\`. Das heißt: RDP auf den Leitstand, von
+überall auf der Welt.
+
+Der Hersteller kommt aus einem festen Netzbereich. Der steht im
+Wartungsvertrag, und ich hab ihn in der Regel schon hinterlegt.
+Eng machen — und dann schick einen Testverkehr durch, sonst wissen
+wir es nicht, wir glauben es nur."
+
+**Deine Aufgabe:** Die Regel „Fernwartung Hersteller" auf den
+Wartungsbereich einengen und danach mit beiden Testverkehren prüfen:
+Der fremde Absender muss draußen bleiben, der Hersteller muss weiter
+durchkommen.`,
+    mentorNote:
+      'Ein Regelwerk wird von oben nach unten gelesen, die erste passende Regel entscheidet — alles darunter wird für diesen Verkehr nie erreicht. Deshalb ist eine zu breite Regel ganz oben schlimmer als eine fehlende: Sie verdeckt alles, was danach kommt. Und deshalb gehört zu jeder Änderung eine Messung: Eine Regel, die richtig aussieht, ist noch keine Regel, die greift.',
+    choices: [
+      {
+        id: 'open_webadmin',
+        text: 'WebAdmin der Perimeter-Firewall öffnen...',
+        effects: { skills: { netzwerk: 2, security: 2 }, stress: -1 },
+        resultText:
+          'Die Fernwartung kommt weiter durch, alle anderen laufen jetzt in die Schlussregel. Jens nickt: „So steht es auch im Vertrag."',
+        guiCommand: true,
+      },
+    ],
+    guiContext: {
+      app: 'perimeter',
+      title: 'Perimeter-Firewall — WebAdmin',
+      hostname: 'KRITIS-FW-PERIMETER',
+      briefing:
+        'Regel 1 lässt RDP auf den Leitstand von jeder Quelle zu. Eng sie auf den Wartungsbereich des Herstellers ein (Schaltfläche „Einengen") und schick danach BEIDE Testverkehre durch: Der fremde Absender muss verworfen werden, die Fernwartung muss durchkommen. Die Schlussregel ist betriebskritisch und lässt sich nicht anfassen.',
+      state: {
+        perimeter: {
+          applianceName: 'KRITIS-FW-PERIMETER',
+          rules: [
+            {
+              id: 'fernwartung',
+              label: 'Fernwartung Hersteller (RDP)',
+              source: 'any',
+              dest: 'leitstand-hmi',
+              service: '3389/tcp',
+              action: 'allow',
+              narrowTo: '198.51.100.0/24',
+              overlyBroad: true,
+            },
+            {
+              id: 'buero-web',
+              label: 'Büronetz → Internet (HTTPS)',
+              source: '10.0.10.0/24',
+              dest: 'any',
+              service: '443/tcp',
+              action: 'allow',
+            },
+            {
+              id: 'monitoring',
+              label: 'Monitoring → Leitstand (SNMP)',
+              source: '10.0.10.40',
+              dest: 'leitstand-hmi',
+              service: '161/udp',
+              action: 'allow',
+            },
+            {
+              id: 'schlussregel',
+              label: 'Alles Übrige verwerfen',
+              source: 'any',
+              dest: 'any',
+              service: 'any',
+              action: 'deny',
+              critical: true,
+              riskFeedback:
+                'Die Schlussregel ist die Grundhaltung der Firewall: Was keine Regel ausdrücklich erlaubt, kommt nicht durch. Wer sie abschaltet oder nach oben schiebt, dreht das Regelwerk um — entweder steht alles offen oder gar nichts mehr.',
+            },
+          ],
+          probes: [
+            {
+              id: 'extern',
+              label: 'Fremder Absender aus dem Internet',
+              source: '203.0.113.66',
+              dest: 'leitstand-hmi',
+              service: '3389/tcp',
+            },
+            {
+              id: 'hersteller',
+              label: 'Wartungsrechner des Herstellers',
+              source: '198.51.100.7',
+              dest: 'leitstand-hmi',
+              service: '3389/tcp',
+            },
+          ],
+        },
+      },
+      solutions: [
+        {
+          // Reihenfolge braucht es hier NICHT: Die App nimmt jede Messung
+          // zurück, sobald jemand das Regelwerk ändert (`retract`). Ein
+          // Testverkehr von VOR der Änderung zählt also gar nicht mehr mit —
+          // was übrig bleibt, wurde am jetzigen Regelwerk gemessen.
+          interactions: ['narrow:fernwartung', 'probe:extern', 'probe:hersteller'],
+          allRequired: true,
+          setsFlags: ['solution_perimeter_narrowed'],
+          resultText:
+            'Eingeengt und nachgemessen: Der fremde Absender läuft jetzt bis zur Schlussregel durch und wird verworfen, der Wartungsrechner des Herstellers kommt weiter auf Regel 1. Genau so gehört das Paar zusammen — die Änderung allein wäre eine Behauptung gewesen.\n\nMerke dir die Leserichtung: Ein Regelwerk wird von oben abgearbeitet, die erste passende Regel entscheidet. Eine Regel ganz oben mit `any` als Quelle macht alles darunter für diesen Verkehr bedeutungslos.',
+          skillGain: { netzwerk: 5, security: 4 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Lies die Tabelle von oben nach unten und frag dich bei jeder Zeile: Welcher Verkehr passt hier zuerst drauf? Die rot markierte Zeile ist der Verdachtsfall.',
+        '🤖 Jens: Der Wartungsbereich des Herstellers ist in der Regel schon hinterlegt — du musst ihn nicht heraussuchen, nur setzen. Dafür gibt es in der Zeile eine eigene Schaltfläche.',
+        '🤖 Jens: Ändern ist nur die halbe Arbeit. Unten stehen zwei Testverkehre: einer von außen, einer vom Hersteller. Beide durchschicken — erst dann weißt du, welche Regel wirklich greift.',
+        '🤖 Jens: „Einengen" in der Zeile „Fernwartung Hersteller" (Quelle wird 198.51.100.0/24), dann bei beiden Testverkehren auf „Senden". Erwartet: der fremde Absender trifft die Schlussregel, der Hersteller trifft Regel 1.',
+      ],
+    },
+    tags: ['learning', 'firewall', 'netzwerk', 'gui', 'kritis'],
+  },
+
+  {
+    id: 'learn_fw_02_ruleset',
+    weekRange: [1, 12],
+    probability: 1,
+    requiredModes: ['learning'],
+    requires: { events: ['learn_fw_01_regelwerk'] },
+    category: 'training',
+    involvedCharacters: ['jens', 'bjorg'],
+    title: 'Perimeter 2: Was die Oberfläche nicht zeigt',
+    description: `\`\`\`
+╔══════════════════════════════════════════════════════════════╗
+║  MONITORING — WIEDERHOLTE ANMELDUNGEN                       ║
+║  leitstand-hmi:3389 ← 203.0.113.66                          ║
+╚══════════════════════════════════════════════════════════════╝
+\`\`\`
+
+Jens ist ratlos: „Wir haben die Regel doch eingeengt. Im WebAdmin
+steht alles richtig — ich hab's dreimal nachgesehen. Und trotzdem
+kommt die Adresse durch. Als würde die Oberfläche etwas anderes
+anzeigen als die Kiste tut."
+
+Vom Flur her Bjorg, ohne aufzusehen: „Ach, das war doch damals bei
+der Störung im Februar. Da ging der Fernzugriff nicht, da hab ich
+dem Hersteller schnell was auf der Konsole reingesetzt. Wollt ich
+später wieder rausnehmen, haha, weißt ja wie das ist."
+
+Das WebAdmin verwaltet seine eigene Kette. Was direkt in der
+Eingangskette steht, sieht es nicht — und **davor** steht es auch
+noch.
+
+**Deine Aufgabe:** Auf der Firewall nachsehen, welche Regel den
+Zugriff wirklich zulässt, und sie entfernen. Die Fernwartung des
+Herstellers und dein eigener Zugang müssen bestehen bleiben.`,
+    mentorNote:
+      'Ein Regelsatz besteht aus Ketten. Die Eingangskette hängt am Hook und hat eine Grundhaltung (policy); von dort wird per `jump` in weitere Ketten gesprungen. Entscheidend ist die Reihenfolge über die Ketten hinweg: Eine Regel, die VOR dem Sprung steht, entscheidet — die Kette dahinter wird für diesen Verkehr nie betreten. Deshalb sagt eine Verwaltungsoberfläche nie die ganze Wahrheit: Sie zeigt die Regeln, die sie verwaltet, nicht die, die die Kiste hat.',
+    choices: [
+      {
+        id: 'open_console',
+        text: 'Konsole der Firewall öffnen...',
+        terminalCommand: true,
+        effects: {},
+        resultText: 'Du meldest dich an der Firewall an und liest den Regelsatz.',
+      },
+    ],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'fw01',
+      username: 'admin',
+      currentPath: '/home/admin',
+      taskText:
+        'Den Regelsatz mit sudo nft -a list ruleset anzeigen (-a blendet die Handles ein) und die Regel entfernen, die 203.0.113.0/24 den Zugriff auf 3389 erlaubt: sudo nft delete rule inet filter input handle <nummer>. Die Fernwartung aus 198.51.100.0/24 und der eigene Zugang aus 10.0.10.0/24 müssen bestehen bleiben — nft flush ruleset wäre also falsch.',
+      nft: {
+        chains: [
+          {
+            name: 'input',
+            base: { hook: 'input', policy: 'drop' },
+            rules: [
+              'ct state established,related accept',
+              'iif "lo" accept',
+              'ip saddr 10.0.10.0/24 tcp dport 22 accept',
+              // Bjorgs Februar-Ausnahme: steht VOR dem Sprung und entscheidet
+              // deshalb, bevor die vom WebAdmin verwaltete Kette überhaupt
+              // betreten wird.
+              'ip saddr 203.0.113.0/24 tcp dport 3389 accept',
+              'jump webadmin',
+            ],
+          },
+          {
+            name: 'webadmin',
+            rules: [
+              'ip saddr 198.51.100.0/24 tcp dport 3389 accept',
+              'ip saddr 10.0.10.0/24 tcp dport 443 accept',
+            ],
+          },
+        ],
+      },
+      commandSkillGain: {
+        nft: { netzwerk: 2, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          // Geprüft wird die WIRKUNG, nicht die Formulierung: Löschen, eine
+          // eigene Verwerfen-Regel davorsetzen oder den Sprung umhängen sind
+          // alle richtig, weil alle dasselbe Urteil erzeugen. Die beiden
+          // letzten Ziele sind die Falle mit Absicht — wer den Regelsatz
+          // plattmacht, erfüllt das erste und verliert die anderen beiden.
+          stateGoals: [
+            { nftVerdict: { from: '203.0.113.66', port: 3389, expect: 'drop' } },
+            { nftVerdict: { from: '198.51.100.7', port: 3389, expect: 'accept' } },
+            { nftVerdict: { from: '10.0.10.40', port: 22, expect: 'accept' } },
+          ],
+          resultText:
+            'Weg ist sie. Die Adresse aus dem Februar läuft jetzt in die Grundhaltung der Eingangskette, während die Fernwartung des Herstellers und dein eigener Zugang unberührt stehen.\n\nDie Lehre ist größer als diese eine Regel: Eine Verwaltungsoberfläche zeigt die Regeln, die SIE verwaltet. Was daneben eingetragen wurde — vom Hersteller bei der Inbetriebnahme, per Hand während einer Störung, aus einem Skript — steht in keiner Oberfläche und wirkt trotzdem. Wer nur dort nachsieht, hält eine Lücke für geschlossen.\n\nDeshalb gehört zu jeder Freigabe ein Ablaufdatum und ein Eintrag, wo sie steht. Bjorgs „mach ich später wieder raus" ist sieben Monate alt.',
+          skillGain: { netzwerk: 6, security: 5, troubleshooting: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Frag nicht die Oberfläche, frag die Kiste. Der komplette Regelsatz steht auf der Konsole — samt der Ketten, die das WebAdmin gar nicht anzeigt.',
+        '🤖 Jens: Achte auf die Reihenfolge INNERHALB der Eingangskette. Irgendwo darin steht ein Sprung in die verwaltete Kette. Alles, was vor diesem Sprung steht, entscheidet vorher.',
+        '🤖 Jens: Zum Löschen brauchst du das Handle der Regel — das ist die Nummer, die am Zeilenende als Kommentar steht, sobald du die Handles einblendest. Und danach nochmal anzeigen lassen: Die Kette webadmin muss unberührt sein.',
+        '🤖 Jens: `sudo nft -a list ruleset` → in der Kette input die Zeile mit `203.0.113.0/24` suchen, ihr `# handle 7` ablesen → `sudo nft delete rule inet filter input handle 7` → Gegenprobe mit `sudo nft -a list ruleset`.',
+      ],
+    },
+    tags: ['learning', 'firewall', 'netzwerk', 'terminal', 'kritis'],
+  },
 ];

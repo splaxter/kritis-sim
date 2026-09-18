@@ -202,6 +202,13 @@ const KONTEXTNACHWEISE: Kontextnachweis[] = [
     zeilen: [{ cmd: 'sudo kill 6666' }],
     ziel: { listenerAbsent: { port: 31337 } },
   },
+  {
+    // nft gegen ein echtes nftVerdict-Ziel in dem Level, an dem es im Spiel
+    // haengt — nicht an einem Laborregelsatz.
+    faehigkeit: 'paketfilterAendern', kandidat: 'nft', level: 'learn_fw_02_ruleset',
+    zeilen: [{ cmd: 'sudo nft delete rule inet filter input handle 7' }],
+    ziel: { nftVerdict: { from: '203.0.113.66', port: 3389, expect: 'drop' } },
+  },
 ];
 
 function imLevel(id: string, zeilen: { cmd: string; antworten?: string[] }[], ziel: StateGoal): boolean {
@@ -280,6 +287,26 @@ describe('Die gemeldeten Fehlbesetzungen sind wirklich welche', () => {
     expect(erfuellt(linux, [`ls -la ${L}`], { fileRead: `${L}/quelle.txt` })).toBe(false);
     expect(FAEHIGKEIT_KANDIDATEN.lesen).not.toContain('stat');
     expect(FAEHIGKEIT_KANDIDATEN.lesen).not.toContain('ls');
+  });
+
+  it('ufw sperrt seinen eigenen Port, aendert aber den nft-Regelsatz nicht', () => {
+    // Beide Firewalls sind in dieser Engine getrennte Zustaende. Wer `ufw` als
+    // Kandidaten fuer den Paketfilter fuehrt, erklaert eine Anleitung fuer
+    // ausreichend, mit der das Urteil unveraendert bleibt — dieselbe
+    // Fehlbesetzung wie „ufw entfernt einen Lauscher", nur eine Ebene hoeher.
+    const ziel: StateGoal = { nftVerdict: { from: '203.0.113.66', port: 3389, expect: 'drop' } };
+    expect(imLevel('learn_fw_02_ruleset', [{ cmd: 'sudo ufw deny 3389' }, { cmd: 'sudo ufw enable' }], ziel)).toBe(false);
+    expect(imLevel('learn_fw_02_ruleset', [{ cmd: 'sudo nft delete rule inet filter input handle 7' }], ziel)).toBe(true);
+    expect(FAEHIGKEIT_KANDIDATEN.paketfilterAendern).not.toContain('ufw');
+  });
+
+  it('nft flush ruleset loest das eine Ziel und zerstoert die beiden anderen', () => {
+    // Die Falle des Levels, ausdruecklich festgehalten: Wer den Regelsatz
+    // plattmacht, sperrt die Fernwartung und sich selbst mit aus.
+    const zeilen = [{ cmd: 'sudo nft flush ruleset' }];
+    expect(imLevel('learn_fw_02_ruleset', zeilen, { nftVerdict: { from: '203.0.113.66', port: 3389, expect: 'drop' } })).toBe(false);
+    // Ohne Basiskette filtert niemand mehr: Nach dem Leeren kommt ALLES durch.
+    expect(imLevel('learn_fw_02_ruleset', zeilen, { nftVerdict: { from: '203.0.113.66', port: 3389, expect: 'accept' } })).toBe(true);
   });
 
   it('sha256sum liest, schreibt aber nicht von sich aus', () => {

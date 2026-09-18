@@ -16,6 +16,7 @@ export type GuiAppId =
   | 'explorer'
   | 'settings'
   | 'corefirewall'
+  | 'perimeter'
   | 'kataster'
   | 'meldung';
 
@@ -208,6 +209,57 @@ export interface FirewallSubnet {
   riskFeedback?: string;
 }
 
+/**
+ * Perimeter-Firewall (WebAdmin) — das Regelwerk als geordnete Liste.
+ *
+ * Der Unterschied zu `CoreFirewallState` ist keine Kosmetik: Dort sind Regeln
+ * Schalter, hier ist die REIHENFOLGE die Aussage. Die erste passende Regel von
+ * oben entscheidet, und genau deshalb kann eine richtige Regel wirkungslos
+ * sein — weil eine breitere ueber ihr steht.
+ */
+export interface PerimeterRule {
+  /** Stabiler Schluessel in den Token ('narrow:<id>', 'probe:<id>' …). */
+  id: string;
+  label: string;
+  /** Quelle: 'any', eine Adresse oder ein Praefix ('10.0.10.0/24'). */
+  source: string;
+  /** Ziel: 'any', ein Name ('leitstand-hmi') oder eine Adresse. */
+  dest: string;
+  /** Dienst: 'any' oder '<port>/<tcp|udp>'. */
+  service: string;
+  action: 'allow' | 'deny';
+  /**
+   * Der engere Quellbereich, den die Schaltflaeche „Einengen" setzt. Fehlt er,
+   * gibt es die Schaltflaeche nicht — eine Regel ohne hinterlegte Verengung
+   * laesst sich nur verschieben oder abschalten.
+   */
+  narrowTo?: string;
+  /** Zu breit — die Zeile wird rot markiert (der sichtbare Verdachtsfall). */
+  overlyBroad?: boolean;
+  /** Abgeschaltete Regeln bleiben sichtbar, wirken aber nicht mehr. */
+  disabled?: boolean;
+  /** Betriebskritisch: jede Aenderung wird mit `riskFeedback` verweigert. */
+  critical?: boolean;
+  riskFeedback?: string;
+}
+
+/** Ein hinterlegter Testverkehr, den der Spieler durchs Regelwerk schickt. */
+export interface PerimeterProbe {
+  id: string;
+  label: string;
+  source: string;
+  /** '<port>/<tcp|udp>' — dasselbe Format wie `PerimeterRule.service`. */
+  service: string;
+  dest: string;
+}
+
+export interface PerimeterState {
+  /** Geraetename in der Kopfzeile, z. B. 'KRITIS-FW-PERIMETER'. */
+  applianceName: string;
+  rules: PerimeterRule[];
+  probes: PerimeterProbe[];
+}
+
 export interface CoreFirewallState {
   /** Appliance / zone name shown in the header, e.g. 'KRITIS-FW-CORE'. */
   zoneName: string;
@@ -385,6 +437,7 @@ export interface GuiAppState {
   settings?: SettingsState;
   explorer?: ExplorerState;
   coreFirewall?: CoreFirewallState;
+  perimeter?: PerimeterState;
   kataster?: KatasterState;
   meldung?: MeldungState;
 }
