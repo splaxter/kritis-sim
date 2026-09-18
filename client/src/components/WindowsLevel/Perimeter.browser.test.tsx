@@ -63,7 +63,16 @@ const context: GuiContext = {
 
 installFakeTimers();
 
-const senden = (name: RegExp) => screen.getByRole('button', { name });
+const knopf = (name: RegExp) => screen.getByRole('button', { name });
+
+/** Freien Testverkehr eintragen und abschicken — wie ein Spieler es tut. */
+async function miss(user: ReturnType<typeof fakeTimerUser>, quelle: string, dienst = '3389/tcp') {
+  await user.clear(screen.getByLabelText('Quelle'));
+  await user.type(screen.getByLabelText('Quelle'), quelle);
+  await user.clear(screen.getByLabelText('Dienst'));
+  await user.type(screen.getByLabelText('Dienst'), dienst);
+  await user.click(knopf(/Testverkehr senden/i));
+}
 
 describe('WindowsLevel — Perimeter-Regelwerk', () => {
   it('loest nach Einengen und beiden Messungen', async () => {
@@ -71,9 +80,9 @@ describe('WindowsLevel — Perimeter-Regelwerk', () => {
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
-    await user.click(senden(/Quelle einengen: Fernwartung/i));
-    await user.click(senden(/Testverkehr senden: Fremder Absender/i));
-    await user.click(senden(/Testverkehr senden: Wartungsrechner/i));
+    await user.click(knopf(/Quelle einengen: Fernwartung/i));
+    await miss(user, '203.0.113.66');
+    await miss(user, '198.51.100.7');
 
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(SOLVE_DELAY_MS); });
@@ -84,12 +93,40 @@ describe('WindowsLevel — Perimeter-Regelwerk', () => {
     const user = fakeTimerUser();
     render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
 
-    await user.click(senden(/Testverkehr senden: Fremder Absender/i));
+    await miss(user, '203.0.113.66');
     expect(screen.getByText(/Treffer auf Regel 1 .* ZUGELASSEN/i)).toBeInTheDocument();
 
-    await user.click(senden(/Quelle einengen: Fernwartung/i));
-    await user.click(senden(/Testverkehr senden: Fremder Absender/i));
+    await user.click(knopf(/Quelle einengen: Fernwartung/i));
+    await miss(user, '203.0.113.66');
     expect(screen.getByText(/Treffer auf Regel 2 .* VERWORFEN/i)).toBeInTheDocument();
+  });
+
+  it('misst auch, was die Aufgabe gar nicht verlangt — ohne es zu werten', async () => {
+    const user = fakeTimerUser();
+    const onSolved = vi.fn();
+    render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
+
+    await user.click(knopf(/Quelle einengen: Fernwartung/i));
+    // Ein freier Versuch: dieselbe Quelle, aber ein anderer Dienst.
+    await miss(user, '203.0.113.66', '443/tcp');
+    expect(screen.getByText(/Treffer auf Regel 2 .* VERWORFEN/i)).toBeInTheDocument();
+
+    // Das Erkundungswerkzeug bleibt frei, die Loesung nicht: Ohne die beiden
+    // verlangten Messungen ist nichts geloest.
+    act(() => { vi.advanceTimersByTime(SOLVE_DELAY_MS); });
+    expect(onSolved).not.toHaveBeenCalled();
+  });
+
+  it('weist unbrauchbare Eingaben zurueck, statt etwas zu messen', async () => {
+    const user = fakeTimerUser();
+    render(<WindowsLevel context={context} onSolved={vi.fn()} onCancel={() => {}} />);
+
+    await miss(user, 'leitstand', '3389/tcp');
+    expect(screen.getByText(/Quelle muss eine IPv4-Adresse/i)).toBeInTheDocument();
+
+    await miss(user, '203.0.113.66', 'rdp');
+    expect(screen.getByText(/Dienst muss ein Port sein/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Treffer auf Regel/i)).not.toBeInTheDocument();
   });
 
   it('verweigert jede Aenderung an der Schlussregel', async () => {
@@ -97,11 +134,10 @@ describe('WindowsLevel — Perimeter-Regelwerk', () => {
     const onSolved = vi.fn();
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
-    await user.click(senden(/Nach oben: Alles Übrige/i));
+    await user.click(knopf(/Nach oben: Alles Übrige/i));
     expect(screen.getByText(/Grundhaltung der Firewall/i)).toBeInTheDocument();
-    await user.click(senden(/Abschalten: Alles Übrige/i));
-    // Immer noch an Position 2 und immer noch aktiv.
-    expect(senden(/Abschalten: Alles Übrige/i)).toBeInTheDocument();
+    await user.click(knopf(/Abschalten: Alles Übrige/i));
+    expect(knopf(/Abschalten: Alles Übrige/i)).toBeInTheDocument();
 
     act(() => { vi.advanceTimersByTime(SOLVE_DELAY_MS); });
     expect(onSolved).not.toHaveBeenCalled();
@@ -113,17 +149,18 @@ describe('WindowsLevel — Perimeter-Regelwerk', () => {
     render(<WindowsLevel context={context} onSolved={onSolved} onCancel={() => {}} />);
 
     // Erst messen (am ALTEN Regelwerk), dann aendern — und NICHT neu messen.
-    await user.click(senden(/Testverkehr senden: Fremder Absender/i));
-    await user.click(senden(/Testverkehr senden: Wartungsrechner/i));
-    await user.click(senden(/Quelle einengen: Fernwartung/i));
+    await miss(user, '203.0.113.66');
+    await miss(user, '198.51.100.7');
+    await user.click(knopf(/Quelle einengen: Fernwartung/i));
 
+    expect(screen.getByText(/frühere Messungen gelten nicht mehr/i)).toBeInTheDocument();
     expect(screen.queryByText(/Aufgabe abgeschlossen/i)).not.toBeInTheDocument();
     act(() => { vi.advanceTimersByTime(SOLVE_DELAY_MS); });
     expect(onSolved).not.toHaveBeenCalled();
 
     // Nachgemessen — jetzt zaehlt es.
-    await user.click(senden(/Testverkehr senden: Fremder Absender/i));
-    await user.click(senden(/Testverkehr senden: Wartungsrechner/i));
+    await miss(user, '203.0.113.66');
+    await miss(user, '198.51.100.7');
     expect(screen.getByText(/Aufgabe abgeschlossen/i)).toBeInTheDocument();
   });
 });

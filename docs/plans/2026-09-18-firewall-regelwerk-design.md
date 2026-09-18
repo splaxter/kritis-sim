@@ -192,10 +192,18 @@ Belohnung im Rahmen: je ≤16 Punkte gesamt, ≤10 pro Fertigkeit
   harness-tauglich ist, sonst in die dokumentierte Ausnahmeliste **mit**
   Begründung.
 
-## Offene Entscheidung für den Auftraggeber
+## Entschieden am 18.09.2026: das Feld
 
-Der Testverkehr in Level A könnte auch **frei eingebbar** sein (Quelle und Port
-tippen statt hinterlegte Proben anklicken). Das wäre näher an echter
-Regelarbeit, kostet aber ein Eingabefeld samt Validierung in einer App, die
-sonst reines Klicken ist. Der Entwurf oben nimmt die hinterlegten Proben; ein
-Wort genügt, dann wird es das Feld.
+Der Testverkehr ist **frei eintippbar** — Quelle und Dienst tippt der Spieler,
+das Ziel wählt er aus den im Regelwerk vorkommenden Zielen. Die hinterlegten
+Proben bleiben im Level, aber nicht als Schaltfläche: Sie sind die Messungen,
+die *zählen*. Welche das sind, steht im Auftrag, nicht auf einem Knopf.
+
+Das ist der eigentliche Gewinn: Der Spieler muss entscheiden, WAS er prüft.
+Das Werkzeug misst alles, was man ihm gibt — auch Verkehr, den die Aufgabe nie
+verlangt hat, und auch vor der Änderung. Gewertet wird nur, was am jetzigen
+Regelwerk gemessen wurde.
+
+Validiert wird beim Absenden: Die Quelle muss eine IPv4-Adresse oder ein
+Präfix sein, der Dienst ein Port (1–65535, wahlweise mit `/tcp` oder `/udp`).
+Unbrauchbare Eingaben melden sich, statt eine Messung zu erfinden.

@@ -122,8 +122,12 @@ const GUI_ACTIONS: Record<string, GuiStep[]> = {
   // Behauptung, und die App nimmt jede Messung von vor einer Aenderung zurueck.
   learn_fw_01_regelwerk: [
     { button: /Quelle einengen: Fernwartung Hersteller/i },
-    { button: /Testverkehr senden: Fremder Absender/i },
-    { button: /Testverkehr senden: Wartungsrechner des Herstellers/i },
+    { fill: /^Quelle$/, value: '203.0.113.66' },
+    { fill: /^Dienst$/, value: '3389/tcp' },
+    { button: /Testverkehr senden/i },
+    { fill: /^Quelle$/, value: '198.51.100.7' },
+    { fill: /^Dienst$/, value: '3389/tcp' },
+    { button: /Testverkehr senden/i },
   ],
   gui_taskmanager_rogue: [{ row: 'xmr-stak-rx.exe' }, { button: /Task beenden/i }],
   gui_taskmanager_doppelganger: [{ row: 'scvhost.exe' }, { button: /Task beenden/i }],

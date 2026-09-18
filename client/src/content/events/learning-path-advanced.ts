@@ -2043,10 +2043,15 @@ Wartungsvertrag, und ich hab ihn in der Regel schon hinterlegt.
 Eng machen — und dann schick einen Testverkehr durch, sonst wissen
 wir es nicht, wir glauben es nur."
 
+Aus dem Monitoring hat Jens dir zwei Adressen mitgebracht: Von
+\`203.0.113.66\` kamen letzte Nacht Anmeldeversuche, und
+\`198.51.100.7\` ist der Wartungsrechner des Herstellers.
+
 **Deine Aufgabe:** Die Regel „Fernwartung Hersteller" auf den
-Wartungsbereich einengen und danach mit beiden Testverkehren prüfen:
-Der fremde Absender muss draußen bleiben, der Hersteller muss weiter
-durchkommen.`,
+Wartungsbereich einengen und danach beide Adressen als Testverkehr
+durch das Regelwerk schicken (Ziel \`leitstand-hmi\`, Dienst
+\`3389/tcp\`): Die fremde muss draußen bleiben, der Hersteller muss
+weiter durchkommen.`,
     mentorNote:
       'Ein Regelwerk wird von oben nach unten gelesen, die erste passende Regel entscheidet — alles darunter wird für diesen Verkehr nie erreicht. Deshalb ist eine zu breite Regel ganz oben schlimmer als eine fehlende: Sie verdeckt alles, was danach kommt. Und deshalb gehört zu jeder Änderung eine Messung: Eine Regel, die richtig aussieht, ist noch keine Regel, die greift.',
     choices: [
@@ -2064,7 +2069,7 @@ durchkommen.`,
       title: 'Perimeter-Firewall — WebAdmin',
       hostname: 'KRITIS-FW-PERIMETER',
       briefing:
-        'Regel 1 lässt RDP auf den Leitstand von jeder Quelle zu. Eng sie auf den Wartungsbereich des Herstellers ein (Schaltfläche „Einengen") und schick danach BEIDE Testverkehre durch: Der fremde Absender muss verworfen werden, die Fernwartung muss durchkommen. Die Schlussregel ist betriebskritisch und lässt sich nicht anfassen.',
+        'Regel 1 lässt RDP auf den Leitstand von jeder Quelle zu. Eng sie auf den Wartungsbereich des Herstellers ein (Schaltfläche „Einengen") und miss danach unten beide Fälle nach — Quelle eintragen, Ziel leitstand-hmi, Dienst 3389/tcp: 203.0.113.66 (der fremde Absender, muss verworfen werden) und 198.51.100.7 (der Wartungsrechner, muss durchkommen). Die Schlussregel ist betriebskritisch und lässt sich nicht anfassen.',
       state: {
         perimeter: {
           applianceName: 'KRITIS-FW-PERIMETER',
@@ -2142,8 +2147,8 @@ durchkommen.`,
       hints: [
         '🤖 Jens: Lies die Tabelle von oben nach unten und frag dich bei jeder Zeile: Welcher Verkehr passt hier zuerst drauf? Die rot markierte Zeile ist der Verdachtsfall.',
         '🤖 Jens: Der Wartungsbereich des Herstellers ist in der Regel schon hinterlegt — du musst ihn nicht heraussuchen, nur setzen. Dafür gibt es in der Zeile eine eigene Schaltfläche.',
-        '🤖 Jens: Ändern ist nur die halbe Arbeit. Unten stehen zwei Testverkehre: einer von außen, einer vom Hersteller. Beide durchschicken — erst dann weißt du, welche Regel wirklich greift.',
-        '🤖 Jens: „Einengen" in der Zeile „Fernwartung Hersteller" (Quelle wird 198.51.100.0/24), dann bei beiden Testverkehren auf „Senden". Erwartet: der fremde Absender trifft die Schlussregel, der Hersteller trifft Regel 1.',
+        '🤖 Jens: Ändern ist nur die halbe Arbeit. Unten kannst du selbst Verkehr durchschicken: Quelle, Ziel und Dienst eintragen, senden — die Prüfung sagt dir, welche Regel gegriffen hat. Zwei Fälle musst du abdecken: den fremden Absender aus dem Monitoring und den Wartungsrechner, der weiter durchkommen soll.',
+        '🤖 Jens: „Einengen" in der Zeile „Fernwartung Hersteller" (Quelle wird 198.51.100.0/24). Dann zweimal messen, jeweils Ziel `leitstand-hmi` und Dienst `3389/tcp`: einmal mit Quelle `203.0.113.66` (erwartet: Treffer auf die Schlussregel, VERWORFEN), einmal mit Quelle `198.51.100.7` (erwartet: Treffer auf Regel 1, ZUGELASSEN).',
       ],
     },
     tags: ['learning', 'firewall', 'netzwerk', 'gui', 'kritis'],

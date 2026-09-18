@@ -31,6 +31,14 @@ Drei Entscheidungen, die nicht offensichtlich sind:
    zu führen hätte eine Pflicht erfunden — derselbe Fehler, den
    `listenerPresent` einmal hatte.
 
+### Verkehrsprüfung: freies Feld
+
+Quelle und Dienst tippt der Spieler, das Ziel wählt er aus den im Regelwerk
+vorkommenden Zielen. Die `probes` des Levels sind keine Schaltflächen mehr,
+sondern die Messungen, die ZÄHLEN — welche das sind, sagt der Auftrag. Das
+Werkzeug misst jeden Verkehr, den man ihm gibt; gewertet wird nur, was auf eine
+verlangte Messung passt und am jetzigen Regelwerk erhoben wurde.
+
 ### Inhalt
 
 - `learn_fw_01_regelwerk` (GUI) und `learn_fw_02_ruleset` (Terminal) in
@@ -45,7 +53,7 @@ Drei Entscheidungen, die nicht offensichtlich sind:
 | `nftables.test.ts` (21) | Präfixe, Parser inkl. Ablehnung erfundener Syntax, Erst-Treffer, `jump`, Policy-Rückfall, Ausgabe wird vom eigenen Parser wieder gelesen |
 | `nftCmd.test.ts` (16) | Jeder Unterbefehl gegen die echte Shell; `insert` wirkt, `add` an derselben Stelle nicht — der Reihenfolge-Beweis |
 | `anforderungen.kandidaten.test.ts` | `nft` **gemessen** am echten Level-Ziel; Gegenproben: `ufw` ändert den nft-Regelsatz nicht, `nft flush ruleset` löst ein Ziel und zerstört zwei |
-| `Perimeter.browser.test.tsx` (4) | Lösung, Trefferanzeige, Verweigerung an der Schlussregel — und dass eine Messung von **vor** einer Änderung nicht weiterzählt |
+| `Perimeter.browser.test.tsx` (6) | Lösung, Trefferanzeige, freie Messungen ohne Wertung, Eingabeprüfung, Verweigerung an der Schlussregel — und dass eine Messung von **vor** einer Änderung nicht weiterzählt |
 | `abschreibDurchstich` | Level B löst, wenn man den letzten Hinweis abschreibt |
 | `wissensbilanz` | `nft` steht im Auftragstext, bevor es gebraucht wird; Ratsche bleibt leer |
 | `e2e/levels.spec.ts` | Level A spielt im echten Browser durch (`HARNESS_OK_LEVELS`) |
@@ -60,9 +68,6 @@ Messung das Level (rot), mit ihr nicht (grün).
   Kontext ableiten lassen. Der Nachweis liegt im Node-Durchstich, der den
   sichtbaren Weg gegen die echte Shell fährt. `HARNESS_OK_LEVELS` holt
   immerhin das GUI-Level zurück.
-- **Freier Testverkehr** (Quelle und Port selbst eintippen) statt der
-  hinterlegten Proben — im Entwurf als offene Entscheidung benannt, hier
-  bewusst nicht gebaut.
 - **`nft` kennt einen schmalen Ausschnitt.** Keine NAT-Tabellen, keine Sets,
   keine Zähler. Was fehlt, antwortet mit einem Syntaxfehler statt mit einer
   Erfindung.

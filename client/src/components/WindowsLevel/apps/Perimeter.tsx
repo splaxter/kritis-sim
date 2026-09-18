@@ -4,6 +4,9 @@ import {
   tokens,
   Button,
   Badge,
+  Field,
+  Input,
+  Select,
   MessageBar,
   MessageBarBody,
   mergeClasses,
@@ -50,14 +53,47 @@ const useStyles = makeStyles({
   aktionAllow: { color: tokens.colorPaletteGreenForeground1 },
   aktionDeny: { color: tokens.colorPaletteRedForeground1 },
   message: { margin: '10px 16px' },
-  probeZeile: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
-    padding: '10px 16px', borderBottom: `1px solid ${tokens.colorNeutralBackground2}`,
+  formular: {
+    display: 'flex', alignItems: 'flex-end', gap: '10px', flexWrap: 'wrap',
+    padding: '4px 16px 12px',
   },
+  feldSchmal: { minWidth: '150px' },
+  feldEng: { minWidth: '110px' },
+  protokoll: { display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 16px 14px' },
+  protokollZeile: { display: 'flex', flexDirection: 'column', gap: '2px' },
   ergebnis: { fontSize: tokens.fontSizeBase200, fontFamily: tokens.fontFamilyMonospace },
   ergebnisAus: { color: tokens.colorPaletteRedForeground1 },
   ergebnisAn: { color: tokens.colorPaletteGreenForeground1 },
 });
+
+/** Eine Zeile im Messprotokoll. */
+interface Messung {
+  schluessel: string;
+  verkehr: string;
+  text: string;
+  zugelassen: boolean;
+  /** Gesetzt, wenn die Messung eine der im Auftrag verlangten getroffen hat. */
+  erkannt?: string;
+}
+
+/** '3389' und '3389/tcp' sind dieselbe Angabe — tcp ist die Vorgabe. */
+export const normDienst = (s: string): string => {
+  const t = s.trim();
+  if (t === 'any' || t === '') return t;
+  return /\//.test(t) ? t : `${t}/tcp`;
+};
+
+const istAdresse = (s: string): boolean => /^\d{1,3}(\.\d{1,3}){3}(\/\d{1,2})?$/.test(s.trim());
+const istDienst = (s: string): boolean => {
+  const m = s.trim().match(/^(\d{1,5})(?:\/(tcp|udp))?$/);
+  return !!m && parseInt(m[1], 10) >= 1 && parseInt(m[1], 10) <= 65535;
+};
+
+/** Die Ziele, die im Regelwerk vorkommen — als Auswahl statt als Tipparbeit. */
+const zielAuswahl = (rules: readonly PerimeterRule[]): string[] => {
+  const ziele = rules.map((r) => r.dest).filter((d) => d !== 'any');
+  return [...new Set(ziele), 'any'];
+};
 
 interface PerimeterProps {
   applianceName: string;
@@ -80,13 +116,19 @@ export function Perimeter({ applianceName, rules, probes, emit, retract, locked 
   const styles = useStyles();
   const [reihen, setReihen] = useState<PerimeterRule[]>(rules);
   const [warnung, setWarnung] = useState<string | null>(null);
-  const [messungen, setMessungen] = useState<Record<string, string>>({});
+  const [protokoll, setProtokoll] = useState<Messung[]>([]);
   const [getroffen, setGetroffen] = useState<number | null>(null);
+  const [quelle, setQuelle] = useState('');
+  const [ziel, setZiel] = useState(zielAuswahl(rules)[0] ?? 'any');
+  const [dienst, setDienst] = useState('');
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [verworfen, setVerworfen] = useState(false);
 
   /** Jede Regeländerung entwertet jede vorherige Messung. */
   const messungenVerwerfen = () => {
     for (const p of probes) retract(`probe:${p.id}`);
-    setMessungen({});
+    setVerworfen(protokoll.length > 0);
+    setProtokoll([]);
     setGetroffen(null);
   };
 
@@ -137,16 +179,53 @@ export function Perimeter({ applianceName, rules, probes, emit, retract, locked 
     emit(`${richtung === -1 ? 'moveup' : 'movedown'}:${id}`);
   };
 
-  const messen = (probe: PerimeterProbe) => {
+  /**
+   * Was der Spieler tippt, zaehlt nur, wenn es eine der hinterlegten Messungen
+   * TRIFFT. Das Feld ist frei — welche Messungen die Aufgabe verlangt, steht im
+   * Auftrag, nicht auf einer Schaltflaeche. So muss der Spieler entscheiden,
+   * WAS er prueft; die Oberflaeche verraet es ihm nicht durch Hinsehen.
+   */
+  const passendeProbe = (quelle: string, ziel: string, dienst: string): PerimeterProbe | undefined =>
+    probes.find(
+      (p) =>
+        p.source === quelle.trim() &&
+        p.dest === ziel &&
+        normDienst(p.service) === normDienst(dienst)
+    );
+
+  const messen = () => {
     if (locked) return;
-    const ergebnis = pruefeVerkehr(reihen, probe);
+    const q = quelle.trim();
+    const d = dienst.trim();
+
+    if (!istAdresse(q)) {
+      setFehler('Quelle muss eine IPv4-Adresse oder ein Präfix sein, zum Beispiel 203.0.113.66 oder 10.0.10.0/24.');
+      return;
+    }
+    if (!istDienst(d)) {
+      setFehler('Dienst muss ein Port sein, zum Beispiel 3389 oder 3389/tcp.');
+      return;
+    }
+    setFehler(null);
+
+    const treffer = passendeProbe(q, ziel, d);
+    const ergebnis = pruefeVerkehr(reihen, {
+      id: treffer?.id ?? 'frei',
+      label: treffer?.label ?? 'Testverkehr',
+      source: q,
+      dest: ziel,
+      service: normDienst(d),
+    });
     const text = ergebnis.regelNummer === null
       ? 'kein Treffer → VERWORFEN (Grundhaltung)'
       : `Treffer auf Regel ${ergebnis.regelNummer} („${ergebnis.regel?.label}") → ${ergebnis.zugelassen ? 'ZUGELASSEN' : 'VERWORFEN'}`;
-    setMessungen((prev) => ({ ...prev, [probe.id]: text }));
-    setGetroffen(ergebnis.regelNummer);
+
+    setProtokoll((prev) => [
+      ...prev,
+      { schluessel: `${q}|${ziel}|${normDienst(d)}|${prev.length}`, verkehr: `${q} → ${ziel} : ${normDienst(d)}`, text, zugelassen: ergebnis.zugelassen, erkannt: treffer?.label },
+    ]);
     setWarnung(null);
-    emit(`probe:${probe.id}`);
+    if (treffer) emit(`probe:${treffer.id}`);
   };
 
   return (
@@ -216,26 +295,66 @@ export function Perimeter({ applianceName, rules, probes, emit, retract, locked 
       <div className={styles.hinweis}>
         Der Testverkehr läuft durch dasselbe Regelwerk wie echter Verkehr und nennt die Regel, die gegriffen hat.
       </div>
-      {probes.map((p) => (
-        <div key={p.id} className={styles.probeZeile}>
-          <span className={styles.rowMain}>
-            <span className={styles.label}>{p.label}</span>
-            <span className={styles.spur}>{p.source} → {p.dest} : {p.service}</span>
-            {messungen[p.id] && (
-              <span
-                className={mergeClasses(
-                  styles.ergebnis,
-                  messungen[p.id].includes('ZUGELASSEN') ? styles.ergebnisAn : styles.ergebnisAus,
-                )}
-              >
-                ⇒ {messungen[p.id]}
-              </span>
-            )}
-          </span>
-          <Button size="small" appearance="primary" disabled={locked}
-            aria-label={`Testverkehr senden: ${p.label}`} onClick={() => messen(p)}>Senden</Button>
+
+      <form
+        className={styles.formular}
+        onSubmit={(e) => {
+          e.preventDefault();
+          messen();
+        }}
+      >
+        <Field label="Quelle" className={styles.feldSchmal}>
+          <Input
+            value={quelle}
+            placeholder="203.0.113.66"
+            disabled={locked}
+            onChange={(_e, data) => setQuelle(data.value)}
+          />
+        </Field>
+        <Field label="Ziel" className={styles.feldSchmal}>
+          <Select value={ziel} disabled={locked} onChange={(_e, data) => setZiel(data.value)}>
+            {zielAuswahl(rules).map((z) => (
+              <option key={z} value={z}>{z}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Dienst" className={styles.feldEng}>
+          <Input
+            value={dienst}
+            placeholder="3389/tcp"
+            disabled={locked}
+            onChange={(_e, data) => setDienst(data.value)}
+          />
+        </Field>
+        <Button type="submit" appearance="primary" disabled={locked}>Testverkehr senden</Button>
+      </form>
+
+      {fehler && (
+        <div className={styles.message}>
+          <MessageBar intent="warning" layout="multiline">
+            <MessageBarBody>{fehler}</MessageBarBody>
+          </MessageBar>
         </div>
-      ))}
+      )}
+
+      {verworfen && protokoll.length === 0 && (
+        <div className={styles.hinweis}>
+          Regelwerk geändert — frühere Messungen gelten nicht mehr und wurden verworfen.
+        </div>
+      )}
+
+      {protokoll.length > 0 && (
+        <div className={styles.protokoll}>
+          {protokoll.map((m) => (
+            <span key={m.schluessel} className={styles.protokollZeile}>
+              <span className={styles.spur}>{m.verkehr}</span>
+              <span className={mergeClasses(styles.ergebnis, m.zugelassen ? styles.ergebnisAn : styles.ergebnisAus)}>
+                ⇒ {m.text}{m.erkannt ? ` — ${m.erkannt}` : ''}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
