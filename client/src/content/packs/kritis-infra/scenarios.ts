@@ -57,87 +57,93 @@ Du bist auf dem SCADA-Master eingeloggt und sollst die Logs unter /opt/scada/log
       username: 'operator',
       currentPath: '/opt/scada/logs',
       templateIds: ['scada'],
-      commands: [
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*operations\\.log',
-          output: `2026-03-14 06:00:00 [INFO] System startup complete
-2026-03-14 06:00:01 [INFO] Connected to PLC01 at 10.0.0.10
-2026-03-14 08:00:00 [INFO] Operator login: technik01 from 10.0.0.100
-2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance
-2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99
-2026-03-14 09:30:00 [INFO] Setpoint change: Pump_01 speed 75% -> 80%
-2026-03-14 09:45:00 [INFO] Session ended for maintenance
-
-# Login von 10.0.0.99 mit User "maintenance"... Wer ist das?`,
-          skillGain: { troubleshooting: 3, security: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'grep',
-          patternRegex: 'grep.*(10\\.0\\.0\\.99|maintenance)',
-          output: `operations.log:2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance
-operations.log:2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99
-operations.log:2026-03-14 09:45:00 [INFO] Session ended for maintenance
-config/access.log:10.0.0.99 - VENDOR_LAPTOP - "Siemens Wartung" - Added: 2024-06-15
-
-# AHA! Das ist ein dokumentierter Wartungslaptop von Siemens!`,
-          skillGain: { security: 4, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*/etc/hosts',
-          output: `127.0.0.1       localhost
-10.0.0.1        scada-master
-10.0.0.10       plc01 pump-control
-10.0.0.11       plc02 valve-control
-10.0.0.12       plc03 sensor-hub
-10.0.0.99       siemens-wartung    # Wartungslaptop Siemens
-10.0.0.100      hmi-station
-
-# 10.0.0.99 ist als "siemens-wartung" dokumentiert`,
-          skillGain: { netzwerk: 2 },
-        },
-        {
-          pattern: 'last',
-          output: `maintenance  pts/1   10.0.0.99    Fri Mar 14 09:15 - 09:45 (00:30)
-technik01    pts/0   10.0.0.100   Fri Mar 14 08:00   still logged in
-operator     pts/0   10.0.0.100   Thu Mar 13 06:00 - 18:00 (12:00)
-
-# Wartungszugang war 30 Minuten aktiv`,
-          skillGain: { linux: 2, security: 1 },
-        },
-        {
-          pattern: 'ls',
-          patternRegex: '^ls(\\s.*)?$',
-          output: `total 48
-drwxr-xr-x 2 root operator 4096 Mar 14 09:45 .
-drwxr-xr-x 4 root root     4096 Jan 15 08:00 ..
--rw-r--r-- 1 root operator 8234 Mar 14 09:45 operations.log
--rw-r--r-- 1 root operator 2048 Mar 14 06:00 startup.log
--rw-r--r-- 1 root operator 4096 Mar 13 18:00 audit.log
-
-# operations.log wurde zuletzt um 09:45 geändert - Ende der Wartung`,
-          skillGain: { linux: 1 },
-        },
-      ],
+      // Der Fall lebt vom ABGLEICH zweier Quellen: Das Betriebsprotokoll sagt
+      // WER und WANN, die Freigabeliste sagt, WEM die Adresse gehört. Erst
+      // beide zusammen beantworten die Frage, und genau deshalb verlangt die
+      // Gewinnbedingung, dass beide gelesen wurden.
+      taskText:
+        'Zwei Quellen abgleichen: /opt/scada/logs/operations.log (wer hat sich wann angemeldet) und /opt/scada/config/access.log (wem gehört die Adresse laut Freigabeliste). Beide mit cat lesen, dann den Befund schreiben — der Editor fehlt, also mit echo "…" > datei und echo "…" >> datei anhängen.\n\nErgebnis nach /home/operator/befund.md, genau diese vier Zeilen:\nquelle: <IP>\nkonto: <Kontoname aus dem Protokoll>\nangriff: ja | nein | unklar\nfehlend: anmeldung | freigabe | keine\n\nZu „fehlend": Gefragt ist, was WIRKLICH fehlt — nicht, was fehlen könnte.',
+      vfsOverlay: {
+        directories: ['/opt/scada/logs', '/opt/scada/config', '/home/operator'],
+        files: [
+          {
+            path: '/opt/scada/logs/operations.log',
+            content:
+              '2026-03-14 06:00:00 [INFO] System startup complete\n' +
+              '2026-03-14 06:00:01 [INFO] Connected to PLC01 at 10.0.0.10\n' +
+              '2026-03-14 08:00:00 [INFO] Operator login: technik01 from 10.0.0.100\n' +
+              '2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance\n' +
+              '2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99\n' +
+              '2026-03-14 09:30:00 [INFO] Setpoint change: Pump_01 speed 75% -> 80%\n' +
+              '2026-03-14 09:45:00 [INFO] Session ended for maintenance\n',
+          },
+          {
+            // Dieselbe Geschichte auch dort, wo die Vorlage ein Protokoll
+            // anlegt — sonst findet ein neugieriger Spieler zwei Wahrheiten.
+            path: '/var/log/scada/operations.log',
+            content:
+              '2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance\n' +
+              '2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99\n' +
+              '2026-03-14 09:45:00 [INFO] Session ended for maintenance\n',
+          },
+          {
+            path: '/opt/scada/config/access.log',
+            content:
+              '# Freigabeliste Fernzugriff — gepflegt von der Leittechnik\n' +
+              '# adresse     kennung          inhaber                  freigegeben\n' +
+              '10.0.0.100    hmi-station      Leitwarte, Platz 1       2021-02-01\n' +
+              '10.0.0.99     siemens-wartung  Wartungslaptop Siemens   2024-06-15\n' +
+              '10.0.0.98     reserve          (frei)                   -\n' +
+              '\n' +
+              '# Betriebsregel: Wartungszugriffe sind VORHER in der Leitwarte\n' +
+              '# anzumelden (Telefon oder Ticket). Die Freigabe allein genügt nicht.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        grep: { linux: 2, security: 1 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['grep', 'cat'],
+          commands: [],
           allRequired: false,
-          resultText: 'Du hast den Wartungszugang identifiziert und verifiziert. Kein Angriff - aber der Prozess muss verbessert werden!',
+          stateGoals: [
+            // Ohne beide Quellen ist der Befund geraten.
+            { fileRead: '/opt/scada/logs/operations.log' },
+            { fileRead: '/opt/scada/config/access.log' },
+            {
+              file: '/home/operator/befund.md',
+              reportFields: [
+                { key: 'quelle', matches: '^10\\.0\\.0\\.99$' },
+                { key: 'konto', matches: '^maintenance$' },
+                // Die Adresse steht seit 2024 in der Freigabeliste. „ja" wäre
+                // eine Behauptung, „unklar" eine Ausrede — beides ist falsch,
+                // weil der Beleg vorliegt.
+                { key: 'angriff', matches: '^nein$' },
+                // Und der eigentliche Befund: Nicht die Freigabe fehlt, die
+                // gibt es. Die ANMELDUNG fehlt, die die Betriebsregel verlangt.
+                { key: 'fehlend', matches: '^anmeldung$' },
+              ],
+            },
+          ],
+          resultText:
+            'Sauber hergeleitet. Die Adresse 10.0.0.99 gehört zum Wartungslaptop des Herstellers und steht seit Juni 2024 in der Freigabeliste — das war kein Angriff, und du kannst es belegen statt es zu hoffen.\n\nWas trotzdem fehlt, ist die Anmeldung. Die Betriebsregel verlangt sie vorher, per Telefon oder Ticket; passiert ist es nicht. Der Unterschied ist wichtig genug für den Bericht: Eine fehlende Freigabe wäre ein Zugangsproblem, eine fehlende Anmeldung ist ein Prozessproblem. Wer beides gleich benennt, bekommt beim nächsten Mal die falsche Maßnahme.\n\nUnd der Preis der Alternative steht daneben: Hätte man das SCADA-System bei diesem Alarm sofort vom Netz genommen, wären 50.000 Einwohner ohne Wasser gewesen — wegen eines Technikers, der vergessen hat anzurufen.',
           skillGain: { security: 5, troubleshooting: 4, linux: 2 },
-          effects: {},
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Die Logs liegen unter /opt/scada/logs oder /var/log/scada',
-        'Tipp: Suche nach der IP 10.0.0.99 in den Logs mit grep',
-        'Tipp: Die /etc/hosts könnte zeigen wem die IP gehört',
+        '🤖 Jens: Die Frage ist nicht „war da jemand", sondern „wem gehört die Adresse". Das Betriebsprotokoll beantwortet die erste Hälfte, die Freigabeliste der Leittechnik die zweite. Beide liegen unter /opt/scada.',
+        '🤖 Jens: Lies die Freigabeliste bis zum Ende. Unter der Tabelle steht die Betriebsregel — und die entscheidet darüber, ob hier wirklich alles in Ordnung war.',
+        '🤖 Jens: Für den Befund gibt es keinen Editor. Die erste Zeile mit einer einfachen Umlenkung schreiben, jede weitere anhängen — sonst überschreibst du dir die vorige.',
+        '🤖 Jens: `cat /opt/scada/logs/operations.log` → `cat /opt/scada/config/access.log` → `echo "quelle: 10.0.0.99" > /home/operator/befund.md` → `echo "konto: maintenance" >> /home/operator/befund.md` → `echo "angriff: nein" >> /home/operator/befund.md` → `echo "fehlend: anmeldung" >> /home/operator/befund.md`.',
       ],
     },
   },
+
   {
     id: 'KRITIS-SC-002',
     title: 'PLC03 antwortet nicht mehr',
@@ -1852,141 +1858,90 @@ Was ist das Problem?`,
       username: 'admin',
       currentPath: '/home/admin',
       templateIds: ['linux-webserver'],
-      commands: [
+      // Die Diagnose läuft von innen nach außen: Läuft der Dienst? Lauscht er?
+      // Kommt jemand an ihn heran? Erst die dritte Frage trifft. Und die
+      // Versuchung sitzt genau dort: Wer die Firewall abschaltet, hat DNS
+      // wieder — und alles andere auch.
+      taskText:
+        'Der Reihe nach prüfen: läuft der Dienst (systemctl status bind9), lauscht er auf Port 53 (ss -tulpen), und lässt die Firewall ihn durch (sudo ufw status)? Das Ereignisprotokoll sagt, was beim letzten Firewall-Update passiert ist (journalctl -u ufw). Die fehlende Freigabe wieder eintragen: sudo ufw allow 53. Die Firewall bleibt dabei an und der Dienst läuft weiter — beides gehört zur Lösung.',
+      services: [
         {
-          pattern: 'ping',
-          patternRegex: 'ping.*google',
-          output: `ping: google.de: Temporary failure in name resolution
-
-# DNS-Auflösung funktioniert nicht!`,
-          skillGain: { troubleshooting: 1 },
-        },
-        {
-          pattern: 'ping',
-          patternRegex: 'ping.*8\\.8\\.8\\.8',
-          output: `PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
-64 bytes from 8.8.8.8: icmp_seq=1 ttl=116 time=12.3 ms
-64 bytes from 8.8.8.8: icmp_seq=2 ttl=116 time=11.8 ms
-64 bytes from 8.8.8.8: icmp_seq=3 ttl=116 time=12.1 ms
-
-# Internet-Konnektivität ist OK!`,
-          skillGain: { netzwerk: 1 },
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*/etc/resolv',
-          output: `# /etc/resolv.conf
-nameserver 192.168.1.2    # Interner DNS
-nameserver 8.8.8.8        # Fallback Google DNS
-
-# Konfiguration sieht korrekt aus`,
-          skillGain: { linux: 1 },
-        },
-        {
-          pattern: 'dig',
-          patternRegex: 'dig|nslookup',
-          output: `;; connection timed out; no servers could be reached
-
-# DNS-Server antwortet nicht!`,
-          skillGain: { netzwerk: 2, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'ping',
-          patternRegex: 'ping.*192\\.168\\.1\\.2',
-          output: `PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
-64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.3 ms
-64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.4 ms
-64 bytes from 192.168.1.2: icmp_seq=3 ttl=64 time=0.3 ms
-
---- 192.168.1.2 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss
-
-# DNS-Server ist erreichbar (Layer 3)!`,
-          skillGain: { netzwerk: 2 },
-        },
-        {
-          pattern: 'nc',
-          patternRegex: 'nc.*53|telnet.*53',
-          output: `Connection to 192.168.1.2 53 port [tcp/domain] failed: Connection refused
-
-# Port 53 ist ZU! DNS-Service läuft nicht oder wird geblockt!`,
-          skillGain: { netzwerk: 3, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'ssh',
-          patternRegex: 'ssh.*192\\.168\\.1\\.2',
-          output: `Connecting to dns-server (192.168.1.2)...
-
-dns-server$ systemctl status named
-● named.service - BIND DNS Server
-   Loaded: loaded
-   Active: active (running)
-
-dns-server$ ss -tulpn | grep :53
-# Keine Ausgabe! Port 53 ist nicht gebunden!
-
-dns-server$ journalctl -u named | tail
-Mar 14 08:00:00 named: can't bind to address: permission denied
-Mar 14 08:00:00 named: unable to listen on port 53
-
-# Service läuft, aber kann nicht an Port 53 binden!`,
-          skillGain: { linux: 3, troubleshooting: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'iptables',
-          patternRegex: 'iptables|firewall-cmd',
-          output: `Chain INPUT (policy DROP)
-target  prot  source       destination
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:22
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:80
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:443
-# NOTE: Port 53 rule is MISSING!
-
-# Firewall blockiert Port 53! Regel fehlt nach Update!`,
-          skillGain: { netzwerk: 4, security: 2 },
-          isSolution: true,
+          unit: 'bind9.service',
+          active: 'active',
+          enabled: 'enabled',
+          desc: 'BIND Domain Name Server',
         },
       ],
+      listeners: [
+        { proto: 'udp', port: 53, address: '0.0.0.0', pid: 812, program: 'named' },
+        { proto: 'tcp', port: 53, address: '0.0.0.0', pid: 812, program: 'named' },
+        { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
+        { proto: 'tcp', port: 80, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+      ],
+      // Nach dem Update steht die Wand, aber eine Tür fehlt.
+      firewall: {
+        enabled: true,
+        defaultIncoming: 'deny',
+        rules: [
+          { action: 'allow', port: 22, proto: 'tcp' },
+          { action: 'allow', port: 80, proto: 'tcp' },
+          { action: 'allow', port: 443, proto: 'tcp' },
+        ],
+      },
+      journal: [
+        { ts: '2026-03-11 21:04:12', unit: 'ufw', message: 'Regelwerk aus Vorlage neu geschrieben (Wartungsfenster)' },
+        { ts: '2026-03-11 21:04:13', unit: 'ufw', message: 'übernommen: 22/tcp, 80/tcp, 443/tcp' },
+        { ts: '2026-03-11 21:04:13', unit: 'ufw', message: 'nicht in der Vorlage enthalten, entfernt: 53' },
+        { ts: '2026-03-11 21:04:14', unit: 'ufw', message: 'Firewall reloaded' },
+      ],
+      commandSkillGain: {
+        systemctl: { linux: 1 },
+        ss: { netzwerk: 2 },
+        ufw: { netzwerk: 2, security: 1 },
+        journalctl: { linux: 1, troubleshooting: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['dig', 'nc', 'iptables'],
+          commands: [],
           allRequired: false,
-          resultText: 'Problem gefunden! Der DNS-Port 53 wird von der Firewall blockiert. Nach dem letzten Firewall-Update fehlt die Regel für DNS.',
-          skillGain: { netzwerk: 5, troubleshooting: 5, linux: 3 },
-          effects: {},
+          stateGoals: [
+            // Die Tür ist wieder da …
+            { firewallRule: { action: 'allow', port: 53, present: true } },
+            // … und die Wand steht noch. `ufw disable` bringt DNS auch zurück —
+            // zusammen mit allem anderen.
+            { firewallEnabled: true },
+            { firewallDefaultIncoming: 'deny' },
+            // Und der Dienst lebt: Wer den Namensdienst abschießt, hat das
+            // Symptom nicht behoben, sondern das zweite dazugelegt.
+            { listenerPresent: { port: 53 } },
+          ],
+          resultText:
+            'Gefunden und behoben, ohne Kollateralschaden. Der Namensdienst lief die ganze Zeit und lauschte auch — durchgelassen hat ihn nur niemand mehr. Beim Wartungsfenster am 11. März wurde das Regelwerk aus einer Vorlage neu geschrieben, und in der Vorlage stand Port 53 nicht drin. Das Ereignisprotokoll sagt es wörtlich.\n\nDie Reihenfolge der Diagnose ist der eigentliche Gewinn: Dienst, Lauscher, Weg. Wer sie von innen nach außen abarbeitet, findet die Stelle beim dritten Schritt, statt den Dienst auf Verdacht neu zu starten — der lief ja.\n\nUnd die Versuchung war real: `ufw disable` hätte DNS sofort zurückgebracht. Zusammen mit allem anderen, wofür die Wand da steht.',
+          skillGain: { netzwerk: 4, troubleshooting: 4, linux: 2 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: ping zeigt Layer 3, aber DNS nutzt Layer 4/7',
-        'Tipp: dig oder nslookup testen DNS direkt',
-        'Tipp: Ist Port 53 offen? nc -z oder telnet testen',
+        '🤖 Jens: Von innen nach außen. Erst die Frage, ob der Dienst überhaupt läuft — dann, ob er auf seinem Port lauscht — und erst dann, ob jemand an ihn herankommt.',
+        '🤖 Jens: Der Dienst läuft und lauscht. Dann bleibt nur noch der Weg dorthin. Schau dir an, welche Ports die Firewall durchlässt — und vergleiche mit der Liste im Ereignisprotokoll vom Wartungsfenster.',
+        '🤖 Jens: Die Freigabe für 53 ist beim Update verlorengegangen. Trag sie wieder ein — und lass die Finger von `ufw disable`: Das bringt DNS zurück und alles andere gleich mit.',
+        '🤖 Jens: `systemctl status bind9` → `ss -tulpen` → `sudo ufw status` → `journalctl -u ufw` → `sudo ufw allow 53` → Gegenprobe mit `sudo ufw status`.',
       ],
     },
   },
-  // ===========================================================================
-  // Die Maßnahmenliste des ISB — erste Forderung.
-  //
-  // Der Reiz des Falls liegt darin, dass „isolieren" hier drei verschiedene
-  // Fehler zulässt, und zwei davon fühlen sich richtig an:
-  //   - zu wenig: die eine Regel löschen, die auf den infizierten Rechner zeigt
-  //     — und übersehen, dass die Kette auf `policy accept` steht, der Rest des
-  //     Büronetzes also weiterhin durchgeht.
-  //   - zu viel: die Sperre nach OBEN setzen („erstmal alles dicht") — und damit
-  //     die Alarmweiterleitung des Prozessnetzes mitnehmen. Eine Anlage, die
-  //     keinen Alarm mehr rausbekommt, ist nicht sicherer geworden.
-  //   - und der eigentliche Fund: Fernwartung geht RAUS. Kein eingehendes
-  //     Regelwerk der Welt hat sie je berührt.
-  // ===========================================================================
+
   {
     id: 'KRITIS-SC-013',
     title: 'Der ISB war da: Die Kopplung ist keine Grenze',
     category: 'security_incident',
-    difficulty: 5,
+    // Schwierigkeit 4, nicht 5: Die Auswahl deckelt Schwierigkeit 5 auf die
+    // Modi intermediate/hard/kritis. Ein OT-Segmentierungsfall, den ausgerechnet
+    // der LERNMODUS nie zu sehen bekommt, ist am falschen Publikum vorbei
+    // gebaut. Gemessen und festgehalten in szenarienZugang.test.ts.
+    difficulty: 4,
     flavorText: `Der Informationssicherheitsbeauftragte war zur Begehung da und
-hat eine Maßnahmenliste dagelassen. Punkt 1, mit Frist:
+hat eine Maßnahmenliste dagelassen. Darauf, mit Frist:
 
   „Das OT-Netz ist vom Büronetz zu trennen. Fernwartungswerkzeuge
    (TeamViewer o. ä.) haben im Prozessnetz nichts zu suchen."
@@ -2011,7 +1966,7 @@ hat sie je berührt.`,
         outcome: 'PERFECT',
         terminalCommand: true,
         consequence:
-          'Die Kette hat jetzt einen Boden: Was keine Regel erlaubt, wird verworfen. Der infizierte Engineering-Rechner ist draußen, der Rest des Büronetzes auch — und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr. Alarmweiterleitung und Historian laufen weiter. Der ISB hakt Punkt 1 ab.',
+          'Die Kette hat jetzt einen Boden: Was keine Regel erlaubt, wird verworfen. Der infizierte Engineering-Rechner ist draußen, der Rest des Büronetzes auch — und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr. Alarmweiterleitung und Historian laufen weiter. Der ISB hakt den Punkt ab.',
         scoreChange: 250,
         reputationChange: 25,
         lesson: 'Eine Firewall ist keine Grenze, solange ihre Grundhaltung „durchlassen" ist. Die Regeln beschreiben dann nicht, was erlaubt IST, sondern nur, was jemand einmal aufgeschrieben hat.',
@@ -2123,7 +2078,7 @@ hat sie je berührt.`,
     title: 'Der ISB war da: Ist das Backup rückspielbar?',
     category: 'compliance',
     difficulty: 4,
-    flavorText: `Punkt 2 der Maßnahmenliste:
+    flavorText: `Aus der Maßnahmenliste des ISB, Abschnitt Datensicherung:
 
   „Datensicherungen sind netzseitig zu isolieren und verschlüsselt
    vorzuhalten. Die Wiederherstellbarkeit ist zu erproben und zu
@@ -2271,7 +2226,7 @@ hinterlässt. Die Firewall des Servers ist aus.`,
     title: 'Der ISB war da: Wer war das eigentlich?',
     category: 'compliance',
     difficulty: 4,
-    flavorText: `Punkt 3 der Maßnahmenliste:
+    flavorText: `Aus der Maßnahmenliste des ISB, Abschnitt Fremdzugriffe:
 
   „Zugriffe externer Dienstleister sind personenbezogen zu vergeben
    und nachvollziehbar zu protokollieren."
