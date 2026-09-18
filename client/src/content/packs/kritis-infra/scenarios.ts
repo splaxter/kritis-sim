@@ -2106,4 +2106,323 @@ hat sie je berührt.`,
       ],
     },
   },
+  // ===========================================================================
+  // Zweite Forderung des ISB: Backup isoliert und verschlüsselt rückspielbar.
+  //
+  // „Rückspielbar" ist eine Behauptung, bis jemand zurückgespielt hat. Deshalb
+  // ist die Rückspielprobe hier die Aufgabe und nicht die Erzählung: Der
+  // Spieler entschlüsselt wirklich, rechnet wirklich eine Prüfsumme und
+  // vergleicht sie mit der, die der Sicherungslauf hinterlassen hat.
+  //
+  // Die zweite Hälfte der Forderung — „isoliert im Netz" — ist genauso wörtlich
+  // gemeint: Ein Sicherungsserver, den jeder Arbeitsplatz erreicht, teilt das
+  // Schicksal des Netzes, in dem er steht.
+  // ===========================================================================
+  {
+    id: 'KRITIS-SC-014',
+    title: 'Der ISB war da: Ist das Backup rückspielbar?',
+    category: 'compliance',
+    difficulty: 4,
+    flavorText: `Punkt 2 der Maßnahmenliste:
+
+  „Datensicherungen sind netzseitig zu isolieren und verschlüsselt
+   vorzuhalten. Die Wiederherstellbarkeit ist zu erproben und zu
+   dokumentieren."
+
+Bert: „Das Backup läuft jede Nacht durch, seit zwei Jahren, immer
+grün. Reicht das nicht als Nachweis?"
+
+Ein grünes Sicherungsprotokoll sagt, dass geschrieben wurde. Es sagt
+nichts darüber, ob sich das Geschriebene wieder öffnen lässt — und
+genau das ist die Frage, die man sich nicht am Schadenstag zum ersten
+Mal stellt.
+
+Auf \`backup01\` liegen die verschlüsselten Archive, der Schlüssel als
+Kopie aus dem Tresor und die Prüfsummen, die der Sicherungslauf
+hinterlässt. Die Firewall des Servers ist aus.`,
+    urgency: 'medium',
+    choices: [
+      {
+        id: 'A',
+        text: 'Rückspielprobe fahren und den Server abriegeln (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Das Archiv lässt sich öffnen, die Prüfsumme stimmt mit der des Sicherungslaufs überein — und backup01 nimmt nur noch den Sicherungsagenten an. Der ISB bekommt keinen Satz, sondern zwei Zahlen, die übereinstimmen.',
+        scoreChange: 220,
+        reputationChange: 25,
+        lesson: 'Eine Sicherung ist erst dann eine Sicherung, wenn sie einmal zurückgespielt wurde. Vorher ist sie eine Datei, von der man hofft.',
+      },
+      {
+        id: 'B',
+        text: 'Dem ISB die grünen Sicherungsprotokolle der letzten zwei Jahre schicken',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Der ISB fragt zurück: „Wann wurde daraus zuletzt etwas wiederhergestellt?" Die Antwort ist: noch nie. Im Bericht steht danach „Wiederherstellung nicht erprobt" — und das ist keine Formalie: Niemand im Haus weiß, ob die Archive sich öffnen lassen.',
+        scoreChange: -150,
+        reputationChange: -20,
+        lesson: 'Ein grünes Sicherungsprotokoll belegt den Schreibvorgang, nicht die Lesbarkeit. Die beiden Aussagen werden ständig verwechselt, und der Unterschied fällt genau einmal auf.',
+      },
+      {
+        id: 'C',
+        text: 'Den Schlüssel zusätzlich auf dem Produktivserver ablegen, damit man im Notfall drankommt',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Damit ist der Schlüssel genau dort, wo im Notfall nichts mehr geht. Der Produktivserver IST der Notfall — wer ihn verschlüsselt vorfindet, findet auch den Schlüssel verschlüsselt vor. Die Maßnahme fühlt sich nach Verfügbarkeit an und ist das Gegenteil.',
+        scoreChange: -200,
+        reputationChange: -20,
+        lesson: 'Schlüssel und Daten dürfen nicht dasselbe Schicksal teilen. Ein Schlüssel auf dem System, das die Sicherung schützen soll, ist kein Schlüssel — er ist eine Kopie des Risikos.',
+      },
+    ],
+    realWorldReference:
+      'Maersk 2017 (NotPetya): Die Wiederherstellung der Verzeichnisdienste gelang nur, weil ein einzelner Server in Ghana während des Angriffs wegen eines Stromausfalls offline war. Isolation war dort ein Zufall — sie soll eine Maßnahme sein.',
+    bsiReference: 'BSI-Grundschutz CON.3 Datensicherungskonzept, insbesondere CON.3.A5 (Wiederherstellungstests)',
+    involvedNpcs: [],
+    tags: ['backup', 'wiederherstellung', 'isb', 'verschluesselung', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'backup01',
+      username: 'timo',
+      currentPath: '/srv/backup',
+      taskText:
+        'Rückspielprobe: Prüfsummenliste lesen (cat /srv/backup/sha256sums.txt), das Archiv entschlüsseln nach /tmp/dispo-2026-09-17.tar (sudo openssl enc -d -aes-256-cbc -pbkdf2 -in <archiv> -out <ziel> -pass file:<schlüsseldatei>) und die Prüfsumme des Ergebnisses rechnen (sha256sum). Danach den Server abriegeln: sudo ufw default deny incoming, nur den Sicherungsagenten 10.10.0.40 auf Port 22 zulassen (sudo ufw allow from ... to any port 22) und sudo ufw enable. Kein zweiter offener Weg — die Freigabe gilt genau für diese eine Quelle.',
+      vfsOverlay: {
+        directories: ['/srv/backup', '/etc/backup/keys'],
+        files: [
+          { path: '/srv/backup/dispo-2026-09-17.tar.enc', content: 'Salted__vdVw9WOd718e6tx6aNQWjmCbAO2aXf2rAUK5E+Rq7QCbL6ECZLsbd5h93mgLukr0D/YGY9khh23BgjPEfGSaC3rhYfRPtoZTH6pvJ+MiuCiuCu0EHu2xfCzRy0vCbfsH0p0ye1Gd6NUCsUnykiCViDwScVuumlg=' },
+          {
+            path: '/srv/backup/sha256sums.txt',
+            content:
+              '# Prüfsummen des Sicherungslaufs, gerechnet VOR der Verschlüsselung.\n' +
+              '# Wer nach dem Rückspielen dieselbe Summe erhält, hat denselben Inhalt.\n' +
+              '86cf5470a7558a86a3dea49cfb7aa8c2fa25baffd98ef63b56e46f6c3c5f60bd  dispo-2026-09-17.tar\n',
+          },
+          {
+            path: '/etc/backup/keys/backup.key',
+            content: 'tresor-2026-M7\n',
+            mode: '600',
+          },
+          {
+            path: '/etc/backup/README.txt',
+            content:
+              'Sicherungsschlüssel\n' +
+              '===================\n' +
+              'Das Original liegt im Tresor der Verwaltung (Umschlag M7, versiegelt).\n' +
+              'Hier liegt eine Arbeitskopie, damit der nächtliche Lauf verschlüsseln kann.\n' +
+              '\n' +
+              'Der Schlüssel gehört NICHT auf die Produktivsysteme. Wer ihn dorthin\n' +
+              'kopiert, hat im Schadensfall Daten und Schlüssel im selben Zustand.\n',
+          },
+        ],
+      },
+      firewall: { enabled: false, defaultIncoming: 'allow', rules: [] },
+      commandSkillGain: {
+        openssl: { linux: 2, security: 2 },
+        sha256sum: { linux: 1, security: 1 },
+        ufw: { netzwerk: 1, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Öffnen lässt sich das Archiv nur mit dem richtigen Schlüssel —
+            // dass dieser Inhalt dasteht, IST die Rückspielprobe.
+            { file: '/tmp/dispo-2026-09-17.tar', matches: 'DISPO-DB-DUMP' },
+            // Und die Probe muss auch verglichen werden, sonst ist sie ein
+            // Bauchgefühl: Sollwert lesen, Istwert rechnen.
+            { fileRead: '/srv/backup/sha256sums.txt' },
+            { hashComputed: { path: '/tmp/dispo-2026-09-17.tar', algorithm: 'sha256' } },
+            // Zweite Hälfte der Forderung, wörtlich genommen.
+            { firewallDefaultIncoming: 'deny' },
+            { firewallRule: { action: 'allow', port: 22, from: '10.10.0.40', present: true, exclusive: true } },
+            { firewallEnabled: true },
+          ],
+          resultText:
+            'Zurückgespielt und nachgerechnet: Die Prüfsumme des entschlüsselten Archivs ist dieselbe, die der Sicherungslauf vor dem Verschlüsseln notiert hat. Damit steht nicht „das Backup läuft", sondern „aus diesem Archiv kommt genau das zurück, was hineingegangen ist". Und backup01 nimmt nur noch den Sicherungsagenten an.\n\nZwei Sätze zum Mitnehmen. Ein grünes Sicherungsprotokoll belegt den Schreibvorgang, nicht die Lesbarkeit — das sind zwei verschiedene Aussagen, und der Unterschied fällt genau einmal auf. Und: Schlüssel und Daten dürfen nicht dasselbe Schicksal teilen. Deshalb liegt das Original im Tresor und hier nur eine Arbeitskopie; auf dem Produktivserver hat es nichts verloren, denn der ist im Schadensfall das Problem.',
+          skillGain: { security: 6, linux: 4, netzwerk: 2 },
+          effects: { stress: -2, compliance: 4 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Fang bei den Unterlagen an. Der Sicherungslauf hinterlässt eine Prüfsummenliste, und in /etc/backup steht, wo der Schlüssel herkommt und wo er nicht hingehört.',
+        '🤖 Henry: Rückspielen heißt hier: entschlüsseln und nachrechnen. Der Schlüssel wird nicht getippt, er wird aus der Datei gelesen — alles andere stünde nachher in der Befehlshistorie.',
+        '🤖 Henry: Die zweite Hälfte der Forderung ist die Firewall. Erst die Grundhaltung auf „eingehend verwerfen", dann die EINE Freigabe für den Sicherungsagenten, dann scharfschalten. Eine zweite, unbeschränkte Freigabe auf Port 22 macht die erste wertlos.',
+        '🤖 Henry: `cat /srv/backup/sha256sums.txt` → `sudo openssl enc -d -aes-256-cbc -pbkdf2 -in /srv/backup/dispo-2026-09-17.tar.enc -out /tmp/dispo-2026-09-17.tar -pass file:/etc/backup/keys/backup.key` → `sha256sum /tmp/dispo-2026-09-17.tar` → `sudo ufw default deny incoming` → `sudo ufw allow from 10.10.0.40 to any port 22` → `sudo ufw enable`.',
+      ],
+    },
+  },
+  // ===========================================================================
+  // Dritte Forderung des ISB: protokollierter Zugriff für Externe.
+  //
+  // Der Fall dreht sich nicht um „Zugang zu“ sondern um „zuzuordnen“. Ein
+  // Sammelkonto ist kein Zugriff, den man jemandem zurechnen kann — und weil
+  // es niemandem gehört, räumt es auch niemand auf. Genau das ist der Fund:
+  // Zwei der drei hinterlegten Schlüssel gehören Leuten, die längst woanders
+  // arbeiten. Aufgefallen ist es nie, weil das Konto keinen Besitzer hat.
+  //
+  // Dazu die Kleinigkeit, die den Unterschied zwischen „protokolliert“ und
+  // „zuzuordnen“ macht: Erst `LogLevel VERBOSE` schreibt den Fingerabdruck des
+  // verwendeten Schlüssels mit. Ohne ihn steht im Protokoll ein Kontoname.
+  // ===========================================================================
+  {
+    id: 'KRITIS-SC-015',
+    title: 'Der ISB war da: Wer war das eigentlich?',
+    category: 'compliance',
+    difficulty: 4,
+    flavorText: `Punkt 3 der Maßnahmenliste:
+
+  „Zugriffe externer Dienstleister sind personenbezogen zu vergeben
+   und nachvollziehbar zu protokollieren."
+
+Auf \`wartung01\`, dem Sprungrechner für die Wartungsfirma, gibt es
+seit Jahren genau ein Konto: \`dienstleister\`. Passwort kennt die
+halbe Firma drüben, und in der \`authorized_keys\` liegen drei
+Schlüssel.
+
+Bert: „Ist doch protokolliert, steht alles im Log."
+
+Im Protokoll steht \`dienstleister\`. Immer. Bei jedem Zugriff, seit
+zwei Jahren. Wer davon tatsächlich am Freitagabend die SPS-Parameter
+geändert hat, steht dort nicht — und lässt sich auch nicht mehr
+feststellen.
+
+Die Kontaktliste der Wartungsfirma liegt bei den Verträgen.`,
+    urgency: 'medium',
+    choices: [
+      {
+        id: 'A',
+        text: 'Einzelzugänge einrichten und die Protokollierung schärfen (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Das Sammelkonto nimmt keinen Schlüssel mehr an, der eine noch gültige Zugang liegt auf einem Konto mit Namen, Passwörter sind zu — und das Protokoll schreibt ab sofort den Fingerabdruck des verwendeten Schlüssels mit. Ab jetzt steht dort, wer.',
+        scoreChange: 220,
+        reputationChange: 25,
+        lesson: 'Nachvollziehbarkeit entsteht nicht beim Protokollieren, sondern beim Vergeben. Was man einem Sammelkonto gibt, kann kein Protokoll der Welt hinterher einer Person zuordnen.',
+      },
+      {
+        id: 'B',
+        text: 'Passwort des Sammelkontos ändern und der Wartungsfirma neu mitteilen',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence:
+          'Der akute Ärger ist weg — für ein paar Wochen. Das neue Passwort kennt drüben wieder die halbe Firma, im Protokoll steht weiterhin `dienstleister`, und die beiden Schlüssel der längst ausgeschiedenen Mitarbeiter liegen unverändert in der `authorized_keys`. Ein Passwortwechsel berührt Schlüssel nicht.',
+        scoreChange: 20,
+        reputationChange: 0,
+        lesson: 'Ein Passwortwechsel am Sammelkonto ändert nichts an der Zurechenbarkeit — und er schließt keine Tür, die mit einem Schlüssel offensteht.',
+      },
+      {
+        id: 'C',
+        text: 'Den Zugang der Wartungsfirma komplett sperren, bis sie ein Konzept liefert',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Am Dienstag fällt die Förderpumpe in Werk 2 aus. Der Hersteller könnte in zwanzig Minuten draufschauen — und kommt nicht rein. Der Bereitschaftsdienst fährt zweieinhalb Stunden, die Anlage steht so lange. Der ISB wollte Zurechenbarkeit, nicht Stillstand.',
+        scoreChange: -180,
+        reputationChange: -25,
+        lesson: 'Zugänge für Externe sind Betriebsmittel. Man ordnet sie einer Person zu, man protokolliert sie, man befristet sie — aber man kappt sie nicht ersatzlos, solange die Anlage davon abhängt.',
+      },
+    ],
+    realWorldReference:
+      'Target 2013: Die Angreifer kamen über den Zugang eines Klimatechnik-Dienstleisters herein. Der BSI-Grundschutz verlangt für Fernzugriffe Dritter personenbezogene Kennungen und eine Protokollierung, die den Handelnden erkennen lässt — beides scheitert regelmäßig am bequemen Sammelkonto.',
+    bsiReference: 'BSI-Grundschutz OPS.2.3 (Fernwartung) und ORP.4.A2 (personenbezogene Kennungen)',
+    involvedNpcs: [],
+    tags: ['dienstleister', 'fernwartung', 'protokollierung', 'isb', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'wartung01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Kontaktliste lesen (cat /srv/vertrag/wartungsvertrag.txt) — nur eine der drei hinterlegten Kennungen ist noch berechtigt. Deren Schlüssel aus dem Sammelkonto in das persönliche Konto holen (grep auf /home/dienstleister/.ssh/authorized_keys, Ausgabe per > nach /home/ext-<name>/.ssh/authorized_keys) und die Datei des Sammelkontos entfernen (sudo rm -f). Dann /etc/ssh/sshd_config mit sudo sed -i härten: PasswordAuthentication auf no und LogLevel auf VERBOSE (erst damit steht der Schlüssel-Fingerabdruck im Protokoll, nicht nur der Kontoname). Zum Schluss sudo systemctl restart ssh — vorher liest der Dienst die Änderung nicht.',
+      vfsOverlay: {
+        directories: [
+          '/srv/vertrag',
+          '/home/dienstleister/.ssh',
+          '/home/ext-marek/.ssh',
+          '/home/ext-lorenz/.ssh',
+          '/home/ext-said/.ssh',
+        ],
+        files: [
+          {
+            path: '/srv/vertrag/wartungsvertrag.txt',
+            content:
+              'Wartungsvertrag SPS/Leittechnik — Anlage B: benannte Personen\n' +
+              '=============================================================\n' +
+              'Stand: 01.09.2026\n' +
+              '\n' +
+              'ext-marek   Marek, T.    Servicetechniker    AKTIV\n' +
+              'ext-lorenz  Lorenz, S.    Servicetechniker    ausgeschieden 03/2026\n' +
+              'ext-said    Said, N.     Projektleitung      ausgeschieden 11/2025\n' +
+              '\n' +
+              'Hinweis der Wartungsfirma vom 04.03.2026: Herr Lorenz ist nicht mehr\n' +
+              'im Unternehmen. Bitte Zugänge entziehen.\n' +
+              '(Die Mail wurde weitergeleitet. Passiert ist nichts — das Konto\n' +
+              ' gehört ja niemandem hier.)\n',
+          },
+          {
+            path: '/home/dienstleister/.ssh/authorized_keys',
+            content:
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGm1marek00000000000000000000000000000001 marek@wartung-gmbh\n' +
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGk9lorenz000000000000000000000000000002 lorenz@wartung-gmbh\n' +
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGs4said000000000000000000000000000000003 said@wartung-gmbh\n',
+            mode: '600',
+          },
+          {
+            path: '/etc/ssh/sshd_config',
+            content:
+              'Port 22\n' +
+              'PermitRootLogin no\n' +
+              'PasswordAuthentication yes\n' +
+              'PubkeyAuthentication yes\n' +
+              '#LogLevel INFO\n' +
+              'UsePAM yes\n' +
+              'X11Forwarding no\n',
+          },
+        ],
+      },
+      journal: [
+        { ts: '2026-09-12 19:44:08', unit: 'sshd', message: 'Accepted publickey for dienstleister from 198.51.100.23 port 51233 ssh2' },
+        { ts: '2026-09-12 21:02:51', unit: 'sshd', message: 'Accepted password for dienstleister from 198.51.100.23 port 51244 ssh2' },
+        { ts: '2026-09-15 08:11:19', unit: 'sshd', message: 'Accepted publickey for dienstleister from 198.51.100.23 port 51981 ssh2' },
+      ],
+      commandSkillGain: {
+        grep: { linux: 2 },
+        sed: { linux: 2, security: 1 },
+        systemctl: { linux: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Wer überhaupt noch berechtigt ist, steht im Vertrag — nicht im Kopf.
+            { fileRead: '/srv/vertrag/wartungsvertrag.txt' },
+            // Das Sammelkonto nimmt keinen Schlüssel mehr an.
+            { file: '/home/dienstleister/.ssh/authorized_keys', fileAbsent: true },
+            // Der eine gültige Zugang liegt auf einem Konto mit Namen …
+            { file: '/home/ext-marek/.ssh/authorized_keys', matches: 'marek@wartung-gmbh' },
+            // … und die beiden ausgeschiedenen sind nicht heimlich mitgewandert.
+            { file: '/home/ext-marek/.ssh/authorized_keys', absentMatches: 'lorenz@wartung-gmbh' },
+            { file: '/home/ext-marek/.ssh/authorized_keys', absentMatches: 'said@wartung-gmbh' },
+            // Passwörter zu: nur ein Schlüssel ist einer Person zuzuordnen.
+            { sshdEffective: { passwordAuthentication: false } },
+            // Und das, was aus „protokolliert" ein „zuzuordnen" macht.
+            { file: '/etc/ssh/sshd_config', matches: '^LogLevel VERBOSE' },
+          ],
+          resultText:
+            'Jetzt steht im Protokoll, wer. Das Sammelkonto nimmt keinen Schlüssel mehr an, der eine noch gültige Zugang liegt auf einem Konto mit Namen, Passwörter sind zu — und mit dem ausführlichen Protokoll wird der Fingerabdruck des verwendeten Schlüssels mitgeschrieben statt nur der Kontoname.\n\nDer eigentliche Fund steht in der Kontaktliste: Zwei der drei Schlüssel gehörten Leuten, die seit Monaten bzw. fast einem Jahr woanders arbeiten. Die Mail der Wartungsfirma kam im März. Aufgefallen ist es trotzdem niemandem — weil das Konto niemandem gehört. Ein Sammelkonto hat keinen Besitzer, und was keinen Besitzer hat, räumt keiner auf.\n\nDeshalb ist die Reihenfolge wichtig: Nachvollziehbarkeit entsteht beim VERGEBEN, nicht beim Protokollieren. Was man einem Sammelkonto gibt, kann hinterher kein Protokoll mehr einer Person zuordnen.',
+          skillGain: { security: 6, linux: 4, softSkills: 2 },
+          effects: { stress: -1, compliance: 5 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Bevor du irgendetwas änderst: Wer darf überhaupt noch? Das steht nicht auf dem Server, das steht im Vertrag. Anlage B ist eine Namensliste mit Status.',
+        '🤖 Jens: Die Schlüssel tragen am Zeilenende einen Kommentar mit dem Namen. Du musst also nichts abtippen — die richtige Zeile lässt sich herausfiltern und in die Datei des persönlichen Kontos umlenken.',
+        '🤖 Jens: Zwei Dinge in der sshd_config. Passwörter abschalten ist das eine. Das andere ist die Protokolltiefe: In der Voreinstellung steht nur der Kontoname im Protokoll, mit der ausführlichen Stufe auch der Fingerabdruck des Schlüssels. Und der Dienst liest die Datei erst nach einem Neustart.',
+        "🤖 Jens: `cat /srv/vertrag/wartungsvertrag.txt` → `grep marek /home/dienstleister/.ssh/authorized_keys > /home/ext-marek/.ssh/authorized_keys` → `sudo rm -f /home/dienstleister/.ssh/authorized_keys` → `sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config` → `sudo sed -i 's/^#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config` → `sudo systemctl restart ssh`.",
+      ],
+    },
+  },
 ];

@@ -34,7 +34,7 @@ function readInput(
 }
 
 export const toBytes = (s: string): Uint8Array => new TextEncoder().encode(s);
-const fromBytes = (b: Uint8Array): string => new TextDecoder().decode(b);
+export const fromBytes = (b: Uint8Array): string => new TextDecoder().decode(b);
 
 // ---------------------------------------------------------------------------
 // SHA-256 (FIPS 180-4) — verified against published test vectors in tests.
@@ -238,7 +238,7 @@ export const HASHERS: Record<string, (b: Uint8Array) => string> = {
 
 const B64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-function base64Encode(bytes: Uint8Array): string {
+export function base64Encode(bytes: Uint8Array): string {
   let out = '';
   for (let i = 0; i < bytes.length; i += 3) {
     const b0 = bytes[i];
@@ -252,7 +252,7 @@ function base64Encode(bytes: Uint8Array): string {
   return out;
 }
 
-function base64Decode(input: string): Uint8Array | null {
+export function base64Decode(input: string): Uint8Array | null {
   const clean = input.replace(/[\r\n\s]/g, '');
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4 !== 0) return null;
   const bytes: number[] = [];
