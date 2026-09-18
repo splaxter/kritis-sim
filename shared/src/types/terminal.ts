@@ -370,6 +370,12 @@ export interface StateGoal {
    */
   nftVerdict?: {
     from: string;
+    /**
+     * Destination address. Needed at a ZONE BOUNDARY, where the question is
+     * never just "may this source in" but "may this source reach THAT". A rule
+     * carrying a destination does not match a packet without one.
+     */
+    to?: string;
     port: number;
     proto?: 'tcp' | 'udp';
     state?: string;

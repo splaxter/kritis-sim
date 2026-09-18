@@ -1966,4 +1966,144 @@ ACCEPT  tcp   anywhere     anywhere     tcp dpt:443
       ],
     },
   },
+  // ===========================================================================
+  // Die Maßnahmenliste des ISB — erste Forderung.
+  //
+  // Der Reiz des Falls liegt darin, dass „isolieren" hier drei verschiedene
+  // Fehler zulässt, und zwei davon fühlen sich richtig an:
+  //   - zu wenig: die eine Regel löschen, die auf den infizierten Rechner zeigt
+  //     — und übersehen, dass die Kette auf `policy accept` steht, der Rest des
+  //     Büronetzes also weiterhin durchgeht.
+  //   - zu viel: die Sperre nach OBEN setzen („erstmal alles dicht") — und damit
+  //     die Alarmweiterleitung des Prozessnetzes mitnehmen. Eine Anlage, die
+  //     keinen Alarm mehr rausbekommt, ist nicht sicherer geworden.
+  //   - und der eigentliche Fund: Fernwartung geht RAUS. Kein eingehendes
+  //     Regelwerk der Welt hat sie je berührt.
+  // ===========================================================================
+  {
+    id: 'KRITIS-SC-013',
+    title: 'Der ISB war da: Die Kopplung ist keine Grenze',
+    category: 'security_incident',
+    difficulty: 5,
+    flavorText: `Der Informationssicherheitsbeauftragte war zur Begehung da und
+hat eine Maßnahmenliste dagelassen. Punkt 1, mit Frist:
+
+  „Das OT-Netz ist vom Büronetz zu trennen. Fernwartungswerkzeuge
+   (TeamViewer o. ä.) haben im Prozessnetz nichts zu suchen."
+
+Bert reicht sie dir weiter: „Wir HABEN doch eine Firewall zwischen
+den Netzen. Kannst du dem Mann bitte zeigen, dass da eine Grenze ist?"
+
+Du siehst dir \`kopplung01\` an — und die Kette \`forward\` steht auf
+\`policy accept\`. Die vier Regeln darin sehen aus wie eine Grenze.
+Sie sind eine Liste von Ausnahmen, die niemand braucht: Was keine
+Regel trifft, geht sowieso durch.
+
+Dazu kommt der Fund aus dem Ereignisprotokoll: Die HMI im Prozessnetz
+hält eine Verbindung nach \`203.0.113.90:443\` — das Relay des
+Fernwartungswerkzeugs. Sie geht HINAUS. Kein eingehendes Regelwerk
+hat sie je berührt.`,
+    urgency: 'high',
+    choices: [
+      {
+        id: 'A',
+        text: 'Die Kopplung zur echten Grenze machen (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Die Kette hat jetzt einen Boden: Was keine Regel erlaubt, wird verworfen. Der infizierte Engineering-Rechner ist draußen, der Rest des Büronetzes auch — und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr. Alarmweiterleitung und Historian laufen weiter. Der ISB hakt Punkt 1 ab.',
+        scoreChange: 250,
+        reputationChange: 25,
+        lesson: 'Eine Firewall ist keine Grenze, solange ihre Grundhaltung „durchlassen" ist. Die Regeln beschreiben dann nicht, was erlaubt IST, sondern nur, was jemand einmal aufgeschrieben hat.',
+      },
+      {
+        id: 'B',
+        text: 'Dem ISB die vier Regeln als Nachweis schicken',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Der ISB liest die Regeln — und fragt nach der Grundhaltung. Danach steht im Bericht: „Segmentierung nicht wirksam; Nachweis war eine Regelliste ohne Grundhaltung." Das ist die schlechtere Variante von „wir haben nichts getan", weil jetzt jemand nachgesehen hat.',
+        scoreChange: -200,
+        reputationChange: -25,
+        lesson: 'Ein Regelwerk belegt nichts ohne seine Grundhaltung. Vier Erlaubnisse über einer „policy accept" sind vier Erlaubnisse über einem offenen Tor.',
+      },
+      {
+        id: 'C',
+        text: 'Kabel ziehen: OT komplett vom Rest trennen',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence:
+          'Das Prozessnetz ist sauber getrennt — und die Leitwarte bekommt um 03:10 Uhr keinen Alarm mehr, als die Druckhaltung in Werk 2 abfällt. Der Bereitschaftsdienst erfährt davon morgens aus dem Historian, der auch nichts mehr bekommen hat.',
+        scoreChange: -50,
+        reputationChange: -10,
+        lesson: 'In der OT ist Trennung nie kostenlos. Vor dem Abriegeln muss man wissen, was über die Grenze MUSS — Alarmierung zuerst. Sonst verbessert die Maßnahme die Sicherheit auf dem Papier und verschlechtert sie in der Anlage.',
+      },
+    ],
+    realWorldReference:
+      'Colonial Pipeline 2021: Der Angriff traf die IT, abgeschaltet wurde die OT — weil niemand belegen konnte, wo die Grenze verläuft. Und Fernwartungswerkzeuge bauen ihre Verbindung von innen nach außen auf; eingehende Sperren greifen dort grundsätzlich nicht.',
+    bsiReference: 'BSI ICS-Security Kompendium 5.2 (Netzsegmentierung); BSI-Grundschutz NET.1.1.A3',
+    involvedNpcs: [],
+    tags: ['ot-security', 'segmentierung', 'firewall', 'isb', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'kopplung01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Regelsatz ansehen mit sudo nft -a list ruleset (-a blendet die Handles ein). Die Kette forward steht auf policy accept — alles, was keine Regel trifft, geht durch. Zieh den Boden ein (sudo nft add rule inet filter forward drop hängt eine Regel ans ENDE, sudo nft insert rule ... setzt sie an den Anfang — überleg, was davon hier richtig ist) und nimm der Engineering-Workstation 10.10.0.100 ihren Weg ins OT-Netz (sudo nft delete rule inet filter forward handle <nummer>). Weiterlaufen müssen: die Alarmweiterleitung 10.20.0.0/16 → 10.10.0.50 (514/udp) und der Historian-Feed → 10.10.0.60 (5432/tcp).',
+      journal: [
+        { ts: '2026-09-18 08:41:02', unit: 'kernel', message: 'FORWARD in=ot0 out=wan0 SRC=10.20.5.11 DST=203.0.113.90 PROTO=TCP DPT=443' },
+        { ts: '2026-09-18 08:41:02', unit: 'kernel', message: 'FORWARD in=ot0 out=wan0 SRC=10.20.5.11 DST=203.0.113.90 PROTO=TCP DPT=443' },
+        { ts: '2026-09-18 09:15:44', unit: 'kernel', message: 'FORWARD in=lan0 out=ot0 SRC=10.10.0.100 DST=10.20.5.11 PROTO=TCP DPT=3389' },
+        { ts: '2026-09-18 09:16:03', unit: 'kernel', message: 'FORWARD in=lan0 out=ot0 SRC=10.10.0.77 DST=10.20.5.11 PROTO=TCP DPT=445' },
+      ],
+      nft: {
+        chains: [
+          {
+            name: 'forward',
+            // Die eigentliche Schwachstelle steht in dieser einen Zeile.
+            base: { hook: 'forward', policy: 'accept' },
+            rules: [
+              'ct state established,related accept',
+              'ip saddr 10.20.0.0/16 ip daddr 10.10.0.50 udp dport 514 accept',
+              'ip saddr 10.20.0.0/16 ip daddr 10.10.0.60 tcp dport 5432 accept',
+              'ip saddr 10.10.0.100 ip daddr 10.20.0.0/16 tcp dport 3389 accept',
+            ],
+          },
+        ],
+      },
+      commandSkillGain: {
+        nft: { netzwerk: 2, security: 2 },
+        journalctl: { linux: 1, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Zu wenig, Teil 1: der infizierte Rechner braucht den Weg nicht mehr.
+            { nftVerdict: { from: '10.10.0.100', to: '10.20.5.11', port: 3389, hook: 'forward', expect: 'drop' } },
+            // Zu wenig, Teil 2: das übrige Büronetz kam über die Grundhaltung
+            // durch, ohne dass je eine Regel es erlaubt hätte.
+            { nftVerdict: { from: '10.10.0.77', to: '10.20.5.11', port: 445, hook: 'forward', expect: 'drop' } },
+            // Der Fund: Fernwartung geht HINAUS.
+            { nftVerdict: { from: '10.20.5.11', to: '203.0.113.90', port: 443, hook: 'forward', expect: 'drop' } },
+            // Zu viel: beides muss überleben. Wer die Sperre nach oben setzt,
+            // verliert genau hier.
+            { nftVerdict: { from: '10.20.5.11', to: '10.10.0.50', port: 514, proto: 'udp', hook: 'forward', expect: 'accept' } },
+            { nftVerdict: { from: '10.20.5.11', to: '10.10.0.60', port: 5432, hook: 'forward', expect: 'accept' } },
+          ],
+          resultText:
+            'Jetzt ist es eine Grenze. Die Kette hat einen Boden: Was keine Regel erlaubt, wird verworfen — und damit fällt auf einen Schlag alles weg, was vorher nur deshalb durchkam, weil es niemand aufgeschrieben hatte. Der Engineering-Rechner ist draußen, das übrige Büronetz auch, und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr.\n\nDrei Dinge nimmst du mit. Erstens: Eine Regelliste ohne Grundhaltung belegt nichts — die vier Zeilen sahen wie eine Grenze aus und waren eine Sammlung von Notizen. Zweitens: Fernwartungswerkzeuge bauen ihre Verbindung von innen nach außen auf; wer nur eingehend sperrt, hat sie nie berührt. Und drittens, das Teuerste: Wo die Sperre steht, entscheidet, was sie mitnimmt. Eine Zeile weiter oben, und die Leitwarte hätte um 03:10 Uhr keinen Alarm mehr bekommen.',
+          skillGain: { netzwerk: 6, security: 6, troubleshooting: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Fang bei der Grundhaltung an, nicht bei den Regeln. Die erste Zeile der Kette sagt dir, was mit allem passiert, das keine Regel trifft — und genau das ist hier das Problem.',
+        '🤖 Jens: Eine Kette wird von oben gelesen. Wenn du einen Boden einziehst, muss er UNTEN liegen: Was vorher erlaubt wurde, ist dann schon entschieden. Setzt du ihn oben ein, entscheidet er alles — auch das, was weiterlaufen muss.',
+        '🤖 Jens: Zwei Schritte. Erst der Boden, dann die Regel, die dem infizierten Rechner den Weg ins OT-Netz offen hält — ihre Nummer steht am Zeilenende, sobald du die Handles einblendest. Die beiden Regeln für Alarm und Historian lässt du in Ruhe.',
+        '🤖 Jens: `sudo nft -a list ruleset` → `sudo nft add rule inet filter forward drop` (ans Ende!) → in der Zeile mit `10.10.0.100` das `# handle 6` ablesen → `sudo nft delete rule inet filter forward handle 6` → Gegenprobe mit `sudo nft -a list ruleset`.',
+      ],
+    },
+  },
 ];

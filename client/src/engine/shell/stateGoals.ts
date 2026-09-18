@@ -284,7 +284,7 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
     const g = goal.nftVerdict;
     const trace = evaluatePacket(
       host.nft,
-      { saddr: g.from, dport: g.port, proto: g.proto, ctState: g.state },
+      { saddr: g.from, daddr: g.to, dport: g.port, proto: g.proto, ctState: g.state },
       g.hook ?? 'input',
     );
     if (trace.verdict !== g.expect) return false;
