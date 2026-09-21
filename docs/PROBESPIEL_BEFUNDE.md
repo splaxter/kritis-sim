@@ -128,6 +128,41 @@ Entschieden hat es am Ende ein **Bildschirmfoto**, nicht eine weitere Messung.
 
 ---
 
+## Runde 5 — 21.09.2026: ohne Maus bis zur Lösung
+
+### 8. Drei Kästchen, eine ID, zwei ohne Namen
+Im Meldeformular teilten sich die drei Auswahlkästchen der Mehrfachauswahl
+**dieselbe `id`**. Ursache: Fluents `Field` reicht seine Beschriftung und seine
+`id` an sein Kind weiter — gedacht für EIN Bedienelement. Bei drei Kindern
+bekamen alle drei dieselbe ID, das erste wurde als *„Betroffene Dienste und
+Systeme"* angesagt statt als *„Dateiserver Disposition"*, die anderen beiden
+hatten gar keinen Namen.
+
+Für jemanden mit Hilfstechnik heißt das: die Frage dreimal, die Antworten nie.
+
+**Behoben:** kein `Field` um die Gruppe, sondern eine echte
+`role="group"`-Gruppe mit eigener Beschriftung; jedes Kästchen behält seinen
+Namen. Der Wächter (`e2e/bedienelemente.spec.ts`) prüft beides über alle
+26 GUI-Level: keine doppelten IDs, kein Bedienelement ohne Namen.
+
+### Kein Befund: alle neun Apps sind ohne Maus lösbar
+`e2e/nur-tastatur.spec.ts` spielt je ein Level pro App komplett mit der
+Tastatur durch — Task-Manager, Ereignisanzeige, Explorer, Core-Firewall,
+Windows-Sicherheit, Perimeter-WebAdmin, UAC, Pflichtenkataster (samt Menü) und
+Meldeformular (samt Auswahllisten und Radiogruppen). Alle neun lösen.
+
+### Vier Fehlalarme, alle in meinem Werkzeug
+Kein einziger davon war ein Fehler der App:
+- Ein Kontrollkästchen schaltet mit der **Leertaste**, nicht mit Enter.
+- Ein Eingabefeld hat keinen `innerText`; sein Name steht in `aria-labelledby`.
+- `Control+a` ist auf macOS „an den Zeilenanfang", nicht „alles markieren" —
+  das Getippte wurde angehängt statt ersetzt.
+- In einem geöffneten Menü wandert man mit **Pfeilen**; Tab verlässt es.
+- Pfeiltasten auf einer nativen Auswahlliste ändern im Headless-Browser nichts
+  (dort öffnet sich ein Systemmenü). Die Anfangsbuchstaben zu tippen geht.
+
+---
+
 ## Was sauber war
 
 Ein Nichtbefund ist auch ein Ergebnis — und er sagt, wo nicht mehr gesucht
@@ -143,6 +178,8 @@ werden muss:
 | Terminaltasten | History, Tab, Cursor, Strg+C | alles trägt, auch Vervollständigung für `nft`/`openssl` |
 | Zweiter Anlauf eines Levels | Abbrechen und neu öffnen | frischer Zustand, nichts hält |
 | Schaltflächen bei 320 px | 26 GUI-Level | alle erreichbar (nach Runde 4) |
+| Ohne Maus bis zur Lösung | 9 Apps, je ein Level | alle lösbar |
+| Namen und IDs | 26 GUI-Level | nach Runde 5 sauber |
 
 ## Zwei Verdachtsfälle, die keine waren
 
@@ -161,11 +198,9 @@ sie nicht nochmal Zeit kosten:
 
 ## Offen — hier weitersuchen
 
-- **Tastaturbedienung, zweite Hälfte.** Die Listen tragen jetzt (Runde 3).
-  Ungeprüft bleibt: ob sich jedes GUI-Level von Anfang bis Lösung ohne Maus
-  spielen lässt (nicht nur navigieren), und ob die Fokusfallen in den Modalen
-  wirklich schließen. Die Level-Ansicht selbst ist ebenfalls noch nicht
-  daraufhin geprüft.
+- **Fokusfallen in den Modalen.** Ob der Fokus im Modal bleibt und Escape
+  sauber schließt, ist für die Menü-Modale teilweise getestet, für die
+  Level-Ansicht gar nicht.
 - **Nutzertest mit Terminal-Einsteigern.** Steht seit PR #20 offen und wird von
   keiner Sichtung ersetzt: Sie prüfen Erreichbarkeit, nicht Gefühl.
 - **Die gedosten Fälle.** Von 23 Terminal-Szenarien in den Packs arbeiten erst
