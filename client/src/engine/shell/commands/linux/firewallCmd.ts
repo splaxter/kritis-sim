@@ -13,10 +13,17 @@ const SSH_DISRUPT_PROMPT = 'Command may disrupt existing ssh connections. Procee
 
 // Service names normalize to port/tcp so 'allow ssh' and 'allow 22/tcp'
 // are the same rule (dedupe, delete, display).
-const SERVICE_PORTS: Record<string, { port: number; proto: 'tcp' }> = {
+const SERVICE_PORTS: Record<string, { port: number; proto: 'tcp' | 'udp' }> = {
   ssh: { port: 22, proto: 'tcp' },
   http: { port: 80, proto: 'tcp' },
   https: { port: 443, proto: 'tcp' },
+  // Namen, die wirklich in /etc/services stehen — echtes ufw schlaegt dort
+  // nach. „dns" steht dort NICHT (der Eintrag heisst `domain`), also wird es
+  // hier auch nicht erfunden; der Spieler bekommt stattdessen die Meldung,
+  // die ihn zum richtigen Namen fuehrt.
+  domain: { port: 53, proto: 'tcp' },
+  smtp: { port: 25, proto: 'tcp' },
+  ntp: { port: 123, proto: 'udp' },
 };
 
 /** '22/tcp' | '22' | 'ssh' → port/proto, or null when unparseable. */
@@ -174,6 +181,12 @@ export const ufwCommand: ShellCommand = {
     if (sub === 'allow' || sub === 'deny') {
       const rule = parseRuleTokens(sub, rest);
       if (!rule) {
+        // Ein einzelnes Wort, das weder Port noch bekannter Dienst ist, ist
+        // kein Argumentfehler — echtes ufw sagt dann, dass es den Dienst nicht
+        // findet. Die alte Meldung schickte den Spieler auf die falsche Suche.
+        if (rest.length === 1 && !/^\d/.test(rest[0])) {
+          return { output: '', exitCode: 1, error: `ERROR: Could not find a profile matching '${rest[0]}'` };
+        }
         return { output: '', exitCode: 1, error: 'ERROR: Wrong number of arguments' };
       }
       if (fw.rules.some(r => sameRule(r, rule))) {

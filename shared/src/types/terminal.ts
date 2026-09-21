@@ -138,6 +138,8 @@ export interface TerminalContext {
   journal?: TerminalJournalEntry[];
   /** Firewall state seeded onto the PRIMARY host. */
   firewall?: TerminalFirewallSpec;
+  /** nftables ruleset seeded onto the PRIMARY host. */
+  nft?: TerminalNftSpec;
   /** Listening sockets seeded onto the PRIMARY host (single-host net levels). */
   listeners?: NetListener[];
   /** Established connections seeded onto the PRIMARY host (single-host net levels). */
@@ -204,6 +206,34 @@ export interface TerminalFirewallSpec {
   rules?: { action: 'allow' | 'deny'; port: number; proto?: 'tcp' | 'udp'; from?: string }[];
 }
 
+/**
+ * A chain in a seeded nftables ruleset. `base` makes it a BASE chain: it hangs
+ * on a netfilter hook and has a policy, which is what decides a packet that no
+ * rule matched. A chain without `base` is a regular chain — only reachable via
+ * `jump`/`goto`, which is exactly the shape that makes a rule invisible to a
+ * management UI while still being reached (or not) by traffic.
+ */
+export interface TerminalNftChainSpec {
+  name: string;
+  base?: { hook: 'input' | 'output' | 'forward'; priority?: number; policy: 'accept' | 'drop' };
+  /**
+   * Rule bodies in REAL nft syntax, e.g.
+   * `'ip saddr 203.0.113.0/24 tcp dport 3389 accept'` or `'jump webadmin'`.
+   * They are parsed by the same parser `nft add rule` uses, so a level cannot
+   * seed a ruleset the player could not have typed. An unparseable seed throws
+   * at build time — content bug, caught by the level guards.
+   */
+  rules?: string[];
+}
+
+/** An nftables ruleset seeded onto a host (one table; that is what levels need). */
+export interface TerminalNftSpec {
+  family?: 'inet' | 'ip' | 'ip6';
+  /** Table name; defaults to 'filter'. */
+  table?: string;
+  chains: TerminalNftChainSpec[];
+}
+
 /** A listening socket shown by `ss`/`netstat` — a level can author a rogue one. */
 export interface NetListener {
   proto: 'tcp' | 'udp';
@@ -245,6 +275,8 @@ export interface TerminalHostSpec {
   services?: TerminalServiceSpec[];
   journal?: TerminalJournalEntry[];
   firewall?: TerminalFirewallSpec;
+  /** nftables ruleset on this host (`nft list ruleset`). */
+  nft?: TerminalNftSpec;
   /** Listening sockets on this host; when omitted a default table is used. */
   listeners?: NetListener[];
   /** Established connections on this host; when omitted a default table is used. */
@@ -323,6 +355,33 @@ export interface StateGoal {
    * player to actually activate the wall.
    */
   firewallEnabled?: boolean;
+  /**
+   * Sends a PACKET through the host's nftables ruleset and asserts the verdict.
+   *
+   * This is a semantic goal on purpose: it asks what the box would DO, not how
+   * the player phrased the change. Deleting the offending rule, overruling it
+   * with a `drop` in front of it, or moving the jump — all three are right,
+   * because all three change the verdict. The counterpart matters just as
+   * much: pairing a `drop` expectation with an `accept` one for the traffic
+   * that must survive is what stops `nft flush ruleset` from passing as a fix.
+   *
+   * `state` defaults to 'new' (a fresh connection attempt), `proto` to 'tcp',
+   * `hook` to 'input'.
+   */
+  nftVerdict?: {
+    from: string;
+    /**
+     * Destination address. Needed at a ZONE BOUNDARY, where the question is
+     * never just "may this source in" but "may this source reach THAT". A rule
+     * carrying a destination does not match a packet without one.
+     */
+    to?: string;
+    port: number;
+    proto?: 'tcp' | 'udp';
+    state?: string;
+    hook?: 'input' | 'output' | 'forward';
+    expect: 'accept' | 'drop' | 'reject';
+  };
   /** True iff NO listener on the host binds this port (e.g. a killed rogue). */
   listenerAbsent?: { port: number };
   /** True iff at least one listener on the host binds this port. */

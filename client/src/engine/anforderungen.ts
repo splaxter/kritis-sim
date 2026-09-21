@@ -39,7 +39,8 @@ export type Faehigkeit =
   | 'lesen'
   | 'loeschen'
   | 'kopieren'
-  | 'lauscherEntfernen';
+  | 'lauscherEntfernen'
+  | 'paketfilterAendern';
 
 /**
  * Welcher Befehl welche Wirkung hat, ist GEMESSEN, nicht geschaetzt:
@@ -96,6 +97,11 @@ export const FAEHIGKEIT_KANDIDATEN: Record<Faehigkeit, readonly string[]> = {
   // Firewallregel tut das NICHT — sie sperrt den Weg, der Prozess laeuft
   // weiter, und das Ziel bleibt unerfuellt.
   lauscherEntfernen: ['kill'],
+  // Den nftables-Regelsatz aendern. `ufw` steht hier BEWUSST nicht: Es pflegt
+  // seine eigene Regeltabelle, die dieser Motor getrennt fuehrt — ein
+  // `ufw deny` laesst das Urteil des nft-Regelsatzes unveraendert. Belegt und
+  // im Gegenbeweis festgehalten in `anforderungen.kandidaten.test.ts`.
+  paketfilterAendern: ['nft'],
 };
 
 export interface Anforderung {
@@ -204,6 +210,17 @@ export function anforderungenAusZielen(
       if (ziel[schluessel] === undefined) continue;
       if (ZIEL_NEUTRAL.has(schluessel)) continue;
       if (ZIEL_BEWAHREND.has(schluessel)) continue;
+      // `nftVerdict` ist beides, je nach erwartetem Urteil: Ein verlangtes
+      // `drop` ist eine Aufgabe, ein verlangtes `accept` ist eine
+      // SCHUTZBEDINGUNG — der Verkehr kam schon vorher durch und soll es
+      // weiterhin. Wer beide als Anforderung fuehrt, erfindet eine Pflicht,
+      // genau wie es `listenerPresent` einmal tat.
+      if (schluessel === 'nftVerdict') {
+        const erwartet = (ziel.nftVerdict as { expect: string }).expect;
+        if (erwartet === 'accept') continue;
+        merke('paketfilterAendern', [...FAEHIGKEIT_KANDIDATEN.paketfilterAendern]);
+        continue;
+      }
       if (INHALTSZIELE.has(schluessel)) {
         const faehigkeit = faehigkeitFuerInhalt(ziel, existiert);
         merke(faehigkeit, [...FAEHIGKEIT_KANDIDATEN[faehigkeit]]);

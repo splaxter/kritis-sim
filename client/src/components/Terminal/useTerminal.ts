@@ -9,7 +9,7 @@ import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { TerminalContext, Skills, GameModeId, EventEffects, SolvedBranch } from '@kritis/shared';
-import { createShellFromContext, ShellEngine, resolveTemplateIds } from '../../engine/shell';
+import { createShellFromContext, ShellEngine } from '../../engine/shell';
 import { TerminalSession } from './session/TerminalSession';
 import { applyEffects, EffectContext } from './session/applyEffects';
 
@@ -53,25 +53,13 @@ export function useTerminal({ context, onSolved, onPartialSolution, onFlagsSet, 
 
   // Create shell engine from context (memoized — the session receives this exact
   // instance and never constructs its own).
-  const shell = useMemo(() => {
-    const templates = context.templateIds
-      ? resolveTemplateIds(context.templateIds)
-      : undefined;
-
-    return createShellFromContext({
-      type: context.type,
-      hostname: context.hostname,
-      username: context.username,
-      currentPath: context.currentPath,
-      vfsOverlay: context.vfsOverlay,
-      env: context.env,
-      templates,
-      commands: context.commands,
-      hints: context.hints,
-      taskText: context.taskText,
-      hosts: context.hosts,
-    });
-  }, [context]);
+  // Den Kontext GANZ durchreichen. Die frühere Fassung hat elf Felder einzeln
+  // abgeschrieben und sieben vergessen (services, journal, firewall, nft,
+  // listeners, connections, mailboxes) — im Spiel lief der Spieler damit gegen
+  // einen ungesäten Host, während die Prüfungen die Shell aus dem vollen
+  // Kontext bauten und grün waren. `learn_net_01_open_doors` war dadurch beim
+  // ersten Enter gelöst: Der Lauscher, den man beenden sollte, existierte nie.
+  const shell = useMemo(() => createShellFromContext(context), [context]);
 
   useEffect(() => {
     shellRef.current = shell;

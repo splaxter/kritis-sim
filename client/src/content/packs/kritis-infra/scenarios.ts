@@ -57,87 +57,93 @@ Du bist auf dem SCADA-Master eingeloggt und sollst die Logs unter /opt/scada/log
       username: 'operator',
       currentPath: '/opt/scada/logs',
       templateIds: ['scada'],
-      commands: [
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*operations\\.log',
-          output: `2026-03-14 06:00:00 [INFO] System startup complete
-2026-03-14 06:00:01 [INFO] Connected to PLC01 at 10.0.0.10
-2026-03-14 08:00:00 [INFO] Operator login: technik01 from 10.0.0.100
-2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance
-2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99
-2026-03-14 09:30:00 [INFO] Setpoint change: Pump_01 speed 75% -> 80%
-2026-03-14 09:45:00 [INFO] Session ended for maintenance
-
-# Login von 10.0.0.99 mit User "maintenance"... Wer ist das?`,
-          skillGain: { troubleshooting: 3, security: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'grep',
-          patternRegex: 'grep.*(10\\.0\\.0\\.99|maintenance)',
-          output: `operations.log:2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance
-operations.log:2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99
-operations.log:2026-03-14 09:45:00 [INFO] Session ended for maintenance
-config/access.log:10.0.0.99 - VENDOR_LAPTOP - "Siemens Wartung" - Added: 2024-06-15
-
-# AHA! Das ist ein dokumentierter Wartungslaptop von Siemens!`,
-          skillGain: { security: 4, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*/etc/hosts',
-          output: `127.0.0.1       localhost
-10.0.0.1        scada-master
-10.0.0.10       plc01 pump-control
-10.0.0.11       plc02 valve-control
-10.0.0.12       plc03 sensor-hub
-10.0.0.99       siemens-wartung    # Wartungslaptop Siemens
-10.0.0.100      hmi-station
-
-# 10.0.0.99 ist als "siemens-wartung" dokumentiert`,
-          skillGain: { netzwerk: 2 },
-        },
-        {
-          pattern: 'last',
-          output: `maintenance  pts/1   10.0.0.99    Fri Mar 14 09:15 - 09:45 (00:30)
-technik01    pts/0   10.0.0.100   Fri Mar 14 08:00   still logged in
-operator     pts/0   10.0.0.100   Thu Mar 13 06:00 - 18:00 (12:00)
-
-# Wartungszugang war 30 Minuten aktiv`,
-          skillGain: { linux: 2, security: 1 },
-        },
-        {
-          pattern: 'ls',
-          patternRegex: '^ls(\\s.*)?$',
-          output: `total 48
-drwxr-xr-x 2 root operator 4096 Mar 14 09:45 .
-drwxr-xr-x 4 root root     4096 Jan 15 08:00 ..
--rw-r--r-- 1 root operator 8234 Mar 14 09:45 operations.log
--rw-r--r-- 1 root operator 2048 Mar 14 06:00 startup.log
--rw-r--r-- 1 root operator 4096 Mar 13 18:00 audit.log
-
-# operations.log wurde zuletzt um 09:45 geändert - Ende der Wartung`,
-          skillGain: { linux: 1 },
-        },
-      ],
+      // Der Fall lebt vom ABGLEICH zweier Quellen: Das Betriebsprotokoll sagt
+      // WER und WANN, die Freigabeliste sagt, WEM die Adresse gehört. Erst
+      // beide zusammen beantworten die Frage, und genau deshalb verlangt die
+      // Gewinnbedingung, dass beide gelesen wurden.
+      taskText:
+        'Zwei Quellen abgleichen: /opt/scada/logs/operations.log (wer hat sich wann angemeldet) und /opt/scada/config/access.log (wem gehört die Adresse laut Freigabeliste). Beide mit cat lesen, dann den Befund schreiben — der Editor fehlt, also mit echo "…" > datei und echo "…" >> datei anhängen.\n\nErgebnis nach /home/operator/befund.md, genau diese vier Zeilen:\nquelle: <IP>\nkonto: <Kontoname aus dem Protokoll>\nangriff: ja | nein | unklar\nfehlend: anmeldung | freigabe | keine\n\nZu „fehlend": Gefragt ist, was WIRKLICH fehlt — nicht, was fehlen könnte.',
+      vfsOverlay: {
+        directories: ['/opt/scada/logs', '/opt/scada/config', '/home/operator'],
+        files: [
+          {
+            path: '/opt/scada/logs/operations.log',
+            content:
+              '2026-03-14 06:00:00 [INFO] System startup complete\n' +
+              '2026-03-14 06:00:01 [INFO] Connected to PLC01 at 10.0.0.10\n' +
+              '2026-03-14 08:00:00 [INFO] Operator login: technik01 from 10.0.0.100\n' +
+              '2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance\n' +
+              '2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99\n' +
+              '2026-03-14 09:30:00 [INFO] Setpoint change: Pump_01 speed 75% -> 80%\n' +
+              '2026-03-14 09:45:00 [INFO] Session ended for maintenance\n',
+          },
+          {
+            // Dieselbe Geschichte auch dort, wo die Vorlage ein Protokoll
+            // anlegt — sonst findet ein neugieriger Spieler zwei Wahrheiten.
+            path: '/var/log/scada/operations.log',
+            content:
+              '2026-03-14 09:15:00 [WARN] Login attempt from 10.0.0.99 - User: maintenance\n' +
+              '2026-03-14 09:15:01 [INFO] Session established for maintenance from 10.0.0.99\n' +
+              '2026-03-14 09:45:00 [INFO] Session ended for maintenance\n',
+          },
+          {
+            path: '/opt/scada/config/access.log',
+            content:
+              '# Freigabeliste Fernzugriff — gepflegt von der Leittechnik\n' +
+              '# adresse     kennung          inhaber                  freigegeben\n' +
+              '10.0.0.100    hmi-station      Leitwarte, Platz 1       2021-02-01\n' +
+              '10.0.0.99     siemens-wartung  Wartungslaptop Siemens   2024-06-15\n' +
+              '10.0.0.98     reserve          (frei)                   -\n' +
+              '\n' +
+              '# Betriebsregel: Wartungszugriffe sind VORHER in der Leitwarte\n' +
+              '# anzumelden (Telefon oder Ticket). Die Freigabe allein genügt nicht.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        grep: { linux: 2, security: 1 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['grep', 'cat'],
+          commands: [],
           allRequired: false,
-          resultText: 'Du hast den Wartungszugang identifiziert und verifiziert. Kein Angriff - aber der Prozess muss verbessert werden!',
+          stateGoals: [
+            // Ohne beide Quellen ist der Befund geraten.
+            { fileRead: '/opt/scada/logs/operations.log' },
+            { fileRead: '/opt/scada/config/access.log' },
+            {
+              file: '/home/operator/befund.md',
+              reportFields: [
+                { key: 'quelle', matches: '^10\\.0\\.0\\.99$' },
+                { key: 'konto', matches: '^maintenance$' },
+                // Die Adresse steht seit 2024 in der Freigabeliste. „ja" wäre
+                // eine Behauptung, „unklar" eine Ausrede — beides ist falsch,
+                // weil der Beleg vorliegt.
+                { key: 'angriff', matches: '^nein$' },
+                // Und der eigentliche Befund: Nicht die Freigabe fehlt, die
+                // gibt es. Die ANMELDUNG fehlt, die die Betriebsregel verlangt.
+                { key: 'fehlend', matches: '^anmeldung$' },
+              ],
+            },
+          ],
+          resultText:
+            'Sauber hergeleitet. Die Adresse 10.0.0.99 gehört zum Wartungslaptop des Herstellers und steht seit Juni 2024 in der Freigabeliste — das war kein Angriff, und du kannst es belegen statt es zu hoffen.\n\nWas trotzdem fehlt, ist die Anmeldung. Die Betriebsregel verlangt sie vorher, per Telefon oder Ticket; passiert ist es nicht. Der Unterschied ist wichtig genug für den Bericht: Eine fehlende Freigabe wäre ein Zugangsproblem, eine fehlende Anmeldung ist ein Prozessproblem. Wer beides gleich benennt, bekommt beim nächsten Mal die falsche Maßnahme.\n\nUnd der Preis der Alternative steht daneben: Hätte man das SCADA-System bei diesem Alarm sofort vom Netz genommen, wären 50.000 Einwohner ohne Wasser gewesen — wegen eines Technikers, der vergessen hat anzurufen.',
           skillGain: { security: 5, troubleshooting: 4, linux: 2 },
-          effects: {},
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Die Logs liegen unter /opt/scada/logs oder /var/log/scada',
-        'Tipp: Suche nach der IP 10.0.0.99 in den Logs mit grep',
-        'Tipp: Die /etc/hosts könnte zeigen wem die IP gehört',
+        '🤖 Jens: Die Frage ist nicht „war da jemand", sondern „wem gehört die Adresse". Das Betriebsprotokoll beantwortet die erste Hälfte, die Freigabeliste der Leittechnik die zweite. Beide liegen unter /opt/scada.',
+        '🤖 Jens: Lies die Freigabeliste bis zum Ende. Unter der Tabelle steht die Betriebsregel — und die entscheidet darüber, ob hier wirklich alles in Ordnung war.',
+        '🤖 Jens: Für den Befund gibt es keinen Editor. Die erste Zeile mit einer einfachen Umlenkung schreiben, jede weitere anhängen — sonst überschreibst du dir die vorige.',
+        '🤖 Jens: `cat /opt/scada/logs/operations.log` → `cat /opt/scada/config/access.log` → `echo "quelle: 10.0.0.99" > /home/operator/befund.md` → `echo "konto: maintenance" >> /home/operator/befund.md` → `echo "angriff: nein" >> /home/operator/befund.md` → `echo "fehlend: anmeldung" >> /home/operator/befund.md`.',
       ],
     },
   },
+
   {
     id: 'KRITIS-SC-002',
     title: 'PLC03 antwortet nicht mehr',
@@ -1852,117 +1858,525 @@ Was ist das Problem?`,
       username: 'admin',
       currentPath: '/home/admin',
       templateIds: ['linux-webserver'],
-      commands: [
+      // Die Diagnose läuft von innen nach außen: Läuft der Dienst? Lauscht er?
+      // Kommt jemand an ihn heran? Erst die dritte Frage trifft. Und die
+      // Versuchung sitzt genau dort: Wer die Firewall abschaltet, hat DNS
+      // wieder — und alles andere auch.
+      taskText:
+        'Der Reihe nach prüfen: läuft der Dienst (systemctl status bind9), lauscht er auf Port 53 (ss -tulpen), und lässt die Firewall ihn durch (sudo ufw status)? Das Ereignisprotokoll sagt, was beim letzten Firewall-Update passiert ist (journalctl -u ufw). Die fehlende Freigabe wieder eintragen: sudo ufw allow 53. Die Firewall bleibt dabei an und der Dienst läuft weiter — beides gehört zur Lösung.',
+      services: [
         {
-          pattern: 'ping',
-          patternRegex: 'ping.*google',
-          output: `ping: google.de: Temporary failure in name resolution
-
-# DNS-Auflösung funktioniert nicht!`,
-          skillGain: { troubleshooting: 1 },
-        },
-        {
-          pattern: 'ping',
-          patternRegex: 'ping.*8\\.8\\.8\\.8',
-          output: `PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
-64 bytes from 8.8.8.8: icmp_seq=1 ttl=116 time=12.3 ms
-64 bytes from 8.8.8.8: icmp_seq=2 ttl=116 time=11.8 ms
-64 bytes from 8.8.8.8: icmp_seq=3 ttl=116 time=12.1 ms
-
-# Internet-Konnektivität ist OK!`,
-          skillGain: { netzwerk: 1 },
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*/etc/resolv',
-          output: `# /etc/resolv.conf
-nameserver 192.168.1.2    # Interner DNS
-nameserver 8.8.8.8        # Fallback Google DNS
-
-# Konfiguration sieht korrekt aus`,
-          skillGain: { linux: 1 },
-        },
-        {
-          pattern: 'dig',
-          patternRegex: 'dig|nslookup',
-          output: `;; connection timed out; no servers could be reached
-
-# DNS-Server antwortet nicht!`,
-          skillGain: { netzwerk: 2, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'ping',
-          patternRegex: 'ping.*192\\.168\\.1\\.2',
-          output: `PING 192.168.1.2 (192.168.1.2) 56(84) bytes of data.
-64 bytes from 192.168.1.2: icmp_seq=1 ttl=64 time=0.3 ms
-64 bytes from 192.168.1.2: icmp_seq=2 ttl=64 time=0.4 ms
-64 bytes from 192.168.1.2: icmp_seq=3 ttl=64 time=0.3 ms
-
---- 192.168.1.2 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss
-
-# DNS-Server ist erreichbar (Layer 3)!`,
-          skillGain: { netzwerk: 2 },
-        },
-        {
-          pattern: 'nc',
-          patternRegex: 'nc.*53|telnet.*53',
-          output: `Connection to 192.168.1.2 53 port [tcp/domain] failed: Connection refused
-
-# Port 53 ist ZU! DNS-Service läuft nicht oder wird geblockt!`,
-          skillGain: { netzwerk: 3, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'ssh',
-          patternRegex: 'ssh.*192\\.168\\.1\\.2',
-          output: `Connecting to dns-server (192.168.1.2)...
-
-dns-server$ systemctl status named
-● named.service - BIND DNS Server
-   Loaded: loaded
-   Active: active (running)
-
-dns-server$ ss -tulpn | grep :53
-# Keine Ausgabe! Port 53 ist nicht gebunden!
-
-dns-server$ journalctl -u named | tail
-Mar 14 08:00:00 named: can't bind to address: permission denied
-Mar 14 08:00:00 named: unable to listen on port 53
-
-# Service läuft, aber kann nicht an Port 53 binden!`,
-          skillGain: { linux: 3, troubleshooting: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'iptables',
-          patternRegex: 'iptables|firewall-cmd',
-          output: `Chain INPUT (policy DROP)
-target  prot  source       destination
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:22
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:80
-ACCEPT  tcp   anywhere     anywhere     tcp dpt:443
-# NOTE: Port 53 rule is MISSING!
-
-# Firewall blockiert Port 53! Regel fehlt nach Update!`,
-          skillGain: { netzwerk: 4, security: 2 },
-          isSolution: true,
+          unit: 'bind9.service',
+          active: 'active',
+          enabled: 'enabled',
+          desc: 'BIND Domain Name Server',
         },
       ],
+      listeners: [
+        { proto: 'udp', port: 53, address: '0.0.0.0', pid: 812, program: 'named' },
+        { proto: 'tcp', port: 53, address: '0.0.0.0', pid: 812, program: 'named' },
+        { proto: 'tcp', port: 22, address: '0.0.0.0', pid: 456, program: 'sshd' },
+        { proto: 'tcp', port: 80, address: '0.0.0.0', pid: 1234, program: 'apache2' },
+      ],
+      // Nach dem Update steht die Wand, aber eine Tür fehlt.
+      firewall: {
+        enabled: true,
+        defaultIncoming: 'deny',
+        rules: [
+          { action: 'allow', port: 22, proto: 'tcp' },
+          { action: 'allow', port: 80, proto: 'tcp' },
+          { action: 'allow', port: 443, proto: 'tcp' },
+        ],
+      },
+      journal: [
+        { ts: '2026-03-11 21:04:12', unit: 'ufw', message: 'Regelwerk aus Vorlage neu geschrieben (Wartungsfenster)' },
+        { ts: '2026-03-11 21:04:13', unit: 'ufw', message: 'übernommen: 22/tcp, 80/tcp, 443/tcp' },
+        { ts: '2026-03-11 21:04:13', unit: 'ufw', message: 'nicht in der Vorlage enthalten, entfernt: 53' },
+        { ts: '2026-03-11 21:04:14', unit: 'ufw', message: 'Firewall reloaded' },
+      ],
+      commandSkillGain: {
+        systemctl: { linux: 1 },
+        ss: { netzwerk: 2 },
+        ufw: { netzwerk: 2, security: 1 },
+        journalctl: { linux: 1, troubleshooting: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['dig', 'nc', 'iptables'],
+          commands: [],
           allRequired: false,
-          resultText: 'Problem gefunden! Der DNS-Port 53 wird von der Firewall blockiert. Nach dem letzten Firewall-Update fehlt die Regel für DNS.',
-          skillGain: { netzwerk: 5, troubleshooting: 5, linux: 3 },
-          effects: {},
+          stateGoals: [
+            // Die Tür ist wieder da …
+            { firewallRule: { action: 'allow', port: 53, present: true } },
+            // … und die Wand steht noch. `ufw disable` bringt DNS auch zurück —
+            // zusammen mit allem anderen.
+            { firewallEnabled: true },
+            { firewallDefaultIncoming: 'deny' },
+            // Und der Dienst lebt: Wer den Namensdienst abschießt, hat das
+            // Symptom nicht behoben, sondern das zweite dazugelegt.
+            { listenerPresent: { port: 53 } },
+          ],
+          resultText:
+            'Gefunden und behoben, ohne Kollateralschaden. Der Namensdienst lief die ganze Zeit und lauschte auch — durchgelassen hat ihn nur niemand mehr. Beim Wartungsfenster am 11. März wurde das Regelwerk aus einer Vorlage neu geschrieben, und in der Vorlage stand Port 53 nicht drin. Das Ereignisprotokoll sagt es wörtlich.\n\nDie Reihenfolge der Diagnose ist der eigentliche Gewinn: Dienst, Lauscher, Weg. Wer sie von innen nach außen abarbeitet, findet die Stelle beim dritten Schritt, statt den Dienst auf Verdacht neu zu starten — der lief ja.\n\nUnd die Versuchung war real: `ufw disable` hätte DNS sofort zurückgebracht. Zusammen mit allem anderen, wofür die Wand da steht.',
+          skillGain: { netzwerk: 4, troubleshooting: 4, linux: 2 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: ping zeigt Layer 3, aber DNS nutzt Layer 4/7',
-        'Tipp: dig oder nslookup testen DNS direkt',
-        'Tipp: Ist Port 53 offen? nc -z oder telnet testen',
+        '🤖 Jens: Von innen nach außen. Erst die Frage, ob der Dienst überhaupt läuft — dann, ob er auf seinem Port lauscht — und erst dann, ob jemand an ihn herankommt.',
+        '🤖 Jens: Der Dienst läuft und lauscht. Dann bleibt nur noch der Weg dorthin. Schau dir an, welche Ports die Firewall durchlässt — und vergleiche mit der Liste im Ereignisprotokoll vom Wartungsfenster.',
+        '🤖 Jens: Die Freigabe für 53 ist beim Update verlorengegangen. Trag sie wieder ein — und lass die Finger von `ufw disable`: Das bringt DNS zurück und alles andere gleich mit.',
+        '🤖 Jens: `systemctl status bind9` → `ss -tulpen` → `sudo ufw status` → `journalctl -u ufw` → `sudo ufw allow 53` → Gegenprobe mit `sudo ufw status`.',
+      ],
+    },
+  },
+
+  {
+    id: 'KRITIS-SC-013',
+    title: 'Der ISB war da: Die Kopplung ist keine Grenze',
+    category: 'security_incident',
+    // Schwierigkeit 4, nicht 5: Die Auswahl deckelt Schwierigkeit 5 auf die
+    // Modi intermediate/hard/kritis. Ein OT-Segmentierungsfall, den ausgerechnet
+    // der LERNMODUS nie zu sehen bekommt, ist am falschen Publikum vorbei
+    // gebaut. Gemessen und festgehalten in szenarienZugang.test.ts.
+    difficulty: 4,
+    flavorText: `Der Informationssicherheitsbeauftragte war zur Begehung da und
+hat eine Maßnahmenliste dagelassen. Darauf, mit Frist:
+
+  „Das OT-Netz ist vom Büronetz zu trennen. Fernwartungswerkzeuge
+   (TeamViewer o. ä.) haben im Prozessnetz nichts zu suchen."
+
+Bert reicht sie dir weiter: „Wir HABEN doch eine Firewall zwischen
+den Netzen. Kannst du dem Mann bitte zeigen, dass da eine Grenze ist?"
+
+Du siehst dir \`kopplung01\` an — und die Kette \`forward\` steht auf
+\`policy accept\`. Die vier Regeln darin sehen aus wie eine Grenze.
+Sie sind eine Liste von Ausnahmen, die niemand braucht: Was keine
+Regel trifft, geht sowieso durch.
+
+Dazu kommt der Fund aus dem Ereignisprotokoll: Die HMI im Prozessnetz
+hält eine Verbindung nach \`203.0.113.90:443\` — das Relay des
+Fernwartungswerkzeugs. Sie geht HINAUS. Kein eingehendes Regelwerk
+hat sie je berührt.`,
+    urgency: 'high',
+    choices: [
+      {
+        id: 'A',
+        text: 'Die Kopplung zur echten Grenze machen (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Die Kette hat jetzt einen Boden: Was keine Regel erlaubt, wird verworfen. Der infizierte Engineering-Rechner ist draußen, der Rest des Büronetzes auch — und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr. Alarmweiterleitung und Historian laufen weiter. Der ISB hakt den Punkt ab.',
+        scoreChange: 250,
+        reputationChange: 25,
+        lesson: 'Eine Firewall ist keine Grenze, solange ihre Grundhaltung „durchlassen" ist. Die Regeln beschreiben dann nicht, was erlaubt IST, sondern nur, was jemand einmal aufgeschrieben hat.',
+      },
+      {
+        id: 'B',
+        text: 'Dem ISB die vier Regeln als Nachweis schicken',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Der ISB liest die Regeln — und fragt nach der Grundhaltung. Danach steht im Bericht: „Segmentierung nicht wirksam; Nachweis war eine Regelliste ohne Grundhaltung." Das ist die schlechtere Variante von „wir haben nichts getan", weil jetzt jemand nachgesehen hat.',
+        scoreChange: -200,
+        reputationChange: -25,
+        lesson: 'Ein Regelwerk belegt nichts ohne seine Grundhaltung. Vier Erlaubnisse über einer „policy accept" sind vier Erlaubnisse über einem offenen Tor.',
+      },
+      {
+        id: 'C',
+        text: 'Kabel ziehen: OT komplett vom Rest trennen',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence:
+          'Das Prozessnetz ist sauber getrennt — und die Leitwarte bekommt um 03:10 Uhr keinen Alarm mehr, als die Druckhaltung in Werk 2 abfällt. Der Bereitschaftsdienst erfährt davon morgens aus dem Historian, der auch nichts mehr bekommen hat.',
+        scoreChange: -50,
+        reputationChange: -10,
+        lesson: 'In der OT ist Trennung nie kostenlos. Vor dem Abriegeln muss man wissen, was über die Grenze MUSS — Alarmierung zuerst. Sonst verbessert die Maßnahme die Sicherheit auf dem Papier und verschlechtert sie in der Anlage.',
+      },
+    ],
+    realWorldReference:
+      'Colonial Pipeline 2021: Der Angriff traf die IT, abgeschaltet wurde die OT — weil niemand belegen konnte, wo die Grenze verläuft. Und Fernwartungswerkzeuge bauen ihre Verbindung von innen nach außen auf; eingehende Sperren greifen dort grundsätzlich nicht.',
+    bsiReference: 'BSI ICS-Security Kompendium 5.2 (Netzsegmentierung); BSI-Grundschutz NET.1.1.A3',
+    involvedNpcs: [],
+    tags: ['ot-security', 'segmentierung', 'firewall', 'isb', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'kopplung01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Regelsatz ansehen mit sudo nft -a list ruleset (-a blendet die Handles ein). Die Kette forward steht auf policy accept — alles, was keine Regel trifft, geht durch. Zieh den Boden ein (sudo nft add rule inet filter forward drop hängt eine Regel ans ENDE, sudo nft insert rule ... setzt sie an den Anfang — überleg, was davon hier richtig ist) und nimm der Engineering-Workstation 10.10.0.100 ihren Weg ins OT-Netz (sudo nft delete rule inet filter forward handle <nummer>). Weiterlaufen müssen: die Alarmweiterleitung 10.20.0.0/16 → 10.10.0.50 (514/udp) und der Historian-Feed → 10.10.0.60 (5432/tcp).',
+      journal: [
+        { ts: '2026-09-18 08:41:02', unit: 'kernel', message: 'FORWARD in=ot0 out=wan0 SRC=10.20.5.11 DST=203.0.113.90 PROTO=TCP DPT=443' },
+        { ts: '2026-09-18 08:41:02', unit: 'kernel', message: 'FORWARD in=ot0 out=wan0 SRC=10.20.5.11 DST=203.0.113.90 PROTO=TCP DPT=443' },
+        { ts: '2026-09-18 09:15:44', unit: 'kernel', message: 'FORWARD in=lan0 out=ot0 SRC=10.10.0.100 DST=10.20.5.11 PROTO=TCP DPT=3389' },
+        { ts: '2026-09-18 09:16:03', unit: 'kernel', message: 'FORWARD in=lan0 out=ot0 SRC=10.10.0.77 DST=10.20.5.11 PROTO=TCP DPT=445' },
+      ],
+      nft: {
+        chains: [
+          {
+            name: 'forward',
+            // Die eigentliche Schwachstelle steht in dieser einen Zeile.
+            base: { hook: 'forward', policy: 'accept' },
+            rules: [
+              'ct state established,related accept',
+              'ip saddr 10.20.0.0/16 ip daddr 10.10.0.50 udp dport 514 accept',
+              'ip saddr 10.20.0.0/16 ip daddr 10.10.0.60 tcp dport 5432 accept',
+              'ip saddr 10.10.0.100 ip daddr 10.20.0.0/16 tcp dport 3389 accept',
+            ],
+          },
+        ],
+      },
+      commandSkillGain: {
+        nft: { netzwerk: 2, security: 2 },
+        journalctl: { linux: 1, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Zu wenig, Teil 1: der infizierte Rechner braucht den Weg nicht mehr.
+            { nftVerdict: { from: '10.10.0.100', to: '10.20.5.11', port: 3389, hook: 'forward', expect: 'drop' } },
+            // Zu wenig, Teil 2: das übrige Büronetz kam über die Grundhaltung
+            // durch, ohne dass je eine Regel es erlaubt hätte.
+            { nftVerdict: { from: '10.10.0.77', to: '10.20.5.11', port: 445, hook: 'forward', expect: 'drop' } },
+            // Der Fund: Fernwartung geht HINAUS.
+            { nftVerdict: { from: '10.20.5.11', to: '203.0.113.90', port: 443, hook: 'forward', expect: 'drop' } },
+            // Zu viel: beides muss überleben. Wer die Sperre nach oben setzt,
+            // verliert genau hier.
+            { nftVerdict: { from: '10.20.5.11', to: '10.10.0.50', port: 514, proto: 'udp', hook: 'forward', expect: 'accept' } },
+            { nftVerdict: { from: '10.20.5.11', to: '10.10.0.60', port: 5432, hook: 'forward', expect: 'accept' } },
+          ],
+          resultText:
+            'Jetzt ist es eine Grenze. Die Kette hat einen Boden: Was keine Regel erlaubt, wird verworfen — und damit fällt auf einen Schlag alles weg, was vorher nur deshalb durchkam, weil es niemand aufgeschrieben hatte. Der Engineering-Rechner ist draußen, das übrige Büronetz auch, und das Relay des Fernwartungswerkzeugs bekommt keine Antwort mehr.\n\nDrei Dinge nimmst du mit. Erstens: Eine Regelliste ohne Grundhaltung belegt nichts — die vier Zeilen sahen wie eine Grenze aus und waren eine Sammlung von Notizen. Zweitens: Fernwartungswerkzeuge bauen ihre Verbindung von innen nach außen auf; wer nur eingehend sperrt, hat sie nie berührt. Und drittens, das Teuerste: Wo die Sperre steht, entscheidet, was sie mitnimmt. Eine Zeile weiter oben, und die Leitwarte hätte um 03:10 Uhr keinen Alarm mehr bekommen.',
+          skillGain: { netzwerk: 6, security: 6, troubleshooting: 2 },
+          effects: { stress: -2 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Fang bei der Grundhaltung an, nicht bei den Regeln. Die erste Zeile der Kette sagt dir, was mit allem passiert, das keine Regel trifft — und genau das ist hier das Problem.',
+        '🤖 Jens: Eine Kette wird von oben gelesen. Wenn du einen Boden einziehst, muss er UNTEN liegen: Was vorher erlaubt wurde, ist dann schon entschieden. Setzt du ihn oben ein, entscheidet er alles — auch das, was weiterlaufen muss.',
+        '🤖 Jens: Zwei Schritte. Erst der Boden, dann die Regel, die dem infizierten Rechner den Weg ins OT-Netz offen hält — ihre Nummer steht am Zeilenende, sobald du die Handles einblendest. Die beiden Regeln für Alarm und Historian lässt du in Ruhe.',
+        '🤖 Jens: `sudo nft -a list ruleset` → `sudo nft add rule inet filter forward drop` (ans Ende!) → in der Zeile mit `10.10.0.100` das `# handle 6` ablesen → `sudo nft delete rule inet filter forward handle 6` → Gegenprobe mit `sudo nft -a list ruleset`.',
+      ],
+    },
+  },
+  // ===========================================================================
+  // Zweite Forderung des ISB: Backup isoliert und verschlüsselt rückspielbar.
+  //
+  // „Rückspielbar" ist eine Behauptung, bis jemand zurückgespielt hat. Deshalb
+  // ist die Rückspielprobe hier die Aufgabe und nicht die Erzählung: Der
+  // Spieler entschlüsselt wirklich, rechnet wirklich eine Prüfsumme und
+  // vergleicht sie mit der, die der Sicherungslauf hinterlassen hat.
+  //
+  // Die zweite Hälfte der Forderung — „isoliert im Netz" — ist genauso wörtlich
+  // gemeint: Ein Sicherungsserver, den jeder Arbeitsplatz erreicht, teilt das
+  // Schicksal des Netzes, in dem er steht.
+  // ===========================================================================
+  {
+    id: 'KRITIS-SC-014',
+    title: 'Der ISB war da: Ist das Backup rückspielbar?',
+    category: 'compliance',
+    difficulty: 4,
+    flavorText: `Aus der Maßnahmenliste des ISB, Abschnitt Datensicherung:
+
+  „Datensicherungen sind netzseitig zu isolieren und verschlüsselt
+   vorzuhalten. Die Wiederherstellbarkeit ist zu erproben und zu
+   dokumentieren."
+
+Bert: „Das Backup läuft jede Nacht durch, seit zwei Jahren, immer
+grün. Reicht das nicht als Nachweis?"
+
+Ein grünes Sicherungsprotokoll sagt, dass geschrieben wurde. Es sagt
+nichts darüber, ob sich das Geschriebene wieder öffnen lässt — und
+genau das ist die Frage, die man sich nicht am Schadenstag zum ersten
+Mal stellt.
+
+Auf \`backup01\` liegen die verschlüsselten Archive, der Schlüssel als
+Kopie aus dem Tresor und die Prüfsummen, die der Sicherungslauf
+hinterlässt. Die Firewall des Servers ist aus.`,
+    urgency: 'medium',
+    choices: [
+      {
+        id: 'A',
+        text: 'Rückspielprobe fahren und den Server abriegeln (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Das Archiv lässt sich öffnen, die Prüfsumme stimmt mit der des Sicherungslaufs überein — und backup01 nimmt nur noch den Sicherungsagenten an. Der ISB bekommt keinen Satz, sondern zwei Zahlen, die übereinstimmen.',
+        scoreChange: 220,
+        reputationChange: 25,
+        lesson: 'Eine Sicherung ist erst dann eine Sicherung, wenn sie einmal zurückgespielt wurde. Vorher ist sie eine Datei, von der man hofft.',
+      },
+      {
+        id: 'B',
+        text: 'Dem ISB die grünen Sicherungsprotokolle der letzten zwei Jahre schicken',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Der ISB fragt zurück: „Wann wurde daraus zuletzt etwas wiederhergestellt?" Die Antwort ist: noch nie. Im Bericht steht danach „Wiederherstellung nicht erprobt" — und das ist keine Formalie: Niemand im Haus weiß, ob die Archive sich öffnen lassen.',
+        scoreChange: -150,
+        reputationChange: -20,
+        lesson: 'Ein grünes Sicherungsprotokoll belegt den Schreibvorgang, nicht die Lesbarkeit. Die beiden Aussagen werden ständig verwechselt, und der Unterschied fällt genau einmal auf.',
+      },
+      {
+        id: 'C',
+        text: 'Den Schlüssel zusätzlich auf dem Produktivserver ablegen, damit man im Notfall drankommt',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Damit ist der Schlüssel genau dort, wo im Notfall nichts mehr geht. Der Produktivserver IST der Notfall — wer ihn verschlüsselt vorfindet, findet auch den Schlüssel verschlüsselt vor. Die Maßnahme fühlt sich nach Verfügbarkeit an und ist das Gegenteil.',
+        scoreChange: -200,
+        reputationChange: -20,
+        lesson: 'Schlüssel und Daten dürfen nicht dasselbe Schicksal teilen. Ein Schlüssel auf dem System, das die Sicherung schützen soll, ist kein Schlüssel — er ist eine Kopie des Risikos.',
+      },
+    ],
+    realWorldReference:
+      'Maersk 2017 (NotPetya): Die Wiederherstellung der Verzeichnisdienste gelang nur, weil ein einzelner Server in Ghana während des Angriffs wegen eines Stromausfalls offline war. Isolation war dort ein Zufall — sie soll eine Maßnahme sein.',
+    bsiReference: 'BSI-Grundschutz CON.3 Datensicherungskonzept, insbesondere CON.3.A5 (Wiederherstellungstests)',
+    involvedNpcs: [],
+    tags: ['backup', 'wiederherstellung', 'isb', 'verschluesselung', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'backup01',
+      username: 'timo',
+      currentPath: '/srv/backup',
+      taskText:
+        'Rückspielprobe: Prüfsummenliste lesen (cat /srv/backup/sha256sums.txt), das Archiv entschlüsseln nach /tmp/dispo-2026-09-17.tar (sudo openssl enc -d -aes-256-cbc -pbkdf2 -in <archiv> -out <ziel> -pass file:<schlüsseldatei>) und die Prüfsumme des Ergebnisses rechnen (sha256sum). Danach den Server abriegeln: sudo ufw default deny incoming, nur den Sicherungsagenten 10.10.0.40 auf Port 22 zulassen (sudo ufw allow from ... to any port 22) und sudo ufw enable. Kein zweiter offener Weg — die Freigabe gilt genau für diese eine Quelle.',
+      vfsOverlay: {
+        directories: ['/srv/backup', '/etc/backup/keys'],
+        files: [
+          { path: '/srv/backup/dispo-2026-09-17.tar.enc', content: 'Salted__vdVw9WOd718e6tx6aNQWjmCbAO2aXf2rAUK5E+Rq7QCbL6ECZLsbd5h93mgLukr0D/YGY9khh23BgjPEfGSaC3rhYfRPtoZTH6pvJ+MiuCiuCu0EHu2xfCzRy0vCbfsH0p0ye1Gd6NUCsUnykiCViDwScVuumlg=' },
+          {
+            path: '/srv/backup/sha256sums.txt',
+            content:
+              '# Prüfsummen des Sicherungslaufs, gerechnet VOR der Verschlüsselung.\n' +
+              '# Wer nach dem Rückspielen dieselbe Summe erhält, hat denselben Inhalt.\n' +
+              '86cf5470a7558a86a3dea49cfb7aa8c2fa25baffd98ef63b56e46f6c3c5f60bd  dispo-2026-09-17.tar\n',
+          },
+          {
+            path: '/etc/backup/keys/backup.key',
+            content: 'tresor-2026-M7\n',
+            mode: '600',
+          },
+          {
+            path: '/etc/backup/README.txt',
+            content:
+              'Sicherungsschlüssel\n' +
+              '===================\n' +
+              'Das Original liegt im Tresor der Verwaltung (Umschlag M7, versiegelt).\n' +
+              'Hier liegt eine Arbeitskopie, damit der nächtliche Lauf verschlüsseln kann.\n' +
+              '\n' +
+              'Der Schlüssel gehört NICHT auf die Produktivsysteme. Wer ihn dorthin\n' +
+              'kopiert, hat im Schadensfall Daten und Schlüssel im selben Zustand.\n',
+          },
+        ],
+      },
+      firewall: { enabled: false, defaultIncoming: 'allow', rules: [] },
+      commandSkillGain: {
+        openssl: { linux: 2, security: 2 },
+        sha256sum: { linux: 1, security: 1 },
+        ufw: { netzwerk: 1, security: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Öffnen lässt sich das Archiv nur mit dem richtigen Schlüssel —
+            // dass dieser Inhalt dasteht, IST die Rückspielprobe.
+            { file: '/tmp/dispo-2026-09-17.tar', matches: 'DISPO-DB-DUMP' },
+            // Und die Probe muss auch verglichen werden, sonst ist sie ein
+            // Bauchgefühl: Sollwert lesen, Istwert rechnen.
+            { fileRead: '/srv/backup/sha256sums.txt' },
+            { hashComputed: { path: '/tmp/dispo-2026-09-17.tar', algorithm: 'sha256' } },
+            // Zweite Hälfte der Forderung, wörtlich genommen.
+            { firewallDefaultIncoming: 'deny' },
+            { firewallRule: { action: 'allow', port: 22, from: '10.10.0.40', present: true, exclusive: true } },
+            { firewallEnabled: true },
+          ],
+          resultText:
+            'Zurückgespielt und nachgerechnet: Die Prüfsumme des entschlüsselten Archivs ist dieselbe, die der Sicherungslauf vor dem Verschlüsseln notiert hat. Damit steht nicht „das Backup läuft", sondern „aus diesem Archiv kommt genau das zurück, was hineingegangen ist". Und backup01 nimmt nur noch den Sicherungsagenten an.\n\nZwei Sätze zum Mitnehmen. Ein grünes Sicherungsprotokoll belegt den Schreibvorgang, nicht die Lesbarkeit — das sind zwei verschiedene Aussagen, und der Unterschied fällt genau einmal auf. Und: Schlüssel und Daten dürfen nicht dasselbe Schicksal teilen. Deshalb liegt das Original im Tresor und hier nur eine Arbeitskopie; auf dem Produktivserver hat es nichts verloren, denn der ist im Schadensfall das Problem.',
+          skillGain: { security: 6, linux: 4, netzwerk: 2 },
+          effects: { stress: -2, compliance: 4 },
+        },
+      ],
+      hints: [
+        '🤖 Henry: Fang bei den Unterlagen an. Der Sicherungslauf hinterlässt eine Prüfsummenliste, und in /etc/backup steht, wo der Schlüssel herkommt und wo er nicht hingehört.',
+        '🤖 Henry: Rückspielen heißt hier: entschlüsseln und nachrechnen. Der Schlüssel wird nicht getippt, er wird aus der Datei gelesen — alles andere stünde nachher in der Befehlshistorie.',
+        '🤖 Henry: Die zweite Hälfte der Forderung ist die Firewall. Erst die Grundhaltung auf „eingehend verwerfen", dann die EINE Freigabe für den Sicherungsagenten, dann scharfschalten. Eine zweite, unbeschränkte Freigabe auf Port 22 macht die erste wertlos.',
+        '🤖 Henry: `cat /srv/backup/sha256sums.txt` → `sudo openssl enc -d -aes-256-cbc -pbkdf2 -in /srv/backup/dispo-2026-09-17.tar.enc -out /tmp/dispo-2026-09-17.tar -pass file:/etc/backup/keys/backup.key` → `sha256sum /tmp/dispo-2026-09-17.tar` → `sudo ufw default deny incoming` → `sudo ufw allow from 10.10.0.40 to any port 22` → `sudo ufw enable`.',
+      ],
+    },
+  },
+  // ===========================================================================
+  // Dritte Forderung des ISB: protokollierter Zugriff für Externe.
+  //
+  // Der Fall dreht sich nicht um „Zugang zu“ sondern um „zuzuordnen“. Ein
+  // Sammelkonto ist kein Zugriff, den man jemandem zurechnen kann — und weil
+  // es niemandem gehört, räumt es auch niemand auf. Genau das ist der Fund:
+  // Zwei der drei hinterlegten Schlüssel gehören Leuten, die längst woanders
+  // arbeiten. Aufgefallen ist es nie, weil das Konto keinen Besitzer hat.
+  //
+  // Dazu die Kleinigkeit, die den Unterschied zwischen „protokolliert“ und
+  // „zuzuordnen“ macht: Erst `LogLevel VERBOSE` schreibt den Fingerabdruck des
+  // verwendeten Schlüssels mit. Ohne ihn steht im Protokoll ein Kontoname.
+  // ===========================================================================
+  {
+    id: 'KRITIS-SC-015',
+    title: 'Der ISB war da: Wer war das eigentlich?',
+    category: 'compliance',
+    difficulty: 4,
+    flavorText: `Aus der Maßnahmenliste des ISB, Abschnitt Fremdzugriffe:
+
+  „Zugriffe externer Dienstleister sind personenbezogen zu vergeben
+   und nachvollziehbar zu protokollieren."
+
+Auf \`wartung01\`, dem Sprungrechner für die Wartungsfirma, gibt es
+seit Jahren genau ein Konto: \`dienstleister\`. Passwort kennt die
+halbe Firma drüben, und in der \`authorized_keys\` liegen drei
+Schlüssel.
+
+Bert: „Ist doch protokolliert, steht alles im Log."
+
+Im Protokoll steht \`dienstleister\`. Immer. Bei jedem Zugriff, seit
+zwei Jahren. Wer davon tatsächlich am Freitagabend die SPS-Parameter
+geändert hat, steht dort nicht — und lässt sich auch nicht mehr
+feststellen.
+
+Die Kontaktliste der Wartungsfirma liegt bei den Verträgen.`,
+    urgency: 'medium',
+    choices: [
+      {
+        id: 'A',
+        text: 'Einzelzugänge einrichten und die Protokollierung schärfen (Terminal)',
+        outcome: 'PERFECT',
+        terminalCommand: true,
+        consequence:
+          'Das Sammelkonto nimmt keinen Schlüssel mehr an, der eine noch gültige Zugang liegt auf einem Konto mit Namen, Passwörter sind zu — und das Protokoll schreibt ab sofort den Fingerabdruck des verwendeten Schlüssels mit. Ab jetzt steht dort, wer.',
+        scoreChange: 220,
+        reputationChange: 25,
+        lesson: 'Nachvollziehbarkeit entsteht nicht beim Protokollieren, sondern beim Vergeben. Was man einem Sammelkonto gibt, kann kein Protokoll der Welt hinterher einer Person zuordnen.',
+      },
+      {
+        id: 'B',
+        text: 'Passwort des Sammelkontos ändern und der Wartungsfirma neu mitteilen',
+        outcome: 'PARTIAL_SUCCESS',
+        consequence:
+          'Der akute Ärger ist weg — für ein paar Wochen. Das neue Passwort kennt drüben wieder die halbe Firma, im Protokoll steht weiterhin `dienstleister`, und die beiden Schlüssel der längst ausgeschiedenen Mitarbeiter liegen unverändert in der `authorized_keys`. Ein Passwortwechsel berührt Schlüssel nicht.',
+        scoreChange: 20,
+        reputationChange: 0,
+        lesson: 'Ein Passwortwechsel am Sammelkonto ändert nichts an der Zurechenbarkeit — und er schließt keine Tür, die mit einem Schlüssel offensteht.',
+      },
+      {
+        id: 'C',
+        text: 'Den Zugang der Wartungsfirma komplett sperren, bis sie ein Konzept liefert',
+        outcome: 'CRITICAL_FAIL',
+        consequence:
+          'Am Dienstag fällt die Förderpumpe in Werk 2 aus. Der Hersteller könnte in zwanzig Minuten draufschauen — und kommt nicht rein. Der Bereitschaftsdienst fährt zweieinhalb Stunden, die Anlage steht so lange. Der ISB wollte Zurechenbarkeit, nicht Stillstand.',
+        scoreChange: -180,
+        reputationChange: -25,
+        lesson: 'Zugänge für Externe sind Betriebsmittel. Man ordnet sie einer Person zu, man protokolliert sie, man befristet sie — aber man kappt sie nicht ersatzlos, solange die Anlage davon abhängt.',
+      },
+    ],
+    realWorldReference:
+      'Target 2013: Die Angreifer kamen über den Zugang eines Klimatechnik-Dienstleisters herein. Der BSI-Grundschutz verlangt für Fernzugriffe Dritter personenbezogene Kennungen und eine Protokollierung, die den Handelnden erkennen lässt — beides scheitert regelmäßig am bequemen Sammelkonto.',
+    bsiReference: 'BSI-Grundschutz OPS.2.3 (Fernwartung) und ORP.4.A2 (personenbezogene Kennungen)',
+    involvedNpcs: [],
+    tags: ['dienstleister', 'fernwartung', 'protokollierung', 'isb', 'terminal'],
+    terminalContext: {
+      type: 'linux',
+      hostname: 'wartung01',
+      username: 'timo',
+      currentPath: '/home/timo',
+      taskText:
+        'Kontaktliste lesen (cat /srv/vertrag/wartungsvertrag.txt) — nur eine der drei hinterlegten Kennungen ist noch berechtigt. Deren Schlüssel aus dem Sammelkonto in das persönliche Konto holen (grep auf /home/dienstleister/.ssh/authorized_keys, Ausgabe per > nach /home/ext-<name>/.ssh/authorized_keys) und die Datei des Sammelkontos entfernen (sudo rm -f). Dann /etc/ssh/sshd_config mit sudo sed -i härten: PasswordAuthentication auf no und LogLevel auf VERBOSE (erst damit steht der Schlüssel-Fingerabdruck im Protokoll, nicht nur der Kontoname). Zum Schluss sudo systemctl restart ssh — vorher liest der Dienst die Änderung nicht.',
+      vfsOverlay: {
+        directories: [
+          '/srv/vertrag',
+          '/home/dienstleister/.ssh',
+          '/home/ext-marek/.ssh',
+          '/home/ext-lorenz/.ssh',
+          '/home/ext-said/.ssh',
+        ],
+        files: [
+          {
+            path: '/srv/vertrag/wartungsvertrag.txt',
+            content:
+              'Wartungsvertrag SPS/Leittechnik — Anlage B: benannte Personen\n' +
+              '=============================================================\n' +
+              'Stand: 01.09.2026\n' +
+              '\n' +
+              'ext-marek   Marek, T.    Servicetechniker    AKTIV\n' +
+              'ext-lorenz  Lorenz, S.    Servicetechniker    ausgeschieden 03/2026\n' +
+              'ext-said    Said, N.     Projektleitung      ausgeschieden 11/2025\n' +
+              '\n' +
+              'Hinweis der Wartungsfirma vom 04.03.2026: Herr Lorenz ist nicht mehr\n' +
+              'im Unternehmen. Bitte Zugänge entziehen.\n' +
+              '(Die Mail wurde weitergeleitet. Passiert ist nichts — das Konto\n' +
+              ' gehört ja niemandem hier.)\n',
+          },
+          {
+            path: '/home/dienstleister/.ssh/authorized_keys',
+            content:
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGm1marek00000000000000000000000000000001 marek@wartung-gmbh\n' +
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGk9lorenz000000000000000000000000000002 lorenz@wartung-gmbh\n' +
+              'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGs4said000000000000000000000000000000003 said@wartung-gmbh\n',
+            mode: '600',
+          },
+          {
+            path: '/etc/ssh/sshd_config',
+            content:
+              'Port 22\n' +
+              'PermitRootLogin no\n' +
+              'PasswordAuthentication yes\n' +
+              'PubkeyAuthentication yes\n' +
+              '#LogLevel INFO\n' +
+              'UsePAM yes\n' +
+              'X11Forwarding no\n',
+          },
+        ],
+      },
+      journal: [
+        { ts: '2026-09-12 19:44:08', unit: 'sshd', message: 'Accepted publickey for dienstleister from 198.51.100.23 port 51233 ssh2' },
+        { ts: '2026-09-12 21:02:51', unit: 'sshd', message: 'Accepted password for dienstleister from 198.51.100.23 port 51244 ssh2' },
+        { ts: '2026-09-15 08:11:19', unit: 'sshd', message: 'Accepted publickey for dienstleister from 198.51.100.23 port 51981 ssh2' },
+      ],
+      commandSkillGain: {
+        grep: { linux: 2 },
+        sed: { linux: 2, security: 1 },
+        systemctl: { linux: 1 },
+      },
+      commands: [],
+      solutions: [
+        {
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Wer überhaupt noch berechtigt ist, steht im Vertrag — nicht im Kopf.
+            { fileRead: '/srv/vertrag/wartungsvertrag.txt' },
+            // Das Sammelkonto nimmt keinen Schlüssel mehr an.
+            { file: '/home/dienstleister/.ssh/authorized_keys', fileAbsent: true },
+            // Der eine gültige Zugang liegt auf einem Konto mit Namen …
+            { file: '/home/ext-marek/.ssh/authorized_keys', matches: 'marek@wartung-gmbh' },
+            // … und die beiden ausgeschiedenen sind nicht heimlich mitgewandert.
+            { file: '/home/ext-marek/.ssh/authorized_keys', absentMatches: 'lorenz@wartung-gmbh' },
+            { file: '/home/ext-marek/.ssh/authorized_keys', absentMatches: 'said@wartung-gmbh' },
+            // Passwörter zu: nur ein Schlüssel ist einer Person zuzuordnen.
+            { sshdEffective: { passwordAuthentication: false } },
+            // Und das, was aus „protokolliert" ein „zuzuordnen" macht.
+            { file: '/etc/ssh/sshd_config', matches: '^LogLevel VERBOSE' },
+          ],
+          resultText:
+            'Jetzt steht im Protokoll, wer. Das Sammelkonto nimmt keinen Schlüssel mehr an, der eine noch gültige Zugang liegt auf einem Konto mit Namen, Passwörter sind zu — und mit dem ausführlichen Protokoll wird der Fingerabdruck des verwendeten Schlüssels mitgeschrieben statt nur der Kontoname.\n\nDer eigentliche Fund steht in der Kontaktliste: Zwei der drei Schlüssel gehörten Leuten, die seit Monaten bzw. fast einem Jahr woanders arbeiten. Die Mail der Wartungsfirma kam im März. Aufgefallen ist es trotzdem niemandem — weil das Konto niemandem gehört. Ein Sammelkonto hat keinen Besitzer, und was keinen Besitzer hat, räumt keiner auf.\n\nDeshalb ist die Reihenfolge wichtig: Nachvollziehbarkeit entsteht beim VERGEBEN, nicht beim Protokollieren. Was man einem Sammelkonto gibt, kann hinterher kein Protokoll mehr einer Person zuordnen.',
+          skillGain: { security: 6, linux: 4, softSkills: 2 },
+          effects: { stress: -1, compliance: 5 },
+        },
+      ],
+      hints: [
+        '🤖 Jens: Bevor du irgendetwas änderst: Wer darf überhaupt noch? Das steht nicht auf dem Server, das steht im Vertrag. Anlage B ist eine Namensliste mit Status.',
+        '🤖 Jens: Die Schlüssel tragen am Zeilenende einen Kommentar mit dem Namen. Du musst also nichts abtippen — die richtige Zeile lässt sich herausfiltern und in die Datei des persönlichen Kontos umlenken.',
+        '🤖 Jens: Zwei Dinge in der sshd_config. Passwörter abschalten ist das eine. Das andere ist die Protokolltiefe: In der Voreinstellung steht nur der Kontoname im Protokoll, mit der ausführlichen Stufe auch der Fingerabdruck des Schlüssels. Und der Dienst liest die Datei erst nach einem Neustart.',
+        "🤖 Jens: `cat /srv/vertrag/wartungsvertrag.txt` → `grep marek /home/dienstleister/.ssh/authorized_keys > /home/ext-marek/.ssh/authorized_keys` → `sudo rm -f /home/dienstleister/.ssh/authorized_keys` → `sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config` → `sudo sed -i 's/^#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config` → `sudo systemctl restart ssh`.",
       ],
     },
   },

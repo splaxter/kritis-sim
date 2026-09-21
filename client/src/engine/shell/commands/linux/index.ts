@@ -15,6 +15,8 @@ import { builtinCommands } from './builtins';
 import { extendedCommands } from './extended';
 import { remoteCommands } from './remote';
 import { firewallCommands } from './firewallCmd';
+import { nftCommand } from './nftCmd';
+import { opensslCommand } from './opensslCmd';
 import { ansibleCommands } from './ansible';
 
 export const allLinuxCommands: ShellCommand[] = [
@@ -29,6 +31,8 @@ export const allLinuxCommands: ShellCommand[] = [
   ...extendedCommands,
   ...remoteCommands,
   ...firewallCommands,
+  nftCommand,
+  opensslCommand,
   ...ansibleCommands,
 ];
 
@@ -43,5 +47,7 @@ export {
   extendedCommands,
   remoteCommands,
   firewallCommands,
+  nftCommand,
+  opensslCommand,
   ansibleCommands,
 };

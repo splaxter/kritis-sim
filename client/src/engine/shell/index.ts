@@ -18,14 +18,14 @@ export * from './feedback';
 
 import {
   TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
-  TerminalJournalEntry, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
+  TerminalJournalEntry, TerminalFirewallSpec, TerminalNftSpec, TerminalMailboxSpec, NetListener, NetConnection,
 } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { createHostState, seedPrimaryHost } from './hosts';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
 import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
-import { VFSTemplate, applyTemplate } from './templates';
+import { VFSTemplate, applyTemplate, resolveTemplateIds } from './templates';
 import { VFSNode } from './types';
 import { seedVfsFromScenario } from './scenarioSeed';
 
@@ -92,6 +92,19 @@ export function createShell(options: CreateShellOptions): ShellEngine {
 /**
  * Create a shell from a terminal context (for game integration)
  */
+/**
+ * Eine Shell aus einem Level-Kontext bauen.
+ *
+ * WICHTIG fuer Aufrufer: den Kontext GANZ uebergeben, nicht Feld fuer Feld
+ * abschreiben. Genau daran ist es einmal gescheitert — `useTerminal` hat elf
+ * Felder weitergereicht und sieben vergessen (`services`, `journal`,
+ * `firewall`, `nft`, `listeners`, `connections`, `mailboxes`). Die Pruefungen
+ * bauten die Shell aus dem vollen Kontext und waren gruen; im Spiel lief der
+ * Spieler gegen einen ungesaeten Host. `learn_net_01_open_doors` war dadurch
+ * beim ersten Enter geloest, weil der Lauscher, den man beenden sollte, nie
+ * existierte. Deshalb nimmt diese Funktion `templateIds` selbst entgegen:
+ * damit ein Aufrufer nichts mehr auseinandernehmen muss.
+ */
 export function createShellFromContext(context: {
   type: 'linux' | 'windows';
   hostname: string;
@@ -103,6 +116,12 @@ export function createShellFromContext(context: {
   };
   env?: Record<string, string>;
   templates?: VFSTemplate[];
+  /**
+   * Alternative zu `templates`: Die Vorlagen werden hier aufgeloest. Damit
+   * kann ein Aufrufer den GANZEN TerminalContext durchreichen, statt Felder
+   * einzeln abzuschreiben — siehe den Kommentar ueber dieser Funktion.
+   */
+  templateIds?: Parameters<typeof resolveTemplateIds>[0];
   /** Canned scenario commands — used to auto-seed the VFS so quest paths exist. */
   commands?: { pattern: string; output: string }[];
   hints?: string[];
@@ -117,6 +136,8 @@ export function createShellFromContext(context: {
   journal?: TerminalJournalEntry[];
   /** Firewall state seeded onto the PRIMARY host. */
   firewall?: TerminalFirewallSpec;
+  /** nftables ruleset seeded onto the PRIMARY host. */
+  nft?: TerminalNftSpec;
   /** Listening sockets seeded onto the PRIMARY host. */
   listeners?: NetListener[];
   /** Established connections seeded onto the PRIMARY host. */
@@ -133,7 +154,7 @@ export function createShellFromContext(context: {
     env: context.env,
     files: context.vfsOverlay?.files,
     directories: context.vfsOverlay?.directories,
-    templates: context.templates,
+    templates: context.templates ?? (context.templateIds ? resolveTemplateIds(context.templateIds) : undefined),
   });
 
   // Set the initial working directory. Content occasionally bakes a prompt
@@ -164,11 +185,12 @@ export function createShellFromContext(context: {
 
   // Seed custom services/journal/firewall onto the primary host AFTER the VFS
   // overlay is in place (unit files must exist when snapshotted).
-  if (context.services || context.journal || context.firewall || context.listeners || context.connections || context.mailboxes) {
+  if (context.services || context.journal || context.firewall || context.nft || context.listeners || context.connections || context.mailboxes) {
     seedPrimaryHost(shell.getBaseHost(), {
       services: context.services,
       journal: context.journal,
       firewall: context.firewall,
+      nft: context.nft,
       listeners: context.listeners,
       connections: context.connections,
       mailboxes: context.mailboxes,

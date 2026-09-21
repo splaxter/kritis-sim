@@ -131,3 +131,39 @@ describe('checkReportFields — Listenwerte als ganze Eintraege', () => {
     ).toBe(true);
   });
 });
+
+describe('Die Schreibweise entscheidet nicht ueber die Antwort', () => {
+  /**
+   * Beim Probespielen gefunden: „angriff: Nein" fiel durch, „angriff: nein"
+   * ging durch. Die Schluessel und die Listenwerte waren schon immer
+   * schreibungsblind — nur `matches` nicht. Das ist eine Falle, die nichts
+   * ueber das Verstaendnis aussagt: Wer den Satzanfang gross schreibt, hat
+   * nicht die falsche Antwort gegeben.
+   */
+  const felder = [
+    { key: 'angriff', matches: '^nein$' },
+    { key: 'fehlend', matches: '^anmeldung$' },
+  ];
+
+  it.each([
+    ['angriff: nein\nfehlend: anmeldung\n', 'klein'],
+    ['angriff: Nein\nfehlend: Anmeldung\n', 'Satzanfang gross'],
+    ['ANGRIFF: NEIN\nFEHLEND: ANMELDUNG\n', 'alles gross'],
+    ['Angriff: nEiN\nfehlend: AnMeLdUnG\n', 'gemischt'],
+  ])('nimmt %j an (%s)', (bericht) => {
+    expect(checkReportFields(bericht, felder)).toBe(true);
+  });
+
+  it('macht aus einer falschen Antwort aber keine richtige', () => {
+    // Der Punkt der Lockerung ist die Schreibweise, nicht die Aussage.
+    expect(checkReportFields('angriff: Ja\nfehlend: anmeldung\n', felder)).toBe(false);
+    expect(checkReportFields('angriff: nein\nfehlend: Freigabe\n', felder)).toBe(false);
+    expect(checkReportFields('angriff: neinnein\nfehlend: anmeldung\n', felder)).toBe(false);
+  });
+
+  it('gilt auch fuer absentMatches', () => {
+    const verboten = [{ key: 'ursache', absentMatches: 'unbekannt' }];
+    expect(checkReportFields('ursache: Unbekannt\n', verboten)).toBe(false);
+    expect(checkReportFields('ursache: Leitungsfehler\n', verboten)).toBe(true);
+  });
+});

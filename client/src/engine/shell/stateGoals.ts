@@ -6,13 +6,14 @@
 import { ReportField, StateGoal } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { HostState, UfwRule, canonicalUnitName } from './hosts';
+import { evaluatePacket } from './nftables';
 import { attemptMatches } from './feedback';
 import { sha256Hex, toBytes } from './commands/linux/extended';
 
 /** Compile an authored regex; invalid patterns yield null instead of throwing. */
-function safeRegex(pattern: string): RegExp | null {
+function safeRegex(pattern: string, zusatz = ''): RegExp | null {
   try {
-    return new RegExp(pattern, 'm');
+    return new RegExp(pattern, `m${zusatz}`);
   } catch {
     return null;
   }
@@ -44,6 +45,7 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.firewallRule !== undefined
     || goal.firewallDefaultIncoming !== undefined
     || goal.firewallEnabled !== undefined
+    || goal.nftVerdict !== undefined
     || goal.listenerAbsent !== undefined
     || goal.listenerPresent !== undefined
     // loggedIn/sshdEffective/ansibleRan are non-vacuous even with empty
@@ -108,12 +110,17 @@ export function checkReportFields(content: string, fields: ReportField[]): boole
     if (!werte || werte.length !== 1) return false;
     const wert = werte[0];
 
+    // Werte werden OHNE Ruecksicht auf Gross-/Kleinschreibung geprueft — so
+    // wie die Schluessel und die Listenwerte darunter schon immer. Sonst wies
+    // der Bericht „angriff: Nein" ab, waehrend „angriff: nein" durchging: eine
+    // Falle, die nichts ueber das Verstaendnis aussagt und beim Spielen nur
+    // ratlos macht. Geprueft wird die ANTWORT, nicht die Schreibweise.
     if (feld.matches !== undefined) {
-      const re = safeRegex(feld.matches);
+      const re = safeRegex(feld.matches, 'i');
       if (!re || !re.test(wert)) return false;
     }
     if (feld.absentMatches !== undefined) {
-      const re = safeRegex(feld.absentMatches);
+      const re = safeRegex(feld.absentMatches, 'i');
       if (!re || re.test(wert)) return false;
     }
     if (feld.requiredItems || feld.forbiddenItems) {
@@ -277,6 +284,15 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
   }
   if (goal.firewallEnabled !== undefined && host.firewall.enabled !== goal.firewallEnabled) {
     return false;
+  }
+  if (goal.nftVerdict) {
+    const g = goal.nftVerdict;
+    const trace = evaluatePacket(
+      host.nft,
+      { saddr: g.from, daddr: g.to, dport: g.port, proto: g.proto, ctState: g.state },
+      g.hook ?? 'input',
+    );
+    if (trace.verdict !== g.expect) return false;
   }
   return true;
 }

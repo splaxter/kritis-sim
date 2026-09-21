@@ -515,3 +515,32 @@ describe('ufw unsafe enable/deny over ssh drops the caller session', () => {
     expect(enableAttempt!.exitCode).toBe(0);
   });
 });
+
+describe('Dienstnamen und die Meldung, wenn es sie nicht gibt', () => {
+  /**
+   * Beim Probespielen gefunden: `ufw allow dns` antwortete mit
+   * „Wrong number of arguments" — und schickte den Spieler damit auf die Suche
+   * nach einem Tippfehler, obwohl das Problem der NAME war. Echtes ufw schaut
+   * in /etc/services nach; dort heisst der Eintrag `domain`, nicht `dns`.
+   */
+  it('kennt die Namen, die wirklich in /etc/services stehen', () => {
+    const shell = baseShell();
+    expect(shell.execute('sudo ufw allow domain').exitCode).toBe(0);
+    expect(shell.execute('sudo ufw allow smtp').exitCode).toBe(0);
+    expect(shell.execute('sudo ufw status').output).toMatch(/53\/tcp/);
+    expect(shell.execute('sudo ufw status').output).toMatch(/25\/tcp/);
+  });
+
+  it('erfindet `dns` nicht — nennt aber das richtige Problem', () => {
+    const r = baseShell().execute('sudo ufw allow dns');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain("Could not find a profile matching 'dns'");
+    expect(r.error, 'die alte Meldung schickte auf die falsche Suche').not.toContain('Wrong number of arguments');
+  });
+
+  it('ein echter Argumentfehler heisst weiterhin so', () => {
+    const r = baseShell().execute('sudo ufw allow from 10.0.0.1 to');
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toContain('Wrong number of arguments');
+  });
+});

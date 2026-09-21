@@ -1,4 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
+import { getAllScenarios } from '../client/src/content/packs';
 
 /**
  * Der Einstiegsfall mit dem meisten Inhalt (Datei-Explorer, zwei Ordnerebenen,
@@ -171,17 +172,16 @@ async function seedDispo(page: Page) {
   }, [pid, JSON.stringify(env)] as const);
 }
 
-const ALLE_SZENARIEN = [
-  'CLOUD365-SC-001','CLOUD365-SC-002','CLOUD365-SC-003','CLOUD365-SC-004','CLOUD365-SC-005',
-  'CLOUD365-SC-006','CLOUD365-SC-007','KRITIS-SC-001','KRITIS-SC-002','KRITIS-SC-003',
-  'KRITIS-SC-004','KRITIS-SC-005','KRITIS-SC-006','KRITIS-SC-007','KRITIS-SC-008',
-  'KRITIS-SC-009','KRITIS-SC-010','KRITIS-SC-011','KRITIS-SC-012','INTERN-SC-001',
-  'INTERN-SC-002','INTERN-SC-003','INTERN-SC-004','INTERN-SC-005','INTERN-SC-006',
-  'INTERN-SC-007','INTERN-SC-008','INTERN-SC-009','INTERN-SC-010','INTERN-SC-011',
-  'AMSE-SC-001','AMSE-SC-002','AMSE-SC-003','AMSE-SC-004','AMSE-SC-005','AMSE-SC-006',
-  'AMSE-SC-007','AMSE-SC-008','TELEKOM-SC-001','TELEKOM-SC-002','TELEKOM-SC-003',
-  'TELEKOM-SC-004','TELEKOM-SC-005','TELEKOM-SC-006','TELEKOM-SC-007',
-];
+/**
+ * Aus der Registry abgeleitet, nicht abgeschrieben.
+ *
+ * Diese Liste war von Hand gepflegt — und damit eine Zeitbombe: Ein neues
+ * Szenario im Pack fehlte hier, war deshalb „noch nicht erledigt" und konnte
+ * statt INTERN-SC-004 ausgespielt werden. Der Test suchte dann einen Fall, der
+ * gar nicht auf dem Schirm war, und meldete einen Layout-Fehler, den es nicht
+ * gab. Wer den Bestand meint, soll den Bestand fragen.
+ */
+const ALLE_SZENARIEN = getAllScenarios().map((s) => s.id);
 
 for (const vp of VIEWPORTS) {
   test(`Ereignisanzeige: Meldeknopf bedienbar auf ${vp.name}`, async ({ page }) => {

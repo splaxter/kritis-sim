@@ -147,6 +147,8 @@ export const LEARNING_TRACKS: LearningTrack[] = [
       { eventId: 'learn_net_02_backchannel' },
       { eventId: 'learn_net_03_the_wall' },
       { eventId: 'learn_net_04_spider', optional: true },
+      { eventId: 'learn_fw_01_regelwerk' },
+      { eventId: 'learn_fw_02_ruleset' },
     ],
   },
   {

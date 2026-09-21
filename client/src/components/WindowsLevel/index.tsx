@@ -7,6 +7,7 @@ import { UacPrompt } from './apps/UacPrompt';
 import { Settings } from './apps/Settings';
 import { Explorer } from './apps/Explorer';
 import { CoreFirewall } from './apps/CoreFirewall';
+import { Perimeter } from './apps/Perimeter';
 import { Kataster } from './apps/Kataster';
 import { Meldung } from './apps/Meldung';
 import { useGuiLevel } from './useGuiLevel';
@@ -160,6 +161,17 @@ export function WindowsLevel({ context, onSolved, onCancel, briefingOverride }: 
             rules={context.state.coreFirewall?.rules ?? []}
             subnets={context.state.coreFirewall?.subnets ?? []}
             emit={emit}
+            locked={solved}
+          />
+        );
+      case 'perimeter':
+        return (
+          <Perimeter
+            applianceName={context.state.perimeter?.applianceName ?? 'KRITIS-FW-PERIMETER'}
+            rules={context.state.perimeter?.rules ?? []}
+            probes={context.state.perimeter?.probes ?? []}
+            emit={emit}
+            retract={retract}
             locked={solved}
           />
         );

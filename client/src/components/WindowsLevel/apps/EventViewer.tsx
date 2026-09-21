@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import {
   makeStyles,
   tokens,
@@ -25,6 +25,12 @@ const useStyles = makeStyles({
     maxHeight: 'min(72vh, 620px)',
     minHeight: 0,
     overflow: 'hidden',
+    // Die 72-vh-Deckelung haelt die Fussleiste im Bild. Auf kleinen Geraeten
+    // kostet sie die Liste aber ihren Platz, und dort scrollt die Seite
+    // ohnehin — die Fussleiste bleibt also erreichbar, auch wenn das Fenster
+    // hoeher wird. Beides ist noetig: schmal hoch UND flach quer.
+    '@media (max-width: 420px)': { maxHeight: 'min(86vh, 620px)' },
+    '@media (max-height: 480px)': { maxHeight: 'min(96vh, 620px)' },
   },
   toolbar: {
     display: 'flex',
@@ -54,21 +60,48 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200,
     color: tokens.colorNeutralForeground3,
     flexShrink: 0,
+    // Bei 320 px umbrechen die vier Spaltenueberschriften auf drei Zeilen und
+    // fressen 90 px — mehr als die Liste darunter uebrig hatte. Die Zeilen
+    // sagen ohnehin selbst, was sie zeigen.
+    '@media (max-width: 420px)': { display: 'none' },
   },
   // Mindesthoehe eine Zeile statt 120 px: im Querformat bleiben nach Kopf-,
   // Filter- und Fussleiste keine 120 px uebrig, und die harte Untergrenze war
   // genau das, was die Fussleiste hinausgedraengt hat.
+  /**
+   * Die Liste traegt ihren INHALT und gibt nur bei Enge nach.
+   *
+   * Vorher stand hier `flexBasis: 0` mit `flexGrow: 1` — und das hat nie etwas
+   * bewirkt: Das Fenster hat gar keine Hoehe, nur eine Obergrenze. Ohne
+   * definierte Hoehe gibt es keinen freien Platz zu verteilen, also war die
+   * Liste IMMER exakt ihre Mindesthoehe. Auf dem Desktop hiess das: 44 px, ein
+   * Bruchstueck einer 55-px-Zeile — und das in einem Level, das verlangt, ein
+   * bestimmtes Ereignis am Zeitstempel zu erkennen.
+   *
+   * `flexBasis: auto` laesst sie so hoch werden, wie ihre Zeilen sind; die
+   * Obergrenze des Fensters deckelt das Ganze, und `flexShrink` gibt bei Enge
+   * nach — zuerst die Detailansicht, dann die Liste, die Fussleiste nie.
+   */
   list: {
-    flexGrow: 1,
+    flexGrow: 0,
     flexShrink: 1,
-    flexBasis: 0,
+    flexBasis: 'auto',
     overflowY: 'auto',
-    minHeight: '44px',
+    // Untergrenze: eine Zeile muss hineinpassen, sonst waere die Liste als
+    // Bedienelement wertlos. 44 px war als Notbremse gedacht („lieber eine
+    // Zeile als eine hinausgedraengte Fussleiste") — aber 44 px SIND keine
+    // Zeile.
+    minHeight: '110px',
+    '@media (max-width: 420px)': { minHeight: '164px' },
+    '@media (max-height: 480px)': { minHeight: '120px' },
   },
   row: {
     display: 'grid',
     gridTemplateColumns: '1.6fr 1.7fr 1.6fr 0.9fr',
     padding: '7px 16px',
+    // Vier Spalten auf 320 px machen jede Zeile 95 px hoch. Zwei Spalten
+    // halbieren das, ohne eine Angabe zu verstecken.
+    '@media (max-width: 420px)': { gridTemplateColumns: '1fr 1fr', rowGap: '2px' },
     alignItems: 'center',
     cursor: 'default',
     fontSize: tokens.fontSizeBase200,
@@ -99,6 +132,11 @@ const useStyles = makeStyles({
     minHeight: 0,
     maxHeight: 'min(150px, 30vh)',
     overflowY: 'auto',
+    // Sie kommt zuletzt hinzu und weicht zuerst — auf kleinen Geraeten noch
+    // etwas mehr, damit die Liste ueber ihre Untergrenze kommt. Ihr Inhalt
+    // bleibt ueber den eigenen Scrollbereich vollstaendig erreichbar.
+    '@media (max-width: 420px)': { maxHeight: '110px' },
+    '@media (max-height: 480px)': { maxHeight: '84px' },
   },
   detailsTitle: {
     fontSize: tokens.fontSizeBase200,
@@ -170,6 +208,50 @@ export function EventViewer({ logName, entries, emit, locked }: EventViewerProps
     emit(`report:${selected}`);
   };
 
+  /**
+   * Pfeilnavigation in der Ereignisliste — beim Probespielen gefunden: Die
+   * Liste traegt `role="listbox"`, die Pfeiltasten taten aber nichts. Im
+   * Explorer und im Kataster tun sie es; fuer den Spieler fuehlt sich der
+   * Unterschied an, als waere hier die Tastatur kaputt.
+   */
+  const zeilenRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const fokussiereZeile = (index: number) => {
+    const ziel = visible[index];
+    if (!ziel) return;
+    select(ziel.id);
+    zeilenRefs.current.get(ziel.id)?.focus();
+  };
+
+  const onZeileKeyDown = (ev: React.KeyboardEvent, id: string, index: number) => {
+    if (locked) return;
+    switch (ev.key) {
+      case 'Enter':
+      case ' ':
+        ev.preventDefault();
+        select(id);
+        break;
+      case 'ArrowDown':
+        ev.preventDefault();
+        fokussiereZeile(Math.min(index + 1, visible.length - 1));
+        break;
+      case 'ArrowUp':
+        ev.preventDefault();
+        fokussiereZeile(Math.max(index - 1, 0));
+        break;
+      case 'Home':
+        ev.preventDefault();
+        fokussiereZeile(0);
+        break;
+      case 'End':
+        ev.preventDefault();
+        fokussiereZeile(visible.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
@@ -202,19 +284,21 @@ export function EventViewer({ logName, entries, emit, locked }: EventViewerProps
       </div>
 
       <div className={styles.list} role="listbox" aria-label={`Ereignisse — ${logName}`}>
-        {visible.map((e) => (
+        {visible.map((e, index) => (
           <div
             key={e.id}
+            ref={(el) => {
+              if (el) zeilenRefs.current.set(e.id, el);
+              else zeilenRefs.current.delete(e.id);
+            }}
             className={mergeClasses(styles.row, selected === e.id && styles.rowSelected)}
             onClick={() => select(e.id)}
-            onKeyDown={(ev) => {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                select(e.id);
-              }
-            }}
+            onKeyDown={(ev) => onZeileKeyDown(ev, e.id, index)}
             role="option"
-            tabIndex={locked ? -1 : 0}
+            // Rovender Tabstopp wie im Explorer: EIN Tabstopp, Pfeile bewegen
+            // innerhalb der Liste. Vorher war jede Zeile ein eigener Tabstopp
+            // und die Pfeiltasten taten nichts — was eine „listbox" verspricht.
+            tabIndex={locked ? -1 : (selected ?? visible[0]?.id) === e.id ? 0 : -1}
             aria-selected={selected === e.id}
           >
             <span className={styles.level}>

@@ -89,6 +89,15 @@ const useStyles = makeStyles({
   vorbefundRow: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground2 },
   hint: { fontSize: tokens.fontSizeBase200, color: tokens.colorNeutralForeground3 },
   multi: { display: 'flex', flexDirection: 'column' },
+  // Eigene Beschriftung für die Mehrfachauswahl — siehe den Kommentar an der
+  // Stelle, an der sie gerendert wird.
+  gruppenLabel: {
+    display: 'block',
+    fontSize: tokens.fontSizeBase300,
+    fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorNeutralForeground1,
+    marginBottom: '4px',
+  },
   footer: {
     padding: '12px 16px',
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
@@ -214,8 +223,23 @@ export function Meldung({ state, emit, retract, locked }: MeldungProps) {
           </Field>
         );
       case 'multiselect':
+        // KEIN `Field` um die Mehrfachauswahl.
+        //
+        // `Field` reicht seine `id` und seine Beschriftung an sein Kind weiter
+        // — das ist für EIN Bedienelement gedacht. Bei drei Kästchen bekamen
+        // alle drei dieselbe `id`, und das erste wurde dadurch als
+        // „Betroffene Dienste und Systeme" angesagt statt als „Dateiserver
+        // Disposition". Beim Probespielen aufgefallen: doppelte IDs im
+        // Dokument, zwei Kästchen ganz ohne Namen.
+        //
+        // Stattdessen eine echte Gruppe mit eigener Beschriftung; jedes
+        // Kästchen behält seinen eigenen Namen.
         return (
-          <Field key={feld.id} label={feld.label} hint={feld.hint}>
+          <div key={feld.id} role="group" aria-labelledby={`${feld.id}-gruppe`}>
+            <span id={`${feld.id}-gruppe`} className={styles.gruppenLabel}>
+              {feld.label}
+            </span>
+            {feld.hint && <span className={styles.hint}>{feld.hint}</span>}
             <div className={styles.multi}>
               {(feld.options ?? []).map((o) => (
                 <Checkbox
@@ -227,7 +251,7 @@ export function Meldung({ state, emit, retract, locked }: MeldungProps) {
                 />
               ))}
             </div>
-          </Field>
+          </div>
         );
       case 'longtext':
         return (
