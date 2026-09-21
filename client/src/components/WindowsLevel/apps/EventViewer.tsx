@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import {
   makeStyles,
   tokens,
@@ -170,6 +170,50 @@ export function EventViewer({ logName, entries, emit, locked }: EventViewerProps
     emit(`report:${selected}`);
   };
 
+  /**
+   * Pfeilnavigation in der Ereignisliste — beim Probespielen gefunden: Die
+   * Liste traegt `role="listbox"`, die Pfeiltasten taten aber nichts. Im
+   * Explorer und im Kataster tun sie es; fuer den Spieler fuehlt sich der
+   * Unterschied an, als waere hier die Tastatur kaputt.
+   */
+  const zeilenRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const fokussiereZeile = (index: number) => {
+    const ziel = visible[index];
+    if (!ziel) return;
+    select(ziel.id);
+    zeilenRefs.current.get(ziel.id)?.focus();
+  };
+
+  const onZeileKeyDown = (ev: React.KeyboardEvent, id: string, index: number) => {
+    if (locked) return;
+    switch (ev.key) {
+      case 'Enter':
+      case ' ':
+        ev.preventDefault();
+        select(id);
+        break;
+      case 'ArrowDown':
+        ev.preventDefault();
+        fokussiereZeile(Math.min(index + 1, visible.length - 1));
+        break;
+      case 'ArrowUp':
+        ev.preventDefault();
+        fokussiereZeile(Math.max(index - 1, 0));
+        break;
+      case 'Home':
+        ev.preventDefault();
+        fokussiereZeile(0);
+        break;
+      case 'End':
+        ev.preventDefault();
+        fokussiereZeile(visible.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
@@ -202,19 +246,21 @@ export function EventViewer({ logName, entries, emit, locked }: EventViewerProps
       </div>
 
       <div className={styles.list} role="listbox" aria-label={`Ereignisse — ${logName}`}>
-        {visible.map((e) => (
+        {visible.map((e, index) => (
           <div
             key={e.id}
+            ref={(el) => {
+              if (el) zeilenRefs.current.set(e.id, el);
+              else zeilenRefs.current.delete(e.id);
+            }}
             className={mergeClasses(styles.row, selected === e.id && styles.rowSelected)}
             onClick={() => select(e.id)}
-            onKeyDown={(ev) => {
-              if (ev.key === 'Enter' || ev.key === ' ') {
-                ev.preventDefault();
-                select(e.id);
-              }
-            }}
+            onKeyDown={(ev) => onZeileKeyDown(ev, e.id, index)}
             role="option"
-            tabIndex={locked ? -1 : 0}
+            // Rovender Tabstopp wie im Explorer: EIN Tabstopp, Pfeile bewegen
+            // innerhalb der Liste. Vorher war jede Zeile ein eigener Tabstopp
+            // und die Pfeiltasten taten nichts — was eine „listbox" verspricht.
+            tabIndex={locked ? -1 : (selected ?? visible[0]?.id) === e.id ? 0 : -1}
             aria-selected={selected === e.id}
           >
             <span className={styles.level}>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import {
   makeStyles,
   tokens,
@@ -212,6 +212,52 @@ export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
     emit(`endtask:${proc.name}`);
   };
 
+  /**
+   * Pfeilnavigation in der Prozessliste.
+   *
+   * Beim Probespielen gefunden: Die Liste traegt `role="listbox"`, aber die
+   * Pfeiltasten taten nichts — im Explorer und im Kataster sehr wohl. Fuer den
+   * Spieler fuehlt sich das an, als waere die Tastatur in dieser einen App
+   * kaputt.
+   */
+  const zeilenRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const fokussiereZeile = (index: number) => {
+    const ziel = visibleRows[index];
+    if (!ziel) return;
+    select(ziel.name);
+    zeilenRefs.current.get(ziel.name)?.focus();
+  };
+
+  const onZeileKeyDown = (e: React.KeyboardEvent, name: string, index: number) => {
+    if (locked) return;
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        select(name);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        fokussiereZeile(Math.min(index + 1, visibleRows.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        fokussiereZeile(Math.max(index - 1, 0));
+        break;
+      case 'Home':
+        e.preventDefault();
+        fokussiereZeile(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        fokussiereZeile(visibleRows.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
@@ -273,19 +319,22 @@ export function TaskManager({ processes, emit, locked }: TaskManagerProps) {
       </div>
 
       <div className={styles.tableWrap} role="listbox" aria-label="Prozesse">
-        {visibleRows.map((proc) => (
+        {visibleRows.map((proc, index) => (
           <div
             key={proc.name}
+            ref={(el) => {
+              if (el) zeilenRefs.current.set(proc.name, el);
+              else zeilenRefs.current.delete(proc.name);
+            }}
             className={mergeClasses(styles.row, selected === proc.name && styles.rowSelected)}
             onClick={() => select(proc.name)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                select(proc.name);
-              }
-            }}
+            onKeyDown={(e) => onZeileKeyDown(e, proc.name, index)}
             role="option"
-            tabIndex={locked ? -1 : 0}
+            // Rovender Tabstopp wie im Explorer: EIN Tabstopp, Pfeile bewegen
+            // innerhalb der Liste. Vorher war jede Zeile ein eigener Tabstopp
+            // und die Pfeiltasten taten nichts — eine Liste, die sich
+            // „listbox" nennt, verspricht aber genau das.
+            tabIndex={locked ? -1 : (selected ?? visibleRows[0]?.name) === proc.name ? 0 : -1}
             aria-selected={selected === proc.name}
           >
             <span className={styles.name}>

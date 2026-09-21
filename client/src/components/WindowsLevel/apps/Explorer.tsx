@@ -249,6 +249,45 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
     emit(`remove:${entry.id}`);
   };
 
+  /** Dieselbe Pfeilnavigation fuer die Berechtigungsliste. */
+  const aclRefs = useRef(new Map<string, HTMLDivElement>());
+
+  const fokussiereAclAt = (index: number) => {
+    const eintrag = rows[index];
+    if (!eintrag) return;
+    select(eintrag.id);
+    aclRefs.current.get(eintrag.id)?.focus();
+  };
+
+  const onAclKeyDown = (e: React.KeyboardEvent, id: string, index: number) => {
+    if (locked) return;
+    switch (e.key) {
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        select(id);
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        fokussiereAclAt(Math.min(index + 1, rows.length - 1));
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        fokussiereAclAt(Math.max(index - 1, 0));
+        break;
+      case 'Home':
+        e.preventDefault();
+        fokussiereAclAt(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        fokussiereAclAt(rows.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.header}>
@@ -273,19 +312,22 @@ function ExplorerAcl({ shareName, sharePath, entries, emit, locked }: ExplorerPr
 
       <div className={styles.scrollArea}>
       <div className={styles.aclList} role="listbox" aria-label="Berechtigungen">
-        {rows.map((entry) => (
+        {rows.map((entry, index) => (
           <div
             key={entry.id}
+            ref={(el) => {
+              if (el) aclRefs.current.set(entry.id, el);
+              else aclRefs.current.delete(entry.id);
+            }}
             className={mergeClasses(styles.row, selected === entry.id && styles.rowSelected)}
             onClick={() => select(entry.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                select(entry.id);
-              }
-            }}
+            onKeyDown={(e) => onAclKeyDown(e, entry.id, index)}
             role="option"
-            tabIndex={locked ? -1 : 0}
+            // Rovender Tabstopp wie in der Dateiliste. Beim Probespielen fiel
+            // auf, dass ausgerechnet DIESE Liste — die mit der zu breiten
+            // Berechtigung, um die es im Level geht — keine Pfeilnavigation
+            // hatte, obwohl sie sich „listbox" nennt.
+            tabIndex={locked ? -1 : (selected ?? rows[0]?.id) === entry.id ? 0 : -1}
             aria-selected={selected === entry.id}
           >
             <span className={mergeClasses(styles.principal, entry.overlyBroad && styles.warn)}>

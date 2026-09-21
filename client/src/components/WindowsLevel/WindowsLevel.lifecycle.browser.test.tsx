@@ -72,20 +72,39 @@ describe('WindowsLevel lifecycle', () => {
 });
 
 describe('WindowsLevel keyboard accessibility', () => {
-  it('selects a row via keyboard (focus + Enter) and solves', async () => {
+  it('erreicht die Liste mit EINEM Tabstopp und bewegt sich mit den Pfeilen', async () => {
+    // Der frühere Test hielt fest, dass JEDE Zeile `tabindex="0"` trägt — das
+    // war die Umsetzung, nicht die Absicht. Beim Probespielen fiel auf, dass
+    // die Pfeiltasten dafür nichts taten, obwohl die Liste sich „listbox"
+    // nennt: Im Explorer und im Kataster trugen sie, hier nicht. Geprüft wird
+    // jetzt der Vertrag — ein Tabstopp, Pfeile bewegen, Enter wählt.
     const user = fakeTimerUser();
     const onSolved = vi.fn();
     render(<WindowsLevel context={ctx} onSolved={onSolved} onCancel={() => {}} />);
 
     const rows = screen.getAllByRole('option');
     expect(rows.length).toBe(2);
+    const tabstopps = rows.filter((r) => r.getAttribute('tabindex') === '0');
+    expect(tabstopps, 'genau ein Tabstopp für die ganze Liste').toHaveLength(1);
+    expect(tabstopps[0]).toBe(rows[0]);
 
+    rows[0].focus();
+    expect(rows[0]).toHaveFocus();
+
+    // Pfeil runter bewegt den Fokus UND die Auswahl.
+    await user.keyboard('{ArrowDown}');
     const rogueRow = screen.getByText('rogue.exe').closest('[role="option"]') as HTMLElement;
+    expect(rogueRow).toHaveFocus();
+    expect(rogueRow).toHaveAttribute('aria-selected', 'true');
     expect(rogueRow).toHaveAttribute('tabindex', '0');
-    rogueRow.focus();
+
+    // Und zurück an den Anfang.
+    await user.keyboard('{ArrowUp}');
+    expect(rows[0]).toHaveFocus();
+    await user.keyboard('{End}');
     expect(rogueRow).toHaveFocus();
 
-    await user.keyboard('{Enter}'); // keyboard selection
+    await user.keyboard('{Enter}'); // Auswahl bestätigen
     expect(rogueRow).toHaveAttribute('aria-selected', 'true');
 
     await user.click(screen.getByRole('button', { name: /task beenden/i }));
