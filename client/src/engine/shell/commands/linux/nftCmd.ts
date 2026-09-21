@@ -7,6 +7,7 @@
  * ins Leere greift:
  *
  *   nft [-a] list ruleset | list table <fam> <tab> | list chain <fam> <tab> <kette>
+ *   nft add chain <fam> <tab> <kette> '{ policy accept|drop; }'
  *   nft add rule <fam> <tab> <kette> <regel>
  *   nft insert rule <fam> <tab> <kette> [position <handle>] <regel>
  *   nft delete rule <fam> <tab> <kette> handle <handle>
@@ -94,6 +95,25 @@ export const nftCommand: ShellCommand = {
         return { output: '', exitCode: 0 };
       }
       return syntaxfehler(rest[0] ?? 'end of file');
+    }
+
+    // ---- add chain … { policy … } ----------------------------------------
+    // Die Grundhaltung einer Basiskette zu aendern ist der kanonische Weg,
+    // eine Grenze zu schliessen — und in einem Segmentierungslevel oft die
+    // BESSERE Antwort als eine Sperrregel am Ende. Wer sie abweist, bestraft
+    // den, der es richtig kann.
+    if (sub === 'add' && rest[0] === 'chain') {
+      const treffer = finde(state, rest[1], rest[2], rest[3]);
+      if (!treffer?.chain) return keineTabelle();
+      const policy = args.raw.match(/\{\s*policy\s+(accept|drop)\s*;?\s*\}/);
+      if (!policy) return syntaxfehler(rest[4] ?? 'end of file');
+      if (!treffer.chain.base) {
+        // Eine Regelkette haengt an keinem Hook und hat deshalb auch keine
+        // Grundhaltung — genau das sagt echtes nft auch.
+        return { output: '', exitCode: 1, error: 'Error: Could not process rule: Operation not supported' };
+      }
+      treffer.chain.base.policy = policy[1] as 'accept' | 'drop';
+      return { output: '', exitCode: 0 };
     }
 
     // ---- add / insert / delete rule --------------------------------------

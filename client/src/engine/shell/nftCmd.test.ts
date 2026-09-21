@@ -108,6 +108,27 @@ describe('nft — aendern', () => {
     expect(s.execute('nft list ruleset').output).toBe('');
   });
 
+  it('add chain … { policy drop; } aendert die Grundhaltung der Basiskette', () => {
+    // Beim Probespielen gefunden: Eine Ketten-Policy zu aendern ist der
+    // kanonische Weg, eine Grenze zu schliessen — oft die BESSERE Antwort als
+    // eine Sperrregel am Ende. Wer sie abweist, bestraft den, der es kann.
+    const s = shell();
+    expect(evaluatePacket(nft(s), { saddr: '192.0.2.9', dport: 8080 }).verdict).toBe('drop'); // Policy war schon drop
+    expect(s.execute("nft add chain inet filter input '{ policy accept; }'").exitCode).toBe(0);
+    expect(evaluatePacket(nft(s), { saddr: '192.0.2.9', dport: 8080 }).verdict).toBe('accept');
+    expect(s.execute("nft add chain inet filter input '{ policy drop; }'").exitCode).toBe(0);
+    expect(evaluatePacket(nft(s), { saddr: '192.0.2.9', dport: 8080 }).verdict).toBe('drop');
+    expect(s.execute('nft list ruleset').output).toContain('policy drop;');
+  });
+
+  it('eine Regelkette hat keine Grundhaltung — das sagt nft auch', () => {
+    // `webadmin` haengt an keinem Hook. Echtes nft lehnt das ab, statt still
+    // etwas zu setzen, das nie greift.
+    const r = shell().execute("nft add chain inet filter webadmin '{ policy drop; }'");
+    expect(r.exitCode).toBe(1);
+    expect(r.error).toMatch(/not supported/);
+  });
+
   it('ein Sprung in eine unbekannte Kette wird abgelehnt', () => {
     expect(shell().execute('nft add rule inet filter input jump gibtsnicht').exitCode).toBe(1);
   });

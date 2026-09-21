@@ -79,11 +79,25 @@ export class TerminalSession {
   // Paced ping-style output: `streamQueue` holds the full line list, `streamIdx`
   // the next line to write, `streamDone` the continuation to run when the queue
   // drains (solution banner / fresh prompt / shell tail). While `streaming` is
-  // true, handleData swallows every keystroke (see the guard head).
+  // true, handleData PUFFERT jeden Tastendruck (siehe den Wächter im Kopf) und
+  // spielt ihn beim Leerlaufen nach.
   private streamQueue: string[] = [];
   private streamIdx = 0;
   private streaming = false;
   private streamDone: (() => TerminalEffect[]) | null = null;
+  /**
+   * Was getippt wurde, während Ausgabe lief.
+   *
+   * Vorher wurde es VERWORFEN — und zwar lautlos: Wer während eines `ping`
+   * seinen nächsten Befehl tippte, sah weder ein Echo noch eine Meldung, und
+   * die Zeile war weg. Beim Probespielen ist genau das passiert. Ein echtes
+   * Terminal puffert die Eingabe und gibt sie aus, sobald es wieder dran ist;
+   * das tut diese Sitzung jetzt auch. Die Absicht des alten Wächters bleibt
+   * erhalten — die gestreamte Ausgabe wird nicht durchsetzt.
+   */
+  private gepuffert = '';
+  /** Mehr als das tippt niemand versehentlich; schützt vor Endlosanhäufung. */
+  private static readonly PUFFER_MAX = 512;
 
   // --- tab completion state ---
   private tabCompletions: string[] = [];
@@ -168,10 +182,11 @@ export class TerminalSession {
   }
 
   handleData(data: string): TerminalEffect[] {
-    // While paced output is animating (e.g. ping), ignore keystrokes so the
-    // drip isn't interrupted or interleaved with a new command. This guard sits
-    // ABOVE everything else (matches useTerminal.ts's onData head).
+    // Während gestreamter Ausgabe wird nicht getippt, sondern GEPUFFERT: Die
+    // Ausgabe soll nicht durchsetzt werden, die Eingabe aber auch nicht
+    // verlorengehen. Nachgespielt wird sie, sobald die Ausgabe durch ist.
     if (this.streaming) {
+      if (this.gepuffert.length < TerminalSession.PUFFER_MAX) this.gepuffert += data;
       return [];
     }
 
@@ -909,6 +924,18 @@ export class TerminalSession {
     this.streamIdx = 0;
     this.streamDone = null;
     if (done) effects.push(...done());
+
+    // Jetzt nachspielen, was während der Ausgabe getippt wurde.
+    const nachzuholen = this.gepuffert;
+    this.gepuffert = '';
+    if (nachzuholen) {
+      // Eine Ausnahme: Endete die Ausgabe mit dem Erfolg, bleibt der Puffer
+      // liegen. Sonst würde ein mitgetipptes Enter den Abschlussbildschirm
+      // sofort wegklicken — den soll der Spieler lesen.
+      if (!this.solved) {
+        for (const zeichen of nachzuholen) effects.push(...this.handleData(zeichen));
+      }
+    }
     return effects;
   }
 

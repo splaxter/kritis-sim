@@ -84,19 +84,26 @@ describe('TerminalSession streaming (drip pacing)', () => {
     expect(session.tick('drip')).toEqual([]);
   });
 
-  it('swallows keystrokes while streaming', () => {
+  it('gibt waehrend des Streamens kein Echo, verwirft die Eingabe aber nicht', () => {
     const { session } = makeSession({
       commands: [{ pattern: 'ping -c 3 10.0.0.9', teachesCommand: 'ping', output: PING_OUTPUT }],
       solutions: [],
     });
     typeAndEnter(session, 'ping -c 3 10.0.0.9'); // enters streaming mode
-    // A keystroke mid-stream is swallowed entirely and does not alter the line.
+    // Kein Echo mitten in der Ausgabe — die soll nicht durchsetzt werden …
     expect(session.handleData('x')).toEqual([]);
     expect(session.getSnapshot().commandsUsed).toEqual(['ping -c 3 10.0.0.9']);
-    // Drain the stream so we don't leak state.
+    // … aber das Zeichen ist nicht weg: Beim Leerlaufen wird es nachgeholt und
+    // erscheint dann in der Eingabezeile.
     session.tick('drip');
     session.tick('drip');
-    session.tick('drip');
+    const beimLeerlaufen = session.tick('drip');
+    // Das Echo laeuft ueber `renderInput` (die Eingabezeile), nicht ueber
+    // `write` — deshalb wird hier die Zeile geprueft, nicht die Ausgabe.
+    expect(
+      beimLeerlaufen.filter((e) => e.type === 'renderInput').map((e) => (e as { line: string }).line),
+      'das mitgetippte Zeichen steht nachher in der Eingabezeile'
+    ).toContain('x');
     expect(session.tick('drip')).toEqual([]);
   });
 
@@ -142,5 +149,64 @@ describe('TerminalSession streaming (drip pacing)', () => {
     expect(session.handleData('a')).toEqual([]);
     expect(onSolved).not.toHaveBeenCalled();
     expect(session.getSnapshot().solved).toBe(true);
+  });
+});
+
+describe('Tippen waehrend gestreamter Ausgabe', () => {
+  /**
+   * Beim Probespielen gefunden: Der Waechter im Kopf von `handleData` hat
+   * Tastendruecke waehrend des Tropfens VERWORFEN — lautlos. Wer waehrend
+   * eines `ping` seinen naechsten Befehl tippte, sah weder Echo noch Meldung,
+   * und die Zeile war weg. Die Absicht (die Ausgabe nicht durchsetzen) war
+   * richtig, die Dosierung nicht: Ein echtes Terminal puffert.
+   */
+  const tippe = (session: TerminalSession, text: string): TerminalEffect[] =>
+    [...text].flatMap((z) => session.handleData(z));
+
+  /** Alle Tropfen abarbeiten, wie es die Oberflaeche tut. */
+  function ausstreamen(session: TerminalSession, effekte: TerminalEffect[]): TerminalEffect[] {
+    const alle = [...effekte];
+    let offen = effekte.some((e) => e.type === 'scheduleDrip');
+    for (let i = 0; offen && i < 40; i++) {
+      const weitere = session.tick('drip');
+      alle.push(...weitere);
+      offen = weitere.some((e) => e.type === 'scheduleDrip');
+    }
+    return alle;
+  }
+
+  it('haelt die Eingabe fest und spielt sie nach, statt sie zu verwerfen', () => {
+    const { session } = makeSession();
+    tippe(session, 'ping warm.local');
+    const start = session.handleData('\r');
+    expect(start.some((e) => e.type === 'scheduleDrip'), 'ping streamt').toBe(true);
+
+    // Mitten in die Ausgabe tippen — vorher ging genau das verloren.
+    expect(tippe(session, 'whoami'), 'waehrend des Tropfens kein Echo').toEqual([]);
+    expect(session.handleData('\r'), 'auch das Enter wird gepuffert').toEqual([]);
+    // Die Ausgabe zu Ende tropfen lassen; dabei wird nachgeholt.
+    const nachher = ausstreamen(session, start);
+
+    // Die Eingabezeile wurde nachgetippt …
+    expect(
+      nachher.filter((e) => e.type === 'renderInput').map((e) => (e as { line: string }).line),
+      'der gepufferte Befehl erscheint in der Eingabezeile'
+    ).toContain('whoami');
+    // … und das mitgepufferte Enter hat ihn auch ausgefuehrt.
+    const geschrieben = nachher.filter((e) => e.type === 'writeLine')
+      .map((e) => (e as { text: string }).text).join('\n');
+    expect(geschrieben, 'seine Ausgabe steht auf dem Schirm').toContain('timo');
+  });
+
+  it('der Puffer laeuft nicht unbegrenzt voll', () => {
+    const { session } = makeSession();
+    tippe(session, 'ping warm.local');
+    session.handleData('\r');
+    tippe(session, 'x'.repeat(2000));
+    const nachher = ausstreamen(session, [{ type: 'scheduleDrip', delayMs: 0 } as TerminalEffect]);
+    const zeilen = nachher.filter((e) => e.type === 'renderInput').map((e) => (e as { line: string }).line);
+    const laengste = zeilen.reduce((m, z) => Math.max(m, z.length), 0);
+    expect(laengste, 'gedeckelt statt unbegrenzt').toBeLessThanOrEqual(512);
+    expect(laengste, 'aber es wurde wirklich gepuffert').toBeGreaterThan(100);
   });
 });

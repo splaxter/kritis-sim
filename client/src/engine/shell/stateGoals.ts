@@ -11,9 +11,9 @@ import { attemptMatches } from './feedback';
 import { sha256Hex, toBytes } from './commands/linux/extended';
 
 /** Compile an authored regex; invalid patterns yield null instead of throwing. */
-function safeRegex(pattern: string): RegExp | null {
+function safeRegex(pattern: string, zusatz = ''): RegExp | null {
   try {
-    return new RegExp(pattern, 'm');
+    return new RegExp(pattern, `m${zusatz}`);
   } catch {
     return null;
   }
@@ -110,12 +110,17 @@ export function checkReportFields(content: string, fields: ReportField[]): boole
     if (!werte || werte.length !== 1) return false;
     const wert = werte[0];
 
+    // Werte werden OHNE Ruecksicht auf Gross-/Kleinschreibung geprueft — so
+    // wie die Schluessel und die Listenwerte darunter schon immer. Sonst wies
+    // der Bericht „angriff: Nein" ab, waehrend „angriff: nein" durchging: eine
+    // Falle, die nichts ueber das Verstaendnis aussagt und beim Spielen nur
+    // ratlos macht. Geprueft wird die ANTWORT, nicht die Schreibweise.
     if (feld.matches !== undefined) {
-      const re = safeRegex(feld.matches);
+      const re = safeRegex(feld.matches, 'i');
       if (!re || !re.test(wert)) return false;
     }
     if (feld.absentMatches !== undefined) {
-      const re = safeRegex(feld.absentMatches);
+      const re = safeRegex(feld.absentMatches, 'i');
       if (!re || re.test(wert)) return false;
     }
     if (feld.requiredItems || feld.forbiddenItems) {
