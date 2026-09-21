@@ -87,6 +87,47 @@ sich aber als Schaltflächen bei Hilfstechnik. Ein `aria-hidden` wäre sauberer.
 
 ---
 
+## Runde 4 — 21.09.2026: die Ereignisliste war ein Schlitz
+
+### 7. 44 Pixel Liste bei 55 bis 117 Pixel Zeilenhöhe
+Die Ereignisanzeige zeigte auf **jedem** Bildschirm ein Bruchstück einer
+Zeile — auch auf dem Desktop mit 800 px Höhe. Das Level verlangt, ein
+bestimmtes Ereignis am Zeitstempel zu erkennen.
+
+**Ursache, und sie war strukturell:** `flexBasis: 0` mit `flexGrow: 1`
+verteilt nur **freien** Platz. Das Fenster hatte aber gar keine Höhe, nur eine
+Obergrenze (`maxHeight`) — also gab es nie freien Platz, und die Liste war
+immer exakt ihre Mindesthöhe. Die 44 px stammten aus einem früheren Fix fürs
+Querformat, wo die Fußleiste aus dem Fenster gedrängt wurde. Als Notbremse
+gedacht, zur Regel geworden.
+
+**Behoben:** Die Liste trägt ihren Inhalt (`flexBasis: auto`) und gibt bei
+Enge nach; die Obergrenze des Fensters deckelt, die Fußleiste weicht nie.
+Dazu Medienabfragen für die beiden engen Fälle.
+
+| Format | vorher | nachher |
+|---|---:|---:|
+| 320×568 | 0,4 Zeilen | 2,0 |
+| 375×667 | 0,5 | 3,3 |
+| 667×375 quer | 0,8 | 2,3 |
+| 1280×800 Desktop | 0,8 | 5,1 |
+
+Der Wächter (`e2e/ereignisliste.spec.ts`) prüft beides **gegeneinander**: genug
+Liste UND Fußleiste im Rahmen. Wer das eine repariert und das andere vergisst,
+fällt auf.
+
+### Drei Fehlalarme auf dem Weg dorthin
+Mein Prüfer für schmale Bildschirme lag dreimal daneben, bevor er traf — jedes
+Mal, weil er **scrollbar** mit **abgeschnitten** verwechselte:
+1. `overflow-x: hidden` + `overflow-y: auto` ist ein scrollbarer Kasten (25 von
+   26 Leveln gemeldet).
+2. Auch wenn kein Kasten scrollt, scrollt die Seite (22 von 26).
+3. `scrollIntoViewIfNeeded` scrollt minimal; „nicht vollständig im Bild" heißt
+   nicht „unerreichbar".
+Entschieden hat es am Ende ein **Bildschirmfoto**, nicht eine weitere Messung.
+
+---
+
 ## Was sauber war
 
 Ein Nichtbefund ist auch ein Ergebnis — und er sagt, wo nicht mehr gesucht
@@ -99,6 +140,9 @@ werden muss:
 | Aufgabentext bei 320 px | 91 Level | kein unerreichbarer Text |
 | GUI-Level geöffnet | 26 | jede App rendert, keins vorab gelöst |
 | Listen per Pfeiltaste | 26 GUI-Level | nach Runde 3 alle, vorher 3 Apps ohne |
+| Terminaltasten | History, Tab, Cursor, Strg+C | alles trägt, auch Vervollständigung für `nft`/`openssl` |
+| Zweiter Anlauf eines Levels | Abbrechen und neu öffnen | frischer Zustand, nichts hält |
+| Schaltflächen bei 320 px | 26 GUI-Level | alle erreichbar (nach Runde 4) |
 
 ## Zwei Verdachtsfälle, die keine waren
 
