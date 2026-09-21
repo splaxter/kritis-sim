@@ -161,6 +161,11 @@ export interface ExecutionContext {
   execute?: (input: string, stdin?: string) => CommandResult;
   /** Multi-host: state of the host this command runs on. */
   host?: import('./hosts').HostState;
+  /**
+   * Das Netzbild des Levels: Erreichbarkeit und Namensaufloesung. Alle
+   * Messbefehle fragen DIESES Modell — siehe `netzwerk.ts`.
+   */
+  net?: import('./netzwerk').NetState;
   /** Resolve another registered host by id, hostname or IP. */
   resolveHost?: (nameOrIp: string) => import('./hosts').HostState | undefined;
   /**

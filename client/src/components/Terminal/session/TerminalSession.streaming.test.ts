@@ -177,7 +177,11 @@ describe('Tippen waehrend gestreamter Ausgabe', () => {
 
   it('haelt die Eingabe fest und spielt sie nach, statt sie zu verwerfen', () => {
     const { session } = makeSession();
-    tippe(session, 'ping warm.local');
+    // Eine ADRESSE, kein Name: Seit das Netzbild echt ist, laeuft ein Name,
+    // den kein Resolver kennt, nicht mehr in vier Zeitueberschreitungen,
+    // sondern bricht sofort ab („Name or service not known") — wie echtes
+    // ping. Gebraucht wird hier aber eine Ausgabe, die wirklich tropft.
+    tippe(session, 'ping 10.0.0.1');
     const start = session.handleData('\r');
     expect(start.some((e) => e.type === 'scheduleDrip'), 'ping streamt').toBe(true);
 
@@ -200,7 +204,7 @@ describe('Tippen waehrend gestreamter Ausgabe', () => {
 
   it('der Puffer laeuft nicht unbegrenzt voll', () => {
     const { session } = makeSession();
-    tippe(session, 'ping warm.local');
+    tippe(session, 'ping 10.0.0.1');
     session.handleData('\r');
     tippe(session, 'x'.repeat(2000));
     const nachher = ausstreamen(session, [{ type: 'scheduleDrip', delayMs: 0 } as TerminalEffect]);

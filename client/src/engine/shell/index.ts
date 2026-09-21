@@ -15,13 +15,16 @@ export * from './hosts';
 export * from './unitControl';
 export * from './stateGoals';
 export * from './feedback';
+export * from './netzwerk';
 
 import {
   TerminalHostSpec, TerminalSolution, TerminalServiceSpec,
   TerminalJournalEntry, TerminalFirewallSpec, TerminalNftSpec, TerminalMailboxSpec, NetListener, NetConnection,
+  TerminalProcessSpec, TerminalNetSpec,
 } from '@kritis/shared';
 import { ShellEngine } from './ShellEngine';
 import { createHostState, seedPrimaryHost } from './hosts';
+import { seedNetState } from './netzwerk';
 import { VirtualFilesystem, createLinuxFilesystem, createWindowsFilesystem } from './VirtualFilesystem';
 import { allLinuxCommands } from './commands/linux';
 import { allPowerShellCommands } from './commands/powershell';
@@ -144,6 +147,10 @@ export function createShellFromContext(context: {
   connections?: NetConnection[];
   /** Exchange mailboxes seeded onto the PRIMARY host (EXCH01 audit levels). */
   mailboxes?: TerminalMailboxSpec[];
+  /** Prozesstabelle des PRIMAeR-Hosts. */
+  processes?: TerminalProcessSpec[];
+  /** Das Netzbild des Levels. */
+  net?: TerminalNetSpec;
 }): ShellEngine {
   const shellType = context.type === 'linux' ? 'bash' : 'powershell';
 
@@ -185,7 +192,10 @@ export function createShellFromContext(context: {
 
   // Seed custom services/journal/firewall onto the primary host AFTER the VFS
   // overlay is in place (unit files must exist when snapshotted).
-  if (context.services || context.journal || context.firewall || context.nft || context.listeners || context.connections || context.mailboxes) {
+  if (
+    context.services || context.journal || context.firewall || context.nft ||
+    context.listeners || context.connections || context.mailboxes || context.processes
+  ) {
     seedPrimaryHost(shell.getBaseHost(), {
       services: context.services,
       journal: context.journal,
@@ -194,8 +204,11 @@ export function createShellFromContext(context: {
       listeners: context.listeners,
       connections: context.connections,
       mailboxes: context.mailboxes,
+      processes: context.processes,
     });
   }
+
+  if (context.net) shell.setNet(seedNetState(context.net));
 
   for (const spec of context.hosts ?? []) {
     shell.registerHost(createHostState(spec));

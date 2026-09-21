@@ -5,7 +5,7 @@
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
   TerminalServiceSpec, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
-  TerminalNftSpec,
+  TerminalNftSpec, TerminalProcessSpec,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
@@ -62,6 +62,8 @@ export interface HostState {
   listeners: NetListener[];
   /** Established connections shown by `ss -tp`/`netstat`. */
   connections: NetConnection[];
+  /** Laufende Prozesse (`ps`, `Get-Process`); `kill <pid>` entfernt Treffer. */
+  processes: ProcessState[];
   sshdEffective: { permitRootLogin: boolean; passwordAuthentication: boolean };
   refreshSshdEffective(): void;
   appendJournal(entry: TerminalJournalEntry): void;
@@ -79,6 +81,15 @@ export const DEFAULT_LISTENERS: NetListener[] = [
   { proto: 'udp', port: 68, address: '0.0.0.0', pid: 123, program: 'dhclient' },
 ];
 
+/** Ein laufender Prozess — der Zustand hinter `ps`, `kill` und `Stop-Process`. */
+export interface ProcessState {
+  pid: number;
+  name: string;
+  user: string;
+  cmd: string;
+  cpu: number;
+}
+
 /** The established connections a host has when it declares none. */
 export const DEFAULT_CONNECTIONS: NetConnection[] = [
   { proto: 'tcp', localPort: 22, peer: '192.168.1.50:52413', state: 'ESTABLISHED', pid: 3456, program: 'sshd' },
@@ -88,6 +99,29 @@ export const DEFAULT_CONNECTIONS: NetConnection[] = [
 // says otherwise, so ownership defaults to 'root' when a socket is materialised.
 const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ user: 'root', ...l }));
 const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ user: 'root', ...c }));
+
+/**
+ * Die Prozesstabelle, die eine Kiste ohne eigene Angabe hat — dieselben
+ * Eintraege, die `ps` frueher fest verdrahtet ausgab, damit bestehende Level
+ * ihre Ansicht behalten. `<user>` wird beim Bauen durch den angemeldeten
+ * Nutzer ersetzt.
+ */
+export const DEFAULT_PROCESSES: TerminalProcessSpec[] = [
+  { pid: 1, user: 'root', name: 'systemd', cmd: '/sbin/init', cpu: 2 },
+  { pid: 456, user: 'root', name: 'sshd', cmd: '/usr/sbin/sshd -D', cpu: 0 },
+  { pid: 789, user: '<user>', name: 'bash', cmd: '-bash', cpu: 0 },
+  { pid: 1234, user: 'www-data', name: 'apache2', cmd: '/usr/sbin/apache2 -k start', cpu: 15 },
+  { pid: 2345, user: 'mysql', name: 'mysqld', cmd: '/usr/sbin/mysqld', cpu: 323 },
+];
+
+const seedProcesses = (list: TerminalProcessSpec[], user: string): ProcessState[] =>
+  list.map(p => ({
+    pid: p.pid,
+    name: p.name,
+    user: (p.user ?? 'root') === '<user>' ? user : (p.user ?? 'root'),
+    cmd: p.cmd ?? p.name,
+    cpu: p.cpu ?? 0,
+  }));
 
 /** Materialise a seeded mailbox; auditEnabled defaults to false (the realistic
  *  on-prem Exchange 2019 default a level is usually asked to fix). */
@@ -211,6 +245,7 @@ export function seedPrimaryHost(
     listeners?: NetListener[];
     connections?: NetConnection[];
     mailboxes?: TerminalMailboxSpec[];
+    processes?: TerminalProcessSpec[];
   },
 ): void {
   if (spec.services) applyServiceSpecs(host.vfs, host.services, spec.services);
@@ -229,6 +264,7 @@ export function seedPrimaryHost(
   // a forensic level owns its full port view, not a merge of the baseline.
   if (spec.listeners) host.listeners = cloneListeners(spec.listeners);
   if (spec.connections) host.connections = cloneConnections(spec.connections);
+  if (spec.processes) host.processes = seedProcesses(spec.processes, host.vfs.getUser());
 }
 
 export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
@@ -267,6 +303,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
     listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
     connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
+    processes: seedProcesses(spec.processes ?? DEFAULT_PROCESSES, vfs.getUser()),
     mailboxes: (spec.mailboxes ?? []).map(seedMailbox),
   });
 }
@@ -287,6 +324,7 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
     accounts: [{ name: vfs.getUser() }],
     listeners: cloneListeners(DEFAULT_LISTENERS),
     connections: cloneConnections(DEFAULT_CONNECTIONS),
+    processes: seedProcesses(DEFAULT_PROCESSES, vfs.getUser()),
   });
 }
 

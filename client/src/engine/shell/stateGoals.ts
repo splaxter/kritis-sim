@@ -48,6 +48,12 @@ function hasAssertion(goal: StateGoal): boolean {
     || goal.nftVerdict !== undefined
     || goal.listenerAbsent !== undefined
     || goal.listenerPresent !== undefined
+    // Ein leeres Auswahlobjekt waere hier sinnlos ("irgendeine Verbindung
+    // weg") — deshalb zaehlt nur eine Bedingung mit mindestens einem Feld.
+    || (goal.connectionAbsent !== undefined && Object.keys(goal.connectionAbsent).length > 0)
+    || (goal.connectionPresent !== undefined && Object.keys(goal.connectionPresent).length > 0)
+    || (goal.processAbsent !== undefined && Object.keys(goal.processAbsent).length > 0)
+    || (goal.processPresent !== undefined && Object.keys(goal.processPresent).length > 0)
     // loggedIn/sshdEffective/ansibleRan are non-vacuous even with empty
     // sub-objects: a bare `{loggedIn:{}}` asserts "logged into any host",
     // `{ansibleRan:{}}` asserts "ran any playbook" — both must be evaluated,
@@ -297,6 +303,31 @@ function checkFirewallGoals(host: HostState, goal: StateGoal): boolean {
   return true;
 }
 
+/**
+ * Trifft die Auswahl auf diese Verbindung zu? `peer` darf 'ip:port' oder nur
+ * die IP sein — wer „keine Verbindung mehr dorthin" meint, soll nicht den
+ * fluechtigen Quellport mitschreiben muessen.
+ */
+function verbindungTrifft(
+  c: { peer: string; localPort: number; program?: string },
+  wahl: { peer?: string; port?: number; program?: string },
+): boolean {
+  if (wahl.port !== undefined && c.localPort !== wahl.port) return false;
+  if (wahl.program !== undefined && (c.program ?? '').toLowerCase() !== wahl.program.toLowerCase()) return false;
+  if (wahl.peer !== undefined) {
+    const ziel = wahl.peer;
+    const nurIp = !ziel.includes(':');
+    if (nurIp ? c.peer.split(':')[0] !== ziel : c.peer !== ziel) return false;
+  }
+  return true;
+}
+
+function prozessTrifft(p: { pid: number; name: string }, wahl: { name?: string; pid?: number }): boolean {
+  if (wahl.pid !== undefined && p.pid !== wahl.pid) return false;
+  if (wahl.name !== undefined && p.name.toLowerCase() !== wahl.name.toLowerCase()) return false;
+  return true;
+}
+
 function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
   if (goal.listenerAbsent) {
     const { port } = goal.listenerAbsent;
@@ -305,6 +336,22 @@ function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
   if (goal.listenerPresent) {
     const { port } = goal.listenerPresent;
     if (!host.listeners.some(l => l.port === port)) return false;
+  }
+  if (goal.connectionAbsent && Object.keys(goal.connectionAbsent).length > 0) {
+    const wahl = goal.connectionAbsent;
+    if (host.connections.some(c => verbindungTrifft(c, wahl))) return false;
+  }
+  if (goal.connectionPresent && Object.keys(goal.connectionPresent).length > 0) {
+    const wahl = goal.connectionPresent;
+    if (!host.connections.some(c => verbindungTrifft(c, wahl))) return false;
+  }
+  if (goal.processAbsent && Object.keys(goal.processAbsent).length > 0) {
+    const wahl = goal.processAbsent;
+    if (host.processes.some(p => prozessTrifft(p, wahl))) return false;
+  }
+  if (goal.processPresent && Object.keys(goal.processPresent).length > 0) {
+    const wahl = goal.processPresent;
+    if (!host.processes.some(p => prozessTrifft(p, wahl))) return false;
   }
   return true;
 }
