@@ -83,6 +83,27 @@ export const DEFAULT_LISTENERS: NetListener[] = [
   { proto: 'udp', port: 68, address: '0.0.0.0', pid: 123, program: 'dhclient' },
 ];
 
+/**
+ * Die Lauscher einer WINDOWS-Arbeitsstation ohne eigene Angabe. Die
+ * Linux-Grundausstattung darueber (sshd, apache2, mysqld) auf einer
+ * Windows-Kiste anzuzeigen, waere schlicht falsch — und faellt sofort auf,
+ * sobald ein Level die offenen Verbindungen zum Gegenstand macht.
+ */
+export const DEFAULT_WINDOWS_LISTENERS: NetListener[] = [
+  { proto: 'tcp', port: 135, address: '0.0.0.0', pid: 916, program: 'svchost' },
+  { proto: 'tcp', port: 445, address: '0.0.0.0', pid: 4, program: 'System' },
+  { proto: 'tcp', port: 5985, address: '0.0.0.0', pid: 4, program: 'System' },
+  { proto: 'udp', port: 138, address: '0.0.0.0', pid: 4, program: 'System' },
+];
+
+/** Die Prozesstabelle einer Windows-Arbeitsstation ohne eigene Angabe. */
+export const DEFAULT_WINDOWS_PROCESSES: TerminalProcessSpec[] = [
+  { pid: 4, user: 'SYSTEM', name: 'System', cmd: 'System', cpu: 50 },
+  { pid: 916, user: 'SYSTEM', name: 'svchost', cmd: 'C:\\Windows\\System32\\svchost.exe', cpu: 120 },
+  { pid: 1180, user: '<user>', name: 'explorer', cmd: 'C:\\Windows\\explorer.exe', cpu: 210 },
+  { pid: 5678, user: '<user>', name: 'powershell', cmd: 'powershell.exe', cpu: 8 },
+];
+
 /** Ein laufender Prozess — der Zustand hinter `ps`, `kill` und `Stop-Process`. */
 export interface ProcessState {
   pid: number;
@@ -346,7 +367,12 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
  * Build a HostState around an EXISTING vfs — used to wrap the shell's local
  * filesystem as the base host of the session stack. Shell-type agnostic.
  */
-export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string): HostState {
+export function wrapVfsAsHost(
+  vfs: VirtualFilesystemInterface,
+  hostname?: string,
+  shellType: 'bash' | 'powershell' = 'bash',
+): HostState {
+  const windows = shellType === 'powershell';
   return buildHostState({
     id: 'local',
     hostname: hostname ?? vfs.getEnv('HOSTNAME') ?? vfs.getEnv('COMPUTERNAME') ?? 'localhost',
@@ -356,9 +382,9 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
     firewall: { enabled: true, defaultIncoming: 'allow', defaultOutgoing: 'allow', rules: [] },
     nft: emptyNftState(),
     accounts: [{ name: vfs.getUser() }],
-    listeners: cloneListeners(DEFAULT_LISTENERS),
-    connections: cloneConnections(DEFAULT_CONNECTIONS),
-    processes: seedProcesses(DEFAULT_PROCESSES, vfs.getUser()),
+    listeners: cloneListeners(windows ? DEFAULT_WINDOWS_LISTENERS : DEFAULT_LISTENERS),
+    connections: windows ? [] : cloneConnections(DEFAULT_CONNECTIONS),
+    processes: seedProcesses(windows ? DEFAULT_WINDOWS_PROCESSES : DEFAULT_PROCESSES, vfs.getUser()),
   });
 }
 

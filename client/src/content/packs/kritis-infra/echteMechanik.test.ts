@@ -253,3 +253,180 @@ describe('KRITIS-SC-004 — ein Verdikt ist endgueltig', () => {
     expect(ausgaben[1].output, 'und warum der Test nichts gemerkt hat').toMatch(/Test lief aus dem internen Netz/);
   });
 });
+
+// ── KRITIS-SC-005: zwei Prozesse sprechen ins OT-Netz, einer gehoert dahin ───
+
+const VERLAUF = 'Get-Content C:\\ProgramData\\Defender\\verlauf.log';
+
+describe('KRITIS-SC-005 — beenden ist eine Unterscheidung, kein Aufraeumen', () => {
+  it('der Ausgangszustand zeigt beide Seiten der Frage', () => {
+    const { ausgaben } = fahre('KRITIS-SC-005', ['Get-Process', 'Get-NetTCPConnection']);
+    expect(ausgaben[0].output).toMatch(/PsExec64/);
+    expect(ausgaben[0].output).toMatch(/siemens_tia/);
+    // Beide sprechen mit 10.0.0.10 — die Adresse allein entscheidet nichts.
+    expect(ausgaben[1].output.match(/10\.0\.0\.10/g)?.length, 'zwei Verbindungen zur selben Steuerung').toBe(2);
+    expect(ausgaben[1].output, 'und eine nach draussen').toMatch(/185\.243\.115\.44/);
+  });
+
+  it('auf einer Windows-Kiste laeuft kein apache2', () => {
+    // Die Grundausstattung war eine Linux-Tabelle. Auf einer Arbeitsstation,
+    // deren offene Verbindungen der Gegenstand sind, faellt das sofort auf.
+    const { ausgaben } = fahre('KRITIS-SC-005', ['Get-NetTCPConnection']);
+    expect(ausgaben[0].output).not.toMatch(/sshd|apache2|mysqld/);
+  });
+
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-005', ['Get-Process', 'Get-NetTCPConnection', VERLAUF, 'Stop-Process -Id 3456'])).toBe(true);
+  });
+
+  it('ueber den Namen beenden tut es auch', () => {
+    expect(geloest('KRITIS-SC-005', [VERLAUF, 'Stop-Process -Name PsExec64'])).toBe(true);
+  });
+
+  it('ohne den Verlauf ist das Beenden geraten — PsExec ist ein Admin-Werkzeug', () => {
+    expect(geloest('KRITIS-SC-005', ['Get-Process', 'Stop-Process -Id 3456'])).toBe(false);
+  });
+
+  it('„im Zweifel alles beenden" haelt die Steuerung an', () => {
+    const zeilen = [VERLAUF, 'Stop-Process -Id 3456', 'Stop-Process -Id 1234'];
+    expect(zielErfuellt('KRITIS-SC-005', zeilen, 1), 'das Werkzeug ist weg').toBe(true);
+    expect(zielErfuellt('KRITIS-SC-005', zeilen, 2), 'die Inbetriebnahme auch').toBe(false);
+    expect(geloest('KRITIS-SC-005', zeilen)).toBe(false);
+  });
+
+  it('das falsche Ziel: die Engineering-Sitzung sieht aus wie der Befund', () => {
+    expect(geloest('KRITIS-SC-005', [VERLAUF, 'Stop-Process -Name siemens_tia'])).toBe(false);
+  });
+
+  it('mit dem Prozess gehen seine Verbindungen — auch die ins OT-Netz', () => {
+    const { shell } = fahre('KRITIS-SC-005', ['Stop-Process -Id 3456']);
+    const danach = shell.execute('Get-NetTCPConnection').output;
+    expect(danach).not.toMatch(/185\.243\.115\.44/);
+    expect(danach.match(/10\.0\.0\.10/g)?.length, 'die legitime bleibt').toBe(1);
+  });
+
+  it('der Verlauf traegt die Einordnung, die der Prozessname nicht hergibt', () => {
+    const { ausgaben } = fahre('KRITIS-SC-005', [VERLAUF, 'Get-Content C:\\Temp\\svc\\inv.bat']);
+    expect(ausgaben[0].output, 'woher das Werkzeug kam').toMatch(/rechnung_03_2026\.pdf\.lnk/);
+    expect(ausgaben[0].output, 'und dass nichts verschluesselt wurde').toMatch(/Keine verschlüsselten Dateien/);
+    expect(ausgaben[1].output, 'was es tut').toMatch(/certutil/);
+  });
+});
+
+// ── KRITIS-SC-006: die Anleitung des Herstellers kennt den Bestand nicht ─────
+
+const ROLLOUT = '/home/engineer/rollout.md';
+const PLAN = [
+  `echo "rollend: plc01, plc02" > ${ROLLOUT}`,
+  `echo "fenster: plc03" >> ${ROLLOUT}`,
+  `echo "abgleich: ok" >> ${ROLLOUT}`,
+];
+const VORARBEIT = [
+  'cat /opt/scada/config/plc-bestand.txt',
+  'sha256sum /opt/siemens/firmware/firmware-4.6.2.upd',
+];
+
+describe('KRITIS-SC-006 — rollend geht nur, wo sich jemand vertritt', () => {
+  it('die mitgelieferte Summe ist die ECHTE Summe der Datei', () => {
+    // Sonst waere „abgleich: ok" eine Behauptung ueber eine erfundene Zahl —
+    // genau die Sorte Nachweis, die dieses Level kritisiert.
+    const { ausgaben } = fahre('KRITIS-SC-006', [
+      'sha256sum /opt/siemens/firmware/firmware-4.6.2.upd',
+      'cat /opt/siemens/firmware/sha256sums.txt',
+    ]);
+    const gerechnet = ausgaben[0].output.trim().split(/\s+/)[0];
+    expect(ausgaben[1].output, `gerechnet: ${gerechnet}`).toContain(gerechnet);
+  });
+
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-006', [...VORARBEIT, ...PLAN])).toBe(true);
+  });
+
+  it('ohne zu rechnen traegt „abgleich: ok" nicht', () => {
+    expect(geloest('KRITIS-SC-006', ['cat /opt/scada/config/plc-bestand.txt', ...PLAN])).toBe(false);
+  });
+
+  it('eine Summe ueber die falsche Datei zaehlt nicht', () => {
+    // Die Bedingung ist an den Operanden gebunden, nicht an den Befehlsnamen.
+    expect(geloest('KRITIS-SC-006', [
+      'cat /opt/scada/config/plc-bestand.txt',
+      'sha256sum /opt/siemens/firmware/sha256sums.txt',
+      ...PLAN,
+    ])).toBe(false);
+  });
+
+  it('die Anleitung des Herstellers abarbeiten: alle drei rollend — und die Sensorik faellt aus', () => {
+    const falsch = [
+      `echo "rollend: plc01, plc02, plc03" > ${ROLLOUT}`,
+      `echo "fenster: keine" >> ${ROLLOUT}`,
+      `echo "abgleich: ok" >> ${ROLLOUT}`,
+    ];
+    expect(geloest('KRITIS-SC-006', [...VORARBEIT, ...falsch])).toBe(false);
+  });
+
+  it('nur eine rollend ist zu vorsichtig — die Vertretung gilt in beide Richtungen', () => {
+    const falsch = [
+      `echo "rollend: plc01" > ${ROLLOUT}`,
+      `echo "fenster: plc03" >> ${ROLLOUT}`,
+      `echo "abgleich: ok" >> ${ROLLOUT}`,
+    ];
+    expect(geloest('KRITIS-SC-006', [...VORARBEIT, ...falsch])).toBe(false);
+  });
+
+  it('die Vertretung steht NUR in der Bestandsliste, nicht im Sicherheitshinweis', () => {
+    const { ausgaben } = fahre('KRITIS-SC-006', [
+      'cat /opt/siemens/firmware/sicherheitshinweis.txt',
+      'cat /opt/scada/config/plc-bestand.txt',
+    ]);
+    expect(ausgaben[0].output, 'der Hersteller kennt den Bestand nicht').not.toMatch(/plc02/);
+    expect(ausgaben[1].output).toMatch(/plc03\s+10\.0\.0\.12\s+Sensorik\s+keine/);
+  });
+});
+
+// ── KRITIS-SC-007: eine Antwort nach einer Minute, von niemandem ─────────────
+
+const ESKALATION = '/home/operator/eskalation.md';
+const LESEN7 = [
+  'cat /var/log/tickets/ticket-2026-03-09-001.log',
+  'cat /etc/vertragswerk/siemens-premium.txt',
+];
+const SCHREIBEN7 = [
+  `echo "stufe: hoch" > ${ESKALATION}`,
+  `echo "frist: 24" >> ${ESKALATION}`,
+  `echo "technische_reaktion: keine" >> ${ESKALATION}`,
+  `echo "verstoss: ja" >> ${ESKALATION}`,
+  `echo "folge: eskalation" >> ${ESKALATION}`,
+];
+const ersetze7 = (alt: string, neu: string) => SCHREIBEN7.map((z) => z.replace(alt, neu));
+
+describe('KRITIS-SC-007 — die Frist haengt an der Stufe, nicht am Gefuehl', () => {
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-007', [...LESEN7, ...SCHREIBEN7])).toBe(true);
+  });
+
+  it('beide Quellen muessen gelesen sein', () => {
+    expect(geloest('KRITIS-SC-007', [LESEN7[0], ...SCHREIBEN7])).toBe(false);
+    expect(geloest('KRITIS-SC-007', [LESEN7[1], ...SCHREIBEN7])).toBe(false);
+  });
+
+  it('die schaerfere Frist zu nehmen, weil es sich dringend anfuehlt, faellt durch', () => {
+    const falsch = ersetze7('frist: 24', 'frist: 4').map((z) => z.replace('stufe: hoch', 'stufe: kritisch'));
+    expect(geloest('KRITIS-SC-007', [...LESEN7, ...falsch])).toBe(false);
+  });
+
+  it('die Eingangsbestaetigung als Reaktion zu zaehlen laesst den Verstoss verschwinden', () => {
+    expect(geloest('KRITIS-SC-007', [...LESEN7, ...ersetze7('verstoss: ja', 'verstoss: nein')])).toBe(false);
+  });
+
+  it('die erwartete Folge ist die falsche — es ist der dritte Verstoss', () => {
+    expect(geloest('KRITIS-SC-007', [...LESEN7, ...ersetze7('folge: eskalation', 'folge: gutschrift')])).toBe(false);
+  });
+
+  it('beide Quellen tragen, was der Bericht behauptet', () => {
+    const { ausgaben } = fahre('KRITIS-SC-007', LESEN7);
+    expect(ausgaben[0].output, 'die Stufe').toMatch(/Dringlichkeit: hoch/);
+    expect(ausgaben[0].output, 'und dass kein Mensch etwas getan hat').toMatch(/vom System erzeugt/);
+    expect(ausgaben[1].output, 'was nicht als Reaktion gilt').toMatch(/gelten ausdrücklich NICHT als Reaktion/);
+    expect(ausgaben[1].output, 'und der Stand der Verstoesse').toMatch(/Stand der Verstöße im laufenden Jahr: 2/);
+  });
+});

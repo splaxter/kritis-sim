@@ -136,7 +136,7 @@ export class ShellEngine implements ShellEngineInterface {
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
   ) {
-    const local = wrapVfsAsHost(vfs);
+    const local = wrapVfsAsHost(vfs, undefined, shellType);
     this.hosts.set(local.id, local);
     this.sessionStack.push({ hostId: local.id, user: vfs.getUser() });
     this.state = {

