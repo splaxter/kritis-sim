@@ -214,13 +214,30 @@ sie nicht nochmal Zeit kosten:
   da), und eine Windows-Arbeitsstation zeigte als offene Sockets die
   Linux-Grundausstattung an — sshd, apache2, mysqld.
 
+- **Der Modal-Vertrag galt für vier von fünf.** „Arrows/Enter/Escape treiben
+  alle Modale, mit Fokusfalle" stand in CLAUDE.md und wurde je Modal in dessen
+  eigenem Test geprüft — und genau deshalb fiel nicht auf, dass eines den
+  Vertrag gar nicht kennt. Das `SaveLoadModal` hatte nur Escape: kein
+  `role="dialog"`, keinen Namen, keinen Fokus im Modal, keine Falle, keine
+  Rückgabe. Wer „Spielstand laden" mit der Tastatur öffnete, sah das Modal und
+  tabbte durch das Menü DAHINTER; die Pfeiltasten färbten derweil eine Zeile
+  im Modal ein. Auge und Tastatur in zwei verschiedenen Räumen.
+  Dieselbe Klasse wie bei den Listen im Windows-Level, eine Ebene höher:
+  Die Speicherplätze waren eingefärbte `div`s ohne Rolle und ohne Zustand.
+  Der Wächter ist jetzt eine Reihe über den ganzen Bestand
+  (`components/modalVertrag.browser.test.tsx`), kein weiterer Einzeltest —
+  beim ersten Lauf 4 rot von 26.
+
 ## Offen — hier weitersuchen
 
-- **Fokusfallen in den Modalen.** Ob der Fokus im Modal bleibt und Escape
-  sauber schließt, ist für die Menü-Modale teilweise getestet, für die
-  Level-Ansicht gar nicht.
 - **Nutzertest mit Terminal-Einsteigern.** Steht seit PR #20 offen und wird von
   keiner Sichtung ersetzt: Sie prüfen Erreichbarkeit, nicht Gefühl.
-- **Layout-Flake in Playwright.** Unter hoher Maschinenlast laufen jsdom- und
-  Layout-Tests in Zeitüberschreitungen. Beim nächsten Auftreten unter normaler
-  Last anhand des Traces untersuchen.
+- **Last-Flake in den jsdom-Tests — jetzt mit Zahl.** Zweimal in dieser Runde
+  aufgetreten, beide Male bei einer Lastkennzahl zwischen 180 und 237 (eine
+  laufende virtuelle Maschine zog dauerhaft 100 % einer Kernleistung).
+  Betroffen sind ausschließlich die `WindowsLevel`-Spezifikationen und
+  `App.menuKeyboard`: Einzellaufzeiten von 15 bis 47 Sekunden gegen ein
+  Zeitlimit von 15 Sekunden — reine Überschreitungen, keine
+  Zusicherungsfehler. Dieselben Dateien allein gefahren: grün. Damit ist die
+  Frage beantwortet, und es bleibt eine Betriebsnotiz statt eines Befundes:
+  **Unter Last über ~50 sind diese Messungen wertlos, nicht rot.**
