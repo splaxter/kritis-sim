@@ -334,18 +334,34 @@ export const psCommand: ShellCommand = {
   ],
 
   execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
-    const all = args.flags['a'] || args.flags['e'];
-    const userFormat = args.flags['u'];
-    const full = args.flags['f'];
+    // BSD-Schreibweise: `ps aux` hat KEINEN Bindestrich, und genau so tippt
+    // es jeder. Ohne diese Zeile landet 'aux' als Dateiname im Rest und die
+    // Ausgabe zeigt nur die eigene Sitzung.
+    const bsd = new Set(
+      args.positional.filter(t => /^[auxef]+$/.test(t)).flatMap(t => [...t])
+    );
+    const flagge = (f: string) => args.flags[f] || bsd.has(f);
+    const all = flagge('a') || flagge('e') || flagge('x');
+    const userFormat = flagge('u');
+    const full = flagge('f');
 
-    const processes = [
-      { pid: 1, user: 'root', cpu: '0.0', mem: '0.2', vsz: 169936, rss: 11328, tty: '?', stat: 'Ss', start: '09:00', time: '0:02', command: '/sbin/init' },
-      { pid: 456, user: 'root', cpu: '0.0', mem: '0.1', vsz: 42088, rss: 3944, tty: '?', stat: 'Ss', start: '09:00', time: '0:00', command: '/usr/sbin/sshd -D' },
-      { pid: 789, user: ctx.user, cpu: '0.1', mem: '0.5', vsz: 21468, rss: 5324, tty: 'pts/0', stat: 'Ss', start: '10:15', time: '0:00', command: '-bash' },
-      { pid: 1234, user: 'www-data', cpu: '0.5', mem: '1.2', vsz: 345678, rss: 23456, tty: '?', stat: 'S', start: '09:01', time: '0:15', command: '/usr/sbin/apache2 -k start' },
-      { pid: 2345, user: 'mysql', cpu: '2.1', mem: '8.5', vsz: 1567890, rss: 456789, tty: '?', stat: 'Sl', start: '09:00', time: '5:23', command: '/usr/sbin/mysqld' },
-      { pid: 3456, user: ctx.user, cpu: '0.0', mem: '0.1', vsz: 11320, rss: 2456, tty: 'pts/0', stat: 'R+', start: '10:30', time: '0:00', command: 'ps aux' },
-    ];
+    // Die Prozesstabelle gehoert dem HOST, nicht diesem Befehl. Nur so zeigt
+    // `ps` das, was ein `kill` veraendert, und was ein Level gesaet hat.
+    const tabelle = ctx.host?.processes ?? [];
+    const zeitAus = (cpu: number) => `${Math.floor(cpu / 60)}:${(cpu % 60).toString().padStart(2, '0')}`;
+    const processes = tabelle.map(p => ({
+      pid: p.pid,
+      user: p.user,
+      cpu: (p.cpu / 100).toFixed(1),
+      mem: ((p.pid % 90) / 10 + 0.1).toFixed(1),
+      vsz: 10000 + p.pid * 37,
+      rss: 2000 + p.pid * 11,
+      tty: p.user === ctx.user ? 'pts/0' : '?',
+      stat: p.pid === 1 ? 'Ss' : 'S',
+      start: '09:00',
+      time: zeitAus(p.cpu),
+      command: p.cmd,
+    }));
 
     const filteredProcesses = all ? processes : processes.filter(p => p.user === ctx.user || p.tty !== '?');
 
@@ -397,10 +413,10 @@ export const killCommand: ShellCommand = {
     }
 
     // Killing a pid drops any listener/connection it owns from the host's
-    // socket table, so "kill the rogue listener" really closes the port.
-    // Signal permissions apply: a non-root user may only kill a socket it
-    // owns — a root-owned service needs `sudo`. Unowned pids (plain processes
-    // with no socket) keep the old always-succeeds behaviour.
+    // socket table AND the process itself, so "kill the rogue listener"
+    // really closes the port and "kill the open session" really ends it.
+    // Signal permissions apply: a non-root user may only kill what it owns —
+    // a root-owned service needs `sudo`.
     const host = ctx.host;
     if (host) {
       for (const raw of args.positional) {
@@ -408,12 +424,15 @@ export const killCommand: ShellCommand = {
         if (!Number.isFinite(pid)) continue;
         const target =
           host.listeners.find(l => l.pid === pid) ??
-          host.connections.find(c => c.pid === pid);
-        if (target && (target.user ?? 'root') !== ctx.user && ctx.user !== 'root') {
+          host.connections.find(c => c.pid === pid) ??
+          host.processes.find(p => p.pid === pid);
+        const eigner = target ? ('user' in target ? target.user ?? 'root' : 'root') : undefined;
+        if (eigner !== undefined && eigner !== ctx.user && ctx.user !== 'root') {
           return { output: '', exitCode: 1, error: `kill: (${pid}): Operation not permitted` };
         }
         host.listeners = host.listeners.filter(l => l.pid !== pid);
         host.connections = host.connections.filter(c => c.pid !== pid);
+        host.processes = host.processes.filter(p => p.pid !== pid);
       }
     }
 

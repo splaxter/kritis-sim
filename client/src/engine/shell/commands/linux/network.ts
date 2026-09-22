@@ -4,6 +4,7 @@
  */
 
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, NetworkConfig } from '../../types';
+import { emptyNetState, pingZiel, portMessen, aufloese, dnsAntwortet, dienstName } from '../../netzwerk';
 
 // Default network configuration
 const defaultNetworkConfig: NetworkConfig = {
@@ -53,17 +54,23 @@ export const pingCommand: ShellCommand = {
 
     const host = args.positional[0];
     const count = parseInt(args.options['c'] || args.options['count'] || '4', 10);
-    const config = defaultNetworkConfig;
+    // Ein Modell fuer alle Messbefehle — siehe netzwerk.ts. Ohne gesaetes
+    // Netzbild gilt dieselbe Standardtabelle wie frueher.
+    const net = ctx.net ?? emptyNetState();
+    const mess = pingZiel(net, ctx.resolveHost, host);
 
-    // Check if host is reachable
-    const response = config.pingResponses[host] ||
-                     config.pingResponses[host.toLowerCase()] ||
-                     { reachable: false, error: 'Destination Host Unreachable' };
+    if (mess.namensfehler) {
+      return {
+        output: '',
+        exitCode: 2,
+        error: `ping: ${host}: Name or service not known`,
+      };
+    }
 
-    if (!response.reachable) {
-      // Emit one timeout line per packet so the terminal can pace them out,
-      // making an unreachable host feel like it's actually being tried.
-      const lines = [`PING ${host} (${host}): 56 data bytes`];
+    if (!mess.erreichbar) {
+      // Eine Zeitueberschreitung je Paket, damit ein unerreichbarer Host sich
+      // auch anfuehlt, als wuerde wirklich geklopft.
+      const lines = [`PING ${host} (${mess.ip}): 56 data bytes`];
       for (let i = 0; i < count; i++) {
         lines.push(`Request timeout for icmp_seq ${i}`);
       }
@@ -73,21 +80,75 @@ export const pingCommand: ShellCommand = {
       return { output: lines.join('\n'), exitCode: 1 };
     }
 
-    // Simulate successful pings
-    const ip = config.hosts[host] || host;
-    const lines = [`PING ${host} (${ip}): 56 data bytes`];
-
+    const lines = [`PING ${host} (${mess.ip}): 56 data bytes`];
     for (let i = 0; i < count; i++) {
-      const latency = response.latency! + (Math.random() * 2 - 1);
-      lines.push(`64 bytes from ${ip}: icmp_seq=${i} ttl=${response.ttl} time=${latency.toFixed(3)} ms`);
+      // Deterministisch: die gleiche Messung liefert die gleiche Zahl. Ein
+      // Beweis, der bei jedem Aufruf anders ausfaellt, ist keiner.
+      const latenz = mess.latenz + i * 0.05;
+      lines.push(`64 bytes from ${mess.ip}: icmp_seq=${i} ttl=${mess.ttl} time=${latenz.toFixed(3)} ms`);
     }
-
     lines.push('');
     lines.push(`--- ${host} ping statistics ---`);
     lines.push(`${count} packets transmitted, ${count} packets received, 0.0% packet loss`);
-    lines.push(`round-trip min/avg/max/stddev = ${(response.latency! - 0.5).toFixed(3)}/${response.latency!.toFixed(3)}/${(response.latency! + 0.5).toFixed(3)}/0.500 ms`);
-
+    lines.push(
+      `round-trip min/avg/max/stddev = ${mess.latenz.toFixed(3)}/${(mess.latenz + 0.1).toFixed(3)}/${(mess.latenz + 0.2).toFixed(3)}/0.050 ms`
+    );
     return { output: lines.join('\n'), exitCode: 0 };
+  },
+};
+
+/**
+ * `nc -z host port` — der Portklopfer.
+ *
+ * Er misst gegen dasselbe Netzbild wie `ping` und `Test-NetConnection`, und
+ * er unterscheidet die beiden Faelle, um die es fachlich geht: `refused` heisst
+ * „da ist eine Kiste, aber kein Dienst", `timed out` heisst „da haengt ein
+ * Filter davor". Wer das verwechselt, sucht den Fehler an der falschen Stelle.
+ */
+export const ncCommand: ShellCommand = {
+  name: 'nc',
+  aliases: ['netcat'],
+  description: 'Arbitrary TCP and UDP connections and listens',
+  usage: 'nc [-zv] [-w timeout] [-u] host port',
+  options: [
+    { short: 'z', description: 'Scan for listening daemons, without sending data' },
+    { short: 'v', description: 'Verbose' },
+    { short: 'u', description: 'Use UDP instead of TCP' },
+    { short: 'w', description: 'Connection timeout in seconds', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const [host, portRoh] = args.positional;
+    if (!host || portRoh === undefined) {
+      return { output: '', exitCode: 1, error: 'usage: nc [-zv] [-w timeout] [-u] hostname port' };
+    }
+    const port = parseInt(portRoh, 10);
+    if (!Number.isFinite(port) || port < 1 || port > 65535) {
+      return { output: '', exitCode: 1, error: `nc: port number invalid: ${portRoh}` };
+    }
+    if (!args.flags['z']) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: 'nc: Dieses Terminal kann nur pruefen, ob ein Port offen ist — nimm nc -z (ggf. mit -v).',
+      };
+    }
+
+    const proto = args.flags['u'] ? 'udp' : 'tcp';
+    const net = ctx.net ?? emptyNetState();
+    const mess = portMessen(net, ctx.resolveHost, ctx.host, host, port, proto);
+    const leise = !args.flags['v'];
+    const dienst = mess.dienst ?? dienstName(port) ?? '*';
+    const anschrift = `${host} (${mess.ip}) ${port} port [${proto}/${dienst}]`;
+
+    if (mess.namensfehler) {
+      return { output: '', exitCode: 1, error: `nc: getaddrinfo for host "${host}" port ${port}: Name or service not known` };
+    }
+    if (mess.lage === 'offen') {
+      return { output: leise ? '' : `Connection to ${anschrift} succeeded!`, exitCode: 0 };
+    }
+    const grund = mess.lage === 'abgelehnt' ? 'Connection refused' : 'Operation timed out';
+    return { output: '', exitCode: 1, error: leise ? '' : `nc: connect to ${anschrift} failed: ${grund}` };
   },
 };
 
@@ -286,7 +347,7 @@ export const digCommand: ShellCommand = {
   description: 'DNS lookup utility',
   usage: 'dig [OPTIONS] name [type]',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.positional.length === 0) {
       return { output: '', exitCode: 1, error: 'dig: usage: dig name [type]' };
     }
@@ -310,7 +371,11 @@ export const digCommand: ShellCommand = {
     };
 
     const records = dnsRecords[name.toLowerCase()];
-    const answers = records?.[type] || [];
+    // A-Records kommen aus DEMSELBEN Netzbild wie nslookup; die Tabelle oben
+    // liefert nur, was das Modell nicht kennt (MX, NS).
+    const net = ctx.net ?? emptyNetState();
+    const ausModell = type === 'A' ? aufloese(net, ctx.resolveHost, name).ip : undefined;
+    const answers = ausModell ? [ausModell] : (records?.[type] || []);
 
     const lines = [
       '',
@@ -347,43 +412,48 @@ export const nslookupCommand: ShellCommand = {
   description: 'Query Internet name servers',
   usage: 'nslookup name [server]',
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     if (args.positional.length === 0) {
       return { output: '', exitCode: 1, error: 'nslookup: usage: nslookup name [server]' };
     }
 
     const name = args.positional[0];
-    const server = args.positional[1] || '8.8.8.8';
+    const net = ctx.net ?? emptyNetState();
+    const server = args.positional[1] || net.dnsServers[0] || '8.8.8.8';
 
-    // Simulated responses
-    const responses: Record<string, string[]> = {
-      'google.com': ['142.250.185.78', '142.250.185.79'],
-      'example.com': ['93.184.216.34'],
-      'localhost': ['127.0.0.1'],
-    };
+    // Ein Resolver, der nicht antwortet, sagt nicht NXDOMAIN — er schweigt.
+    // Genau dieser Unterschied ist die Diagnose bei einem DNS-Ausfall.
+    if (net.dnsDown.includes(server) || !dnsAntwortet(net)) {
+      return {
+        output: [
+          ';; communications error to ' + server + '#53: timed out',
+          ';; communications error to ' + server + '#53: timed out',
+          '',
+          ';; no servers could be reached',
+        ].join('\n'),
+        exitCode: 1,
+      };
+    }
 
-    const addresses = responses[name.toLowerCase()];
-
-    if (!addresses) {
+    const auf = aufloese(net, ctx.resolveHost, name);
+    if (!auf.ip) {
       return {
         output: `Server:\t\t${server}\nAddress:\t${server}#53\n\n** server can't find ${name}: NXDOMAIN`,
         exitCode: 1,
       };
     }
 
-    const lines = [
-      `Server:\t\t${server}`,
-      `Address:\t${server}#53`,
-      '',
-      'Non-authoritative answer:',
-      `Name:\t${name}`,
-    ];
-
-    for (const addr of addresses) {
-      lines.push(`Address: ${addr}`);
-    }
-
-    return { output: lines.join('\n'), exitCode: 0 };
+    return {
+      output: [
+        `Server:\t\t${server}`,
+        `Address:\t${server}#53`,
+        '',
+        'Non-authoritative answer:',
+        `Name:\t${name}`,
+        `Address: ${auf.ip}`,
+      ].join('\n'),
+      exitCode: 0,
+    };
   },
 };
 
@@ -506,6 +576,7 @@ export const wgetCommand: ShellCommand = {
 
 export const networkCommands: ShellCommand[] = [
   pingCommand,
+  ncCommand,
   ifconfigCommand,
   ipCommand,
   netstatCommand,

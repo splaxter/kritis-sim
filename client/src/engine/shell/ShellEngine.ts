@@ -18,6 +18,7 @@ import {
   CommandAttempt,
 } from './types';
 import { HostState, wrapVfsAsHost } from './hosts';
+import { NetState, emptyNetState } from './netzwerk';
 
 /**
  * Canonical algo names for hash records: command names ('sha256sum') and
@@ -124,11 +125,18 @@ export class ShellEngine implements ShellEngineInterface {
     | { path: string; algo: string; host: string; writtenTo?: string }[]
     | null = null;
 
+  /**
+   * Das Netzbild des Levels — was `ping`, `nc`, `Test-NetConnection` und die
+   * Namensaufloesung befragen. Ohne Saat gilt die Standardtabelle, damit
+   * bestehende Level ihre Messungen behalten.
+   */
+  private net: NetState = emptyNetState();
+
   constructor(
     vfs: VirtualFilesystemInterface,
     shellType: 'bash' | 'powershell' = 'bash'
   ) {
-    const local = wrapVfsAsHost(vfs);
+    const local = wrapVfsAsHost(vfs, undefined, shellType);
     this.hosts.set(local.id, local);
     this.sessionStack.push({ hostId: local.id, user: vfs.getUser() });
     this.state = {
@@ -596,6 +604,7 @@ export class ShellEngine implements ShellEngineInterface {
       commands: this.commands,
       execute: (input: string, nestedStdin?: string) => this.execute(input, nestedStdin),
       host: this.getCurrentHost(),
+      net: this.net,
       resolveHost: (nameOrIp: string) => this.resolveHost(nameOrIp),
       pushSession: (hostId: string, user: string, method?: 'publickey' | 'password') =>
         this.pushSession(hostId, user, method),
@@ -1491,6 +1500,15 @@ export class ShellEngine implements ShellEngineInterface {
   // ============================================================================
   // Hosts & sessions
   // ============================================================================
+
+  /** Das Netzbild saeen (einmal beim Bauen der Shell aus dem Level-Kontext). */
+  setNet(net: NetState): void {
+    this.net = net;
+  }
+
+  getNet(): NetState {
+    return this.net;
+  }
 
   registerHost(host: HostState): void {
     if (this.hosts.has(host.id)) {

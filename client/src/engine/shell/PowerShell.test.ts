@@ -46,7 +46,10 @@ describe('PowerShell parameter binding', () => {
   it('binds single-dash long parameters with values', () => {
     const result = shell.execute('Test-NetConnection -ComputerName 10.0.0.1 -Port 22');
     expect(result.output).toContain('RemotePort       : 22');
-    expect(result.output).toContain('TcpTestSucceeded : true');
+    // Echtes PowerShell schreibt Wahrheitswerte gross — die gedosten Ausgaben
+    // im Inhalt tun es auch („TcpTestSucceeded : False"). Die Kleinschreibung
+    // hier war ein Abbild der alten Fassung, nicht der Wirklichkeit.
+    expect(result.output).toContain('TcpTestSucceeded : True');
   });
 
   it('is case-insensitive for parameter names', () => {

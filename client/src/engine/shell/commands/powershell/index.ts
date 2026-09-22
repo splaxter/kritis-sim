@@ -4,6 +4,7 @@
  */
 
 import { ShellCommand, ParsedArgs, ExecutionContext, CommandResult, Completion, CompletionContext } from '../../types';
+import { emptyNetState, pingZiel, portMessen, aufloese, dnsAntwortet } from '../../netzwerk';
 import { HASHERS, toBytes } from '../linux/extended';
 
 // ============================================================================
@@ -426,56 +427,58 @@ export const testNetConnectionCommand: ShellCommand = {
     { long: 'InformationLevel', description: 'Detail level', takesValue: true },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  /**
+   * Misst gegen DASSELBE Netzbild wie `ping` und `nc` (siehe netzwerk.ts).
+   *
+   * Die frueheren Fassungen hatten eine eigene kleine Tabelle und fielen fuer
+   * alles ausserhalb auf `Math.random() > 0.5` zurueck — ein Level, dessen
+   * BEWEIS dieser Befehl ist („Port 8443 ist zu, 443 geht"), hat damit
+   * gewuerfelt, und zwei Messungen desselben Ports konnten sich widersprechen.
+   */
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const host = args.options['ComputerName'] || args.positional[0] || 'localhost';
-    const port = args.options['Port'] || args.positional[1];
+    const portRoh = args.options['Port'] || args.positional[1];
+    const net = ctx.net ?? emptyNetState();
+    const quelleIp =
+      ctx.host?.ip ??
+      net.targets.find(z => z.host === ctx.host?.hostname)?.ip ??
+      '10.0.0.50';
 
-    // Simulated network responses
-    const portResponses: Record<string, boolean> = {
-      '8.8.8.8:53': true,
-      '10.0.0.1:22': true,
-      '10.0.0.1:80': true,
-      '10.0.0.1:443': true,
-      '10.0.0.1:8443': false,
-      '192.168.1.1:80': true,
-      'localhost:80': true,
-      'localhost:443': false,
-    };
-
-    if (port) {
-      const key = `${host}:${port}`;
-      const tcpSuccess = portResponses[key] ?? Math.random() > 0.5;
-
+    if (portRoh) {
+      const port = parseInt(portRoh, 10);
+      const mess = portMessen(net, ctx.resolveHost, ctx.host, host, port, 'tcp');
+      const offen = mess.lage === 'offen';
       const lines = [
         '',
         `ComputerName     : ${host}`,
-        `RemoteAddress    : ${host.match(/^\d/) ? host : '10.0.0.' + Math.floor(Math.random() * 255)}`,
+        `RemoteAddress    : ${mess.ip}`,
         `RemotePort       : ${port}`,
-        `InterfaceAlias   : Ethernet`,
-        `SourceAddress    : 10.0.0.50`,
-        `TcpTestSucceeded : ${tcpSuccess}`,
+        'InterfaceAlias   : Ethernet',
+        `SourceAddress    : ${quelleIp}`,
+        `TcpTestSucceeded : ${offen ? 'True' : 'False'}`,
         '',
       ];
-
-      return { output: lines.join('\n'), exitCode: tcpSuccess ? 0 : 1 };
+      if (!offen) {
+        lines.splice(1, 0, `WARNUNG: TCP connect to (${mess.ip} : ${port}) failed`);
+      }
+      return { output: lines.join('\n'), exitCode: offen ? 0 : 1 };
     }
 
-    // Ping test (no port)
-    const reachable = !host.includes('unreachable');
-    const latency = Math.floor(Math.random() * 50) + 5;
-
+    const mess = pingZiel(net, ctx.resolveHost, host);
     const lines = [
       '',
       `ComputerName           : ${host}`,
-      `RemoteAddress          : ${host.match(/^\d/) ? host : '10.0.0.' + Math.floor(Math.random() * 255)}`,
-      `InterfaceAlias         : Ethernet`,
-      `SourceAddress          : 10.0.0.50`,
-      `PingSucceeded          : ${reachable}`,
-      `PingReplyDetails (RTT) : ${latency} ms`,
+      `RemoteAddress          : ${mess.ip}`,
+      'InterfaceAlias         : Ethernet',
+      `SourceAddress          : ${quelleIp}`,
+      `PingSucceeded          : ${mess.erreichbar ? 'True' : 'False'}`,
+      `PingReplyDetails (RTT) : ${mess.erreichbar ? mess.latenz.toFixed(0) : '0'} ms`,
       '',
     ];
-
-    return { output: lines.join('\n'), exitCode: reachable ? 0 : 1 };
+    if (mess.namensfehler) {
+      lines.splice(1, 0, `WARNUNG: Name resolution of ${host} failed`);
+    }
+    return { output: lines.join('\n'), exitCode: mess.erreichbar ? 0 : 1 };
   },
 };
 
@@ -488,9 +491,12 @@ export const testConnectionCommand: ShellCommand = {
     { long: 'Count', description: 'Number of pings', takesValue: true },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const host = args.options['TargetName'] || args.positional[0] || 'localhost';
     const count = parseInt(args.options['Count'] || '4', 10);
+    const net = ctx.net ?? emptyNetState();
+    const mess = pingZiel(net, ctx.resolveHost, host);
+    const quelle = ctx.host?.hostname ?? 'WORKSTATION01';
 
     const lines = [
       '',
@@ -500,13 +506,15 @@ export const testConnectionCommand: ShellCommand = {
       '----  ------         -------        -----------  ------',
     ];
 
-    const addr = host.match(/^\d/) ? host : '10.0.0.100';
     for (let i = 0; i < count; i++) {
-      const latency = Math.floor(Math.random() * 30) + 5;
-      lines.push(`${(i + 1).toString().padStart(4)}  ${'WORKSTATION01'.padEnd(13)}  ${addr.padEnd(13)}  ${latency.toString().padStart(11)}  Success`);
+      const latenz = mess.erreichbar ? (mess.latenz + i * 0.05).toFixed(0) : '*';
+      const status = mess.erreichbar ? 'Success' : 'TimedOut';
+      lines.push(
+        `${(i + 1).toString().padStart(4)}  ${quelle.slice(0, 13).padEnd(13)}  ${mess.ip.padEnd(13)}  ${latenz.padStart(11)}  ${status}`
+      );
     }
 
-    return { output: lines.join('\n'), exitCode: 0 };
+    return { output: lines.join('\n'), exitCode: mess.erreichbar ? 0 : 1 };
   },
 };
 
@@ -572,13 +580,13 @@ export const getDnsClientServerAddressCommand: ShellCommand = {
   description: 'Gets DNS server address settings',
   usage: 'Get-DnsClientServerAddress',
 
-  execute(_args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(_args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const net = ctx.net ?? emptyNetState();
     const lines = [
       '',
       'InterfaceAlias                Index  Family  ServerAddresses',
       '--------------                -----  ------  ---------------',
-      'Ethernet                         12  IPv4    {8.8.8.8, 8.8.4.4}',
-      'Ethernet                         12  IPv6    {2001:4860:4860::8888}',
+      `Ethernet                         12  IPv4    {${net.dnsServers.join(', ')}}`,
       'Loopback Pseudo-Interface 1       1  IPv4    {}',
       '',
     ];
@@ -597,17 +605,26 @@ export const setDnsClientServerAddressCommand: ShellCommand = {
     { long: 'ServerAddresses', description: 'DNS server addresses', takesValue: true },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  /**
+   * Setzt die Resolver WIRKLICH — danach loest `Resolve-DnsName` wieder auf,
+   * wenn der neue Server antwortet. Frueher gab der Befehl nur eine
+   * Erfolgsmeldung aus, und ein Level konnte „Umgehung gebaut" nicht pruefen.
+   */
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const addresses = args.options['ServerAddresses'];
 
     if (!addresses) {
       return { output: '', exitCode: 1, error: 'Set-DnsClientServerAddress : Missing required parameter ServerAddresses.' };
     }
 
-    return {
-      output: `[DNS Server addresses set to: ${addresses}]`,
-      exitCode: 0,
-    };
+    const neu = addresses
+      .replace(/^[("']+|[)"']+$/g, '')
+      .split(',')
+      .map(a => a.trim().replace(/^["']|["']$/g, ''))
+      .filter(Boolean);
+    if (ctx.net) ctx.net.dnsServers = neu;
+
+    return { output: '', exitCode: 0 };
   },
 };
 
@@ -618,9 +635,10 @@ export const resolveDnsNameCommand: ShellCommand = {
   options: [
     { long: 'Name', description: 'DNS name to resolve', takesValue: true },
     { long: 'Type', description: 'Record type (A, AAAA, MX, etc.)', takesValue: true },
+    { long: 'Server', description: 'DNS server to query', takesValue: true },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const name = args.options['Name'] || args.positional[0];
     const type = (args.options['Type'] || 'A').toUpperCase();
 
@@ -628,32 +646,27 @@ export const resolveDnsNameCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'Resolve-DnsName : Cannot bind argument to parameter \'Name\' because it is null.' };
     }
 
-    // Simulated DNS responses
-    const responses: Record<string, Record<string, string[]>> = {
-      'google.com': {
-        'A': ['142.250.185.78'],
-        'AAAA': ['2a00:1450:4001:82a::200e'],
-      },
-      'example.com': {
-        'A': ['93.184.216.34'],
-      },
-    };
+    const net = ctx.net ?? emptyNetState();
+    const server = args.options['Server'];
+    if ((server && net.dnsDown.includes(server)) || (!server && !dnsAntwortet(net))) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: `Resolve-DnsName : ${name} : Zeitueberschreitung bei der DNS-Anforderung (DNS server failure)`,
+      };
+    }
 
-    const records = responses[name.toLowerCase()]?.[type];
-
-    if (!records) {
+    const auf = type === 'A' ? aufloese(net, ctx.resolveHost, name) : { fehler: 'unbekannt' as const };
+    if (!auf.ip) {
       return { output: '', exitCode: 1, error: `Resolve-DnsName : ${name} : DNS name does not exist` };
     }
 
     const lines = [
       '',
-      `Name                                           Type   TTL   Section    ${type === 'A' ? 'IPAddress' : 'NameHost'}`,
+      `Name                                           Type   TTL   Section    IPAddress`,
       `----                                           ----   ---   -------    ---------`,
+      `${name.padEnd(46)} ${type.padEnd(6)} 300   Answer     ${auf.ip}`,
     ];
-
-    for (const record of records) {
-      lines.push(`${name.padEnd(46)} ${type.padEnd(6)} 300   Answer     ${record}`);
-    }
 
     return { output: lines.join('\n'), exitCode: 0 };
   },
@@ -673,21 +686,32 @@ export const getProcessCommand: ShellCommand = {
     { long: 'Id', description: 'Process ID', takesValue: true },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  /**
+   * Liest die Prozesstabelle des HOSTS — dieselbe, die `Stop-Process`
+   * veraendert und die ein Level saeen kann. Die frueheren sechs fest
+   * verdrahteten Zeilen waren auf jeder Maschine dieselben, und ein beendeter
+   * Prozess stand danach wieder da.
+   */
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const nameFilter = args.options['Name'] || args.positional[0];
+    const idFilter = args.options['Id'];
+    let processes = ctx.host?.processes ?? [];
 
-    const processes = [
-      { name: 'System', pid: 4, cpu: 0.5, mem: 8.2, ws: 128 },
-      { name: 'svchost', pid: 456, cpu: 1.2, mem: 25.5, ws: 32768 },
-      { name: 'explorer', pid: 1234, cpu: 2.1, mem: 85.3, ws: 98304 },
-      { name: 'powershell', pid: 5678, cpu: 0.8, mem: 120.5, ws: 145920 },
-      { name: 'notepad', pid: 7890, cpu: 0.1, mem: 12.3, ws: 15360 },
-      { name: 'chrome', pid: 9012, cpu: 15.2, mem: 512.8, ws: 524288 },
-    ];
+    if (nameFilter) {
+      const muster = nameFilter.replace(/\*/g, '');
+      processes = processes.filter(p => p.name.toLowerCase().includes(muster.toLowerCase()));
+    }
+    if (idFilter) {
+      processes = processes.filter(p => p.pid === parseInt(idFilter, 10));
+    }
 
-    const filtered = nameFilter
-      ? processes.filter(p => p.name.toLowerCase().includes(nameFilter.toLowerCase()))
-      : processes;
+    if (processes.length === 0 && (nameFilter || idFilter)) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: `Get-Process : Es wurde kein Prozess gefunden, der den Kriterien "${nameFilter ?? idFilter}" entspricht.`,
+      };
+    }
 
     const lines = [
       '',
@@ -695,12 +719,14 @@ export const getProcessCommand: ShellCommand = {
       '-------  ------  -----   -----   ------    --  -----------',
     ];
 
-    for (const p of filtered) {
-      const handles = Math.floor(Math.random() * 500 + 100);
-      const npm = Math.floor(Math.random() * 30 + 5);
-      const pm = Math.floor(p.mem * 1024);
+    for (const p of processes) {
+      // Abgeleitet statt gewuerfelt: zwei Aufrufe zeigen dieselbe Zeile.
+      const handles = 100 + (p.pid % 400);
+      const npm = 5 + (p.pid % 30);
+      const pm = 4096 + p.pid * 13;
+      const ws = 8192 + p.pid * 29;
       lines.push(
-        `${handles.toString().padStart(7)}  ${npm.toString().padStart(6)}  ${pm.toString().padStart(5)}  ${p.ws.toString().padStart(6)}  ${p.cpu.toFixed(2).padStart(7)}  ${p.pid.toString().padStart(4)}  ${p.name}`
+        `${handles.toString().padStart(7)}  ${npm.toString().padStart(6)}  ${pm.toString().padStart(5)}  ${ws.toString().padStart(6)}  ${(p.cpu / 100).toFixed(2).padStart(7)}  ${p.pid.toString().padStart(4)}  ${p.name}`
       );
     }
 
@@ -719,7 +745,12 @@ export const stopProcessCommand: ShellCommand = {
     { long: 'Force', description: 'Force stop' },
   ],
 
-  execute(args: ParsedArgs, _ctx: ExecutionContext): CommandResult {
+  /**
+   * Beendet WIRKLICH: Der Prozess verschwindet aus der Tabelle, und mit ihm
+   * seine Sockets. Vorher war der Befehl eine Erfolgsmeldung ohne Wirkung —
+   * `Get-Process` zeigte den „beendeten" Prozess danach weiter an.
+   */
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
     const id = args.options['Id'] || args.positional[0];
     const name = args.options['Name'];
 
@@ -727,10 +758,93 @@ export const stopProcessCommand: ShellCommand = {
       return { output: '', exitCode: 1, error: 'Stop-Process : Missing required parameter.' };
     }
 
-    return {
-      output: `[Process ${id || name} stopped]`,
-      exitCode: 0,
-    };
+    const host = ctx.host;
+    if (!host) return { output: '', exitCode: 0 };
+
+    const pid = id !== undefined ? parseInt(id, 10) : NaN;
+    const treffer = host.processes.filter(p =>
+      name ? p.name.toLowerCase() === name.toLowerCase() : p.pid === pid
+    );
+    if (treffer.length === 0) {
+      return {
+        output: '',
+        exitCode: 1,
+        error: `Stop-Process : Der Prozess "${name ?? id}" wurde nicht gefunden.`,
+      };
+    }
+
+    for (const p of treffer) {
+      host.processes = host.processes.filter(x => x.pid !== p.pid);
+      host.listeners = host.listeners.filter(l => l.pid !== p.pid);
+      host.connections = host.connections.filter(c => c.pid !== p.pid);
+    }
+
+    return { output: '', exitCode: 0 };
+  },
+};
+
+/**
+ * Das Windows-Gegenstueck zu `ss -tp`: die bestehenden Verbindungen des Hosts.
+ * Ohne diesen Befehl laesst sich auf einer Windows-Kiste gar nicht messen,
+ * wohin sie gerade spricht — und genau das ist bei einer verdaechtigen
+ * Arbeitsstation die entscheidende Frage.
+ */
+export const getNetTcpConnectionCommand: ShellCommand = {
+  name: 'Get-NetTCPConnection',
+  aliases: ['netstat'],
+  description: 'Gets current TCP connections',
+  usage: 'Get-NetTCPConnection [-State <state>] [-RemoteAddress <ip>]',
+  options: [
+    { long: 'State', description: 'Connection state filter', takesValue: true },
+    { long: 'RemoteAddress', description: 'Remote address filter', takesValue: true },
+    { long: 'LocalPort', description: 'Local port filter', takesValue: true },
+  ],
+
+  execute(args: ParsedArgs, ctx: ExecutionContext): CommandResult {
+    const host = ctx.host;
+    const eigeneIp = host?.ip ?? '0.0.0.0';
+    const zeilen: { lokal: string; fern: string; zustand: string; pid: number | undefined; prog?: string }[] = [];
+
+    for (const l of host?.listeners ?? []) {
+      if (l.proto !== 'tcp') continue;
+      zeilen.push({ lokal: `${l.address ?? '0.0.0.0'}:${l.port}`, fern: '0.0.0.0:0', zustand: 'Listen', pid: l.pid, prog: l.program });
+    }
+    for (const c of host?.connections ?? []) {
+      if (c.proto !== 'tcp') continue;
+      zeilen.push({
+        lokal: `${eigeneIp}:${c.localPort}`,
+        fern: c.peer,
+        zustand: (c.state ?? 'ESTABLISHED') === 'ESTABLISHED' ? 'Established' : (c.state ?? 'Established'),
+        pid: c.pid,
+        prog: c.program,
+      });
+    }
+
+    const gefiltert = zeilen.filter(z => {
+      const state = args.options['State'];
+      const remote = args.options['RemoteAddress'];
+      const lport = args.options['LocalPort'];
+      if (state && z.zustand.toLowerCase() !== state.toLowerCase()) return false;
+      if (remote && !z.fern.startsWith(remote)) return false;
+      if (lport && !z.lokal.endsWith(`:${lport}`)) return false;
+      return true;
+    });
+
+    const lines = [
+      '',
+      'LocalAddress            LocalPort RemoteAddress           RemotePort State        OwningProcess',
+      '------------            --------- -------------           ---------- -----        -------------',
+    ];
+    for (const z of gefiltert) {
+      const [lIp, lPort] = [z.lokal.slice(0, z.lokal.lastIndexOf(':')), z.lokal.slice(z.lokal.lastIndexOf(':') + 1)];
+      const [rIp, rPort] = [z.fern.slice(0, z.fern.lastIndexOf(':')), z.fern.slice(z.fern.lastIndexOf(':') + 1)];
+      lines.push(
+        `${lIp.padEnd(23)} ${lPort.padStart(9)} ${rIp.padEnd(23)} ${rPort.padStart(10)} ${z.zustand.padEnd(12)} ${(z.pid ?? '').toString().padStart(13)}`
+      );
+    }
+    lines.push('');
+
+    return { output: lines.join('\n'), exitCode: 0 };
   },
 };
 
@@ -1373,6 +1487,7 @@ export const allPowerShellCommands: ShellCommand[] = [
   // Process/Service
   getProcessCommand,
   stopProcessCommand,
+  getNetTcpConnectionCommand,
   getServiceCommand,
   // Exchange
   getMailboxCommand,

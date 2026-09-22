@@ -5,7 +5,7 @@
 import {
   TerminalHostSpec, TerminalJournalEntry, TerminalUnitPrecondition,
   TerminalServiceSpec, TerminalFirewallSpec, TerminalMailboxSpec, NetListener, NetConnection,
-  TerminalNftSpec,
+  TerminalNftSpec, TerminalProcessSpec,
 } from '@kritis/shared';
 import { VirtualFilesystemInterface } from './types';
 import { createLinuxFilesystem } from './VirtualFilesystem';
@@ -26,6 +26,8 @@ export interface SystemdUnitState {
   startRequires?: TerminalUnitPrecondition[];
   /** Files materialized on the host VFS on a successful start (e.g. a socket). */
   createsOnStart?: string[];
+  /** Sockets, die der Dienst haelt — beim Start angelegt, beim Stoppen entfernt. */
+  listens?: { proto?: 'tcp' | 'udp'; port: number; address?: string }[];
 }
 
 export interface UfwRule { action: 'allow' | 'deny'; port: number; proto?: 'tcp' | 'udp'; from?: string }
@@ -62,6 +64,8 @@ export interface HostState {
   listeners: NetListener[];
   /** Established connections shown by `ss -tp`/`netstat`. */
   connections: NetConnection[];
+  /** Laufende Prozesse (`ps`, `Get-Process`); `kill <pid>` entfernt Treffer. */
+  processes: ProcessState[];
   sshdEffective: { permitRootLogin: boolean; passwordAuthentication: boolean };
   refreshSshdEffective(): void;
   appendJournal(entry: TerminalJournalEntry): void;
@@ -79,6 +83,36 @@ export const DEFAULT_LISTENERS: NetListener[] = [
   { proto: 'udp', port: 68, address: '0.0.0.0', pid: 123, program: 'dhclient' },
 ];
 
+/**
+ * Die Lauscher einer WINDOWS-Arbeitsstation ohne eigene Angabe. Die
+ * Linux-Grundausstattung darueber (sshd, apache2, mysqld) auf einer
+ * Windows-Kiste anzuzeigen, waere schlicht falsch — und faellt sofort auf,
+ * sobald ein Level die offenen Verbindungen zum Gegenstand macht.
+ */
+export const DEFAULT_WINDOWS_LISTENERS: NetListener[] = [
+  { proto: 'tcp', port: 135, address: '0.0.0.0', pid: 916, program: 'svchost' },
+  { proto: 'tcp', port: 445, address: '0.0.0.0', pid: 4, program: 'System' },
+  { proto: 'tcp', port: 5985, address: '0.0.0.0', pid: 4, program: 'System' },
+  { proto: 'udp', port: 138, address: '0.0.0.0', pid: 4, program: 'System' },
+];
+
+/** Die Prozesstabelle einer Windows-Arbeitsstation ohne eigene Angabe. */
+export const DEFAULT_WINDOWS_PROCESSES: TerminalProcessSpec[] = [
+  { pid: 4, user: 'SYSTEM', name: 'System', cmd: 'System', cpu: 50 },
+  { pid: 916, user: 'SYSTEM', name: 'svchost', cmd: 'C:\\Windows\\System32\\svchost.exe', cpu: 120 },
+  { pid: 1180, user: '<user>', name: 'explorer', cmd: 'C:\\Windows\\explorer.exe', cpu: 210 },
+  { pid: 5678, user: '<user>', name: 'powershell', cmd: 'powershell.exe', cpu: 8 },
+];
+
+/** Ein laufender Prozess — der Zustand hinter `ps`, `kill` und `Stop-Process`. */
+export interface ProcessState {
+  pid: number;
+  name: string;
+  user: string;
+  cmd: string;
+  cpu: number;
+}
+
 /** The established connections a host has when it declares none. */
 export const DEFAULT_CONNECTIONS: NetConnection[] = [
   { proto: 'tcp', localPort: 22, peer: '192.168.1.50:52413', state: 'ESTABLISHED', pid: 3456, program: 'sshd' },
@@ -88,6 +122,29 @@ export const DEFAULT_CONNECTIONS: NetConnection[] = [
 // says otherwise, so ownership defaults to 'root' when a socket is materialised.
 const cloneListeners = (list: NetListener[]): NetListener[] => list.map(l => ({ user: 'root', ...l }));
 const cloneConnections = (list: NetConnection[]): NetConnection[] => list.map(c => ({ user: 'root', ...c }));
+
+/**
+ * Die Prozesstabelle, die eine Kiste ohne eigene Angabe hat — dieselben
+ * Eintraege, die `ps` frueher fest verdrahtet ausgab, damit bestehende Level
+ * ihre Ansicht behalten. `<user>` wird beim Bauen durch den angemeldeten
+ * Nutzer ersetzt.
+ */
+export const DEFAULT_PROCESSES: TerminalProcessSpec[] = [
+  { pid: 1, user: 'root', name: 'systemd', cmd: '/sbin/init', cpu: 2 },
+  { pid: 456, user: 'root', name: 'sshd', cmd: '/usr/sbin/sshd -D', cpu: 0 },
+  { pid: 789, user: '<user>', name: 'bash', cmd: '-bash', cpu: 0 },
+  { pid: 1234, user: 'www-data', name: 'apache2', cmd: '/usr/sbin/apache2 -k start', cpu: 15 },
+  { pid: 2345, user: 'mysql', name: 'mysqld', cmd: '/usr/sbin/mysqld', cpu: 323 },
+];
+
+const seedProcesses = (list: TerminalProcessSpec[], user: string): ProcessState[] =>
+  list.map(p => ({
+    pid: p.pid,
+    name: p.name,
+    user: (p.user ?? 'root') === '<user>' ? user : (p.user ?? 'root'),
+    cmd: p.cmd ?? p.name,
+    cpu: p.cpu ?? 0,
+  }));
 
 /** Materialise a seeded mailbox; auditEnabled defaults to false (the realistic
  *  on-prem Exchange 2019 default a level is usually asked to fix). */
@@ -182,6 +239,7 @@ export function applyServiceSpecs(
       unitFile: svc.unitFile,
       startRequires: svc.startRequires?.map(p => ({ ...p })),
       createsOnStart: svc.createsOnStart ? [...svc.createsOnStart] : undefined,
+      listens: svc.listens?.map(l => ({ ...l })),
     };
     if (merged.unitFile) {
       const read = vfs.readFile(merged.unitFile);
@@ -211,6 +269,7 @@ export function seedPrimaryHost(
     listeners?: NetListener[];
     connections?: NetConnection[];
     mailboxes?: TerminalMailboxSpec[];
+    processes?: TerminalProcessSpec[];
   },
 ): void {
   if (spec.services) applyServiceSpecs(host.vfs, host.services, spec.services);
@@ -228,7 +287,39 @@ export function seedPrimaryHost(
   // Listeners/connections replace the defaults when a level authors them —
   // a forensic level owns its full port view, not a merge of the baseline.
   if (spec.listeners) host.listeners = cloneListeners(spec.listeners);
+  if (spec.services) host.listeners = sockelsAusDiensten(host.services, host.listeners);
   if (spec.connections) host.connections = cloneConnections(spec.connections);
+  if (spec.processes) host.processes = seedProcesses(spec.processes, host.vfs.getUser());
+}
+
+/**
+ * Die Sockets aktiver Einheiten in die Lauscherliste aufnehmen (und die
+ * toter Einheiten heraushalten). So kann ein Level Dienst und Port nicht
+ * auseinanderlaufen lassen — es pflegt nur noch den Dienst.
+ */
+function sockelsAusDiensten(services: SystemdUnitState[], listeners: NetListener[]): NetListener[] {
+  const ergebnis = [...listeners];
+  for (const unit of services) {
+    for (const sock of unit.listens ?? []) {
+      const proto = sock.proto ?? 'tcp';
+      const idx = ergebnis.findIndex(l => l.port === sock.port && l.proto === proto);
+      if (unit.active === 'active') {
+        if (idx === -1) {
+          ergebnis.push({
+            proto,
+            port: sock.port,
+            address: sock.address ?? '0.0.0.0',
+            pid: unit.pid ?? derivedUnitPid(unit.unit),
+            program: unit.unit.replace(/\.service$/, ''),
+            user: 'root',
+          });
+        }
+      } else if (idx !== -1) {
+        ergebnis.splice(idx, 1);
+      }
+    }
+  }
+  return ergebnis;
 }
 
 export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
@@ -265,8 +356,9 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     },
     nft: spec.nft ? seedNftState(spec.nft) : emptyNftState(),
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
-    listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
+    listeners: sockelsAusDiensten(services, cloneListeners(spec.listeners ?? DEFAULT_LISTENERS)),
     connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
+    processes: seedProcesses(spec.processes ?? DEFAULT_PROCESSES, vfs.getUser()),
     mailboxes: (spec.mailboxes ?? []).map(seedMailbox),
   });
 }
@@ -275,7 +367,12 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
  * Build a HostState around an EXISTING vfs — used to wrap the shell's local
  * filesystem as the base host of the session stack. Shell-type agnostic.
  */
-export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string): HostState {
+export function wrapVfsAsHost(
+  vfs: VirtualFilesystemInterface,
+  hostname?: string,
+  shellType: 'bash' | 'powershell' = 'bash',
+): HostState {
+  const windows = shellType === 'powershell';
   return buildHostState({
     id: 'local',
     hostname: hostname ?? vfs.getEnv('HOSTNAME') ?? vfs.getEnv('COMPUTERNAME') ?? 'localhost',
@@ -285,8 +382,9 @@ export function wrapVfsAsHost(vfs: VirtualFilesystemInterface, hostname?: string
     firewall: { enabled: true, defaultIncoming: 'allow', defaultOutgoing: 'allow', rules: [] },
     nft: emptyNftState(),
     accounts: [{ name: vfs.getUser() }],
-    listeners: cloneListeners(DEFAULT_LISTENERS),
-    connections: cloneConnections(DEFAULT_CONNECTIONS),
+    listeners: cloneListeners(windows ? DEFAULT_WINDOWS_LISTENERS : DEFAULT_LISTENERS),
+    connections: windows ? [] : cloneConnections(DEFAULT_CONNECTIONS),
+    processes: seedProcesses(windows ? DEFAULT_WINDOWS_PROCESSES : DEFAULT_PROCESSES, vfs.getUser()),
   });
 }
 

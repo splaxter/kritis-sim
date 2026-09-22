@@ -86,6 +86,20 @@ export function attemptStart(host: HostState, unit: SystemdUnitState): { ok: boo
   for (const path of unit.createsOnStart ?? []) {
     if (!host.vfs.exists(path)) host.vfs.addFile(path, '');
   }
+  // Dienst und Port sind EIN Ding: Wer den Dienst startet, oeffnet damit
+  // seinen Socket — sonst bliebe die Reparatur von aussen unsichtbar.
+  for (const sock of unit.listens ?? []) {
+    const proto = sock.proto ?? 'tcp';
+    if (host.listeners.some(l => l.port === sock.port && l.proto === proto)) continue;
+    host.listeners.push({
+      proto,
+      port: sock.port,
+      address: sock.address ?? '0.0.0.0',
+      pid: unit.pid,
+      program: shortUnitName(unit.unit),
+      user: 'root',
+    });
+  }
   host.appendJournal({
     ts: nextJournalTs(host),
     unit: shortUnitName(unit.unit),
@@ -103,6 +117,10 @@ export function stopUnit(host: HostState, unit: SystemdUnitState): void {
   unit.active = 'inactive';
   unit.sub = 'dead';
   unit.pid = undefined;
+  for (const sock of unit.listens ?? []) {
+    const proto = sock.proto ?? 'tcp';
+    host.listeners = host.listeners.filter(l => !(l.port === sock.port && l.proto === proto));
+  }
   host.appendJournal({
     ts: nextJournalTs(host),
     unit: shortUnitName(unit.unit),

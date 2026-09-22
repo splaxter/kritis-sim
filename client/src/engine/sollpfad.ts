@@ -48,9 +48,13 @@ const PLATZHALTER_WORT = new Set([
   'verzeichnis', 'host', 'benutzer', 'zeile', 'text', 'ziel', 'quelle',
 ]);
 
-function istPlatzhalter(zeile: string): boolean {
+function istPlatzhalter(zeile: string, windows: boolean): boolean {
   const ohneZitate = zeile.replace(/"[^"]*"|'[^']*'/g, '');
-  if (/\b[A-ZÄÖÜ]{3,}\b/.test(ohneZitate)) return true;
+  // Der BEFEHL selbst ist nie ein Platzhalter — `Get-NetTCPConnection` heisst
+  // nun einmal so. Geprueft wird deshalb nur, was danach kommt; `grep MUSTER
+  // datei` und `cat PRUEFSUMMEN.txt` fallen weiterhin durch.
+  const ohneBefehl = ohneZitate.split(/\s+/).slice(1).join(' ');
+  if (/\b[A-ZÄÖÜ]{3,}\b/.test(ohneBefehl)) return true;
   // Kleingeschriebene Platzhalter sind genauso wenig tippbar: `cat dateiname`
   // ist eine Schreibweise, keine Zeile. Und `ping -c 3` ohne Ziel ebenso —
   // eine Option ohne das Argument, das sie braucht.
@@ -60,6 +64,11 @@ function istPlatzhalter(zeile: string): boolean {
   if (rest.some((t) => PLATZHALTER_WORT.has(t.toLowerCase()))) return true;
   // Ein Befehl mit Optionen, aber ohne Operand: `ping -c 3` erklaert die
   // Option, ist aber keine Zeile, die jemand so abschickt.
+  // In PowerShell SIND die benannten Parameter die Argumente: `Stop-Process
+  // -Id 3456` ist eine vollstaendige Zeile, kein erklaerter Schalter. Die
+  // Regel darunter gilt deshalb nur fuer die Bourne-Welt, wo `ping -c 3`
+  // wirklich nur die Option zeigt.
+  if (windows) return false;
   const operanden: string[] = [];
   for (let i = 0; i < rest.length; i++) {
     if (rest[i].startsWith('-')) {
@@ -80,9 +89,13 @@ const ALLEIN_SINNVOLL = new Set([
   'netstat', 'ss', 'ifconfig', 'uname', 'get-process', 'get-service',
 ]);
 
-function istNacktesStichwort(zeile: string): boolean {
+function istNacktesStichwort(zeile: string, windows: boolean): boolean {
   const teile = zeile.split(/\s+/);
-  return teile.length === 1 && !ALLEIN_SINNVOLL.has(teile[0].toLowerCase());
+  if (teile.length !== 1) return false;
+  // `Get-*` zaehlt ohne Argument auf — das ist eine Zeile, die jemand so
+  // abschickt, kein blosses Stichwort. Fuer `Set-`/`Stop-` gilt das nicht.
+  if (windows && /^get-/i.test(teile[0])) return false;
+  return !ALLEIN_SINNVOLL.has(teile[0].toLowerCase());
 }
 
 const vokabular = (ctx: TerminalContext) =>
@@ -98,7 +111,10 @@ export function abschreibbareZeilen(ctx: TerminalContext): string[] {
       const zeile = treffer[1].trim();
       const erstes = zeile.split(/\s+/)[0].toLowerCase();
       const istBefehl = vok.has(erstes) || erstes === 'sudo';
-      if (istBefehl && !istPlatzhalter(zeile) && !istNacktesStichwort(zeile)) zeilen.push(zeile);
+      const windows = ctx.type === 'windows';
+      if (istBefehl && !istPlatzhalter(zeile, windows) && !istNacktesStichwort(zeile, windows)) {
+        zeilen.push(zeile);
+      }
     }
   }
   return zeilen;

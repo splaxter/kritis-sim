@@ -146,6 +146,10 @@ export interface TerminalContext {
   connections?: NetConnection[];
   /** Exchange mailboxes seeded onto the PRIMARY host (EXCH01 audit levels). */
   mailboxes?: TerminalMailboxSpec[];
+  /** Prozesstabelle des PRIMAeR-Hosts (`ps`, `Get-Process`). */
+  processes?: TerminalProcessSpec[];
+  /** Das Netzbild des Levels — Erreichbarkeit und Namensaufloesung. */
+  net?: TerminalNetSpec;
   /** Live skill drip: first successful use (exit 0) of a command name grants this. */
   commandSkillGain?: Record<string, Partial<Skills>>;
 }
@@ -198,6 +202,17 @@ export interface TerminalServiceSpec {
    * `startRequires` depends on — powers dependency-chain levels.
    */
   createsOnStart?: string[];
+  /**
+   * Die Sockets, die dieser Dienst oeffnet. Sie werden beim Start angelegt und
+   * beim Stoppen entfernt — und beim Saeen nur dann, wenn die Einheit aktiv
+   * ist.
+   *
+   * WARUM: Dienst und Port sind EIN Ding. Wer beide getrennt pflegt, kann sie
+   * auseinanderlaufen lassen: ein Level mit totem Dienst und offenem Port ist
+   * eine Messung, die der Spieler nicht erklaeren kann, und ein Neustart, nach
+   * dem der Port zu bleibt, macht die Reparatur unbeweisbar.
+   */
+  listens?: { proto?: 'tcp' | 'udp'; port: number; address?: string }[];
 }
 
 export interface TerminalFirewallSpec {
@@ -232,6 +247,59 @@ export interface TerminalNftSpec {
   /** Table name; defaults to 'filter'. */
   table?: string;
   chains: TerminalNftChainSpec[];
+}
+
+/**
+ * Ein Ziel, das KEINE eigene Maschine des Levels ist — eine Internet-Adresse,
+ * ein Geraet ohne Shell, eine Gegenstelle. Registrierte Hosts brauchen keinen
+ * Eintrag: fuer die entscheidet ihr eigener Zustand (Regelwerk und Lauscher).
+ */
+export interface TerminalNetTargetSpec {
+  /** Adresse oder Name, so wie der Spieler ihn tippt. */
+  host: string;
+  /** Adresse, falls `host` ein Name ist. */
+  ip?: string;
+  /** Antwortet auf ICMP? Ohne Angabe: ja. */
+  ping?: boolean;
+  /** Offene TCP-Ports; alles andere gilt als abgelehnt (RST). */
+  openPorts?: number[];
+  /** Ports, die schweigen statt abzulehnen — davor haengt ein Filter. */
+  filteredPorts?: number[];
+  /** Dienstnamen je Port, wo der Standard nicht passt. */
+  dienste?: Record<number, string>;
+}
+
+/**
+ * Das Netzbild eines Levels: was erreichbar ist und wie Namen aufgeloest
+ * werden. Befragt von `ping`, `nc`, `Test-NetConnection`, `nslookup` und
+ * `Resolve-DnsName` — EIN Modell fuer alle, damit eine Messung nicht davon
+ * abhaengt, mit welchem Werkzeug sie gemacht wurde.
+ *
+ * ACHTUNG: Saeht ein Level dieses Feld, gehoert ihm das Bild GANZ. Was hier
+ * nicht steht und kein registrierter Host ist, ist unerreichbar — dieselbe
+ * Regel wie bei `listeners`.
+ */
+export interface TerminalNetSpec {
+  /** Namensaufloesung: Name -> Adresse. */
+  records?: Record<string, string>;
+  /** Die befragten Resolver; ohne Angabe 8.8.8.8. */
+  dnsServers?: string[];
+  /** Resolver, die nicht antworten — `nslookup` laeuft in den Timeout. */
+  dnsDown?: string[];
+  targets?: TerminalNetTargetSpec[];
+}
+
+/** Ein Prozess, wie das Spiel ihn modelliert: Kennung, Name, Eigentuemer. */
+export interface TerminalProcessSpec {
+  pid: number;
+  /** Prozessname ohne Pfad ('PsExec64', 'mysqld'). */
+  name: string;
+  /** Eigentuemer; ohne Angabe 'root' (Linux) bzw. der angemeldete Nutzer. */
+  user?: string;
+  /** Vollstaendige Befehlszeile, wie `ps -f` sie zeigt. */
+  cmd?: string;
+  /** CPU-Zeit in Sekunden, fuer die Anzeige. */
+  cpu?: number;
 }
 
 /** A listening socket shown by `ss`/`netstat` — a level can author a rogue one. */
@@ -283,6 +351,8 @@ export interface TerminalHostSpec {
   connections?: NetConnection[];
   /** Exchange mailboxes on this host. */
   mailboxes?: TerminalMailboxSpec[];
+  /** Prozesstabelle dieser Maschine (`ps`, `Get-Process`). */
+  processes?: TerminalProcessSpec[];
 }
 
 /** Ein Feld eines `schluessel: wert`-Berichts (siehe StateGoal.reportFields). */
@@ -386,6 +456,33 @@ export interface StateGoal {
   listenerAbsent?: { port: number };
   /** True iff at least one listener on the host binds this port. */
   listenerPresent?: { port: number };
+  /**
+   * Bestehende Verbindungen des Hosts. `peer` vergleicht die Gegenstelle —
+   * als 'ip:port' oder nur als IP, dann zaehlt jede Verbindung dorthin.
+   * `port` meint den LOKALEN Port, `program` den Prozessnamen.
+   *
+   * Das Gegenstueck zu listenerAbsent: Eine offene Sitzung kappt man nicht,
+   * indem man einen Port schliesst, sondern indem man den Prozess beendet —
+   * und genau das soll die Bedingung pruefen, nicht die Schreibweise des
+   * Befehls.
+   */
+  connectionAbsent?: { peer?: string; port?: number; program?: string };
+  /** Dieselbe Auswahl, aber es muss mindestens eine solche Verbindung GEBEN. */
+  connectionPresent?: { peer?: string; port?: number; program?: string };
+  /**
+   * Die Namensaufloeser, die der Rechner gerade befragt (`nameserver` /
+   * `Set-DnsClientServerAddress`). `contains` fordert einen bestimmten
+   * Resolver, `absent` verbietet einen — so laesst sich "die Umgehung steht"
+   * pruefen, ohne die genaue Reihenfolge vorzuschreiben.
+   */
+  dnsServers?: { contains?: string; absent?: string };
+  /**
+   * Prozesstabelle des Hosts. `name` vergleicht ohne Ruecksicht auf Gross-
+   * schreibung und ohne Pfad ('PsExec64'), `pid` die Kennung.
+   */
+  processAbsent?: { name?: string; pid?: number };
+  /** Dieselbe Auswahl, aber der Prozess muss LAUFEN (bewahrende Bedingung). */
+  processPresent?: { name?: string; pid?: number };
   /**
    * Session-aware: the player must have successfully SSH-logged into a host
    * during this terminal session. `host` names the login TARGET (id, hostname,

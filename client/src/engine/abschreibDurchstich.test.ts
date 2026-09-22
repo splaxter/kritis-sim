@@ -49,11 +49,10 @@ const NICHT_ABSCHREIBBAR = new Set([
  * keine Backticks. Eine Aussage ueber die Pruefbarkeit, nicht ueber Qualitaet.
  */
 const OHNE_SOLLPFAD = new Set([
+  // Seit dem Umbau der gedosten Szenarien auf echte Dateien, echte Maschinen
+  // und Zustandsziele sind alle Pack-Faelle abschreibbar. Uebrig bleiben
+  // genau zwei Level, deren Beats reine Muster sind.
   'evt_kritis_audit_prep', 'blk_c1_hunt_cli',
-  'AMSE-SC-001', 'AMSE-SC-002', 'AMSE-SC-004', 'AMSE-SC-007', 'AMSE-SC-008',
-  // KRITIS-SC-001 ist seit dem Umbau auf echte Dateien und Zustandsziele
-  // abschreibbar — die Liste wird kuerzer, nicht laenger.
-  'KRITIS-SC-002', 'KRITIS-SC-008',
 ]);
 
 const ohneSollpfad = new Set(level.filter((e) => sollpfad(e)!.quelle === 'keine').map((e) => e.id));
