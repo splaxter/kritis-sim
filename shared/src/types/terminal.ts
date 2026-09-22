@@ -470,6 +470,13 @@ export interface StateGoal {
   /** Dieselbe Auswahl, aber es muss mindestens eine solche Verbindung GEBEN. */
   connectionPresent?: { peer?: string; port?: number; program?: string };
   /**
+   * Die Namensaufloeser, die der Rechner gerade befragt (`nameserver` /
+   * `Set-DnsClientServerAddress`). `contains` fordert einen bestimmten
+   * Resolver, `absent` verbietet einen — so laesst sich "die Umgehung steht"
+   * pruefen, ohne die genaue Reihenfolge vorzuschreiben.
+   */
+  dnsServers?: { contains?: string; absent?: string };
+  /**
    * Prozesstabelle des Hosts. `name` vergleicht ohne Ruecksicht auf Gross-
    * schreibung und ohne Pfad ('PsExec64'), `pid` die Kennung.
    */

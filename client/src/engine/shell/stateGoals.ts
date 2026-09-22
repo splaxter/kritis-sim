@@ -52,6 +52,7 @@ function hasAssertion(goal: StateGoal): boolean {
     // weg") — deshalb zaehlt nur eine Bedingung mit mindestens einem Feld.
     || (goal.connectionAbsent !== undefined && Object.keys(goal.connectionAbsent).length > 0)
     || (goal.connectionPresent !== undefined && Object.keys(goal.connectionPresent).length > 0)
+    || (goal.dnsServers !== undefined && Object.keys(goal.dnsServers).length > 0)
     || (goal.processAbsent !== undefined && Object.keys(goal.processAbsent).length > 0)
     || (goal.processPresent !== undefined && Object.keys(goal.processPresent).length > 0)
     // loggedIn/sshdEffective/ansibleRan are non-vacuous even with empty
@@ -328,6 +329,20 @@ function prozessTrifft(p: { pid: number; name: string }, wahl: { name?: string; 
   return true;
 }
 
+/**
+ * Die Namensaufloeser, die der Rechner gerade befragt. Das Netzbild ist
+ * sitzungsweit (ein Level, ein Netz), deshalb haengt diese Bedingung an der
+ * Maschine der Sitzung, nicht an einem einzelnen Host.
+ */
+function checkDnsGoal(engine: ShellEngine, goal: StateGoal): boolean {
+  const g = goal.dnsServers;
+  if (!g || Object.keys(g).length === 0) return true;
+  const server = engine.getNet().dnsServers;
+  if (g.contains !== undefined && !server.includes(g.contains)) return false;
+  if (g.absent !== undefined && server.includes(g.absent)) return false;
+  return true;
+}
+
 function checkNetworkGoals(host: HostState, goal: StateGoal): boolean {
   if (goal.listenerAbsent) {
     const { port } = goal.listenerAbsent;
@@ -504,6 +519,7 @@ export function checkStateGoal(engine: ShellEngine, goal: StateGoal): boolean {
       && checkMailboxGoals(host, goal)
       && checkFirewallGoals(host, goal)
       && checkNetworkGoals(host, goal)
+      && checkDnsGoal(engine, goal)
       // sshdEffective and loggedIn may name their OWN target host, falling
       // back to goal.host / the base host like the checks above.
       && checkSshdEffectiveGoal(engine, host, goal)
