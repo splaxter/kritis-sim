@@ -5,6 +5,36 @@
 
 import { Scenario } from '@kritis/shared';
 
+// ============================================================================
+// Schlüsselzugang in der Leittechnik
+// ----------------------------------------------------------------------------
+// Der Operator hat auf dem Leitstand ein Schlüsselpaar; die Feldgeräte
+// vertrauen ihm für das Konto `operator`. Passwörter wären hier nicht nur
+// unschön, sondern auch untippbar: Ein Level, dessen Hinweise ein Passwort
+// nennen müssen, ist nicht mehr durch Abschreiben lösbar.
+// ============================================================================
+
+const LEITSTAND_PUBKEY =
+  'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILeitstandOperator000000000000000000000 operator@scada-master';
+
+const LEITSTAND_PRIVKEY =
+  '-----BEGIN OPENSSH PRIVATE KEY-----\n' +
+  'b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gt\n' +
+  'ZWQyNTUxOQAAACALeitstandOperator00000000000000000000000000000000AA\n' +
+  '-----END OPENSSH PRIVATE KEY-----\n';
+
+/** ~/.ssh des Operators auf dem Leitstand (privater Schlüssel 600). */
+const leitstandZugang = [
+  { path: '/home/operator/.ssh/id_ed25519', content: LEITSTAND_PRIVKEY, mode: '600' },
+  { path: '/home/operator/.ssh/id_ed25519.pub', content: LEITSTAND_PUBKEY + '\n' },
+];
+
+/** Die Zeile, die ein Feldgerät dem Leitstand vertrauen lässt. */
+const vertrautDemLeitstand = {
+  path: '/home/operator/.ssh/authorized_keys',
+  content: LEITSTAND_PUBKEY + '\n',
+};
+
 export const kritisInfraScenarios: Scenario[] = [
   {
     id: 'KRITIS-SC-001',
@@ -199,104 +229,128 @@ Ohne Sensorik fliegt die Anlage "blind". Die letzten Messwerte von PLC03 sind 5 
       username: 'operator',
       currentPath: '/opt/scada',
       templateIds: ['scada'],
-      commands: [
+      // Der Fall ist eine Schichtenfrage: Das Dashboard sagt „Verbindung
+      // unterbrochen" und meint damit drei mögliche Dinge auf einmal —
+      // Leitung, Gerät, Dienst. Erst die Messung trennt sie. Deshalb ist PLC03
+      // eine echte Maschine mit echtem Regelwerk und echten Diensten: Wer
+      // pingt, pingt wirklich, und wer den Port klopft, klopft an den Dienst,
+      // der dort läuft oder eben nicht.
+      taskText:
+        'PLC03 (10.0.0.12) ist laut Dashboard weg. Finde heraus, auf welcher Ebene — und bring die Sensorik zurück, ohne die Anlage anzuhalten.\n\nDie Modbus-Schnittstelle liegt auf Port 502. Der Leitstand kommt per ssh auf die Feldgeräte (Konto operator, Schlüssel liegt). Was auf PLC03 sonst noch läuft, muss weiterlaufen.',
+      net: {
+        // Ein OT-Netz ist kein Internet: Was hier nicht steht, ist nicht da.
+        targets: [
+          { host: '10.0.0.10', openPorts: [502], dienste: { 502: 'mbap' } },
+          { host: '10.0.0.11', openPorts: [502], dienste: { 502: 'mbap' } },
+        ],
+      },
+      vfsOverlay: {
+        directories: ['/opt/scada/config', '/home/operator/.ssh'],
+        files: [
+          ...leitstandZugang,
+          {
+            path: '/opt/scada/config/plc_config.json',
+            content:
+              '{\n' +
+              '  "plc_devices": [\n' +
+              '    {"id": "PLC01", "ip": "10.0.0.10", "type": "S7-1200", "function": "Pumpensteuerung"},\n' +
+              '    {"id": "PLC02", "ip": "10.0.0.11", "type": "S7-1200", "function": "Ventilsteuerung"},\n' +
+              '    {"id": "PLC03", "ip": "10.0.0.12", "type": "S7-300",  "function": "Sensorik"}\n' +
+              '  ],\n' +
+              '  "protocol": "modbus-tcp",\n' +
+              '  "port": 502\n' +
+              '}\n',
+          },
+        ],
+      },
+      // Der Leitstand hat SELBST einen modbus-Dienst — den Client, der die
+      // Feldgeräte abfragt. Wer den neu startet, hat etwas neu gestartet und
+      // nichts repariert. Das ist kein Gemeinheit, sondern der Alltag: Der
+      // Dienst heißt auf beiden Kisten gleich.
+      services: [
+        { unit: 'modbus.service', active: 'active', desc: 'Modbus TCP Client (Leitsystem)', exec: '/usr/bin/modbus-poll' },
+      ],
+      journal: [
+        { ts: '2026-03-14 09:55:00', unit: 'modbus', priority: 'warning', message: 'PLC03 (10.0.0.12): response timeout (attempt 1/3)' },
+        { ts: '2026-03-14 09:55:05', unit: 'modbus', priority: 'warning', message: 'PLC03 (10.0.0.12): response timeout (attempt 2/3)' },
+        { ts: '2026-03-14 09:55:10', unit: 'modbus', priority: 'err', message: 'PLC03 (10.0.0.12): connection lost after 3 attempts' },
+        { ts: '2026-03-14 09:55:10', unit: 'modbus', priority: 'err', message: 'PLC03: sensor data stale — last update 09:50:12' },
+        { ts: '2026-03-14 09:55:11', unit: 'modbus', priority: 'info', message: 'PLC01, PLC02: polling normal' },
+      ],
+      hosts: [
         {
-          pattern: 'ping',
-          patternRegex: 'ping.*10\\.0\\.0\\.12',
-          output: `PING 10.0.0.12 (10.0.0.12) 56(84) bytes of data.
-64 bytes from 10.0.0.12: icmp_seq=1 ttl=64 time=0.5 ms
-64 bytes from 10.0.0.12: icmp_seq=2 ttl=64 time=0.4 ms
-64 bytes from 10.0.0.12: icmp_seq=3 ttl=64 time=0.4 ms
-
-# PLC ist erreichbar! Das Problem ist nicht das Netzwerk...`,
-          skillGain: { netzwerk: 2, troubleshooting: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'nc',
-          patternRegex: 'nc.*502|netcat.*502',
-          output: `Connection to 10.0.0.12 502 port [tcp/modbus] failed: Connection refused
-
-# Modbus-Port 502 ist ZU! Der PLC-Service läuft nicht!`,
-          skillGain: { netzwerk: 3, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'nmap',
-          patternRegex: 'nmap.*10\\.0\\.0\\.12',
-          output: `Starting Nmap scan of 10.0.0.12
-PORT    STATE  SERVICE
-22/tcp  open   ssh
-80/tcp  open   http (HMI Web Interface)
-502/tcp closed modbus
-
-# Port 502 (Modbus) ist geschlossen! Der PLC-Dienst ist abgestürzt.`,
-          skillGain: { netzwerk: 4, security: 2, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'tail',
-          patternRegex: 'tail.*operations',
-          output: `2026-03-14 09:55:00 [WARN] PLC03: Response timeout (attempt 1/3)
-2026-03-14 09:55:05 [WARN] PLC03: Response timeout (attempt 2/3)
-2026-03-14 09:55:10 [ERROR] PLC03: Connection lost after 3 attempts
-2026-03-14 09:55:10 [CRIT] PLC03: Sensor data stale - last update 5 minutes ago
-
-# Verbindung ging um 09:55:10 verloren, nach 3 Timeout-Versuchen`,
-          skillGain: { troubleshooting: 2 },
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*plc_config',
-          output: `{
-  "plc_devices": [
-    {"id": "PLC01", "ip": "10.0.0.10", "type": "S7-1200", "function": "Pumpensteuerung", "status": "online"},
-    {"id": "PLC02", "ip": "10.0.0.11", "type": "S7-1200", "function": "Ventilsteuerung", "status": "online"},
-    {"id": "PLC03", "ip": "10.0.0.12", "type": "S7-300", "function": "Sensorik", "status": "OFFLINE"}
-  ]
-}
-
-# PLC03 ist der einzige mit Status OFFLINE`,
-          skillGain: { troubleshooting: 2 },
-        },
-        {
-          pattern: 'ssh',
-          patternRegex: 'ssh.*10\\.0\\.0\\.12',
-          output: `Connecting to 10.0.0.12...
-PLC03-SENSORHUB login: operator
-Password: ********
-
-Welcome to PLC03 Sensor Hub
-Firmware: 4.2.1 (2024-01-15)
-ALERT: Modbus service not running!
-
-PLC03> systemctl status modbus
-● modbus.service - Modbus TCP Server
-   Loaded: loaded
-   Active: failed (Result: exit-code)
-
-PLC03> systemctl restart modbus
-Restarting modbus service...
-modbus.service: Started successfully.
-
-# Modbus-Service war abgestürzt und wurde neu gestartet!`,
-          skillGain: { linux: 3, troubleshooting: 4 },
-          isSolution: true,
+          id: 'plc03',
+          hostname: 'plc03',
+          ip: '10.0.0.12',
+          accounts: [{ name: 'operator' }, { name: 'root' }],
+          vfsOverlay: {
+            directories: ['/run/modbus'],
+            files: [
+              vertrautDemLeitstand,
+              // Die Spur des Absturzes: eine Sperrdatei, die niemand aufgeräumt
+              // hat. Genau daran scheitert jeder Startversuch — und genau das
+              // erzählt der Dienst auch, wenn man ihn fragt.
+              { path: '/run/modbus/modbus.lock', content: 'pid=4412 since=2026-03-14T09:54:58\n' },
+            ],
+          },
+          services: [
+            {
+              unit: 'modbus.service',
+              active: 'failed',
+              desc: 'Modbus TCP Server (S7-300 Sensorik)',
+              exec: '/usr/sbin/modbusd --port 502',
+              listens: [{ proto: 'tcp', port: 502 }],
+              startRequires: [{
+                file: '/run/modbus/modbus.lock',
+                absent: true,
+                failMessage: 'Stale lock file /run/modbus/modbus.lock (pid 4412) — refusing to start',
+              }],
+            },
+            // Die Datenerfassung läuft weiter und sammelt in den Ringpuffer.
+            // Wer sie abschaltet, verliert die Messwerte der Ausfallzeit —
+            // die, die der Betrieb hinterher lesen will.
+            { unit: 'sensor-hub.service', active: 'active', desc: 'Sensor Hub Datenerfassung (Ringpuffer)', exec: '/usr/sbin/sensor-hub' },
+          ],
+          listeners: [{ proto: 'tcp', port: 22, pid: 456, program: 'sshd' }],
+          journal: [
+            { ts: '2026-03-14 09:54:58', unit: 'modbus', priority: 'err', message: 'modbusd[4412]: segmentation fault in frame decoder (input register 40012)' },
+            { ts: '2026-03-14 09:54:58', unit: 'modbus', priority: 'err', message: 'modbus.service: Main process exited, code=dumped, status=11/SEGV' },
+            { ts: '2026-03-14 09:54:59', unit: 'modbus', priority: 'err', message: 'modbus.service: Failed with result core-dump.' },
+            { ts: '2026-03-14 09:55:30', unit: 'modbus', priority: 'err', message: 'Stale lock file /run/modbus/modbus.lock (pid 4412) — refusing to start' },
+            { ts: '2026-03-14 09:56:00', unit: 'sensor-hub', priority: 'info', message: 'Ringpuffer aktiv, 1200 Messwerte gepuffert (kein Abnehmer)' },
+          ],
         },
       ],
+      commandSkillGain: {
+        ping: { netzwerk: 2 },
+        nc: { netzwerk: 3, troubleshooting: 2 },
+        ssh: { linux: 2 },
+        systemctl: { linux: 2, troubleshooting: 2 },
+        journalctl: { linux: 2, troubleshooting: 2 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['ping', 'nc'],
-          allRequired: true,
-          resultText: 'Perfekte Diagnose! Ping geht, aber Modbus-Port ist zu. Der PLC-Service braucht einen Neustart.',
-          skillGain: { netzwerk: 4, troubleshooting: 5, linux: 2 },
-          effects: {},
+          commands: [],
+          allRequired: false,
+          stateGoals: [
+            // Die Aufgabe: der Modbus-Server auf DEM Gerät läuft wieder.
+            { host: 'plc03', service: 'modbus.service', serviceState: 'active' },
+            // Und die bewahrende Bedingung: Die Datenerfassung hat das
+            // überlebt. Ohne sie wäre „alles neu starten" eine Lösung.
+            { host: 'plc03', service: 'sensor-hub.service', serviceState: 'active' },
+          ],
+          resultText:
+            'Sauber getrennt. Der Ping ging durch — also lebte das Gerät und die Leitung stand; zu war nur Port 502, also der Dienst. Genau diese zwei Messungen unterscheiden „Netzwerkproblem" von „Anwendungsproblem", und sie kosten zusammen zwanzig Sekunden.\n\nAuf PLC03 lag der eigentliche Grund: Der Modbus-Server war um 09:54:58 abgestürzt und hat eine Sperrdatei hinterlassen. Solange die dalag, verweigerte jeder Startversuch den Dienst — mit genau dieser Begründung im Protokoll. Ein „Neustart des PLC", den der Hersteller empfiehlt, hätte dasselbe erreicht und nebenbei die Anlage angehalten.\n\nWas du nicht angefasst hast, zählt mit: Die Datenerfassung lief weiter und hat die 1200 Messwerte der Ausfallzeit im Ringpuffer. Wer in so einer Lage „einmal alles durchstarten" sagt, wirft genau die Daten weg, mit denen man hinterher erklärt, was passiert ist.',
+          skillGain: { netzwerk: 4, troubleshooting: 5, linux: 3 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Bevor du tiefer gräbst — ist der PLC 10.0.0.12 überhaupt im Netz erreichbar? Fang mit einem simplen Erreichbarkeits-Test an.',
-        'Tipp: SCADA nutzt Modbus auf Port 502. Selbst wenn der Host antwortet, kann der Service-Port zu sein — prüf gezielt den Port.',
-        'Tipp: Festgefahren? ping 10.0.0.12 prüft den Host, nc -z 10.0.0.12 502 prüft den Modbus-Port.',
+        '🤖 Jens: „Verbindung unterbrochen" ist keine Diagnose, das ist ein Symptom. Es kann die Leitung sein, das Gerät oder der Dienst darauf — und du kannst die drei einzeln messen, von unten nach oben.',
+        '🤖 Jens: Erst die Kiste, dann der Port. Wenn die Kiste antwortet und der Port trotzdem zu ist, liegt es nicht am Netz. Modbus hört auf 502.',
+        '🤖 Jens: Dann gehörst du auf das Gerät. Der Leitstand kommt per ssh drauf, Konto operator. Frag dort den Dienst, was ihm fehlt — und lies die Begründung, statt sie zu überlesen.',
+        '🤖 Jens: Konkret: `ping -c 3 10.0.0.12` → `nc -zv 10.0.0.12 502` → `ssh plc03` → `systemctl status modbus` → `sudo rm /run/modbus/modbus.lock` → `sudo systemctl start modbus` → `exit` → `nc -zv 10.0.0.12 502`.',
       ],
     },
   },
@@ -356,80 +410,96 @@ Finde heraus: Wer verursacht den Traffic und wohin geht er?`,
       username: 'secops',
       currentPath: '/var/log/monitoring',
       templateIds: ['monitoring'],
-      commands: [
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*alerts',
-          output: `=== Network Alerts ===
-2026-03-14 09:00:00 [WARN] FS01 (192.168.10.2): Outbound traffic 523 MB/h (baseline: 50 MB/h)
-2026-03-14 09:00:00 [INFO] Destination: 142.250.185.78 (Google Cloud Storage)
-2026-03-14 09:00:00 [INFO] Top talker: 192.168.20.45 (user.schmidt Workstation)
-
-# Traffic geht zu Google Cloud von user.schmidt's Rechner`,
-          skillGain: { security: 3, netzwerk: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'tcpdump',
-          patternRegex: 'tcpdump|iftop|nethogs',
-          output: `Capturing on eth0...
-192.168.20.45 -> 142.250.185.78:443  HTTPS  15.2 MB/s
-192.168.20.45 -> 142.250.185.78:443  HTTPS  14.8 MB/s
-
-Source Analysis:
-  Host: WORKSTATION-SCHMIDT
-  User: user.schmidt (Marketing)
-  Process: chrome.exe -> upload.google.com
-
-# user.schmidt lädt etwas zu Google Cloud hoch`,
-          skillGain: { netzwerk: 4, security: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'whois',
-          patternRegex: 'whois.*142\\.250',
-          output: `NetRange:       142.250.0.0 - 142.250.255.255
-Organization:   Google LLC (GOGL)
-OrgName:        Google LLC
-
-# Das ist legitimer Google-Traffic, keine verdächtige IP`,
-          skillGain: { netzwerk: 2, security: 2 },
-        },
-        {
-          pattern: 'grep',
-          patternRegex: 'grep.*(schmidt|192\\.168\\.20\\.45)',
-          output: `access.log:192.168.20.45 user.schmidt [14/Mar/2026:08:45:12] "GET /Marketing/Kampagne2026/Video_final.mp4" 200 523456789
-access.log:192.168.20.45 user.schmidt [14/Mar/2026:09:00:01] "POST upload.google.com/drive" 201
-
-# schmidt hat Video_final.mp4 (500MB) zu Google Drive hochgeladen`,
-          skillGain: { troubleshooting: 3, security: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'tail',
-          patternRegex: 'tail.*/var/log',
-          output: `=== Recent Events ===
-09:00:00 [CRIT] Anomaly detected: FS01 outbound traffic 10x baseline
-09:00:01 [INFO] Auto-correlation: Single source 192.168.20.45
-09:00:02 [INFO] User context: user.schmidt, Department: Marketing
-
-# System hat bereits identifiziert: user.schmidt ist die Quelle`,
-          skillGain: { security: 2 },
-        },
-      ],
+      // Der Fall lebt von einem Missverständnis, das der Alarm selbst
+      // produziert: Er nennt den Fileserver als „Quelle", weil der Verkehr
+      // dort durchläuft. Der Verursacher ist ein anderer. Wer den Alarm
+      // abschreibt statt ihn zu prüfen, sperrt die falsche Maschine.
+      taskText:
+        'Drei Quellen zusammenlegen: /var/log/monitoring/alerts.log (was ist aufgefallen), /var/log/monitoring/fs01-zugriffe.log (wer hat was geholt) und /etc/monitoring/adressbereiche.txt (wem gehört das Ziel). Alle drei mit cat lesen.\n\nBefund nach /home/secops/befund.md schreiben — es gibt keinen Editor, also echo "…" > datei für die erste Zeile und echo "…" >> datei für jede weitere. Genau diese fünf Zeilen:\nverursacher: <Kontoname>\nquelle: <IP des Verursachers>\nziel: <Firma laut Adressbereichsliste, ein Wort>\nangriff: ja | nein | unklar\nfehlend: richtlinie | freigabe | firewallregel | keine\n\nZu „fehlend": Gefragt ist, was hier WIRKLICH gefehlt hat — nicht, was man zusätzlich bauen könnte.',
+      vfsOverlay: {
+        directories: ['/var/log/monitoring', '/etc/monitoring', '/home/secops'],
+        files: [
+          {
+            path: '/var/log/monitoring/alerts.log',
+            content:
+              '=== Netzwerk-Alarme (Schwellwert: 3x Baseline) ===\n' +
+              '2026-03-14 09:00:00 [WARN]  FS01 (192.168.10.2): ausgehend 523 MB/h (Baseline 50 MB/h)\n' +
+              '2026-03-14 09:00:00 [INFO]  Ziel: 142.250.185.78:443\n' +
+              '2026-03-14 09:00:00 [INFO]  Top-Talker im Segment: 192.168.20.45\n' +
+              '2026-03-14 09:00:01 [INFO]  Korrelation: eine einzige Sitzung, kein Fanout\n' +
+              '\n' +
+              '# Hinweis der Monitoring-Doku: Als QUELLE meldet die Sonde den Host,\n' +
+              '# über dessen Schnittstelle der Verkehr läuft — nicht den, der ihn\n' +
+              '# ausgelöst hat. Wer den Verursacher sucht, nimmt den Top-Talker.\n',
+          },
+          {
+            path: '/var/log/monitoring/fs01-zugriffe.log',
+            content:
+              '# Dateizugriffe FS01 — 14.03.2026\n' +
+              '08:45:12 192.168.20.45 user.schmidt  READ  /Marketing/Kampagne2026/Video_final.mp4  523456789\n' +
+              '08:52:03 192.168.20.12 user.weber    READ  /Buchhaltung/Umsatz_Q1.xlsx  184320\n' +
+              '09:00:01 192.168.20.45 user.schmidt  READ  /Marketing/Kampagne2026/Video_final.mp4  523456789\n' +
+              '09:31:44 192.168.20.31 user.klein    WRITE /Technik/Abnahmebericht.docx  95232\n',
+          },
+          {
+            path: '/etc/monitoring/adressbereiche.txt',
+            content:
+              '# Bekannte Adressbereiche — gepflegt vom Netzbetrieb\n' +
+              '# bereich                 inhaber              einstufung\n' +
+              '142.250.0.0/15            Google               Cloud-Dienst, vertraglich zugelassen\n' +
+              '52.96.0.0/12              Microsoft            Cloud-Dienst, vertraglich zugelassen\n' +
+              '45.83.220.0/24            (unbekannt)          im Vorjahr als Scan-Quelle aufgefallen\n' +
+              '192.168.10.0/24           Serversegment        intern\n' +
+              '192.168.20.0/24           Arbeitsplätze       intern\n' +
+              '\n' +
+              '# Betriebsregel Cloud-Nutzung: Uploads über 100 MB an externe\n' +
+              '# Dienste sind vorher beim Informationssicherheitsbeauftragten\n' +
+              '# anzumelden. Eine solche Richtlinie GIBT es nicht — sie steht\n' +
+              '# seit 2024 als offener Punkt im Massnahmenplan.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        grep: { linux: 2, security: 1 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['cat', 'grep'],
+          commands: [],
           allRequired: false,
-          resultText: 'Gute Analyse! Der Traffic war legitim - Marketing-Video zu Google Drive. Aber: Richtlinien für Cloud-Uploads fehlen!',
-          skillGain: { security: 4, netzwerk: 4, troubleshooting: 3 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/var/log/monitoring/alerts.log' },
+            { fileRead: '/var/log/monitoring/fs01-zugriffe.log' },
+            { fileRead: '/etc/monitoring/adressbereiche.txt' },
+            {
+              file: '/home/secops/befund.md',
+              reportFields: [
+                { key: 'verursacher', matches: '^user\\.schmidt$' },
+                // Der Alarm nennt 192.168.10.2. Das ist der Weg, nicht die
+                // Ursache — genau hier trennt sich Lesen von Abschreiben.
+                { key: 'quelle', matches: '^192\\.168\\.20\\.45$' },
+                { key: 'ziel', matches: '^google$' },
+                { key: 'angriff', matches: '^nein$' },
+                // Nicht die Firewallregel fehlt — der Verkehr war erlaubt und
+                // sollte es bleiben. Gefehlt hat die Richtlinie, die sagt, ab
+                // wann so ein Upload anzumelden ist.
+                { key: 'fehlend', matches: '^richtlinie$' },
+              ],
+            },
+          ],
+          resultText:
+            'Richtig zerlegt. Der Alarm nannte den Fileserver, weil der Verkehr über dessen Schnittstelle lief — verursacht hat ihn die Arbeitsstation 192.168.20.45. Wer die Meldung abschreibt, nimmt FS01 vom Netz und legt damit die halbe Verwaltung lahm, während der eigentliche Rechner weiterlädt.\n\nDas Ziel gehört Google und steht als vertraglich zugelassener Cloud-Dienst in der Adressbereichsliste. Ein 500-MB-Video an einen zugelassenen Dienst ist kein Angriff, und es als einen zu melden, kostet dich beim nächsten echten Alarm die Aufmerksamkeit.\n\nGefehlt hat trotzdem etwas — nur nichts Technisches. Niemand wusste von dem Upload, weil es keine Regel gibt, ab wann man so etwas ankündigt. Der Punkt steht seit 2024 im Maßnahmenplan. Eine Firewallregel hätte hier nur einen erlaubten Vorgang kaputtgemacht und die Lücke gelassen, wo sie ist.',
+          skillGain: { security: 5, netzwerk: 4, troubleshooting: 3 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Bevor du Alarm schlägst — lies erstmal die Alert-Details selbst. Die liegen unter /var/log/monitoring/.',
-        'Tipp: Wer ist die Quelle des Traffics? Filter die Logs nach der verdächtigen IP oder dem User.',
-        'Tipp: Festgefahren? cat /var/log/monitoring/alerts.log zeigt die Details, grep filtert nach der IP, whois prüft das Ziel.',
+        '🤖 Jens: Lies den Alarm zuerst ganz — bis unter die Zahlen. Da steht, was die Sonde mit „Quelle" eigentlich meint, und das ist nicht, was du denkst.',
+        '🤖 Jens: Der Top-Talker ist eine Adresse, kein Mensch. Auf dem Fileserver liegt das Protokoll, das aus der Adresse einen Namen und eine Datei macht.',
+        '🤖 Jens: Und bevor du „verdächtiges Ziel" schreibst: Der Netzbetrieb führt eine Liste, wem welche Bereiche gehören. Am Ende der Liste steht außerdem, welche Betriebsregel es dazu gibt — und welche nicht.',
+        '🤖 Jens: Konkret: `cat /var/log/monitoring/alerts.log` → `cat /var/log/monitoring/fs01-zugriffe.log` → `cat /etc/monitoring/adressbereiche.txt` → `echo "verursacher: user.schmidt" > /home/secops/befund.md` → `echo "quelle: 192.168.20.45" >> /home/secops/befund.md` → `echo "ziel: google" >> /home/secops/befund.md` → `echo "angriff: nein" >> /home/secops/befund.md` → `echo "fehlend: richtlinie" >> /home/secops/befund.md`.',
       ],
     },
   },
@@ -490,104 +560,120 @@ Finde heraus was geändert wurde und warum nur manche Außenstellen betroffen si
       username: 'admin',
       currentPath: '/etc/firewall',
       templateIds: ['linux-firewall'],
-      commands: [
-        {
-          pattern: 'git',
-          patternRegex: 'git\\s+(log|diff|show)',
-          output: `commit 8a3f2b1 (HEAD)
-Author: admin.extern <admin@extern.de>
-Date:   Thu Mar 13 23:00:15 2026
-
-    Add geo-blocking for non-EU traffic
-
-diff --git a/rules.d/50-geo-blocking.conf b/rules.d/50-geo-blocking.conf
-new file mode 100644
-+++ b/rules.d/50-geo-blocking.conf
-@@ -0,0 +1,5 @@
-+# Geo-blocking rule - block non-EU
-+-A INPUT -m geoip ! --src-cc EU -j DROP
-+-A FORWARD -m geoip ! --src-cc EU -j DROP
-
-# Die neue Regel blockiert alles was nicht "EU" ist...
-# Aber dynamische DSL-IPs werden manchmal falsch zugeordnet!`,
-          skillGain: { security: 4, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'iptables',
-          patternRegex: 'iptables.*-L',
-          output: `Chain INPUT (policy DROP)
-target     prot  source          destination
-ACCEPT     all   10.0.0.0/8      anywhere
-ACCEPT     all   192.168.0.0/16  anywhere
-DROP       all   anywhere        anywhere    geoip match ! EU  # <-- HIER!
-
-Chain FORWARD (policy DROP)
-target     prot  source          destination
-DROP       all   anywhere        anywhere    geoip match ! EU  # <-- UND HIER!
-
-# Geo-Blocking droppt ALLES was nicht als EU klassifiziert ist`,
-          skillGain: { netzwerk: 3, security: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'geoiplookup',
-          patternRegex: 'geoiplookup|geoip',
-          output: `GeoIP lookup for 87.123.45.67 (Außenstelle-Nord VPN):
-  WARNING: IP not in database, defaulting to: UNKNOWN
-
-GeoIP lookup for 91.234.56.78 (Außenstelle-Süd VPN):
-  Country: DE (Germany)
-  Status: OK
-
-# Außenstelle-Nord hat eine IP die nicht in der GeoIP-DB ist!
-# Wird als "nicht EU" klassifiziert und geblockt!`,
-          skillGain: { netzwerk: 4, troubleshooting: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*/var/log/iptables',
-          output: `Mar 14 06:00:01 fw01 kernel: IPT-GEO-BLOCK: IN=eth0 SRC=87.123.45.67 DST=10.10.0.1 PROTO=UDP DPT=500
-Mar 14 06:00:01 fw01 kernel: IPT-GEO-BLOCK: IN=eth0 SRC=87.123.45.67 DST=10.10.0.1 PROTO=UDP DPT=4500
-Mar 14 06:00:02 fw01 kernel: IPT-GEO-BLOCK: IN=eth0 SRC=87.123.45.67 DST=10.10.0.1 PROTO=UDP DPT=500
-
-# Die Logs zeigen: 87.123.45.67 wird von der Geo-Regel geblockt!`,
-          skillGain: { troubleshooting: 3, security: 2 },
-        },
-        {
-          pattern: 'vim',
-          patternRegex: '(vim|nano|edit).*geo-blocking',
-          output: `Editing /etc/firewall/rules.d/50-geo-blocking.conf...
-
-# OLD RULE (blocking):
-# -A INPUT -m geoip ! --src-cc EU -j DROP
-
-# NEW RULE (whitelist known VPN endpoints):
--A INPUT -s 87.123.45.67 -j ACCEPT  # Außenstelle-Nord
--A INPUT -m geoip ! --src-cc EU -j DROP
-
-File saved. Applying changes...
-Firewall rules reloaded successfully.
-
-# Whitelist für bekannte VPN-Endpoints hinzugefügt!`,
-          skillGain: { security: 4, netzwerk: 3 },
-          isSolution: true,
-        },
-      ],
+      // Der Kern des Falls ist eine REIHENFOLGE, keine Regel. Die
+      // Geo-Sperre steht als eigene Kette da und wird aus der Eingangskette
+      // angesprungen — und zwar ÜBER den VPN-Freigaben. Ein `accept` oder
+      // `drop` in einer Kette ist endgültig; was darunter steht, sieht das
+      // Paket nie. Genau deshalb „funktioniert die Regel" und bricht
+      // trotzdem etwas, das mit ihr nichts zu tun hat.
+      taskText:
+        'Außenstelle-Nord (87.123.45.67) kommt seit heute Nacht nicht mehr über das VPN herein, Außenstelle-Süd (91.234.56.78) schon. Finde heraus, was die Änderung von gestern 23:00 Uhr bewirkt, und mach den VPN-Zugang von Nord wieder möglich.\n\nBedingungen: Süd muss weiter funktionieren, und die Kiste muss eine Wall bleiben — fremde Adressen dürfen danach nicht plötzlich an den ssh-Port kommen. IPsec braucht udp/500 und udp/4500.',
+      nft: {
+        family: 'inet',
+        table: 'filter',
+        chains: [
+          {
+            name: 'input',
+            base: { hook: 'input', priority: 0, policy: 'drop' },
+            rules: [
+              'ct state established,related accept',
+              'iif lo accept',
+              'ip saddr 10.0.0.0/8 accept',
+              // Gestern 23:00 dazugekommen — und zwar HIER, nicht unten.
+              'jump geo-block',
+              'udp dport 500 accept',
+              'udp dport 4500 accept',
+              'tcp dport 22 accept',
+            ],
+          },
+          {
+            // Die Liste ist das, was eine Geo-Datenbank im Ergebnis tut:
+            // bekannte Bereiche durchlassen, den Rest wegwerfen. Dynamische
+            // Anschlüsse sind in solchen Datenbanken oft gar nicht oder
+            // falsch eingetragen — deshalb trifft es ausgerechnet Nord.
+            name: 'geo-block',
+            rules: [
+              'ip saddr 91.0.0.0/8 accept',
+              'ip saddr 46.128.0.0/10 accept',
+              'ip saddr 217.224.0.0/11 accept',
+              'drop',
+            ],
+          },
+        ],
+      },
+      vfsOverlay: {
+        directories: ['/etc/firewall', '/var/log'],
+        files: [
+          {
+            path: '/etc/firewall/aenderungen.log',
+            content:
+              '# Änderungsprotokoll Perimeter — fw-mgmt\n' +
+              '2026-03-11 10:02  admin        Regel 22/tcp auf Bastion eingegrenzt (Ticket 4181)\n' +
+              '2026-03-13 23:00  admin.extern Kette geo-block angelegt und aus input angesprungen\n' +
+              '                               Begründung: "Angriffe aus Nicht-EU-Bereichen reduzieren"\n' +
+              '                               Getestet mit: Zugriff aus dem Büro (10.x) — ok\n' +
+              '2026-03-14 06:00  -            (keine weiteren Änderungen)\n' +
+              '\n' +
+              '# Anmerkung des Betriebs: Der Test lief aus dem internen Netz. Das\n' +
+              '# interne Netz wird eine Zeile ÜBER dem Sprung durchgelassen.\n',
+          },
+          {
+            path: '/var/log/nftables.log',
+            content:
+              'Mar 14 06:00:01 fw01 kernel: nft-geo-block: IN=eth0 SRC=87.123.45.67 DST=203.0.113.1 PROTO=UDP DPT=500\n' +
+              'Mar 14 06:00:01 fw01 kernel: nft-geo-block: IN=eth0 SRC=87.123.45.67 DST=203.0.113.1 PROTO=UDP DPT=4500\n' +
+              'Mar 14 06:00:31 fw01 kernel: nft-geo-block: IN=eth0 SRC=87.123.45.67 DST=203.0.113.1 PROTO=UDP DPT=500\n' +
+              'Mar 14 06:01:02 fw01 kernel: nft-geo-block: IN=eth0 SRC=203.0.113.9 DST=203.0.113.1 PROTO=TCP DPT=22\n' +
+              'Mar 14 06:01:02 fw01 kernel: nft-geo-block: IN=eth0 SRC=203.0.113.9 DST=203.0.113.1 PROTO=TCP DPT=22\n' +
+              '\n' +
+              '# 87.123.45.67 ist die Gegenstelle Nord. 203.0.113.9 klopft seit\n' +
+              '# Wochen an den ssh-Port und hat dort nichts verloren.\n',
+          },
+          {
+            path: '/etc/firewall/aussenstellen.txt',
+            content:
+              '# VPN-Gegenstellen\n' +
+              '# standort            adresse          anschluss\n' +
+              'Außenstelle-Nord     87.123.45.67     DSL, dynamisch (täglich neue Adresse im selben Bereich)\n' +
+              'Außenstelle-Süd      91.234.56.78     Festanschluss\n' +
+              '\n' +
+              '# Beide Standorte sind in Deutschland. Der Unterschied liegt nicht\n' +
+              '# im Land, sondern darin, wie gut der Anschluss zugeordnet ist.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        nft: { netzwerk: 3, security: 3 },
+        cat: { linux: 1 },
+        grep: { linux: 2 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['git', 'iptables'],
+          commands: [],
           allRequired: false,
-          resultText: 'Exzellent! Du hast die fehlerhafte Geo-Blocking-Regel identifiziert und verstanden warum sie legitimen Traffic blockt.',
+          stateGoals: [
+            // Die Aufgabe: Nord kommt wieder herein — mit BEIDEN Ports, die
+            // IPsec braucht. Wer nur einen freigibt, hat einen halben Tunnel.
+            { nftVerdict: { from: '87.123.45.67', port: 500, proto: 'udp', expect: 'accept' } },
+            { nftVerdict: { from: '87.123.45.67', port: 4500, proto: 'udp', expect: 'accept' } },
+            // Bewahrend: Süd darf dabei nicht verloren gehen …
+            { nftVerdict: { from: '91.234.56.78', port: 500, proto: 'udp', expect: 'accept' } },
+            // … und die Wall muss eine Wall bleiben. Ohne diese Bedingung
+            // wäre „Sprung raus" oder „flush ruleset" eine Lösung.
+            { nftVerdict: { from: '203.0.113.9', port: 22, proto: 'tcp', expect: 'drop' } },
+          ],
+          resultText:
+            'Die Regel war nie falsch — sie stand nur an der falschen Stelle. Ein `accept` oder `drop` in nftables ist endgültig: Sobald das Paket in der Geo-Kette auf `drop` läuft, sieht es die VPN-Freigaben darunter nicht mehr. Deshalb war „die Firewall blockiert plötzlich legitimen Verkehr" wörtlich wahr und trotzdem keine Fehlfunktion.\n\nWarum ausgerechnet Nord: Beide Standorte sitzen in Deutschland. Süd hat einen Festanschluss und steht sauber in jeder Zuordnungsdatenbank; Nord hängt an einem dynamischen DSL-Anschluss, und der ist in solchen Datenbanken oft gar nicht oder falsch eingetragen. Geo-Sperren treffen zuverlässig die eigenen Leute mit schlechter Anbindung.\n\nUnd die Zeile im Änderungsprotokoll, die alles erklärt: getestet wurde aus dem Büro. Das interne Netz wird eine Zeile ÜBER dem Sprung durchgelassen — der Test konnte gar nicht fehlschlagen. Wer eine Sperre testet, muss sie von der Seite testen, die sie treffen soll.',
           skillGain: { security: 5, netzwerk: 5, troubleshooting: 4 },
-          effects: {},
+          effects: { stress: -2 },
         },
       ],
       hints: [
-        'Tipp: Was wurde gestern Abend geändert? Vielleicht gibt es ein Change-Log oder git history.',
-        'Tipp: iptables -L zeigt die aktiven Regeln',
-        'Tipp: Die VPN-Endpoints haben deutsche IPs - werden die wirklich als EU erkannt?',
+        '🤖 Jens: Zwei Standorte, gleiche Technik, ein Unterschied. Bevor du an der Konfiguration drehst: Was genau wurde gestern Nacht geändert, und was steht darüber im Änderungsprotokoll?',
+        '🤖 Jens: Schau dir den Regelsatz im Ganzen an, nicht nur die neue Kette. Die Frage ist nicht „was steht drin", sondern „in welcher Reihenfolge trifft ein Paket das". Und: Wo steht der Sprung im Verhältnis zu den VPN-Freigaben?',
+        '🤖 Jens: Das Protokoll sagt dir, welche Adresse hängenbleibt — und welche andere Adresse du auf gar keinen Fall mit durchlassen willst. Löschen ist nicht der einzige Weg; eine Ausnahme VOR der Sperre tut es auch.',
+        '🤖 Jens: Konkret: `cat /etc/firewall/aenderungen.log` → `cat /var/log/nftables.log` → `sudo nft list ruleset` → `sudo nft insert rule inet filter geo-block ip saddr 87.123.45.67 accept`.',
       ],
     },
   },

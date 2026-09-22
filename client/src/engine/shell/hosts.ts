@@ -26,6 +26,8 @@ export interface SystemdUnitState {
   startRequires?: TerminalUnitPrecondition[];
   /** Files materialized on the host VFS on a successful start (e.g. a socket). */
   createsOnStart?: string[];
+  /** Sockets, die der Dienst haelt — beim Start angelegt, beim Stoppen entfernt. */
+  listens?: { proto?: 'tcp' | 'udp'; port: number; address?: string }[];
 }
 
 export interface UfwRule { action: 'allow' | 'deny'; port: number; proto?: 'tcp' | 'udp'; from?: string }
@@ -216,6 +218,7 @@ export function applyServiceSpecs(
       unitFile: svc.unitFile,
       startRequires: svc.startRequires?.map(p => ({ ...p })),
       createsOnStart: svc.createsOnStart ? [...svc.createsOnStart] : undefined,
+      listens: svc.listens?.map(l => ({ ...l })),
     };
     if (merged.unitFile) {
       const read = vfs.readFile(merged.unitFile);
@@ -263,8 +266,39 @@ export function seedPrimaryHost(
   // Listeners/connections replace the defaults when a level authors them —
   // a forensic level owns its full port view, not a merge of the baseline.
   if (spec.listeners) host.listeners = cloneListeners(spec.listeners);
+  if (spec.services) host.listeners = sockelsAusDiensten(host.services, host.listeners);
   if (spec.connections) host.connections = cloneConnections(spec.connections);
   if (spec.processes) host.processes = seedProcesses(spec.processes, host.vfs.getUser());
+}
+
+/**
+ * Die Sockets aktiver Einheiten in die Lauscherliste aufnehmen (und die
+ * toter Einheiten heraushalten). So kann ein Level Dienst und Port nicht
+ * auseinanderlaufen lassen — es pflegt nur noch den Dienst.
+ */
+function sockelsAusDiensten(services: SystemdUnitState[], listeners: NetListener[]): NetListener[] {
+  const ergebnis = [...listeners];
+  for (const unit of services) {
+    for (const sock of unit.listens ?? []) {
+      const proto = sock.proto ?? 'tcp';
+      const idx = ergebnis.findIndex(l => l.port === sock.port && l.proto === proto);
+      if (unit.active === 'active') {
+        if (idx === -1) {
+          ergebnis.push({
+            proto,
+            port: sock.port,
+            address: sock.address ?? '0.0.0.0',
+            pid: unit.pid ?? derivedUnitPid(unit.unit),
+            program: unit.unit.replace(/\.service$/, ''),
+            user: 'root',
+          });
+        }
+      } else if (idx !== -1) {
+        ergebnis.splice(idx, 1);
+      }
+    }
+  }
+  return ergebnis;
 }
 
 export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }): HostState {
@@ -301,7 +335,7 @@ export function createHostState(spec: TerminalHostSpec, opts?: { user?: string }
     },
     nft: spec.nft ? seedNftState(spec.nft) : emptyNftState(),
     accounts: (spec.accounts ?? [{ name: 'root' }, { name: 'admin' }]).map(a => ({ ...a })),
-    listeners: cloneListeners(spec.listeners ?? DEFAULT_LISTENERS),
+    listeners: sockelsAusDiensten(services, cloneListeners(spec.listeners ?? DEFAULT_LISTENERS)),
     connections: cloneConnections(spec.connections ?? DEFAULT_CONNECTIONS),
     processes: seedProcesses(spec.processes ?? DEFAULT_PROCESSES, vfs.getUser()),
     mailboxes: (spec.mailboxes ?? []).map(seedMailbox),

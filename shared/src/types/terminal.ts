@@ -202,6 +202,17 @@ export interface TerminalServiceSpec {
    * `startRequires` depends on — powers dependency-chain levels.
    */
   createsOnStart?: string[];
+  /**
+   * Die Sockets, die dieser Dienst oeffnet. Sie werden beim Start angelegt und
+   * beim Stoppen entfernt — und beim Saeen nur dann, wenn die Einheit aktiv
+   * ist.
+   *
+   * WARUM: Dienst und Port sind EIN Ding. Wer beide getrennt pflegt, kann sie
+   * auseinanderlaufen lassen: ein Level mit totem Dienst und offenem Port ist
+   * eine Messung, die der Spieler nicht erklaeren kann, und ein Neustart, nach
+   * dem der Port zu bleibt, macht die Reparatur unbeweisbar.
+   */
+  listens?: { proto?: 'tcp' | 'udp'; port: number; address?: string }[];
 }
 
 export interface TerminalFirewallSpec {
