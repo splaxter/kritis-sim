@@ -198,7 +198,9 @@ sie nicht nochmal Zeit kosten:
 
 ## Erledigt seit der letzten Runde
 
-- **Die gedosten Fälle sind weg.** Alle 23 Terminal-Szenarien der Packs
+- **Die gedosten Fälle sind weg.** Es waren sechzehn, nicht fünfzehn — der
+  Eintrag oben sprach von „AMSE (6) und dem Rest von KRITIS", und der Rest von
+  KRITIS sind zehn Fälle. Alle 23 Terminal-Szenarien der Packs
   arbeiten jetzt mit echtem Zustand; vorgefertigte Ausgaben auf Befehlsmuster
   gibt es in keinem Pack mehr. Dabei kam ein Befund heraus, den keine der
   bisherigen Sichtungen finden konnte, weil er nur auf Windows-Level wirkte:

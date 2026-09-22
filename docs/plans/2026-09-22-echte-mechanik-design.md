@@ -5,8 +5,8 @@ Stand: 22.09.2026 · betrifft `content/packs/amse-it`, `content/packs/kritis-inf
 
 ## Ausgangslage
 
-Von 23 Terminal-Szenarien in den Packs arbeiteten 8 mit echten Zustandszielen.
-Die übrigen 15 waren *gedost*: Auf ein Befehlsmuster kam eine vorgefertigte
+Von 23 Terminal-Szenarien in den Packs arbeiteten 7 mit echten Zustandszielen.
+Die übrigen 16 waren *gedost*: Auf ein Befehlsmuster kam eine vorgefertigte
 Ausgabe, und gelöst war das Level, wenn der Spieler ein bestimmtes Wort getippt
 hatte. Die Maschine hat dabei nichts getan.
 
@@ -23,7 +23,7 @@ Das ist kein Schönheitsfehler, sondern ein inhaltliches Problem in drei Stufen:
 
 ## Entscheidung
 
-Alle 15 Szenarien bekommen echte Mechanik, nach dem Muster, das
+Alle 16 Szenarien bekommen echte Mechanik, nach dem Muster, das
 `KRITIS-SC-001` und `KRITIS-SC-012` vorgegeben haben: gesäter Zustand,
 deklarative Gewinnbedingungen, und zu jedem Fall mindestens eine bewahrende
 Bedingung, die „mehr kaputtmachen" ausschließt.
@@ -75,7 +75,7 @@ verschwinden beim Stoppen; beim Säen nur, wenn die Einheit aktiv ist.
   Ausführung — nach dem Erfolg wartet die Sitzung auf das bestätigende Enter.
   Geprüft wird das durch die echte Sitzung, nicht an ihr vorbei.
 
-## Die fünfzehn Fälle und ihre jeweilige Lehre
+## Die sechzehn Fälle und ihre jeweilige Lehre
 
 | Fall | Mechanik | Die Falle, die sich richtig anfühlt |
 |---|---|---|
@@ -96,9 +96,8 @@ verschwinden beim Stoppen; beim Säen nur, wenn die Einheit aktiv ist.
 | AMSE-SC-007 | nftables-Auszug, Bericht | Der Auszug ist leicht, der Abgleich findet die Regel ohne Zweck |
 | AMSE-SC-008 | Verbindungen, ufw | Die Sitzung ist das Symptom, die offene Tür das Problem |
 
-(Sechzehn Zeilen für fünfzehn Fälle: `KRITIS-SC-002` war im Ausgangsbestand
-doppelt gezählt, weil es als einziger gedoster Fall schon einen halben
-Zustand hatte.)
+Sechzehn Zeilen, nicht fünfzehn: Der Findungsbericht sprach von „AMSE (6) und
+dem Rest von KRITIS" — nachgezählt sind es zehn KRITIS-Fälle, nicht neun.
 
 ## Was ausdrücklich nicht dazugehört
 
