@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createShellFromContext, checkStateGoals } from '../../../engine/shell';
 import { getAllScenarios } from '../index';
+import { alleTerminalLevel } from '../../../engine/terminalLevelRegistry';
+import { sollpfad } from '../../../engine/sollpfad';
+import { fahreZeilen } from '../../../engine/sollpfadFahrer';
 
 /**
  * Die Faelle, die bis eben „gedost" waren: vorgefertigte Ausgaben auf
@@ -645,5 +648,42 @@ describe('KRITIS-SC-011 — das falsche Konto zu kappen kostet die Sicherung', (
   it('das Protokoll auf fs01 zeigt, wann das Konto entstanden ist', () => {
     const { ausgaben } = fahre('KRITIS-SC-011', ['ssh fs01', 'journalctl -u useradd']);
     expect(ausgaben[1].output).toMatch(/name=svc-backup/);
+  });
+});
+
+// ── Und fuer alle: der Erfolg liegt am ENDE des angesagten Wegs ─────────────
+
+describe('Kein angesagter Schritt laeuft ins Leere', () => {
+  /**
+   * Die Lehre aus dem Ansible-Fall: Ein Auftrag, der einen Schritt ansagt, den
+   * die Gewinnbedingung nicht verlangt, ist ein Versprechen, das das Spiel nie
+   * einloest — nach dem Erfolg wartet die Sitzung auf das bestaetigende Enter,
+   * und was der Spieler danach tippt, ist keine Eingabe mehr.
+   *
+   * Ein Test, der `shell.execute` direkt aufruft, sieht das NICHT: Er umgeht
+   * die Erfolgserkennung. Deshalb faehrt dieser hier die echte Sitzung und
+   * verlangt, dass der Erfolg auf die LETZTE sichtbare Zeile faellt — nicht
+   * irgendwann davor.
+   *
+   * Gefunden hat er genau einen Fall: KRITIS-SC-002 endete mit einer
+   * Nachmessung von aussen, die im Spiel nie zur Ausfuehrung kam.
+   */
+  const IDS = [
+    'KRITIS-SC-001', 'KRITIS-SC-002', 'KRITIS-SC-003', 'KRITIS-SC-004',
+    'KRITIS-SC-005', 'KRITIS-SC-006', 'KRITIS-SC-007', 'KRITIS-SC-008',
+    'KRITIS-SC-009', 'KRITIS-SC-010', 'KRITIS-SC-011',
+  ];
+
+  it.each(IDS.map((id) => [id] as const))('%s loest genau nach der letzten Zeile', (id) => {
+    const e = alleTerminalLevel().find((x) => x.id === id);
+    if (!e?.terminalContext) throw new Error(`${id} nicht gefunden — Test veraltet?`);
+    const pfad = sollpfad(e)!;
+    expect(pfad.zeilen.length, `${id} hat keinen sichtbaren Weg`).toBeGreaterThan(0);
+    const fahrt = fahreZeilen(e.terminalContext, pfad.zeilen.map((cmd) => ({ cmd })));
+    expect(
+      fahrt.geloestNachZeile,
+      `${id} loest nach Zeile ${fahrt.geloestNachZeile} von ${pfad.zeilen.length} — ` +
+        'die Zeilen danach kommen im Spiel nie zur Ausfuehrung'
+    ).toBe(pfad.zeilen.length);
   });
 });

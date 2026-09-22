@@ -348,7 +348,7 @@ Ohne Sensorik fliegt die Anlage "blind". Die letzten Messwerte von PLC03 sind 5 
             { host: 'plc03', service: 'sensor-hub.service', serviceState: 'active' },
           ],
           resultText:
-            'Sauber getrennt. Der Ping ging durch — also lebte das Gerät und die Leitung stand; zu war nur Port 502, also der Dienst. Genau diese zwei Messungen unterscheiden „Netzwerkproblem" von „Anwendungsproblem", und sie kosten zusammen zwanzig Sekunden.\n\nAuf PLC03 lag der eigentliche Grund: Der Modbus-Server war um 09:54:58 abgestürzt und hat eine Sperrdatei hinterlassen. Solange die dalag, verweigerte jeder Startversuch den Dienst — mit genau dieser Begründung im Protokoll. Ein „Neustart des PLC", den der Hersteller empfiehlt, hätte dasselbe erreicht und nebenbei die Anlage angehalten.\n\nWas du nicht angefasst hast, zählt mit: Die Datenerfassung lief weiter und hat die 1200 Messwerte der Ausfallzeit im Ringpuffer. Wer in so einer Lage „einmal alles durchstarten" sagt, wirft genau die Daten weg, mit denen man hinterher erklärt, was passiert ist.',
+            'Sauber getrennt. Der Ping ging durch — also lebte das Gerät und die Leitung stand; zu war nur Port 502, also der Dienst. Genau diese zwei Messungen unterscheiden „Netzwerkproblem" von „Anwendungsproblem", und sie kosten zusammen zwanzig Sekunden.\n\nAuf PLC03 lag der eigentliche Grund: Der Modbus-Server war um 09:54:58 abgestürzt und hat eine Sperrdatei hinterlassen. Solange die dalag, verweigerte jeder Startversuch den Dienst — mit genau dieser Begründung im Protokoll. Ein „Neustart des PLC", den der Hersteller empfiehlt, hätte dasselbe erreicht und nebenbei die Anlage angehalten.\n\nWas du nicht angefasst hast, zählt mit: Die Datenerfassung lief weiter und hat die 1200 Messwerte der Ausfallzeit im Ringpuffer. Wer in so einer Lage „einmal alles durchstarten" sagt, wirft genau die Daten weg, mit denen man hinterher erklärt, was passiert ist.\n\nDer Vollständigkeit halber: Vom Leitstand aus klopft `nc -zv 10.0.0.12 502` jetzt an einen offenen Port. Das Dashboard merkt es beim nächsten Abfragezyklus von selbst.',
           skillGain: { netzwerk: 4, troubleshooting: 5, linux: 3 },
           effects: { stress: -1 },
         },
@@ -357,7 +357,7 @@ Ohne Sensorik fliegt die Anlage "blind". Die letzten Messwerte von PLC03 sind 5 
         '🤖 Jens: „Verbindung unterbrochen" ist keine Diagnose, das ist ein Symptom. Es kann die Leitung sein, das Gerät oder der Dienst darauf — und du kannst die drei einzeln messen, von unten nach oben.',
         '🤖 Jens: Erst die Kiste, dann der Port. Wenn die Kiste antwortet und der Port trotzdem zu ist, liegt es nicht am Netz. Modbus hört auf 502.',
         '🤖 Jens: Dann gehörst du auf das Gerät. Der Leitstand kommt per ssh drauf, Konto operator. Frag dort den Dienst, was ihm fehlt — und lies die Begründung, statt sie zu überlesen.',
-        '🤖 Jens: Konkret: `ping -c 3 10.0.0.12` → `nc -zv 10.0.0.12 502` → `ssh plc03` → `systemctl status modbus` → `sudo rm /run/modbus/modbus.lock` → `sudo systemctl start modbus` → `exit` → `nc -zv 10.0.0.12 502`.',
+        '🤖 Jens: Konkret: `ping -c 3 10.0.0.12` → `nc -zv 10.0.0.12 502` → `ssh plc03` → `systemctl status modbus` → `sudo rm /run/modbus/modbus.lock` → `sudo systemctl start modbus`.',
       ],
     },
   },

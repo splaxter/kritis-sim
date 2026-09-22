@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createShellFromContext, checkStateGoals } from '../../../engine/shell';
 import { getAllScenarios } from '../index';
+import { alleTerminalLevel } from '../../../engine/terminalLevelRegistry';
+import { sollpfad } from '../../../engine/sollpfad';
+import { fahreZeilen } from '../../../engine/sollpfadFahrer';
 
 /**
  * Die sechs AMSE-Faelle, die bis eben „gedost" waren.
@@ -334,5 +337,30 @@ describe('AMSE-SC-008 — von wo, nicht nur wer', () => {
     ]);
     expect(ausgaben[0].output).toMatch(/85\.214\.0\.0\/16\s+Deutsche Telekom AG/);
     expect(ausgaben[1].output).toMatch(/ausschließlich aus dem/);
+  });
+});
+
+// ── Und fuer alle sechs: der Erfolg liegt am ENDE des angesagten Wegs ───────
+
+describe('Kein angesagter Schritt laeuft ins Leere', () => {
+  /**
+   * Siehe kritis-infra/echteMechanik.test.ts: Ein Schritt, den der Auftrag
+   * ansagt und die Gewinnbedingung nicht verlangt, kommt im Spiel nie zur
+   * Ausfuehrung — nach dem Erfolg wartet die Sitzung auf das bestaetigende
+   * Enter. Gefahren wird deshalb durch die echte Sitzung, nicht an ihr vorbei.
+   */
+  const IDS = ['AMSE-SC-001', 'AMSE-SC-002', 'AMSE-SC-004', 'AMSE-SC-005', 'AMSE-SC-007', 'AMSE-SC-008'];
+
+  it.each(IDS.map((id) => [id] as const))('%s loest genau nach der letzten Zeile', (id) => {
+    const e = alleTerminalLevel().find((x) => x.id === id);
+    if (!e?.terminalContext) throw new Error(`${id} nicht gefunden — Test veraltet?`);
+    const pfad = sollpfad(e)!;
+    expect(pfad.zeilen.length, `${id} hat keinen sichtbaren Weg`).toBeGreaterThan(0);
+    const fahrt = fahreZeilen(e.terminalContext, pfad.zeilen.map((cmd) => ({ cmd })));
+    expect(
+      fahrt.geloestNachZeile,
+      `${id} loest nach Zeile ${fahrt.geloestNachZeile} von ${pfad.zeilen.length} — ` +
+        'die Zeilen danach kommen im Spiel nie zur Ausfuehrung'
+    ).toBe(pfad.zeilen.length);
   });
 });

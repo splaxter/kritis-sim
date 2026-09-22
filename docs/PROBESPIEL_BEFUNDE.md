@@ -196,6 +196,22 @@ sie nicht nochmal Zeit kosten:
 
 ---
 
+## Erledigt seit der letzten Runde
+
+- **Die gedosten Fälle sind weg.** Alle 23 Terminal-Szenarien der Packs
+  arbeiten jetzt mit echtem Zustand; vorgefertigte Ausgaben auf Befehlsmuster
+  gibt es in keinem Pack mehr. Dabei kam ein Befund heraus, den keine der
+  bisherigen Sichtungen finden konnte, weil er nur auf Windows-Level wirkte:
+  `Test-NetConnection` hatte eine kleine feste Porttabelle und fiel für alles
+  außerhalb auf `Math.random() > 0.5` zurück. Zwei Messungen desselben Ports
+  konnten sich widersprechen — in einem Level, dessen ganzer Zweck der Beweis
+  gegenüber einem Dienstleister ist. Die Gegenprobe steht in
+  `netzwerk.test.ts`: zwölf Messungen, eine Antwort.
+  Zwei kleinere aus derselben Ecke: `Stop-Process` meldete Erfolg, ohne etwas
+  zu ändern (der „beendete" Prozess stand beim nächsten `Get-Process` wieder
+  da), und eine Windows-Arbeitsstation zeigte als offene Sockets die
+  Linux-Grundausstattung an — sshd, apache2, mysqld.
+
 ## Offen — hier weitersuchen
 
 - **Fokusfallen in den Modalen.** Ob der Fokus im Modal bleibt und Escape
@@ -203,9 +219,6 @@ sie nicht nochmal Zeit kosten:
   Level-Ansicht gar nicht.
 - **Nutzertest mit Terminal-Einsteigern.** Steht seit PR #20 offen und wird von
   keiner Sichtung ersetzt: Sie prüfen Erreichbarkeit, nicht Gefühl.
-- **Die gedosten Fälle.** Von 23 Terminal-Szenarien in den Packs arbeiten erst
-  8 mit echten Zustandszielen; AMSE (6) und der Rest von KRITIS sind weiterhin
-  vorgefertigte Ausgaben.
 - **Layout-Flake in Playwright.** Unter hoher Maschinenlast laufen jsdom- und
   Layout-Tests in Zeitüberschreitungen. Beim nächsten Auftreten unter normaler
   Last anhand des Traces untersuchen.
