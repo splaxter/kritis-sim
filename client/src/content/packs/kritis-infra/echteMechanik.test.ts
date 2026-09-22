@@ -430,3 +430,220 @@ describe('KRITIS-SC-007 — die Frist haengt an der Stufe, nicht am Gefuehl', ()
     expect(ausgaben[1].output, 'und der Stand der Verstoesse').toMatch(/Stand der Verstöße im laufenden Jahr: 2/);
   });
 });
+
+// ── KRITIS-SC-008: vier Ordner, vier Dateien, vier verschiedene Befunde ──────
+
+const BEFUNDE = '/home/admin/befunde.md';
+const LESEN8 = [
+  'cat /docs/security/netzwerk/netzplan.txt',
+  'cat /docs/security/zugriff/berechtigungskonzept.txt',
+  'cat /docs/security/notfall/prozess.txt',
+  'cat /docs/security/pentest/bericht.txt',
+];
+const SCHREIBEN8 = [
+  `echo "netzplan: veraltet" > ${BEFUNDE}`,
+  `echo "zugriffskontrollen: teilweise" >> ${BEFUNDE}`,
+  `echo "notfallprozess: unerprobt" >> ${BEFUNDE}`,
+  `echo "pentest: aktuell" >> ${BEFUNDE}`,
+];
+const ersetze8 = (alt: string, neu: string) => SCHREIBEN8.map((z) => z.replace(alt, neu));
+
+describe('KRITIS-SC-008 — vorhanden ist nicht belastbar', () => {
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-008', [...LESEN8, ...SCHREIBEN8])).toBe(true);
+  });
+
+  it('alle vier Dateien muessen gelesen sein', () => {
+    for (let i = 0; i < LESEN8.length; i++) {
+      const ohne = LESEN8.filter((_, j) => j !== i);
+      expect(geloest('KRITIS-SC-008', [...ohne, ...SCHREIBEN8]), `ohne Datei ${i}`).toBe(false);
+    }
+  });
+
+  it('„alles da" ist die Inventur, nicht die Analyse', () => {
+    // In jedem der vier Ordner LIEGT etwas. Wer nur nachsieht, meldet dies.
+    const alles = SCHREIBEN8.map((z) => z.replace(/: \w+"/, ': aktuell"'));
+    expect(geloest('KRITIS-SC-008', [...LESEN8, ...alles])).toBe(false);
+  });
+
+  it('„alles kaputt" ist genauso falsch — ein Bereich traegt wirklich', () => {
+    expect(geloest('KRITIS-SC-008', [...LESEN8, ...ersetze8('pentest: aktuell', 'pentest: teilweise')])).toBe(false);
+  });
+
+  it('der Notfallprozess ist aktuell UND unerprobt — das ist nicht „veraltet"', () => {
+    expect(geloest('KRITIS-SC-008', [...LESEN8, ...ersetze8('notfallprozess: unerprobt', 'notfallprozess: veraltet')])).toBe(false);
+    expect(geloest('KRITIS-SC-008', [...LESEN8, ...ersetze8('notfallprozess: unerprobt', 'notfallprozess: aktuell')])).toBe(false);
+  });
+
+  it('jede Datei traegt ihren eigenen Befund', () => {
+    const { ausgaben } = fahre('KRITIS-SC-008', LESEN8);
+    expect(ausgaben[0].output, 'alt, mit Nachtrag').toMatch(/Stand: 15\.06\.2024/);
+    expect(ausgaben[1].output, 'aktuell, aber Abschnitt 4 offen').toMatch(/Zugänge zur Leittechnik \(OT\)\s+— offen —/);
+    expect(ausgaben[2].output, 'nie geuebt').toMatch(/durchgeführt:\s+keine/);
+    expect(ausgaben[3].output, 'offene Punkte mit Termin').toMatch(/alle mit Termin und Verantwortlichem/);
+  });
+});
+
+// ── KRITIS-SC-009: die Frist beginnt nicht, wenn es passiert ────────────────
+
+const PROZESS = '/etc/security/nis2/meldeprozess.md';
+const LESEN9 = [
+  'cat /etc/security/nis2/bewertung.txt',
+  'cat /etc/security/nis2/bsig-auszug.txt',
+];
+const SCHREIBEN9 = [
+  `echo "erstmeldung: 24" > ${PROZESS}`,
+  `echo "folgemeldung: 72" >> ${PROZESS}`,
+  `echo "abschluss: 30" >> ${PROZESS}`,
+  `echo "beginn: kenntnisnahme" >> ${PROZESS}`,
+];
+const ersetze9 = (alt: string, neu: string) => SCHREIBEN9.map((z) => z.replace(alt, neu));
+
+describe('KRITIS-SC-009 — die Uhr laeuft ab der Kenntnis', () => {
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-009', [...LESEN9, ...SCHREIBEN9])).toBe(true);
+  });
+
+  it('beide Quellen muessen gelesen sein', () => {
+    expect(geloest('KRITIS-SC-009', [LESEN9[0], ...SCHREIBEN9])).toBe(false);
+    expect(geloest('KRITIS-SC-009', [LESEN9[1], ...SCHREIBEN9])).toBe(false);
+  });
+
+  it('ab dem Eintritt zu rechnen macht jede Meldung rueckwirkend ueberfaellig', () => {
+    expect(geloest('KRITIS-SC-009', [...LESEN9, ...ersetze9('beginn: kenntnisnahme', 'beginn: vorfall')])).toBe(false);
+  });
+
+  it('auf die Bestaetigung zu warten heisst gar nicht zu melden', () => {
+    expect(geloest('KRITIS-SC-009', [...LESEN9, ...ersetze9('beginn: kenntnisnahme', 'beginn: bestaetigung')])).toBe(false);
+  });
+
+  it('die Fristen selbst stehen im Gesetzesauszug, nicht in der Selbstbewertung', () => {
+    const { ausgaben } = fahre('KRITIS-SC-009', LESEN9);
+    expect(ausgaben[0].output, 'die Bewertung sagt nur, dass das Verfahren fehlt').toMatch(/Verfahren beschrieben\s+NEIN/);
+    expect(ausgaben[1].output).toMatch(/KENNTNISERLANGUNG/);
+  });
+
+  it('lesen allein loest nicht — der Prozess IST das Ergebnis', () => {
+    // Die Datei selbst legt die Kulissen-Saat schon an (jeder im Auftrag
+    // genannte Pfad wird materialisiert, damit freies Umsehen zur Geschichte
+    // passt). Leer ist sie trotzdem, und leer traegt sie nichts.
+    const { shell, ziele } = fahre('KRITIS-SC-009', LESEN9);
+    expect(shell.execute(`cat ${PROZESS}`).output, 'vorher steht keine Frist drin').not.toMatch(/erstmeldung/);
+    expect(checkStateGoals(shell, ziele)).toBe(false);
+  });
+});
+
+// ── KRITIS-SC-010: die Prioritaetenliste rechnet nicht ──────────────────────
+
+const LASTPLAN = '/home/admin/lastplan.md';
+const LESEN10 = ['cat /opt/monitoring/usv.txt', 'cat /opt/monitoring/systeme.txt'];
+const plan10 = (abschalten: string, restlast: string, laufzeit: string) => [
+  `echo "abschalten: ${abschalten}" > ${LASTPLAN}`,
+  `echo "restlast: ${restlast}" >> ${LASTPLAN}`,
+  `echo "laufzeit: ${laufzeit}" >> ${LASTPLAN}`,
+];
+const RICHTIG10 = plan10('test-umgebung, file-server, backup-srv, dev-server, historian-db', '2,2', '65');
+
+describe('KRITIS-SC-010 — die Liste sagt „zuletzt", nicht „nie"', () => {
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...RICHTIG10])).toBe(true);
+  });
+
+  it('der Punkt als Dezimaltrenner geht auch — die Schreibweise ist nicht die Antwort', () => {
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...plan10(
+      'test-umgebung, file-server, backup-srv, dev-server, historian-db', '2.2', '65',
+    )])).toBe(true);
+  });
+
+  it('nur Stufe 3 und 4 abzuschalten reicht rechnerisch nicht', () => {
+    // 2,7 kW ergeben 53 Minuten — die Prognose des Versorgers geht bis 60.
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...plan10(
+      'test-umgebung, file-server, backup-srv, dev-server', '2,7', '53',
+    )])).toBe(false);
+  });
+
+  it('das Bedienbild abzuschalten gewinnt zehn Minuten und kostet die Sicht', () => {
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...plan10(
+      'test-umgebung, file-server, backup-srv, dev-server, historian-db, hmi-station', '1,9', '75',
+    )])).toBe(false);
+  });
+
+  it('Stufe 1 ist tabu, auch wenn es rechnerisch passt', () => {
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...plan10(
+      'test-umgebung, file-server, backup-srv, dev-server, netz-technik', '2,2', '65',
+    )])).toBe(false);
+  });
+
+  it('die richtige Auswahl mit falscher Rechnung faellt durch', () => {
+    expect(geloest('KRITIS-SC-010', [...LESEN10, ...plan10(
+      'test-umgebung, file-server, backup-srv, dev-server, historian-db', '2,2', '60',
+    )])).toBe(false);
+  });
+
+  it('die Zahlen der Rechnung stehen wirklich in den Quellen', () => {
+    const { ausgaben } = fahre('KRITIS-SC-010', [...LESEN10, 'cat /opt/monitoring/notfallplan.txt']);
+    expect(ausgaben[0].output, '4,8 kW und 30 Minuten ergeben 2,4 kWh').toMatch(/4,8 kW[\s\S]*30 Minuten/);
+    expect(ausgaben[1].output, 'und die Einzellasten').toMatch(/historian-db\s+0,5 kW/);
+    expect(ausgaben[2].output, 'mit dem oberen Wert rechnen').toMatch(/45 bis 60 Minuten/);
+  });
+});
+
+// ── KRITIS-SC-011: zwei Konten, ein Buchstabe Unterschied ───────────────────
+
+const LAGE = '/home/secops/lagemeldung.md';
+const SCHRITTE11 = [
+  'cat /var/log/siem/alarme-2026-03-14.log',
+  'ssh fs01',
+  'cat /srv/betrieb/dienstkonten.txt',
+  'sudo rm -f /home/svc-backup/.ssh/authorized_keys',
+  'exit',
+];
+const MELDUNG11 = [
+  `echo "einstieg: vpn" > ${LAGE}`,
+  `echo "konto: svc-backup" >> ${LAGE}`,
+  `echo "ot_erreicht: nein" >> ${LAGE}`,
+];
+const ersetze11 = (alt: string, neu: string) => MELDUNG11.map((z) => z.replace(alt, neu));
+
+describe('KRITIS-SC-011 — das falsche Konto zu kappen kostet die Sicherung', () => {
+  it('der angesagte Weg loest', () => {
+    expect(geloest('KRITIS-SC-011', [...SCHRITTE11, ...MELDUNG11])).toBe(true);
+  });
+
+  it('das naheliegend falsche Konto: dienst-sicherung klingt genauso', () => {
+    const falsch = SCHRITTE11.map((z) =>
+      z.replace('/home/svc-backup/', '/home/dienst-sicherung/'));
+    expect(zielErfuellt('KRITIS-SC-011', [...falsch, ...MELDUNG11], 2), 'der Angreifer ist noch drin').toBe(false);
+    expect(zielErfuellt('KRITIS-SC-011', [...falsch, ...MELDUNG11], 3), 'und die Sicherung ist tot').toBe(false);
+    expect(geloest('KRITIS-SC-011', [...falsch, ...MELDUNG11])).toBe(false);
+  });
+
+  it('beide zu kappen ist auch falsch — die Sicherung faehrt um 22:00', () => {
+    const beide = [
+      ...SCHRITTE11.slice(0, 4),
+      'sudo rm -f /home/dienst-sicherung/.ssh/authorized_keys',
+      'exit',
+    ];
+    expect(geloest('KRITIS-SC-011', [...beide, ...MELDUNG11])).toBe(false);
+  });
+
+  it('die Betriebsliste ist der einzige Unterschied — ohne sie ist es ein Muenzwurf', () => {
+    const ohneListe = SCHRITTE11.filter((z) => !z.includes('dienstkonten'));
+    expect(geloest('KRITIS-SC-011', [...ohneListe, ...MELDUNG11])).toBe(false);
+  });
+
+  it('„ot_erreicht: ja" ist eine Falschmeldung — die Versuche wurden abgewiesen', () => {
+    expect(geloest('KRITIS-SC-011', [...SCHRITTE11, ...ersetze11('ot_erreicht: nein', 'ot_erreicht: ja')])).toBe(false);
+  });
+
+  it('der Einstieg war kein Exploit, sondern eine gueltige Anmeldung', () => {
+    expect(geloest('KRITIS-SC-011', [...SCHRITTE11, ...ersetze11('einstieg: vpn', 'einstieg: mail')])).toBe(false);
+    const { ausgaben } = fahre('KRITIS-SC-011', [SCHRITTE11[0]]);
+    expect(ausgaben[0].output).toMatch(/Zugangsdaten waren abgeflossen, nicht/);
+  });
+
+  it('das Protokoll auf fs01 zeigt, wann das Konto entstanden ist', () => {
+    const { ausgaben } = fahre('KRITIS-SC-011', ['ssh fs01', 'journalctl -u useradd']);
+    expect(ausgaben[1].output).toMatch(/name=svc-backup/);
+  });
+});

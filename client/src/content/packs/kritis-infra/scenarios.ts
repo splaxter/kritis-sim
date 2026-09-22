@@ -23,11 +23,18 @@ const LEITSTAND_PRIVKEY =
   'ZWQyNTUxOQAAACALeitstandOperator00000000000000000000000000000000AA\n' +
   '-----END OPENSSH PRIVATE KEY-----\n';
 
-/** ~/.ssh des Operators auf dem Leitstand (privater Schlüssel 600). */
-const leitstandZugang = [
-  { path: '/home/operator/.ssh/id_ed25519', content: LEITSTAND_PRIVKEY, mode: '600' },
-  { path: '/home/operator/.ssh/id_ed25519.pub', content: LEITSTAND_PUBKEY + '\n' },
+/**
+ * Das ~/.ssh eines Kontos auf der Ausgangsmaschine. Der private Schlüssel
+ * MUSS 600 sein — sonst sortiert die Schlüsselprüfung ihn als ungeschützt aus
+ * und der Anmeldeversuch landet beim Passwort, das es hier nicht gibt.
+ */
+const sshZugangVon = (user: string) => [
+  { path: `/home/${user}/.ssh/id_ed25519`, content: LEITSTAND_PRIVKEY, mode: '600' },
+  { path: `/home/${user}/.ssh/id_ed25519.pub`, content: LEITSTAND_PUBKEY + '\n' },
 ];
+
+/** ~/.ssh des Operators auf dem Leitstand. */
+const leitstandZugang = sshZugangVon('operator');
 
 /** Die Zeile, die ein Feldgerät dem Leitstand vertrauen lässt. */
 const vertrautDemLeitstand = {
@@ -1256,114 +1263,131 @@ Du bist auf dem Dokumentationsserver (doc-server, 192.168.1.200). Zeit zu prüfe
       username: 'admin',
       currentPath: '/docs/security',
       templateIds: ['linux-webserver'],
-      commands: [
-        {
-          pattern: 'ls',
-          patternRegex: '^ls(\\s.*)?$',
-          output: `total 48
-drwxr-xr-x 6 root admin 4096 Mar 14 09:00 .
-drwxr-xr-x 4 root root  4096 Jan 15 08:00 ..
-drwxr-xr-x 2 root admin 4096 Feb 01 10:00 netzwerk/
-drwxr-xr-x 2 root admin 4096 Jan 15 08:00 zugriffskontrollen/
-drwxr-xr-x 2 root admin 4096 Dec 10 14:00 incident_response/
-drwxr-xr-x 2 root admin 4096 Nov 01 09:00 pentests/
--rw-r--r-- 1 root admin 1234 Mar 14 09:00 audit_checklist.md
-
-# Grundstruktur vorhanden, aber wie aktuell?`,
-          skillGain: { linux: 1 },
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*checklist',
-          output: `# BSI Audit Checklist - Stand: 14.03.2026
-
-## Netzwerkplan mit Segmentierung IT/OT
-- [ ] Aktueller Netzwerkplan (letzte Version: 2024-06-15) ⚠️ VERALTET
-- [x] Segmentierung dokumentiert
-- [ ] Firewall-Regeln dokumentiert ❌ FEHLT
-
-## Dokumentation der Zugriffskontrollen
-- [x] Berechtigungskonzept vorhanden
-- [x] AD-Gruppen dokumentiert
-- [ ] OT-Zugänge dokumentiert ❌ FEHLT
-
-## Incident-Response-Prozess
-- [x] Prozess definiert
-- [ ] Letzte Übung: nie durchgeführt ⚠️ KRITISCH
-- [ ] Kontaktlisten aktuell? ❌ PRÜFEN
-
-## Penetrationstest-Ergebnisse
-- Letzter Test: November 2025 ✓ AKTUELL
-- Offene Findings: 3 von 12 ⚠️
-
-# Gap-Analyse: ~40% noch zu tun!`,
-          skillGain: { security: 5, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'find',
-          patternRegex: 'find.*-mtime|find.*-newer',
-          output: `Finding files modified in last 30 days...
-./netzwerk/ip_liste.xlsx                    (2 days ago)
-./zugriffskontrollen/ad_gruppen.pdf         (15 days ago)
-./audit_checklist.md                        (today)
-
-Files older than 6 months:
-./netzwerk/netzwerkplan_v2.3.vsd            (9 months old!) ⚠️
-./incident_response/kontaktliste.xlsx       (14 months old!) ⚠️
-./pentests/findings_2024_q4.pdf             (4 months old) ✓
-
-# Mehrere kritische Dokumente sind veraltet!`,
-          skillGain: { linux: 3, security: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*netzwerk|cat.*firewall',
-          output: `=== Netzwerkplan v2.3 (VERALTET!) ===
-Erstellt: 2024-06-15
-Status: NICHT MEHR AKTUELL
-
-Änderungen seit letzter Aktualisierung:
-- Neue Monitoring-Server installiert (nicht dokumentiert)
-- OT-Netz erweitert um PLC03 (nicht dokumentiert)
-- VPN-Außenstellen hinzugefügt (nicht dokumentiert)
-
-Fehlende Dokumentation:
-- Firewall-Regelwerk (nur in Firewall selbst)
-- DMZ-Konfiguration
-- OT/IT-Übergänge
-
-# Netzwerkplan muss dringend aktualisiert werden!`,
-          skillGain: { netzwerk: 2, security: 3 },
-        },
-        {
-          pattern: 'grep',
-          patternRegex: 'grep.*(FEHLT|KRITISCH|VERALTET)',
-          output: `audit_checklist.md:- [ ] Firewall-Regeln dokumentiert ❌ FEHLT
-audit_checklist.md:- [ ] OT-Zugänge dokumentiert ❌ FEHLT
-audit_checklist.md:- [ ] Letzte Übung: nie durchgeführt ⚠️ KRITISCH
-audit_checklist.md:- [ ] Aktueller Netzwerkplan (letzte Version: 2024-06-15) ⚠️ VERALTET
-audit_checklist.md:- [ ] Kontaktlisten aktuell? ❌ PRÜFEN
-
-# 5 kritische Lücken identifiziert!`,
-          skillGain: { security: 4, troubleshooting: 2 },
-          isSolution: true,
-        },
-      ],
+      // Die Falle ist die Ordnerstruktur. In jedem der vier geforderten
+      // Bereiche LIEGT eine Datei — wer nur schaut, ob etwas da ist, meldet
+      // „vollständig". Erst das Lesen zeigt: eine ist zwei Jahre alt, eine
+      // deckt die Hälfte ab, eine beschreibt eine Übung, die nie stattfand.
+      // Und eine ist tatsächlich in Ordnung: „alles kaputt" ist auch falsch.
+      taskText:
+        'Vier Bereiche fordert das BSI an. Zu jedem liegt etwas unter /docs/security — lies die vier Dateien, statt nur nachzusehen, ob sie da sind.\n\nBefund nach /home/admin/befunde.md schreiben — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese vier Zeilen:\nnetzplan: aktuell | veraltet | teilweise | fehlt\nzugriffskontrollen: aktuell | veraltet | teilweise | fehlt\nnotfallprozess: aktuell | unerprobt | veraltet | fehlt\npentest: aktuell | veraltet | teilweise | fehlt\n\nEine Datei, die es gibt, ist nicht dasselbe wie ein Nachweis, der trägt.',
+      vfsOverlay: {
+        directories: [
+          '/docs/security', '/docs/security/netzwerk', '/docs/security/zugriff',
+          '/docs/security/notfall', '/docs/security/pentest', '/home/admin',
+        ],
+        files: [
+          {
+            path: '/docs/security/netzwerk/netzplan.txt',
+            content:
+              'Netzplan Stadtwerke — Segmentierung IT/OT\n' +
+              'Stand: 15.06.2024\n' +
+              '=========================================\n' +
+              'Segment IT   192.168.1.0/24   Server\n' +
+              'Segment IT   192.168.20.0/24  Arbeitsplätze\n' +
+              'Segment OT   10.0.0.0/24      Leittechnik\n' +
+              'Übergang     fw-it-ot         Regelwerk siehe Firewall\n' +
+              '\n' +
+              '# Nachtrag des Netzbetriebs (nicht eingearbeitet):\n' +
+              '#   - Monitoring-Segment 192.168.10.0/24 seit 09/2024 in Betrieb\n' +
+              '#   - plc03 seit 11/2024 im OT-Netz\n' +
+              '#   - zwei VPN-Gegenstellen seit 01/2025\n' +
+              '# Der Plan bildet den Stand von Mitte 2024 ab.\n',
+          },
+          {
+            path: '/docs/security/zugriff/berechtigungskonzept.txt',
+            content:
+              'Berechtigungskonzept\n' +
+              'Stand: 02.02.2026\n' +
+              '====================\n' +
+              'Abschnitt 1  Rollen und Gruppen im Verzeichnisdienst   vollständig\n' +
+              'Abschnitt 2  Vergabe und Entzug von Rechten            vollständig\n' +
+              'Abschnitt 3  Jährliche Rezertifizierung                vollständig\n' +
+              'Abschnitt 4  Zugänge zur Leittechnik (OT)              — offen —\n' +
+              '\n' +
+              '# Zu Abschnitt 4: Die OT-Zugänge sind bis heute nicht erfasst.\n' +
+              '# Wer dort ein Konto hat, weiß nur die Leitwarte. Der Abschnitt\n' +
+              '# steht seit der ersten Fassung als Platzhalter im Dokument.\n',
+          },
+          {
+            path: '/docs/security/notfall/prozess.txt',
+            content:
+              'Notfallprozess IT-Sicherheitsvorfall\n' +
+              'Stand: 10.12.2025\n' +
+              '====================================\n' +
+              'Meldeweg, Rollen, Entscheidungsbefugnisse: beschrieben\n' +
+              'Erreichbarkeiten: Anhang A (geprüft 12/2025)\n' +
+              'Wiederanlauf: beschrieben\n' +
+              '\n' +
+              'Übungen\n' +
+              '-------\n' +
+              'geplant:       jährlich, erstmals Q1/2025\n' +
+              'durchgeführt:  keine\n' +
+              '\n' +
+              '# Der Prozess ist inhaltlich in Ordnung und aktuell. Was fehlt,\n' +
+              '# ist der Nachweis, dass er funktioniert — ein ungeübter\n' +
+              '# Notfallprozess ist eine Behauptung, kein Verfahren.\n',
+          },
+          {
+            path: '/docs/security/pentest/bericht.txt',
+            content:
+              'Penetrationstest — Abschlussbericht\n' +
+              'Stand: 20.11.2025\n' +
+              '===================================\n' +
+              'Durchführung: externer Dienstleister, 5 Tage, IT und OT-Übergang\n' +
+              'Befunde: 12 (3 hoch, 5 mittel, 4 niedrig)\n' +
+              '\n' +
+              'Umsetzungsstand\n' +
+              '---------------\n' +
+              'behoben:  9\n' +
+              'offen:    3 (alle mit Termin und Verantwortlichem hinterlegt)\n' +
+              '\n' +
+              '# Ein Bericht mit offenen Punkten ist kein Mangel, solange die\n' +
+              '# offenen Punkte nachverfolgt werden. Genau das ist hier der Fall.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        grep: { linux: 2, security: 1 },
+        ls: { linux: 1 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['cat', 'find', 'grep'],
+          commands: [],
           allRequired: false,
-          resultText: 'Gap-Analyse abgeschlossen! Du weißt jetzt genau was fehlt: Netzwerkplan aktualisieren, Firewall-Regeln dokumentieren, OT-Zugänge erfassen, IR-Übung durchführen.',
-          skillGain: { security: 6, troubleshooting: 4 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/docs/security/netzwerk/netzplan.txt' },
+            { fileRead: '/docs/security/zugriff/berechtigungskonzept.txt' },
+            { fileRead: '/docs/security/notfall/prozess.txt' },
+            { fileRead: '/docs/security/pentest/bericht.txt' },
+            {
+              file: '/home/admin/befunde.md',
+              reportFields: [
+                { key: 'netzplan', matches: '^veraltet$' },
+                { key: 'zugriffskontrollen', matches: '^teilweise$' },
+                // Der Prozess ist aktuell und inhaltlich in Ordnung. Fehlt der
+                // Nachweis, dass er funktioniert — das ist etwas anderes als
+                // „veraltet" und etwas anderes als „fehlt".
+                { key: 'notfallprozess', matches: '^unerprobt$' },
+                // Und der eine Bereich, der wirklich trägt. „Alles kaputt" ist
+                // genauso falsch wie „alles da".
+                { key: 'pentest', matches: '^aktuell$' },
+              ],
+            },
+          ],
+          resultText:
+            'Das ist eine Gap-Analyse und keine Inventur. In jedem der vier Ordner liegt eine Datei — wer nur nachsieht, ob etwas da ist, meldet vier Haken und fällt im Gespräch mit dem Prüfer beim ersten Nachfragen durch.\n\nDie vier Befunde sind vier verschiedene Dinge, und das ist der Punkt: Der Netzplan ist inhaltlich richtig, nur zwei Jahre alt — drei Änderungen stehen als Nachtrag daneben und wurden nie eingearbeitet. Das Berechtigungskonzept ist aktuell und deckt die OT-Zugänge trotzdem nicht ab; Abschnitt 4 steht seit der ersten Fassung als Platzhalter da. Der Notfallprozess ist aktuell UND vollständig und war noch nie eine Übung wert — ein ungeübter Notfallprozess ist eine Behauptung, kein Verfahren.\n\nUnd der Pentestbericht ist in Ordnung, offene Punkte hin oder her. Ein Bericht mit drei offenen Befunden, die Termin und Verantwortlichen haben, ist ein funktionierender Prozess. Wer den auch noch als Mangel meldet, verliert die Glaubwürdigkeit für die drei echten.',
+          skillGain: { security: 6, troubleshooting: 4, softSkills: 2 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Die audit_checklist.md zeigt was gefordert wird',
-        'Tipp: find -mtime zeigt wie alt die Dokumente sind',
-        'Tipp: grep nach FEHLT oder KRITISCH zeigt die Lücken',
+        '🤖 Jens: Vier Bereiche, vier Ordner, in jedem liegt etwas. Das ist die gute Nachricht und die Falle zugleich — schau nicht, OB etwas da ist, sondern was drinsteht.',
+        '🤖 Jens: Achte in jeder Datei auf zwei Dinge: das Datum im Kopf und die Zeilen unter dem eigentlichen Inhalt. Da steht jeweils, was das Dokument NICHT abdeckt.',
+        '🤖 Jens: Und rechne damit, dass einer der vier Bereiche wirklich in Ordnung ist. Ein Befundbericht, in dem alles rot ist, wird nicht gelesen — er wird abgetan.',
+        '🤖 Jens: Konkret: `cat /docs/security/netzwerk/netzplan.txt` → `cat /docs/security/zugriff/berechtigungskonzept.txt` → `cat /docs/security/notfall/prozess.txt` → `cat /docs/security/pentest/bericht.txt` → `echo "netzplan: veraltet" > /home/admin/befunde.md` → `echo "zugriffskontrollen: teilweise" >> /home/admin/befunde.md` → `echo "notfallprozess: unerprobt" >> /home/admin/befunde.md` → `echo "pentest: aktuell" >> /home/admin/befunde.md`.',
       ],
     },
   },
@@ -1425,136 +1449,112 @@ Konfig: /etc/security/nis2/`,
       hostname: 'security-srv',
       username: 'security-officer',
       currentPath: '/etc/security/nis2',
-      commands: [
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*assessment|cat.*status',
-          output: `=== NIS2 Compliance Assessment ===
-Stand: 14.03.2026
-Gesamtstatus: 70% compliant
-
-ARTIKEL 21 - Risikomanagement:
-  [x] Risikoanalyse durchgeführt (Score: 85%)
-  [x] Maßnahmen dokumentiert
-  [ ] Jährliche Überprüfung ❌ (letzte: 18 Monate her!)
-
-ARTIKEL 23 - Incident Reporting:
-  [ ] 72h-Meldefrist definiert ❌ KRITISCH!
-  [ ] Meldeprozess dokumentiert ❌
-  [x] BSI-Kontakt vorhanden
-
-SUPPLY CHAIN SECURITY:
-  [ ] Lieferanten-Risikoanalyse ❌ FEHLT!
-  [x] Verträge mit Sicherheitsklauseln
-  [ ] Regelmäßige Überprüfung ❌
-
-SCHULUNGEN:
-  [x] Awareness-Training durchgeführt
-  [x] Dokumentiert
-  [ ] Management-Training ⚠️ (geplant für Q2)
-
-# 3 kritische Lücken bei Incident Reporting und Supply Chain!`,
-          skillGain: { security: 5, troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*incident|cat.*melde',
-          output: `=== Incident Reporting Prozess ===
-Status: NICHT DEFINIERT
-
-NIS2 Anforderungen:
-- Erstmeldung an BSI: innerhalb 24h
-- Vollständiger Report: innerhalb 72h
-- Abschlussbericht: innerhalb 30 Tage
-
-Aktueller Stand:
-- Keine dokumentierte Prozesskette
-- Keine Vorlagen für BSI-Meldungen
-- Keine definierten Verantwortlichkeiten
-- Keine Übung durchgeführt
-
-RISIKO: Bei einem Vorfall werdet ihr die 72h-Frist reißen!
-
-# Incident-Reporting-Prozess muss DRINGEND definiert werden!`,
-          skillGain: { security: 4, softSkills: 2 },
-          isSolution: true,
-        },
-        {
-          pattern: 'cat',
-          patternRegex: 'cat.*supplier|cat.*lieferant',
-          output: `=== Lieferanten-Risikoanalyse ===
-Status: NICHT VORHANDEN
-
-Bekannte kritische Lieferanten:
-- Siemens (PLCs, HMI) - Vertrag vorhanden, keine Risikoanalyse
-- Microsoft (Windows, M365) - Kein separater Sicherheitsvertrag
-- Deutsche Telekom (Internet, VPN) - Standard-AGB
-- div. kleinere Dienstleister - nicht erfasst
-
-NIS2 fordert:
-- Systematische Identifikation kritischer Lieferanten
-- Risikoanalyse pro Lieferant
-- Sicherheitsanforderungen in Verträgen
-- Regelmäßige Überprüfung
-
-# Lieferanten-Risikoanalyse muss erstellt werden!`,
-          skillGain: { security: 4, softSkills: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'nis2-report',
-          patternRegex: 'nis2-report|generate-report',
-          output: `Generating NIS2 Compliance Report...
-
-=== NIS2 Compliance Report ===
-Date: 14.03.2026
-Overall Score: 70%
-
-COMPLIANT (10/14 requirements):
-✓ Risikoanalyse durchgeführt
-✓ Maßnahmen dokumentiert
-✓ BSI-Kontakt vorhanden
-✓ Verträge mit Sicherheitsklauseln
-✓ Awareness-Training durchgeführt
-... (5 weitere)
-
-NON-COMPLIANT (4/14 requirements):
-✗ 72h-Incident-Meldefrist - KRITISCH
-✗ Incident-Meldeprozess - KRITISCH
-✗ Lieferanten-Risikoanalyse - KRITISCH
-✗ Jährliche Risikoüberprüfung - HOCH
-
-Empfohlene Maßnahmen:
-1. Incident-Reporting-Prozess sofort definieren
-2. Lieferanten-Risikoanalyse durchführen
-3. Risikoüberprüfung planen
-
-Report saved to: /tmp/nis2_report_2026-03-14.pdf`,
-          skillGain: { security: 5 },
-          isSolution: true,
-        },
-      ],
+      // Hier wird nicht bewertet, sondern GEBAUT: Der fehlende Meldeprozess
+      // ist das Ergebnis. Und die schwierigste Zahl darin ist keine Frist,
+      // sondern der Zeitpunkt, ab dem sie läuft — wer den falsch setzt, hält
+      // eine Frist ein, die längst abgelaufen war.
+      taskText:
+        'Zwei Quellen lesen: /etc/security/nis2/bewertung.txt (wo ihr steht) und /etc/security/nis2/bsig-auszug.txt (was das Gesetz sagt). Beide vollständig.\n\nDann die fehlende Verfahrensbeschreibung anlegen: /etc/security/nis2/meldeprozess.md — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese vier Zeilen:\nerstmeldung: <Stunden, nur die Zahl>\nfolgemeldung: <Stunden, nur die Zahl>\nabschluss: <Tage, nur die Zahl>\nbeginn: vorfall | kenntnisnahme | bestaetigung\n\nZu „beginn": Ab welchem Ereignis laufen die Fristen? Die Antwort steht im Gesetzesauszug, nicht im Bauchgefühl.',
+      vfsOverlay: {
+        directories: ['/etc/security/nis2'],
+        files: [
+          {
+            path: '/etc/security/nis2/bewertung.txt',
+            content:
+              'Selbstbewertung NIS2 / BSIG\n' +
+              'Stand: 14.03.2026\n' +
+              '===========================\n' +
+              '\n' +
+              'Risikomanagement (§§ 30, 31)\n' +
+              '  Risikoanalyse durchgeführt          ja (03/2024)\n' +
+              '  Maßnahmen dokumentiert              ja\n' +
+              '  Jährliche Überprüfung               nein — letzte vor 18 Monaten\n' +
+              '\n' +
+              'Meldepflichten (§ 32)\n' +
+              '  Fristen bekannt                     ja\n' +
+              '  Verfahren beschrieben               NEIN\n' +
+              '  Vorlagen vorhanden                  nein\n' +
+              '  Verantwortlichkeit benannt          nein\n' +
+              '\n' +
+              'Lieferkette\n' +
+              '  Risikobetrachtung je Lieferant      nein\n' +
+              '  Sicherheitsklauseln in Verträgen    ja\n' +
+              '\n' +
+              'Schulung der Leitungsorgane\n' +
+              '  Awareness für Beschäftigte          ja\n' +
+              '  Schulung der Leitung                geplant Q2\n' +
+              '\n' +
+              '# Anmerkung: Die Fristen stehen in jeder Präsentation. Was fehlt,\n' +
+              '# ist die Beschreibung, WER bei einem Vorfall WAS tut — und ab\n' +
+              '# wann gerechnet wird. Ohne die ist "Fristen bekannt" wertlos.\n',
+          },
+          {
+            path: '/etc/security/nis2/bsig-auszug.txt',
+            content:
+              'Auszug § 32 BSIG — Meldepflichten (sinngemäß)\n' +
+              '=============================================\n' +
+              '\n' +
+              '(1) Eine erste Meldung ist unverzüglich, spätestens aber innerhalb\n' +
+              '    von 24 Stunden abzugeben.\n' +
+              '\n' +
+              '(2) Eine Folgemeldung mit einer ersten Bewertung ist innerhalb von\n' +
+              '    72 Stunden abzugeben.\n' +
+              '\n' +
+              '(3) Ein Abschlussbericht ist innerhalb eines Monats nach der\n' +
+              '    Folgemeldung vorzulegen (gerechnet mit 30 Tagen).\n' +
+              '\n' +
+              'Fristbeginn\n' +
+              '-----------\n' +
+              'Die Fristen beginnen mit der KENNTNISERLANGUNG von dem erheblichen\n' +
+              'Sicherheitsvorfall, nicht mit seinem Eintritt und nicht mit seiner\n' +
+              'abschließenden Bestätigung.\n' +
+              '\n' +
+              '# Das ist der Unterschied, an dem Meldungen scheitern: Ein Vorfall\n' +
+              '# vom Freitag, der am Montag auffällt, ist am Montag zu melden —\n' +
+              '# und nicht seit Freitag überfällig. Umgekehrt darf niemand auf\n' +
+              '# die Bestätigung warten: Auch ein Verdacht ist Kenntnis.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        echo: { linux: 1 },
+        grep: { linux: 2 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['cat', 'nis2-report'],
+          commands: [],
           allRequired: false,
-          resultText: 'NIS2-Assessment abgeschlossen! Kritische Lücken: Incident-Reporting (72h-Frist!) und Lieferanten-Risikoanalyse. Du hast einen konkreten Maßnahmenplan.',
-          skillGain: { security: 7, softSkills: 4 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/etc/security/nis2/bewertung.txt' },
+            { fileRead: '/etc/security/nis2/bsig-auszug.txt' },
+            {
+              file: '/etc/security/nis2/meldeprozess.md',
+              reportFields: [
+                { key: 'erstmeldung', matches: '^24$' },
+                { key: 'folgemeldung', matches: '^72$' },
+                { key: 'abschluss', matches: '^30$' },
+                // Die Zahl, die keine Zahl ist: Nicht der Eintritt und nicht
+                // die Bestätigung, sondern die Kenntnisnahme.
+                { key: 'beginn', matches: '^kenntnisnahme$' },
+              ],
+            },
+          ],
+          resultText:
+            'Jetzt gibt es das Verfahren, und damit ist „Fristen bekannt" zum ersten Mal etwas wert. Die drei Zahlen standen vorher in jeder Präsentation — was fehlte, war der Satz, ab wann sie laufen.\n\nGenau daran scheitern Meldungen in beide Richtungen. Wer ab dem EINTRITT rechnet, meldet einen Vorfall vom Freitag am Montag als seit drei Tagen überfällig und liefert die Aufsicht gratis mit. Wer auf die BESTÄTIGUNG wartet, meldet gar nicht — denn bestätigt ist ein Vorfall erst, wenn die Analyse fertig ist, und die dauert länger als 24 Stunden. Auch ein begründeter Verdacht ist Kenntnis.\n\nWas jetzt noch fehlt, weißt du aus der Selbstbewertung: Vorlagen, eine benannte Verantwortlichkeit mit Vertretung und eine Lieferantenbetrachtung. Aber das Verfahren steht, und das ist der Teil, den man nicht im Vorfall nachholen kann.',
+          skillGain: { security: 6, softSkills: 5 },
+          effects: { stress: -1 },
         },
       ],
       hints: [
-        'Tipp: Wo steht ihr bei der NIS2-Umsetzung gerade? Verschaff dir erst einen Überblick über den aktuellen Compliance-Status.',
-        'Tipp: Die 72h-Meldefrist bei Incidents ist ein häufiger Stolperstein — prüf, ob die eingehalten wird.',
-        'Tipp: Konkret: cat assessment.conf zeigt den Status, nis2-report generiert den Compliance-Report.',
+        '🤖 Jens: Die Selbstbewertung sagt dir, was fehlt — und es ist nicht das Wissen um die Fristen. Es ist die Beschreibung des Verfahrens.',
+        '🤖 Jens: Die drei Fristen stehen im Gesetzesauszug. Achte beim Abschlussbericht darauf, worauf sich der Monat bezieht.',
+        '🤖 Jens: Und dann der Absatz, den fast alle überlesen: „Fristbeginn". Ab welchem Ereignis läuft die Uhr? Die falsche Antwort kostet dich in beide Richtungen — zu früh überfällig oder gar nicht gemeldet.',
+        '🤖 Jens: Konkret: `cat /etc/security/nis2/bewertung.txt` → `cat /etc/security/nis2/bsig-auszug.txt` → `echo "erstmeldung: 24" > /etc/security/nis2/meldeprozess.md` → `echo "folgemeldung: 72" >> /etc/security/nis2/meldeprozess.md` → `echo "abschluss: 30" >> /etc/security/nis2/meldeprozess.md` → `echo "beginn: kenntnisnahme" >> /etc/security/nis2/meldeprozess.md`.',
       ],
     },
   },
-
-  // ============================================
-  // CRISIS MANAGEMENT SCENARIOS
-  // ============================================
   {
     id: 'KRITIS-SC-010',
     title: 'Stromausfall im Rechenzentrum',
@@ -1614,128 +1614,114 @@ In 30 Minuten ist der Strom weg. Was tust du?`,
       username: 'admin',
       currentPath: '/opt/monitoring',
       templateIds: ['monitoring'],
-      commands: [
-        {
-          pattern: 'ups-status',
-          patternRegex: 'ups-status|apcaccess',
-          output: `=== USV Status ===
-Model: APC Smart-UPS 5000
-Status: ON BATTERY
-Battery Charge: 85%
-Runtime Remaining: 28 minutes
-
-Load Distribution:
-- SCADA Systems: 2.1 kW (42%)
-- Network Equipment: 0.8 kW (16%)
-- Non-Critical Systems: 2.1 kW (42%)
-
-WARNING: Generator failed to start!
-ERROR: Diesel tank sensor: EMPTY
-
-# 28 Minuten Restlaufzeit! Non-Critical verbraucht 42%!`,
-          skillGain: { troubleshooting: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'list-systems',
-          patternRegex: 'list-systems|show-priorities',
-          output: `=== System Priority List ===
-PRIORITY 1 (KRITISCH - niemals abschalten):
-  scada-master (10.0.0.1)     - SCADA Control    - 800W
-  plc-gateway (10.0.0.254)    - PLC Communication - 200W
-
-PRIORITY 2 (WICHTIG - letzte zum Abschalten):
-  hmi-station (192.168.10.50) - Operator Display  - 300W
-  historian-db (192.168.10.60) - Prozessdaten     - 500W
-
-PRIORITY 3 (NORMAL - kann heruntergefahren werden):
-  file-server (192.168.10.2)   - Dateien          - 400W
-  backup-srv (192.168.10.3)    - Backup           - 300W
-  dev-server (192.168.10.4)    - Entwicklung      - 400W
-
-PRIORITY 4 (NIEDRIG - sofort abschalten):
-  test-server-1..5             - Test/Dev         - 1000W
-
-# Wenn Priority 3+4 aus: +45 Minuten Laufzeit!`,
-          skillGain: { troubleshooting: 4, softSkills: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'shutdown',
-          patternRegex: 'shutdown.*priority|shutdown.*batch',
-          output: `=== Emergency Shutdown Sequence ===
-Shutting down Priority 4 systems...
-  test-server-1: shutdown complete
-  test-server-2: shutdown complete
-  test-server-3: shutdown complete
-  test-server-4: shutdown complete
-  test-server-5: shutdown complete
-
-Power saved: 1000W
-New runtime: 28 min → 52 minutes
-
-Shutting down Priority 3 systems...
-  file-server: shutdown complete
-  backup-srv: shutdown complete
-  dev-server: shutdown complete
-
-Power saved: 1100W
-New runtime: 52 min → 98 minutes
-
-# Fast 2 Stunden Laufzeit für SCADA!`,
-          skillGain: { softSkills: 5, troubleshooting: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'call',
-          patternRegex: 'call.*energieversorger|notify',
-          output: `=== Emergency Notification ===
-Calling Stadtwerke Emergency Line...
-Connected.
-
-You: "Hier ist die Wasserversorgung. Wir haben Stromausfall,
-     Generator ist leer, USV läuft. Dringende Wiederherstellung!"
-
-Stadtwerke: "Wir wissen Bescheid, Trafo-Ausfall in Ihrem Bezirk.
-            Geschätzte Wiederherstellung: 45-60 Minuten."
-
-# Strom kommt in 45-60 Minuten wieder!`,
-          skillGain: { softSkills: 3 },
-        },
-        {
-          pattern: 'diesel',
-          patternRegex: 'diesel|generator|fuel',
-          output: `=== Generator Status ===
-Model: Caterpillar C15
-Status: STANDBY (failed to start)
-Error: "Low fuel level - tank sensor shows empty"
-
-Tank Capacity: 500L
-Sensor Reading: 2L (0.4%)
-
-Last Refueling: 2025-06-15 (9 months ago!)
-Last Test: 2025-12-01 (PASSED - tank was 40% full)
-
-PROBLEM: Diesel wurde nie nachgefüllt!
-         Tank ist über 9 Monate leergelaufen/verdunstet?
-
-# Das ist ein Wartungsversagen! Für später dokumentieren.`,
-          skillGain: { troubleshooting: 3 },
-        },
-      ],
+      // Der Fall ist Rechnen unter Zeitdruck — und die Rechnung geht nicht
+      // auf, wenn man die Prioritätenliste stur von unten abarbeitet. Die
+      // letzten 0,5 kW müssen aus Stufe 2 kommen, und dort stehen zwei
+      // Systeme, die in dieser Lage NICHT gleich wichtig sind.
+      taskText:
+        'Zwei Quellen lesen: /opt/monitoring/usv.txt (was die Anlage noch hergibt) und /opt/monitoring/systeme.txt (was wie viel zieht und wer wen braucht). Der Notfallplan daneben nennt die Zeit, die du überbrücken musst.\n\nPlan nach /home/admin/lastplan.md schreiben — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese drei Zeilen:\nabschalten: <Kennungen, kommagetrennt>\nrestlast: <verbleibende Last in kW, eine Nachkommastelle>\nlaufzeit: <Laufzeit in Minuten bei dieser Last, auf volle Minuten abgerundet>\n\nDie Laufzeit rechnest du aus der Energie, die noch im Speicher ist — die steht nicht dran, sie ergibt sich aus der jetzigen Last und der jetzigen Restlaufzeit.',
+      vfsOverlay: {
+        directories: ['/opt/monitoring', '/home/admin'],
+        files: [
+          {
+            path: '/opt/monitoring/usv.txt',
+            content:
+              'USV Rechenzentrum — Momentaufnahme 06:12\n' +
+              '========================================\n' +
+              'Betriebsart:      Batterie (Netz ausgefallen 06:08)\n' +
+              'Ladezustand:      85 Prozent\n' +
+              'Aktuelle Last:    4,8 kW\n' +
+              'Restlaufzeit:     30 Minuten bei dieser Last\n' +
+              '\n' +
+              'Notstromaggregat: Start fehlgeschlagen\n' +
+              '                  Meldung "Tankstand leer" (Sensor: 2 von 500 Litern)\n' +
+              '                  Letzte Betankung 15.06.2025, letzter Probelauf 01.12.2025\n' +
+              '\n' +
+              '# Zur Rechnung: Die Restlaufzeit gilt für die aktuelle Last. Wer\n' +
+              '# Last wegnimmt, verlängert sie im selben Verhältnis — die\n' +
+              '# Energie im Speicher ändert sich dadurch nicht.\n',
+          },
+          {
+            path: '/opt/monitoring/systeme.txt',
+            content:
+              '# Systeme am USV-Strang — Stufe, Kennung, Leistung, Funktion\n' +
+              '\n' +
+              'Stufe 1 — darf nicht abgeschaltet werden\n' +
+              '  scada-master    0,8 kW   Prozessführung Wasserwerk\n' +
+              '  plc-gateway     0,2 kW   Anbindung der Steuerungen\n' +
+              '  netz-technik    0,9 kW   Switches, Router, Lichtwellenleiter\n' +
+              '\n' +
+              'Stufe 2 — zuletzt abschalten\n' +
+              '  hmi-station     0,3 kW   Bedienbild der Leitwarte\n' +
+              '  historian-db    0,5 kW   Aufzeichnung der Prozessdaten\n' +
+              '\n' +
+              'Stufe 3 — abschaltbar\n' +
+              '  file-server     0,4 kW   Dateiablage Verwaltung\n' +
+              '  backup-srv      0,3 kW   Sicherung (nächster Lauf 22:00)\n' +
+              '  dev-server      0,4 kW   Entwicklung und Test\n' +
+              '\n' +
+              'Stufe 4 — sofort abschaltbar\n' +
+              '  test-umgebung   1,0 kW   fünf Testmaschinen\n' +
+              '\n' +
+              '# Zur Stufe 2: Die Liste sagt "zuletzt", nicht "nie". Und sie sagt\n' +
+              '# nichts darüber, welches der beiden Systeme man in einer Störung\n' +
+              '# eher braucht. Die Aufzeichnung läuft nach; ohne Bedienbild\n' +
+              '# führt die Leitwarte den Prozess blind.\n',
+          },
+          {
+            path: '/opt/monitoring/notfallplan.txt',
+            content:
+              'Notfallplan Stromausfall — Auszug\n' +
+              '=================================\n' +
+              'Ziel: Die Prozessführung bleibt durchgehend in Betrieb.\n' +
+              '\n' +
+              'Meldung des Energieversorgers vom 14.03.2026, 06:10 Uhr:\n' +
+              '  "Trafoausfall im Bezirk. Wiederherstellung in 45 bis 60 Minuten."\n' +
+              '\n' +
+              'Planungsvorgabe: Immer mit dem oberen Wert rechnen. Eine Prognose\n' +
+              'des Versorgers ist eine Schätzung, keine Zusage.\n',
+          },
+        ],
+      },
+      commandSkillGain: {
+        cat: { linux: 1 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['ups-status', 'list-systems', 'shutdown'],
+          commands: [],
           allRequired: false,
-          resultText: 'Exzellentes Krisenmanagement! Du hast die Systeme priorisiert und die USV-Laufzeit fast verdreifacht. SCADA bleibt online bis der Strom wiederkommt.',
-          skillGain: { softSkills: 7, troubleshooting: 5 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/opt/monitoring/usv.txt' },
+            { fileRead: '/opt/monitoring/systeme.txt' },
+            {
+              file: '/home/admin/lastplan.md',
+              reportFields: [
+                {
+                  key: 'abschalten',
+                  requiredItems: ['test-umgebung', 'file-server', 'backup-srv', 'dev-server', 'historian-db'],
+                  // Stufe 1 ist tabu — und das Bedienbild ist es in dieser
+                  // Lage auch. Wer es abschaltet, gewinnt zehn Minuten und
+                  // führt den Prozess blind.
+                  forbiddenItems: ['scada-master', 'plc-gateway', 'netz-technik', 'hmi-station'],
+                },
+                { key: 'restlast', matches: '^2[.,]2$' },
+                { key: 'laufzeit', matches: '^65$' },
+              ],
+            },
+          ],
+          resultText:
+            'Die Rechnung stimmt, und sie ist die ganze Aufgabe. 4,8 kW halten 30 Minuten — im Speicher stecken also 2,4 kWh. Für 60 Minuten darf die Last höchstens 2,4 kW betragen; du bist bei 2,2 und damit bei 65 Minuten. Die Prognose des Versorgers lautet 45 bis 60; mit dem unteren Wert zu rechnen wäre die Sorte Optimismus, die man im Protokoll wiederfindet.\n\nStufe 3 und 4 abzuschalten war die leichte Hälfte und reicht nicht: Das bringt dich auf 2,7 kW und 53 Minuten. Die letzten 0,5 kW mussten aus Stufe 2 kommen — und dort stand die eigentliche Entscheidung. Die Liste sagt „zuletzt abschalten", nicht „nie", und sie sagt nichts darüber, welches der beiden Systeme man in einer Störung eher braucht.\n\nDie Aufzeichnung läuft nach; die verlorenen 60 Minuten Prozessdaten ärgern die Auswertung. Ohne Bedienbild führt die Leitwarte den Prozess blind — in genau der Stunde, in der jemand hinsehen muss. Das ist keine Frage der Prioritätenliste, sondern der Lage.\n\nFür danach, und zwar schriftlich: Der Tank war seit neun Monaten nicht befüllt, der letzte Probelauf lief im Dezember mit 40 Prozent Füllstand. Ein Notstromaggregat, das man nicht betankt, ist ein teures Möbelstück.',
+          skillGain: { softSkills: 7, troubleshooting: 6 },
+          effects: { stress: 2 },
         },
       ],
       hints: [
-        'Tipp: Stromausfall — wie viel Zeit bleibt dir? Check zuerst Restlaufzeit und Last der USV.',
-        'Tipp: Welche Systeme kannst du abschalten, um Strom zu sparen? Die kritischen müssen am längsten durchhalten.',
-        'Tipp: Konkret: ups-status zeigt Restlaufzeit und Last, list-systems (oder show-priorities) zeigt die Prioritäten.',
+        '🤖 Jens: Erst die Zeit, die du überbrücken musst — sie steht im Notfallplan, zusammen mit der Regel, welchen der beiden Werte du nimmst.',
+        '🤖 Jens: Dann die Energie. Die USV nennt keine kWh, aber Last und Restlaufzeit — daraus ergibt sich, was noch im Speicher ist. Und daraus, welche Last du dir leisten kannst.',
+        '🤖 Jens: Stufe 3 und 4 abzuschalten reicht nicht, rechne es nach. Die letzten Kilowatt musst du aus Stufe 2 nehmen — und dort steht die eigentliche Entscheidung. Lies, was unter der Liste dazu steht.',
+        '🤖 Jens: Konkret: `cat /opt/monitoring/notfallplan.txt` → `cat /opt/monitoring/usv.txt` → `cat /opt/monitoring/systeme.txt` → `echo "abschalten: test-umgebung, file-server, backup-srv, dev-server, historian-db" > /home/admin/lastplan.md` → `echo "restlast: 2,2" >> /home/admin/lastplan.md` → `echo "laufzeit: 65" >> /home/admin/lastplan.md`.',
       ],
     },
   },
@@ -1800,142 +1786,129 @@ Terminal auf SIEM-Server (siem-srv, 192.168.1.100) offen.`,
       username: 'secops',
       currentPath: '/var/log/siem',
       templateIds: ['monitoring'],
-      commands: [
+      // Unter Zeitdruck greift man nach dem, was nach dem Angreifer aussieht.
+      // Auf dem Fileserver liegen ZWEI Konten mit ähnlichem Namen: eines hat
+      // der Angreifer heute Nacht angelegt, das andere fährt seit Jahren die
+      // Sicherung. Wer das falsche kappt, hat den Angreifer drin und die
+      // Sicherung tot — und merkt es um 22:00.
+      taskText:
+        'Die Meldungen der Nacht liegen unter /var/log/siem/alarme-2026-03-14.log. Lies sie, bevor du handelst.\n\nDem Angreifer den Zugang nehmen: Auf fs01 (ssh fs01, Konto secops) liegt unter /home das Konto, das er sich angelegt hat — entferne dessen hinterlegten Schlüssel (sudo rm). Das Konto, das die nächtliche Sicherung fährt, muss unangetastet bleiben; welches das ist, steht in /srv/betrieb/dienstkonten.txt auf fs01.\n\nDanach die Lagemeldung nach /home/secops/lagemeldung.md — kein Editor da, also echo "…" > datei und echo "…" >> datei. Genau diese drei Zeilen:\neinstieg: vpn | mail | web | usb\nkonto: <Kennung des vom Angreifer angelegten Kontos>\not_erreicht: ja | nein',
+      vfsOverlay: {
+        directories: ['/var/log/siem', '/home/secops', '/home/secops/.ssh'],
+        files: [
+          ...sshZugangVon('secops'),
+          {
+            path: '/var/log/siem/alarme-2026-03-14.log',
+            content:
+              '02:15:00 [hoch]     vpn-gw     Anmeldung erfolgreich: admin.extern von 185.243.115.44\n' +
+              '02:15:00 [info]     vpn-gw     Konto admin.extern zuletzt benutzt am 11.11.2025\n' +
+              '02:18:00 [kritisch] ad-dc01    Weitergabe von Anmeldedaten erkannt (Relay)\n' +
+              '02:22:00 [kritisch] ad-dc01    Neues Konto angelegt: svc-backup, Gruppe Domaenen-Admins\n' +
+              '02:25:00 [hoch]     fs01       Massenhaftes Auflisten von Freigaben durch svc-backup\n' +
+              '02:28:00 [kritisch] fs01       Auslesen von Anmeldedaten aus dem Arbeitsspeicher\n' +
+              '02:30:00 [kritisch] fw-it-ot   Verbindungsversuch svc-backup -> 10.0.0.1: abgewiesen\n' +
+              '02:30:01 [kritisch] fw-it-ot   Verbindungsversuch svc-backup -> 10.0.0.254: abgewiesen\n' +
+              '02:30:02 [info]     fw-it-ot   keine erfolgreiche Verbindung IT -> OT seit 00:00\n' +
+              '\n' +
+              '# Zum Einstieg: Die Anmeldung um 02:15 war gueltig. Das Konto\n' +
+              '# admin.extern gehört einem Dienstleister und wurde zuletzt im\n' +
+              '# November benutzt — die Zugangsdaten waren abgeflossen, nicht\n' +
+              '# erraten. Kein Mailanhang, kein Webexploit, kein Datenträger.\n',
+          },
+        ],
+      },
+      hosts: [
         {
-          pattern: 'show-alerts',
-          patternRegex: 'show-alerts|tail.*alerts',
-          output: `=== CRITICAL ALERTS ===
-02:15:00 [HIGH] VPN-GW: Successful login - admin.extern (unusual time!)
-02:18:00 [CRIT] AD-DC01: NTLM relay attack detected
-02:22:00 [CRIT] AD-DC01: New admin account created: "svc_backup"
-02:25:00 [HIGH] FS01: Mass file enumeration by svc_backup
-02:28:00 [CRIT] FS01: Mimikatz detected! Credential dumping!
-02:30:00 [CRIT] FW-IT-OT: Connection attempt from svc_backup to 10.0.0.1
-02:30:01 [CRIT] FW-IT-OT: Connection attempt from svc_backup to 10.0.0.254
-
-CURRENT STATUS: ACTIVE ATTACK IN PROGRESS!
-ATTACKER POSITION: IT Network, attempting OT access!
-
-# Angreifer versucht gerade ins OT-Netz zu kommen!`,
-          skillGain: { security: 5, softSkills: 4 },
-          isSolution: true,
-        },
-        {
-          pattern: 'block',
-          patternRegex: 'block.*svc_backup|disable.*account',
-          output: `=== Emergency Account Disable ===
-Disabling account: svc_backup
-Status: DISABLED
-
-Checking for active sessions...
-Active sessions found: 3
-  - FS01: terminated
-  - AD-DC01: terminated
-  - VPN-GW: terminated
-
-All sessions terminated.
-Account locked.
-
-# Angreifer-Konto ist gesperrt!`,
-          skillGain: { security: 4, softSkills: 3 },
-          isSolution: true,
-        },
-        {
-          pattern: 'isolate',
-          patternRegex: 'isolate.*ot|firewall.*block.*it-ot',
-          output: `=== IT/OT Network Isolation ===
-Activating emergency firewall rules on FW-IT-OT...
-
-Rules applied:
-- BLOCK all traffic from IT (192.168.x.x) to OT (10.0.0.x)
-- BLOCK all traffic from OT to IT
-- ALLOW only: Monitoring server (read-only)
-- ALLOW only: Engineering workstation (pre-authorized)
-
-Verification:
-  ping from IT to scada-master: BLOCKED ✓
-  ping from IT to plc-gateway: BLOCKED ✓
-
-OT NETWORK IS NOW ISOLATED!
-
-# IT/OT-Segmentierung aktiviert! OT ist geschützt.`,
-          skillGain: { security: 5, netzwerk: 4, softSkills: 5 },
-          isSolution: true,
-        },
-        {
-          pattern: 'check-ot',
-          patternRegex: 'check-ot|verify.*scada',
-          output: `=== OT Network Status Check ===
-Scanning OT network (10.0.0.0/24)...
-
-scada-master (10.0.0.1): ONLINE - No anomalies detected ✓
-plc-gateway (10.0.0.254): ONLINE - No anomalies detected ✓
-PLC01 (10.0.0.10): ONLINE - Normal operation ✓
-PLC02 (10.0.0.11): ONLINE - Normal operation ✓
-PLC03 (10.0.0.12): ONLINE - Normal operation ✓
-hmi-station (10.0.0.100): ONLINE - Normal operation ✓
-
-Last IT→OT connection attempt: 02:30:01 (BLOCKED)
-Successful IT→OT connections since 02:00: 0
-
-# OT-Netz ist sicher! Keine Kompromittierung!`,
-          skillGain: { security: 3, troubleshooting: 2 },
-        },
-        {
-          pattern: 'timeline',
-          patternRegex: 'timeline|attack-path',
-          output: `=== Attack Timeline Reconstruction ===
-
-02:15:00 - Initial Access
-  VPN-Gateway: Login with admin.extern credentials
-  Source IP: 185.243.xxx.xxx (VPN, Ukraine)
-  Note: Credentials likely phished or leaked
-
-02:18:00 - Privilege Escalation
-  NTLM Relay attack on AD-DC01
-  Gained Domain Admin privileges
-
-02:22:00 - Persistence
-  Created new admin account: svc_backup
-  Added to Domain Admins group
-
-02:25:00 - Discovery
-  Enumerated file shares on FS01
-  Downloaded: network_documentation.pdf, credentials.xlsx
-
-02:28:00 - Credential Harvesting
-  Executed Mimikatz on FS01
-  Dumped cached credentials
-
-02:30:00 - Lateral Movement Attempt (BLOCKED)
-  Attempted access to OT network
-  Firewall blocked connection
-
-# Angriff kam über VPN mit gestohlenen Credentials!`,
-          skillGain: { security: 5, softSkills: 4 },
-          isSolution: true,
+          id: 'fs01',
+          hostname: 'fs01',
+          ip: '192.168.10.2',
+          accounts: [{ name: 'secops' }, { name: 'root' }],
+          vfsOverlay: {
+            directories: [
+              '/home/secops/.ssh', '/home/svc-backup/.ssh',
+              '/home/dienst-sicherung/.ssh', '/srv/betrieb',
+            ],
+            files: [
+              { path: '/home/secops/.ssh/authorized_keys', content: LEITSTAND_PUBKEY + '\n' },
+              {
+                // Heute Nacht um 02:22 angelegt.
+                path: '/home/svc-backup/.ssh/authorized_keys',
+                content: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINachtschicht0000000000000000000001 svc@backup\n',
+                mode: '600',
+              },
+              {
+                // Seit 2019 im Dienst. Der Name sieht dem anderen zum
+                // Verwechseln ähnlich — genau darauf baut der Angreifer.
+                path: '/home/dienst-sicherung/.ssh/authorized_keys',
+                content: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAISicherungBandroboter00000000000002 sicherung@bandroboter\n',
+                mode: '600',
+              },
+              {
+                path: '/srv/betrieb/dienstkonten.txt',
+                content:
+                  '# Dienstkonten auf fs01 — gepflegt vom Betrieb\n' +
+                  '# kennung             angelegt      zweck\n' +
+                  'dienst-sicherung      04.09.2019    nächtliche Sicherung, Bandroboter, läuft 22:00\n' +
+                  'secops                12.01.2024    Administration\n' +
+                  '\n' +
+                  '# Diese Liste wird bei jeder Kontoanlage fortgeschrieben. Ein\n' +
+                  '# Konto, das hier NICHT steht, ist nicht vom Betrieb angelegt\n' +
+                  '# worden — egal wie plausibel sein Name klingt.\n',
+              },
+            ],
+          },
+          journal: [
+            { ts: '2026-03-14 02:22:13', unit: 'useradd', priority: 'warning', message: 'new user: name=svc-backup, UID=1042, GID=1042, home=/home/svc-backup' },
+            { ts: '2026-03-14 02:22:41', unit: 'sshd', message: 'Accepted publickey for svc-backup from 192.168.1.10 port 51188 ssh2' },
+            { ts: '2026-03-14 02:25:02', unit: 'smbd', priority: 'warning', message: 'svc-backup: enumerated 412 shares in 3s' },
+          ],
         },
       ],
+      commandSkillGain: {
+        cat: { linux: 1 },
+        ssh: { linux: 2, security: 1 },
+        rm: { linux: 1, security: 2 },
+        echo: { linux: 1 },
+      },
+      commands: [],
       solutions: [
         {
-          commands: ['show-alerts', 'isolate', 'block'],
+          commands: [],
           allRequired: false,
-          resultText: 'Exzellente Incident Response! Du hast den Angreifer identifiziert, das OT-Netz isoliert, und die kompromittierten Konten gesperrt. Zeit für forensische Analyse und BSI-Meldung.',
-          skillGain: { security: 7, softSkills: 7, netzwerk: 4 },
-          effects: {},
+          stateGoals: [
+            { fileRead: '/var/log/siem/alarme-2026-03-14.log' },
+            // Die Betriebsliste ist der einzige Unterschied zwischen den
+            // beiden Konten — ohne sie ist die Wahl ein Münzwurf.
+            { host: 'fs01', fileRead: '/srv/betrieb/dienstkonten.txt' },
+            { host: 'fs01', file: '/home/svc-backup/.ssh/authorized_keys', fileAbsent: true },
+            // Und die bewahrende Bedingung: Die Sicherung fährt um 22:00.
+            { host: 'fs01', file: '/home/dienst-sicherung/.ssh/authorized_keys', fileExists: true },
+            {
+              file: '/home/secops/lagemeldung.md',
+              reportFields: [
+                { key: 'einstieg', matches: '^vpn$' },
+                { key: 'konto', matches: '^svc-backup$' },
+                // Die Meldungen sagen es ausdrücklich: abgewiesen, und keine
+                // erfolgreiche Verbindung seit Mitternacht. „ja" zu melden,
+                // weil es knapp war, ist eine Falschmeldung an die Aufsicht.
+                { key: 'ot_erreicht', matches: '^nein$' },
+              ],
+            },
+          ],
+          resultText:
+            'Richtig zugegriffen — und zwar beim richtigen Konto. Auf fs01 lagen zwei mit fast demselben Namen: svc-backup hat der Angreifer um 02:22 angelegt, dienst-sicherung fährt seit 2019 die nächtliche Sicherung. Der Unterschied steht nirgends im Namen, er steht in der Betriebsliste. Wer unter Zeitdruck nach dem greift, was nach Angreifer aussieht, hat um 22:00 ein zweites Problem und den Angreifer immer noch drin.\n\nDer Einstieg war kein Exploit: Um 02:15 hat sich jemand mit gültigen Zugangsdaten eines Dienstleisters angemeldet, die seit November nicht mehr benutzt wurden. Das ist der häufigste Weg herein, und er hinterlässt keine Spur, die nach Angriff aussieht — nur eine Anmeldung zur falschen Zeit.\n\nUnd die Meldung, die du der Aufsicht schuldest, ist die nüchterne: Das OT-Netz wurde NICHT erreicht. Zwei Versuche um 02:30, beide abgewiesen, keine erfolgreiche Verbindung seit Mitternacht. „Wir wissen es nicht" oder „vermutlich ja" wäre hier bequemer und falsch — die Grenze hat gehalten, und das gehört ins Protokoll, weil es die nächste Investitionsentscheidung trägt.',
+          skillGain: { security: 8, softSkills: 5, netzwerk: 3 },
+          effects: { stress: 2 },
         },
       ],
       hints: [
-        'Tipp: Verschaff dir erst ein Lagebild — welche verdächtige Aktivität läuft gerade? Wirf einen Blick in die aktuellen Alerts.',
-        'Tipp: Das OT-Netz muss isoliert werden! Nutz die IT/OT-Firewall, um die Ausbreitung zu stoppen — und sperr die kompromittierten Konten.',
-        'Tipp: Konkret bekommst du die Aktivität mit show-alerts oder tail -f alerts.log angezeigt.',
+        '🤖 Jens: Erst lesen, dann kappen. Die Meldungen der Nacht stehen vollständig in einer Datei — darin steht auch, wie er hereingekommen ist und ob er drüben war.',
+        '🤖 Jens: Auf fs01 liegen zwei Konten, deren Namen beide nach Sicherung klingen. Eines davon fährt heute Nacht um 22:00 die Bandsicherung. Rate nicht — der Betrieb führt eine Liste unter /srv/betrieb.',
+        '🤖 Jens: Den Zugang nimmst du, indem du den hinterlegten Schlüssel entfernst. Dafür brauchst du sudo, und du musst dafür auf die Maschine.',
+        '🤖 Jens: Konkret: `cat /var/log/siem/alarme-2026-03-14.log` → `ssh fs01` → `cat /srv/betrieb/dienstkonten.txt` → `sudo rm -f /home/svc-backup/.ssh/authorized_keys` → `exit` → `echo "einstieg: vpn" > /home/secops/lagemeldung.md` → `echo "konto: svc-backup" >> /home/secops/lagemeldung.md` → `echo "ot_erreicht: nein" >> /home/secops/lagemeldung.md`.',
       ],
     },
   },
-
-  // ============================================
-  // ADDITIONAL TROUBLESHOOTING SCENARIOS
-  // ============================================
   {
     id: 'KRITIS-SC-012',
     title: 'DNS-Auflösung funktioniert nicht mehr',
